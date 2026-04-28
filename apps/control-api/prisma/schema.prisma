@@ -38,6 +38,10 @@ model Tenant {
   modelApiKeys ModelApiKey[]
   modelCostRules ModelCostRule[]
   modelCallLogs ModelCallLog[]
+  promptTemplates PromptTemplate[]
+  promptVersions PromptVersion[]
+  promptVariables PromptVariable[]
+  promptTestRecords PromptTestRecord[]
 
   @@index([status])
   @@index([createdAt])
@@ -67,6 +71,9 @@ model User {
   ownedAgents Agent[] @relation("AgentOwner")
   createdAgentVersions AgentVersion[] @relation("AgentVersionCreator")
   agentAuditLogs AgentAuditLog[] @relation("AgentAuditOperator")
+  ownedPromptTemplates PromptTemplate[] @relation("PromptTemplateOwner")
+  createdPromptVersions PromptVersion[] @relation("PromptVersionCreator")
+  promptTestRecords PromptTestRecord[] @relation("PromptTestOperator")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -507,6 +514,7 @@ model ModelProvider {
   apiKeys      ModelApiKey[]
   costRules    ModelCostRule[]
   callLogs     ModelCallLog[]
+  promptTestRecords PromptTestRecord[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -541,6 +549,7 @@ model ModelConfig {
   provider       ModelProvider @relation(fields: [providerId], references: [id])
   costRules      ModelCostRule[]
   callLogs       ModelCallLog[]
+  promptTestRecords PromptTestRecord[]
 
   @@unique([tenantId, providerId, model])
   @@index([tenantId])
@@ -643,4 +652,125 @@ model ModelCallLog {
   @@index([status])
   @@index([createdAt])
   @@map("model_call_log")
+}
+
+model PromptTemplate {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  ownerId     String?   @map("owner_id") @db.Uuid
+  name        String    @db.VarChar(160)
+  code        String    @db.VarChar(100)
+  type        String    @default("SYSTEM") @db.VarChar(30)
+  status      String    @default("DRAFT") @db.VarChar(30)
+  version     Int       @default(0)
+  description String?   @db.Text
+  content     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  owner       User?     @relation("PromptTemplateOwner", fields: [ownerId], references: [id])
+  versions    PromptVersion[]
+  variables   PromptVariable[]
+  testRecords PromptTestRecord[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("prompt_template")
+}
+
+model PromptVersion {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  templateId  String    @map("template_id") @db.Uuid
+  version     Int
+  status      String    @default("PUBLISHED") @db.VarChar(30)
+  snapshot    Json
+  content     String    @db.Text
+  changeNote  String?   @map("change_note") @db.Text
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  template    PromptTemplate @relation(fields: [templateId], references: [id])
+  creator     User?     @relation("PromptVersionCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, templateId, version])
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("prompt_version")
+}
+
+model PromptVariable {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  templateId   String    @map("template_id") @db.Uuid
+  name         String    @db.VarChar(100)
+  variableType String    @default("string") @map("variable_type") @db.VarChar(30)
+  defaultValue String?   @map("default_value") @db.Text
+  isRequired   Boolean   @default(false) @map("is_required")
+  description  String?   @db.Text
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  template     PromptTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([tenantId, templateId, name])
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([name])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("prompt_variable")
+}
+
+model PromptTestRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  templateId      String   @map("template_id") @db.Uuid
+  version         Int?
+  modelProviderId String?  @map("model_provider_id") @db.Uuid
+  modelConfigId   String?  @map("model_config_id") @db.Uuid
+  inputs          Json
+  renderedContent String   @map("rendered_content") @db.Text
+  status          String   @db.VarChar(30)
+  latencyMs       Int      @default(0) @map("latency_ms")
+  outputText      String?  @map("output_text") @db.Text
+  errorMessage    String?  @map("error_message") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  createdBy       String?  @map("created_by") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  template        PromptTemplate @relation(fields: [templateId], references: [id])
+  modelProvider   ModelProvider? @relation(fields: [modelProviderId], references: [id])
+  modelConfig     ModelConfig? @relation(fields: [modelConfigId], references: [id])
+  operator        User?    @relation("PromptTestOperator", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([modelProviderId])
+  @@index([modelConfigId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("prompt_test_record")
 }

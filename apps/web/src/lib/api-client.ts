@@ -14,11 +14,23 @@ import type {
   ModelProviderDetail,
   ModelProviderListItem,
   PaginatedResult,
+  PromptTemplateDetail,
+  PromptTemplateListItem,
+  PublishPromptInput,
+  RenderPromptInput,
+  RenderPromptResult,
   RollbackAgentInput,
+  RollbackPromptInput,
   TenantListItem,
+  TestPromptInput,
+  TestPromptResult,
   TestModelProviderInput,
   TestModelProviderResult,
   UpdateAgentInput,
+  CreatePromptTemplateInput,
+  CreatePromptVariableInput,
+  UpdatePromptTemplateInput,
+  UpdatePromptVariableInput,
   UpdateModelConfigInput,
   UpdateModelProviderInput,
   UpdateUserInput,
@@ -335,6 +347,95 @@ export function enableModelConfig(modelId: string) {
 export function disableModelConfig(modelId: string) {
   return request<ModelProviderDetail>(`/models/${modelId}/disable`, {
     method: 'POST',
+  });
+}
+
+export function listPromptTemplates(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  type?: string;
+  status?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<PromptTemplateListItem>>(`/prompt-templates?${toSearchParams(params)}`);
+}
+
+export function createPromptTemplate(input: CreatePromptTemplateInput) {
+  return request<PromptTemplateDetail>('/prompt-templates', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getPromptTemplate(promptId: string) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}`);
+}
+
+export function updatePromptTemplate(promptId: string, input: UpdatePromptTemplateInput) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deletePromptTemplate(promptId: string) {
+  return request<{ success: boolean }>(`/prompt-templates/${promptId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function copyPromptTemplate(promptId: string) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/copy`, {
+    method: 'POST',
+  });
+}
+
+export function publishPromptTemplate(promptId: string, input: PublishPromptInput) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/publish`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rollbackPromptTemplate(promptId: string, input: RollbackPromptInput) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/rollback`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function renderPromptTemplate(promptId: string, input: RenderPromptInput) {
+  return request<RenderPromptResult>(`/prompt-templates/${promptId}/render`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function testPromptTemplate(promptId: string, input: TestPromptInput) {
+  return request<TestPromptResult>(`/prompt-templates/${promptId}/test`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function createPromptVariable(promptId: string, input: CreatePromptVariableInput) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/variables`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updatePromptVariable(promptId: string, variableId: string, input: UpdatePromptVariableInput) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/variables/${variableId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deletePromptVariable(promptId: string, variableId: string) {
+  return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/variables/${variableId}`, {
+    method: 'DELETE',
   });
 }
 

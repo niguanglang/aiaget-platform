@@ -342,3 +342,157 @@ export interface TestModelProviderResult {
   output_text: string;
   error_message: string | null;
 }
+
+export type PromptStatus = 'DRAFT' | 'PUBLISHED' | 'DISABLED' | 'ARCHIVED';
+export type PromptType = 'SYSTEM' | 'USER' | 'ASSISTANT' | 'TOOL';
+export type PromptVariableType = 'string' | 'number' | 'boolean' | 'json';
+export type PromptTestStatus = 'SUCCESS' | 'FAILED';
+
+export interface PromptOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface PromptVariableItem {
+  id: string;
+  name: string;
+  variable_type: PromptVariableType;
+  default_value: string | null;
+  required: boolean;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptVersionItem {
+  id: string;
+  version: number;
+  status: PromptStatus;
+  change_note: string | null;
+  published_at: string | null;
+  created_at: string;
+  created_by: PromptOwnerSummary | null;
+}
+
+export interface PromptTestRecordItem {
+  id: string;
+  version: number | null;
+  status: PromptTestStatus;
+  rendered_content: string;
+  output_text: string | null;
+  latency_ms: number;
+  error_message: string | null;
+  created_at: string;
+  created_by: PromptOwnerSummary | null;
+}
+
+export interface PromptAgentReferenceItem {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_code: string;
+  prompt_type: string;
+  created_at: string;
+}
+
+export interface PromptTemplateListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  type: PromptType;
+  status: PromptStatus;
+  version: number;
+  description: string | null;
+  content_preview: string;
+  owner: PromptOwnerSummary | null;
+  variable_count: number;
+  test_count: number;
+  agent_reference_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptTemplateDetail extends PromptTemplateListItem {
+  content: string;
+  variables: PromptVariableItem[];
+  versions: PromptVersionItem[];
+  test_records: PromptTestRecordItem[];
+  agent_references: PromptAgentReferenceItem[];
+  audit_records: Array<{
+    id: string;
+    action: string;
+    message: string;
+    created_at: string;
+    operator: PromptOwnerSummary | null;
+  }>;
+}
+
+export interface CreatePromptTemplateInput {
+  name: string;
+  code: string;
+  type: PromptType;
+  content: string;
+  description?: string | null;
+  owner_id?: string | null;
+}
+
+export interface UpdatePromptTemplateInput {
+  name?: string;
+  type?: PromptType;
+  status?: PromptStatus;
+  content?: string;
+  description?: string | null;
+  owner_id?: string | null;
+}
+
+export interface CreatePromptVariableInput {
+  name: string;
+  variable_type: PromptVariableType;
+  default_value?: string | null;
+  required?: boolean;
+  description?: string | null;
+  sort_order?: number;
+}
+
+export interface UpdatePromptVariableInput {
+  name?: string;
+  variable_type?: PromptVariableType;
+  default_value?: string | null;
+  required?: boolean;
+  description?: string | null;
+  sort_order?: number;
+}
+
+export interface PublishPromptInput {
+  change_note?: string | null;
+}
+
+export interface RollbackPromptInput {
+  version: number;
+}
+
+export interface RenderPromptInput {
+  inputs: Record<string, unknown>;
+}
+
+export interface RenderPromptResult {
+  rendered_content: string;
+  missing_variables: string[];
+}
+
+export interface TestPromptInput {
+  inputs: Record<string, unknown>;
+  model_provider_id?: string | null;
+  model_config_id?: string | null;
+}
+
+export interface TestPromptResult extends RenderPromptResult {
+  id: string;
+  status: PromptTestStatus;
+  output_text: string | null;
+  latency_ms: number;
+  error_message: string | null;
+}

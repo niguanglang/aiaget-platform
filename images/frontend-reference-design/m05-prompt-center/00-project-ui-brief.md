@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M05 Prompt Center
+- Route: `/prompts`, `/prompts/[id]`
+- Feature goal: Tenant-scoped prompt template, variable, version, render test, model test, rollback, and agent reference management
+- Target users and permissions: authenticated tenant users with `prompt.read` for list/detail and `prompt.write` for create/edit/delete/publish/rollback/test. Tenant admin bypass remains from the RBAC guard.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, React Hook Form, Zod, Tailwind CSS.
+  - Existing shadcn-style components: `Button`, `MetricCard`, `StatusBadge`, `Card`, `Input`, `EmptyState`.
+  - Existing product patterns from M03/M04: table + detail panel, drawer forms, confirmation modal, status chips, Motion micro-interactions.
+  - `Monaco Editor` is listed in the target stack but not installed yet; M05 first implementation uses a structured textarea editor with a Monaco-compatible component boundary.
+- Backend APIs to implement:
+  - `GET /api/v1/prompt-templates`
+  - `POST /api/v1/prompt-templates`
+  - `GET /api/v1/prompt-templates/:id`
+  - `PATCH /api/v1/prompt-templates/:id`
+  - `DELETE /api/v1/prompt-templates/:id`
+  - `POST /api/v1/prompt-templates/:id/copy`
+  - `POST /api/v1/prompt-templates/:id/publish`
+  - `POST /api/v1/prompt-templates/:id/rollback`
+  - `POST /api/v1/prompt-templates/:id/render`
+  - `POST /api/v1/prompt-templates/:id/test`
+  - `POST /api/v1/prompt-templates/:id/variables`
+  - `PATCH /api/v1/prompt-templates/:id/variables/:variableId`
+  - `DELETE /api/v1/prompt-templates/:id/variables/:variableId`
+- Data entities and fields:
+  - PromptTemplate: `id`, `tenant_id`, `name`, `code`, `type`, `status`, `version`, `description`, `content`, `owner`, timestamps.
+  - PromptVariable: `name`, `variable_type`, `default_value`, `required`, `description`, `sort_order`.
+  - PromptVersion: immutable `version`, `status`, `snapshot`, `change_note`, `published_at`, creator.
+  - PromptTestRecord: `inputs`, `rendered_content`, `status`, `latency_ms`, `error_message`, `model_config`, timestamps.
+  - Agent references: derived from `agent_prompt_binding` records where M03 binding table exists.
+- Required frontend states:
+  - List loading, empty, error, filters, permission-disabled actions.
+  - Template create/edit validation, variable create/edit/delete validation, delete confirmation.
+  - Detail loading/error, render/test pending/success/error, version empty state, rollback disabled states.
+- Visual constraints from user:
+  - Tailwind responsive Dashboard/Bento layout, clear hierarchy and generous whitespace.
+  - Thin borders, light shadows, glass/backdrop blur, subtle noise/mesh texture.
+  - Motion micro-interactions only: hover feedback, stagger reveal, smooth transitions.
+  - Optional ambient spatial background must not compete with editor/table content.
+  - No emoji, no cheap glow, no overdone gradients, no over-rounded blob piles, no overloaded layout.

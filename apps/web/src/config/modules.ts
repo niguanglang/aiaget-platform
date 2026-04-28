@@ -64,7 +64,7 @@ export const moduleSpecs: ModuleSpec[] = [
     href: '/prompts',
     description: 'Manage prompt templates, variables, versions, tests, rollback, and agent references.',
     permission: 'prompt.read',
-    status: 'planned',
+    status: 'ready',
     primaryAction: 'New Prompt',
     metrics: [
       { label: 'Templates', value: '0', helper: 'M05 data source' },
@@ -85,7 +85,7 @@ export const moduleSpecs: ModuleSpec[] = [
     ],
     rowActions: ['Edit', 'Copy', 'Publish', 'Rollback', 'Delete', 'Test'],
     emptyTitle: 'No prompt templates yet',
-    emptyDescription: 'M05 will add prompt variable schema validation and render testing.',
+    emptyDescription: 'Create prompt templates, variables, immutable versions, render checks, and agent references.',
   },
   {
     key: 'models',

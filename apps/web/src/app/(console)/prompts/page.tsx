@@ -1,7 +1,5 @@
-import { ModulePageShell } from '@/components/modules/module-page-shell';
-import { requireModuleSpec } from '@/config/modules';
+import { PromptsContent } from '@/components/prompts/prompts-content';
 
 export default function PromptsPage() {
-  return <ModulePageShell moduleSpec={requireModuleSpec('prompts')} />;
+  return <PromptsContent />;
 }
-

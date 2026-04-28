@@ -2,7 +2,7 @@
 
 Enterprise Agent Platform is a private-deployable platform for managing agents, models, prompts, knowledge bases, tools, conversations, audit logs, and runtime observability.
 
-This repository is currently at **M04: Model Center**. It contains the monorepo foundation, protected Web Console shell, real JWT authentication, tenant context, user CRUD, RBAC foundation, login logs, operation logs, tenant-scoped Agent configuration with versioned publish workflows, and model provider/configuration management with masked API keys and call logs.
+This repository is currently at **M05: Prompt Center**. It contains the monorepo foundation, protected Web Console shell, real JWT authentication, tenant context, user CRUD, RBAC foundation, login logs, operation logs, tenant-scoped Agent configuration with versioned publish workflows, model provider/configuration management with masked API keys and call logs, and prompt template management with variables, versions, rollback, render checks, and test records.
 
 ## Workspace
 
@@ -139,6 +139,19 @@ PATCH /api/v1/models/:id
 DELETE /api/v1/models/:id
 POST /api/v1/models/:id/disable
 POST /api/v1/models/:id/enable
+GET  /api/v1/prompt-templates
+POST /api/v1/prompt-templates
+GET  /api/v1/prompt-templates/:id
+PATCH /api/v1/prompt-templates/:id
+DELETE /api/v1/prompt-templates/:id
+POST /api/v1/prompt-templates/:id/copy
+POST /api/v1/prompt-templates/:id/publish
+POST /api/v1/prompt-templates/:id/rollback
+POST /api/v1/prompt-templates/:id/render
+POST /api/v1/prompt-templates/:id/test
+POST /api/v1/prompt-templates/:id/variables
+PATCH /api/v1/prompt-templates/:id/variables/:variableId
+DELETE /api/v1/prompt-templates/:id/variables/:variableId
 ```
 
 ## Frontend Reference Design
@@ -151,6 +164,7 @@ images/frontend-reference-design/m01-console-foundation/
 images/frontend-reference-design/m02-auth-tenant-user/
 images/frontend-reference-design/m03-agent-configuration-center/
 images/frontend-reference-design/m04-model-center/
+images/frontend-reference-design/m05-prompt-center/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

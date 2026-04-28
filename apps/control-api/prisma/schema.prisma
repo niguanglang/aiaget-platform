@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique @db.VarChar(80)
+  name          String         @db.VarChar(160)
+  status        String         @default("ACTIVE") @db.VarChar(30)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  createdBy     String?        @map("created_by") @db.Uuid
+  updatedBy     String?        @map("updated_by") @db.Uuid
+  users         User[]
+  roles         Role[]
+  permissions   Permission[]
+  apiKeys       ApiKey[]
+  loginLogs     LoginLog[]
+  operationLogs OperationLog[]
+  refreshTokens RefreshToken[]
+  agentCategories AgentCategory[]
+  agents Agent[]
+  agentVersions AgentVersion[]
+  agentModelBindings AgentModelBinding[]
+  agentPromptBindings AgentPromptBinding[]
+  agentKnowledgeBindings AgentKnowledgeBinding[]
+  agentToolBindings AgentToolBinding[]
+  agentPublishChannels AgentPublishChannel[]
+  agentAuditLogs AgentAuditLog[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("tenant")
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  email         String         @db.VarChar(180)
+  name          String         @db.VarChar(120)
+  passwordHash  String         @map("password_hash") @db.VarChar(255)
+  status        String         @default("ACTIVE") @db.VarChar(30)
+  lastLoginAt   DateTime?      @map("last_login_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  createdBy     String?        @map("created_by") @db.Uuid
+  updatedBy     String?        @map("updated_by") @db.Uuid
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  userRoles     UserRole[]
+  loginLogs     LoginLog[]
+  operationLogs OperationLog[]
+  refreshTokens RefreshToken[]
+  ownedAgents Agent[] @relation("AgentOwner")
+  createdAgentVersions AgentVersion[] @relation("AgentVersionCreator")
+  agentAuditLogs AgentAuditLog[] @relation("AgentAuditOperator")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("user")
+}
+
+model Role {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  code            String           @db.VarChar(80)
+  name            String           @db.VarChar(120)
+  description     String?          @db.Text
+  isSystem        Boolean          @default(false) @map("is_system")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  createdBy       String?          @map("created_by") @db.Uuid
+  updatedBy       String?          @map("updated_by") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("role")
+}
+
+model Permission {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  code            String           @db.VarChar(120)
+  name            String           @db.VarChar(160)
+  module          String           @db.VarChar(80)
+  action          String           @db.VarChar(80)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  createdBy       String?          @map("created_by") @db.Uuid
+  updatedBy       String?          @map("updated_by") @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([module])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("permission")
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([tenantId, userId, roleId])
+  @@index([tenantId, userId, roleId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("user_role")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+  createdBy    String?    @map("created_by") @db.Uuid
+  updatedBy    String?    @map("updated_by") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([tenantId, roleId, permissionId])
+  @@index([tenantId, roleId, permissionId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("role_permission")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  name       String    @db.VarChar(160)
+  keyPrefix  String    @map("key_prefix") @db.VarChar(30)
+  keyHash    String    @map("key_hash") @db.VarChar(255)
+  status     String    @default("ACTIVE") @db.VarChar(30)
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+  createdBy  String?   @map("created_by") @db.Uuid
+  updatedBy  String?   @map("updated_by") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("api_key")
+}
+
+model LoginLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  email        String   @db.VarChar(180)
+  status       String   @db.VarChar(30)
+  ip           String?  @db.VarChar(80)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  errorMessage String?  @map("error_message") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("login_log")
+}
+
+model OperationLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  module         String   @db.VarChar(80)
+  action         String   @db.VarChar(80)
+  method         String   @db.VarChar(20)
+  path           String   @db.VarChar(500)
+  statusCode     Int      @map("status_code")
+  requestId      String   @map("request_id") @db.VarChar(120)
+  ip             String?  @db.VarChar(80)
+  userAgent      String?  @map("user_agent") @db.VarChar(500)
+  requestSummary Json?    @map("request_summary")
+  errorMessage   String?  @map("error_message") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  user           User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([requestId])
+  @@index([createdAt])
+  @@map("operation_log")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("refresh_token")
+}
+
+model AgentCategory {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String    @db.VarChar(120)
+  code        String    @db.VarChar(80)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agents      Agent[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_category")
+}
+
+model Agent {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  categoryId       String?   @map("category_id") @db.Uuid
+  ownerId          String?   @map("owner_id") @db.Uuid
+  name             String    @db.VarChar(160)
+  code             String    @db.VarChar(100)
+  description      String?   @db.Text
+  avatarUrl        String?   @map("avatar_url") @db.VarChar(500)
+  status           String    @default("DRAFT") @db.VarChar(30)
+  version          Int       @default(0)
+  temperature      Decimal   @default(0.7) @db.Decimal(4, 2)
+  maxContextTokens Int       @default(4096) @map("max_context_tokens")
+  enableStream     Boolean   @default(true) @map("enable_stream")
+  enableLog        Boolean   @default(true) @map("enable_log")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+  createdBy        String?   @map("created_by") @db.Uuid
+  updatedBy        String?   @map("updated_by") @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  category         AgentCategory? @relation(fields: [categoryId], references: [id])
+  owner            User?     @relation("AgentOwner", fields: [ownerId], references: [id])
+  versions         AgentVersion[]
+  modelBindings    AgentModelBinding[]
+  promptBindings   AgentPromptBinding[]
+  knowledgeBindings AgentKnowledgeBinding[]
+  toolBindings     AgentToolBinding[]
+  publishChannels  AgentPublishChannel[]
+  auditLogs        AgentAuditLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([categoryId])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent")
+}
+
+model AgentVersion {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  agentId     String    @map("agent_id") @db.Uuid
+  version     Int
+  status      String    @default("DRAFT") @db.VarChar(30)
+  snapshot    Json
+  changeNote  String?   @map("change_note") @db.Text
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  creator     User?     @relation("AgentVersionCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, agentId, version])
+  @@index([tenantId])
+  @@index([tenantId, agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_version")
+}
+
+model AgentModelBinding {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  agentId     String    @map("agent_id") @db.Uuid
+  modelId     String    @map("model_id") @db.VarChar(120)
+  bindingType String    @default("DEFAULT") @map("binding_type") @db.VarChar(30)
+  weight      Int       @default(100)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agent       Agent     @relation(fields: [agentId], references: [id])
+
+  @@unique([tenantId, agentId, modelId, bindingType])
+  @@index([tenantId, agentId, modelId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_model_binding")
+}
+
+model AgentPromptBinding {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  agentId     String    @map("agent_id") @db.Uuid
+  promptId    String    @map("prompt_id") @db.VarChar(120)
+  promptType  String    @map("prompt_type") @db.VarChar(30)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agent       Agent     @relation(fields: [agentId], references: [id])
+
+  @@unique([tenantId, agentId, promptId, promptType])
+  @@index([tenantId, agentId, promptId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_prompt_binding")
+}
+
+model AgentKnowledgeBinding {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  agentId       String    @map("agent_id") @db.Uuid
+  knowledgeId   String    @map("knowledge_id") @db.VarChar(120)
+  weight        Int       @default(100)
+  recallTopK    Int       @default(5) @map("recall_top_k")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdBy     String?   @map("created_by") @db.Uuid
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  agent         Agent     @relation(fields: [agentId], references: [id])
+
+  @@unique([tenantId, agentId, knowledgeId])
+  @@index([tenantId, agentId, knowledgeId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_knowledge_binding")
+}
+
+model AgentToolBinding {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  agentId         String    @map("agent_id") @db.Uuid
+  toolId          String    @map("tool_id") @db.VarChar(120)
+  requireApproval Boolean   @default(false) @map("require_approval")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  agent           Agent     @relation(fields: [agentId], references: [id])
+
+  @@unique([tenantId, agentId, toolId])
+  @@index([tenantId, agentId, toolId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_tool_binding")
+}
+
+model AgentPublishChannel {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  agentId     String    @map("agent_id") @db.Uuid
+  channel     String    @db.VarChar(80)
+  status      String    @default("ACTIVE") @db.VarChar(30)
+  config      Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agent       Agent     @relation(fields: [agentId], references: [id])
+
+  @@unique([tenantId, agentId, channel])
+  @@index([tenantId, agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_publish_channel")
+}
+
+model AgentAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  agentId   String   @map("agent_id") @db.Uuid
+  action    String   @db.VarChar(80)
+  message   String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  operator  User?    @relation("AgentAuditOperator", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, agentId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("agent_audit_log")
+}

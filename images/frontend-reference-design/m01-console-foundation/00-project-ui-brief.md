@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M01 Console Foundation
+- Route: `/login`, `/dashboard`, `/agents`, `/prompts`, `/models`, `/knowledge`, `/tools`, `/conversations`, `/monitor`, `/audit`, `/settings`
+- Feature goal: build the first usable enterprise console shell with demo login, route protection, config-driven navigation, API client token injection, service health checks, and dashboard skeletons.
+- Target users and permissions: enterprise tenant administrators, platform operators, and agent builders. M01 uses a local demo session because real JWT/RBAC lands in M02. Navigation must be config-driven so M02 can filter by role/permission.
+- APIs/services:
+  - Control Plane: `GET /api/v1/health`
+  - Control Plane Runtime proxy: `GET /api/v1/runtime/health`
+  - Runtime direct contract remains available for service verification: `GET /runtime/health`
+- Data entities and fields:
+  - `HealthResponse`: `service`, `status`, `timestamp`, `version`
+  - `ConsoleNavItem`: `title`, `href`, `icon`, `description`, `permission`
+  - Demo session: `accessToken`, `user.name`, `user.email`, `tenant.name`, `expiresAt`
+- Status values/enums: health statuses `healthy`, `degraded`, `unavailable`; module statuses `planned`, `ready`, `mock`
+- Available components and UI library: Next.js App Router, React, TypeScript, Tailwind CSS 4, shadcn/ui-compatible `Button`, CSS variables, lucide-react icons. New M01 shared components should remain small and reusable.
+- Required states and actions:
+  - Login: validation errors, disabled submit, demo success
+  - Protected routes: loading session, redirect to login, authenticated shell
+  - Dashboard: health loading, refresh, error/degraded/unavailable, last updated
+  - Module pages: title, main action disabled/planned, metrics, filters, table shell, empty state, detail placeholder
+- Constraints:
+  - Frontend should call Control Plane for platform data; runtime health is surfaced through the Control API proxy in UI.
+  - No business CRUD implementation in M01; page skeletons must make future list/detail/CRUD fields explicit without pretending data exists.
+  - Enterprise SaaS admin style: left nav, top bar, compact tables, white surface, restrained blue primary color, clear status badges, no marketing page.

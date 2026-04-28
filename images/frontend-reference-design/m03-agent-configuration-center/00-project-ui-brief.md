@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M03 Agent Configuration Center
+- Route: `/agents`, `/agents/[id]`
+- Feature goal: implement tenant-scoped Agent CRUD, detail configuration, category management seed, version snapshots, publish/rollback, disable/archive/delete, audit records, and session-test placeholder.
+- Target users and permissions: authenticated tenant users with `agent.read` for list/detail and `agent.write` for mutations. M02 seeded `tenant_admin` can use all actions.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` shell.
+  - TanStack Query provider.
+  - `Button`, `MetricCard`, `StatusBadge`.
+  - `SettingsContent` provides current form/table/modal patterns.
+  - API client already injects bearer token and `x-request-id`.
+- Backend APIs to implement:
+  - `GET /api/v1/agent-categories`
+  - `GET /api/v1/agents?page&page_size&keyword&status&category_id&owner_id`
+  - `POST /api/v1/agents`
+  - `GET /api/v1/agents/:id`
+  - `PATCH /api/v1/agents/:id`
+  - `DELETE /api/v1/agents/:id`
+  - `POST /api/v1/agents/:id/versions`
+  - `POST /api/v1/agents/:id/publish`
+  - `POST /api/v1/agents/:id/rollback`
+  - `POST /api/v1/agents/:id/disable`
+  - `POST /api/v1/agents/:id/archive`
+- Data entities and fields:
+  - Agent: `id`, `tenant_id`, `name`, `code`, `description`, `avatar_url`, `category`, `owner`, `status`, `version`, `temperature`, `max_context_tokens`, `enable_stream`, `enable_log`, `created_at`, `updated_at`
+  - AgentVersion: `id`, `version`, `status`, `snapshot`, `change_note`, `published_at`, `created_by`, `created_at`
+  - Bindings: model/prompt/knowledge/tool binding tables exist but M03 UI shows empty placeholders until M04-M07 provide resources.
+  - AgentAuditLog: `action`, `message`, `operator`, `created_at`, `metadata`
+- Required frontend states:
+  - List loading, empty, error, pagination-ready layout, filters, create/edit validation, delete confirmation.
+  - Detail loading/error, publish/rollback/disable/archive disabled states based on status, version empty state.
+  - Test chat placeholder must clearly say Runtime chat implementation lands in M08.
+- Constraints:
+  - No mock records pretending completed external resources.
+  - Version publish must create immutable snapshot.
+  - Delete is soft delete.
+  - All data scoped by `tenant_id`.

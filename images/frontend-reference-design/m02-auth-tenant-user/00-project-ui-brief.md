@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M02 Auth Tenant User
+- Route: `/login`, `/settings`
+- Feature goal: replace the M01 demo session with real JWT authentication, tenant context, RBAC guard, user CRUD, tenant list, login log, operation log, and API key foundation.
+- Target users and permissions: default tenant administrator seeded by backend. Users with `user.read`, `user.write`, `tenant.read`, and `settings.read` permissions can access Settings user management.
+- Existing frontend contract:
+  - Next.js App Router route group `(console)`.
+  - Current auth provider stores demo session in `localStorage`.
+  - Current API client injects `authorization` and `x-request-id`.
+  - Settings page currently uses generic `ModulePageShell`.
+  - UI primitives: `Button`, `MetricCard`, `StatusBadge`, Tailwind CSS, shadcn-compatible styling, lucide-react icons.
+- Backend APIs to implement:
+  - `POST /api/v1/auth/login`
+  - `POST /api/v1/auth/logout`
+  - `GET /api/v1/auth/me`
+  - `POST /api/v1/auth/refresh`
+  - `GET /api/v1/tenants`
+  - `GET /api/v1/users`
+  - `POST /api/v1/users`
+  - `PATCH /api/v1/users/:id`
+  - `DELETE /api/v1/users/:id`
+- Data entities and fields:
+  - Tenant: `id`, `code`, `name`, `status`, `created_at`, `updated_at`
+  - User: `id`, `tenant_id`, `email`, `name`, `status`, `last_login_at`, `created_at`, `updated_at`, `roles`
+  - Role: `id`, `tenant_id`, `code`, `name`, `description`, `is_system`
+  - Permission: `id`, `code`, `name`, `module`, `action`
+  - ApiKey: `id`, `tenant_id`, `name`, `key_prefix`, `status`, `expires_at`
+  - LoginLog: `id`, `tenant_id`, `user_id`, `email`, `status`, `ip`, `user_agent`, `created_at`
+  - OperationLog: `id`, `tenant_id`, `user_id`, `module`, `action`, `method`, `path`, `status_code`, `request_id`, `created_at`
+- Required frontend states:
+  - Login: loading, validation, invalid credentials, locked/disabled user, success redirect.
+  - Settings user list: loading, empty, error, create/edit form validation, delete confirmation, disabled self-delete, success feedback.
+  - Auth shell: loading `/auth/me`, expired access token, refresh success/failure, permission-denied placeholder.
+- Constraints:
+  - Frontend only calls Control API.
+  - Tokens are stored in localStorage for M02 demo deployability; later production hardening can move refresh tokens to httpOnly cookies.
+  - Lists must support pagination, keyword search, status filter, create, edit, soft delete, detail panel fields.

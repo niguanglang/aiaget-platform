@@ -1,0 +1,7 @@
+{
+  "name": "@aiaget/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.mjs"
+}
+

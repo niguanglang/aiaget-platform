@@ -1,0 +1,20 @@
+[project]
+name = "aiaget-agent-runtime"
+version = "0.1.0"
+description = "Agent Runtime service for the Enterprise Agent Platform"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.8.0",
+  "pydantic-settings>=2.4.0",
+  "redis>=5.0.0",
+  "qdrant-client>=1.10.0",
+  "opensearch-py>=2.6.0",
+  "temporalio>=1.7.0",
+  "opentelemetry-sdk>=1.25.0"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

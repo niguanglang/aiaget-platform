@@ -2,7 +2,7 @@
 
 Enterprise Agent Platform is a private-deployable platform for managing agents, models, prompts, knowledge bases, tools, conversations, audit logs, and runtime observability.
 
-This repository is currently at **M03: Agent Configuration Center**. It contains the monorepo foundation, protected Web Console shell, real JWT authentication, tenant context, user CRUD, RBAC foundation, login logs, operation logs, and tenant-scoped Agent configuration with versioned publish workflows.
+This repository is currently at **M04: Model Center**. It contains the monorepo foundation, protected Web Console shell, real JWT authentication, tenant context, user CRUD, RBAC foundation, login logs, operation logs, tenant-scoped Agent configuration with versioned publish workflows, and model provider/configuration management with masked API keys and call logs.
 
 ## Workspace
 
@@ -124,6 +124,21 @@ POST /api/v1/agents/:id/publish
 POST /api/v1/agents/:id/rollback
 POST /api/v1/agents/:id/disable
 POST /api/v1/agents/:id/archive
+GET  /api/v1/model-providers
+POST /api/v1/model-providers
+GET  /api/v1/model-providers/:id
+PATCH /api/v1/model-providers/:id
+DELETE /api/v1/model-providers/:id
+POST /api/v1/model-providers/:id/disable
+POST /api/v1/model-providers/:id/enable
+POST /api/v1/model-providers/:id/api-keys
+DELETE /api/v1/model-providers/:id/api-keys/:keyId
+POST /api/v1/model-providers/:id/test
+POST /api/v1/models
+PATCH /api/v1/models/:id
+DELETE /api/v1/models/:id
+POST /api/v1/models/:id/disable
+POST /api/v1/models/:id/enable
 ```
 
 ## Frontend Reference Design
@@ -135,6 +150,7 @@ images/frontend-reference-design/web-console-shell/
 images/frontend-reference-design/m01-console-foundation/
 images/frontend-reference-design/m02-auth-tenant-user/
 images/frontend-reference-design/m03-agent-configuration-center/
+images/frontend-reference-design/m04-model-center/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

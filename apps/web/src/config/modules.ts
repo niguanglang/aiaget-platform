@@ -94,7 +94,7 @@ export const moduleSpecs: ModuleSpec[] = [
     href: '/models',
     description: 'Manage providers, model configs, encrypted API keys, costs, rate limits, and call logs.',
     permission: 'model.read',
-    status: 'planned',
+    status: 'ready',
     primaryAction: 'New Provider',
     metrics: [
       { label: 'Providers', value: '0', helper: 'M04 data source' },
@@ -115,7 +115,7 @@ export const moduleSpecs: ModuleSpec[] = [
     ],
     rowActions: ['Edit', 'Disable', 'Delete', 'Test', 'Details'],
     emptyTitle: 'No model providers yet',
-    emptyDescription: 'M04 will add OpenAI-compatible provider configuration and call testing.',
+    emptyDescription: 'Configure OpenAI-compatible providers, masked keys, models, pricing, and call tests.',
   },
   {
     key: 'knowledge',

@@ -33,6 +33,11 @@ model Tenant {
   agentToolBindings AgentToolBinding[]
   agentPublishChannels AgentPublishChannel[]
   agentAuditLogs AgentAuditLog[]
+  modelProviders ModelProvider[]
+  modelConfigs ModelConfig[]
+  modelApiKeys ModelApiKey[]
+  modelCostRules ModelCostRule[]
+  modelCallLogs ModelCallLog[]
 
   @@index([status])
   @@index([createdAt])
@@ -480,4 +485,162 @@ model AgentAuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("agent_audit_log")
+}
+
+model ModelProvider {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  name         String    @db.VarChar(160)
+  code         String    @db.VarChar(100)
+  providerType String    @default("OPENAI_COMPATIBLE") @map("provider_type") @db.VarChar(60)
+  baseUrl      String    @map("base_url") @db.VarChar(500)
+  status       String    @default("ACTIVE") @db.VarChar(30)
+  isDefault    Boolean   @default(false) @map("is_default")
+  description  String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  models       ModelConfig[]
+  apiKeys      ModelApiKey[]
+  costRules    ModelCostRule[]
+  callLogs     ModelCallLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([providerType])
+  @@index([status])
+  @@index([isDefault])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("model_provider")
+}
+
+model ModelConfig {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  providerId     String    @map("provider_id") @db.Uuid
+  name           String    @db.VarChar(160)
+  model          String    @db.VarChar(160)
+  capabilities   String[]  @default([])
+  contextLength  Int       @default(8192) @map("context_length")
+  inputPrice     Decimal   @default(0) @map("input_price") @db.Decimal(12, 6)
+  outputPrice    Decimal   @default(0) @map("output_price") @db.Decimal(12, 6)
+  rateLimitRpm   Int?      @map("rate_limit_rpm")
+  status         String    @default("ACTIVE") @db.VarChar(30)
+  isDefault      Boolean   @default(false) @map("is_default")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  provider       ModelProvider @relation(fields: [providerId], references: [id])
+  costRules      ModelCostRule[]
+  callLogs       ModelCallLog[]
+
+  @@unique([tenantId, providerId, model])
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([status])
+  @@index([isDefault])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("model_config")
+}
+
+model ModelApiKey {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  providerId   String    @map("provider_id") @db.Uuid
+  name         String    @db.VarChar(160)
+  keyPrefix    String    @map("key_prefix") @db.VarChar(30)
+  maskedKey    String    @map("masked_key") @db.VarChar(120)
+  encryptedKey String    @map("encrypted_key") @db.Text
+  keyHash      String    @map("key_hash") @db.VarChar(255)
+  status       String    @default("ACTIVE") @db.VarChar(30)
+  lastUsedAt   DateTime? @map("last_used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  provider     ModelProvider @relation(fields: [providerId], references: [id])
+
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([status])
+  @@index([lastUsedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("model_api_key")
+}
+
+model ModelCostRule {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  providerId    String    @map("provider_id") @db.Uuid
+  modelConfigId String?   @map("model_config_id") @db.Uuid
+  currency      String    @default("USD") @db.VarChar(12)
+  inputPrice    Decimal   @default(0) @map("input_price") @db.Decimal(12, 6)
+  outputPrice   Decimal   @default(0) @map("output_price") @db.Decimal(12, 6)
+  unit          String    @default("1K_TOKENS") @db.VarChar(30)
+  status        String    @default("ACTIVE") @db.VarChar(30)
+  effectiveFrom DateTime  @default(now()) @map("effective_from")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdBy     String?   @map("created_by") @db.Uuid
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  provider      ModelProvider @relation(fields: [providerId], references: [id])
+  modelConfig   ModelConfig? @relation(fields: [modelConfigId], references: [id])
+
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([modelConfigId])
+  @@index([status])
+  @@index([effectiveFrom])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("model_cost_rule")
+}
+
+model ModelCallLog {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  providerId       String   @map("provider_id") @db.Uuid
+  modelConfigId    String?  @map("model_config_id") @db.Uuid
+  traceId          String   @map("trace_id") @db.VarChar(120)
+  requestModel     String   @map("request_model") @db.VarChar(160)
+  status           String   @db.VarChar(30)
+  promptTokens     Int      @default(0) @map("prompt_tokens")
+  completionTokens Int      @default(0) @map("completion_tokens")
+  totalTokens      Int      @default(0) @map("total_tokens")
+  inputCost        Decimal  @default(0) @map("input_cost") @db.Decimal(12, 6)
+  outputCost       Decimal  @default(0) @map("output_cost") @db.Decimal(12, 6)
+  totalCost        Decimal  @default(0) @map("total_cost") @db.Decimal(12, 6)
+  latencyMs        Int      @default(0) @map("latency_ms")
+  requestSummary   Json?    @map("request_summary")
+  responseSummary  Json?    @map("response_summary")
+  errorMessage     String?  @map("error_message") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  provider         ModelProvider @relation(fields: [providerId], references: [id])
+  modelConfig      ModelConfig? @relation(fields: [modelConfigId], references: [id])
+
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([modelConfigId])
+  @@index([traceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("model_call_log")
 }

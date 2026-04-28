@@ -2,16 +2,25 @@ import type {
   AgentCategoryItem,
   AgentDetail,
   AgentListItem,
+  CreateModelApiKeyInput,
+  CreateModelConfigInput,
+  CreateModelProviderInput,
   CreateUserInput,
   CreateAgentInput,
   CreateAgentVersionInput,
   CurrentUserResponse,
   HealthResponse,
   LoginResponse,
+  ModelProviderDetail,
+  ModelProviderListItem,
   PaginatedResult,
   RollbackAgentInput,
   TenantListItem,
+  TestModelProviderInput,
+  TestModelProviderResult,
   UpdateAgentInput,
+  UpdateModelConfigInput,
+  UpdateModelProviderInput,
   UpdateUserInput,
   UserListItem,
 } from '@aiaget/shared-types';
@@ -226,6 +235,105 @@ export function disableAgent(agentId: string) {
 
 export function archiveAgent(agentId: string) {
   return request<AgentDetail>(`/agents/${agentId}/archive`, {
+    method: 'POST',
+  });
+}
+
+export function listModelProviders(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  provider_type?: string;
+  status?: string;
+  capability?: string;
+}) {
+  return request<PaginatedResult<ModelProviderListItem>>(`/model-providers?${toSearchParams(params)}`);
+}
+
+export function createModelProvider(input: CreateModelProviderInput) {
+  return request<ModelProviderDetail>('/model-providers', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getModelProvider(providerId: string) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}`);
+}
+
+export function updateModelProvider(providerId: string, input: UpdateModelProviderInput) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteModelProvider(providerId: string) {
+  return request<{ success: boolean }>(`/model-providers/${providerId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function enableModelProvider(providerId: string) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableModelProvider(providerId: string) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function createModelApiKey(providerId: string, input: CreateModelApiKeyInput) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}/api-keys`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function deleteModelApiKey(providerId: string, keyId: string) {
+  return request<ModelProviderDetail>(`/model-providers/${providerId}/api-keys/${keyId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function testModelProvider(providerId: string, input: TestModelProviderInput) {
+  return request<TestModelProviderResult>(`/model-providers/${providerId}/test`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function createModelConfig(input: CreateModelConfigInput) {
+  return request<ModelProviderDetail>('/models', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateModelConfig(modelId: string, input: UpdateModelConfigInput) {
+  return request<ModelProviderDetail>(`/models/${modelId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteModelConfig(modelId: string) {
+  return request<{ success: boolean }>(`/models/${modelId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function enableModelConfig(modelId: string) {
+  return request<ModelProviderDetail>(`/models/${modelId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableModelConfig(modelId: string) {
+  return request<ModelProviderDetail>(`/models/${modelId}/disable`, {
     method: 'POST',
   });
 }

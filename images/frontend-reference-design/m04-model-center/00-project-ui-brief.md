@@ -1,0 +1,45 @@
+# Project UI Brief
+
+- Page: M04 Model Center
+- Route: `/models`
+- Feature goal: Tenant-scoped model provider, model config, masked API key, cost rule, rate limit, and call test management
+- Target users and permissions: authenticated tenant users with `model.read` for list/detail and `model.write` for provider/model/key/cost/test mutations. `tenant_admin` bypass remains available through the existing RBAC guard.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` shell.
+  - TanStack Query provider and browser-side API client with bearer token and `x-request-id`.
+  - Tailwind CSS tokens in `globals.css`.
+  - shadcn-style primitives currently available: `Button`, `MetricCard`, `StatusBadge`.
+  - Existing M03 list/detail/form patterns under `apps/web/src/components/agents`.
+- Backend APIs to implement:
+  - `GET /api/v1/model-providers`
+  - `POST /api/v1/model-providers`
+  - `GET /api/v1/model-providers/:id`
+  - `PATCH /api/v1/model-providers/:id`
+  - `DELETE /api/v1/model-providers/:id`
+  - `POST /api/v1/model-providers/:id/disable`
+  - `POST /api/v1/model-providers/:id/enable`
+  - `POST /api/v1/model-providers/:id/api-keys`
+  - `DELETE /api/v1/model-providers/:id/api-keys/:keyId`
+  - `POST /api/v1/model-providers/:id/test`
+  - `POST /api/v1/models`
+  - `PATCH /api/v1/models/:id`
+  - `DELETE /api/v1/models/:id`
+  - `POST /api/v1/models/:id/disable`
+  - `POST /api/v1/models/:id/enable`
+- Data entities and fields:
+  - ModelProvider: `id`, `tenant_id`, `name`, `code`, `provider_type`, `base_url`, `status`, `is_default`, `description`, `created_at`, `updated_at`.
+  - ModelConfig: `id`, `provider_id`, `name`, `model`, `capabilities`, `context_length`, `input_price`, `output_price`, `rate_limit_rpm`, `status`, `is_default`, timestamps.
+  - ModelApiKey: masked only: `id`, `name`, `key_prefix`, `masked_key`, `status`, `last_used_at`, `created_at`; raw key is write-only.
+  - ModelCostRule: `currency`, `input_price`, `output_price`, `unit`, `effective_from`.
+  - ModelCallLog: `trace_id`, `request_model`, `status`, `prompt_tokens`, `completion_tokens`, `total_cost`, `latency_ms`, `error_message`, `created_at`.
+- Required frontend states:
+  - List loading, empty, error, filter reset, permission-disabled actions.
+  - Create/edit provider validation, create/edit model validation, masked key creation and deletion.
+  - Test panel pending/success/error result, call log empty state.
+  - Soft delete confirmations.
+- Visual constraints from user:
+  - Tailwind responsive dashboard/Bento layout.
+  - Thin border, soft shadow, glass/backdrop blur, subtle noise/mesh texture.
+  - Motion micro interactions and restrained transitions.
+  - Optional Three.js/React Three Fiber ambient background that does not compete with product information.
+  - No emoji, no exaggerated glow, no crowded information density, no cheap template feel.

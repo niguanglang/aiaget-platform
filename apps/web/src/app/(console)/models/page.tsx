@@ -1,7 +1,5 @@
-import { ModulePageShell } from '@/components/modules/module-page-shell';
-import { requireModuleSpec } from '@/config/modules';
+import { ModelsContent } from '@/components/models/models-content';
 
 export default function ModelsPage() {
-  return <ModulePageShell moduleSpec={requireModuleSpec('models')} />;
+  return <ModelsContent />;
 }
-

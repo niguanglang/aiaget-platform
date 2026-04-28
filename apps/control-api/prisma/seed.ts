@@ -18,6 +18,7 @@ const permissions = [
   ['agent.write', 'Agent Write', 'agent', 'write'],
   ['prompt.read', 'Prompt Read', 'prompt', 'read'],
   ['model.read', 'Model Read', 'model', 'read'],
+  ['model.write', 'Model Write', 'model', 'write'],
   ['knowledge.read', 'Knowledge Read', 'knowledge', 'read'],
   ['tool.read', 'Tool Read', 'tool', 'read'],
   ['conversation.read', 'Conversation Read', 'conversation', 'read'],

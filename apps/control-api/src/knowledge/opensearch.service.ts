@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 
-const DEFAULT_OPENSEARCH_URL = 'http://127.0.0.1:9200';
 const DEFAULT_INDEX_PREFIX = 'aiaget_knowledge_segments';
 const REQUEST_TIMEOUT_MS = 3000;
 
@@ -34,12 +33,10 @@ export interface OpenSearchSearchResult {
 
 @Injectable()
 export class OpenSearchService {
-  private readonly baseUrl = trimTrailingSlash(process.env.OPENSEARCH_URL ?? DEFAULT_OPENSEARCH_URL);
+  private readonly baseUrl = trimTrailingSlash(requireEnv('OPENSEARCH_URL'));
   private readonly username = process.env.OPENSEARCH_USERNAME?.trim() || null;
   private readonly password = process.env.OPENSEARCH_PASSWORD?.trim() || null;
-  private readonly indexPrefix = sanitizeIndexName(
-    process.env.OPENSEARCH_INDEX_PREFIX ?? DEFAULT_INDEX_PREFIX,
-  );
+  private readonly indexPrefix = sanitizeIndexName(process.env.OPENSEARCH_INDEX_PREFIX ?? DEFAULT_INDEX_PREFIX);
   private readonly enabled = process.env.OPENSEARCH_ENABLED !== 'false' && Boolean(this.baseUrl);
   private readonly indexCache = new Set<string>();
 
@@ -306,6 +303,16 @@ export class OpenSearchService {
       clearTimeout(timeout);
     }
   }
+}
+
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required for OpenSearch configuration`);
+  }
+
+  return value;
 }
 
 class OpenSearchHttpError extends Error {

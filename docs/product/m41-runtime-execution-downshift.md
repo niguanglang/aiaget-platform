@@ -75,7 +75,7 @@ Runtime 已经主导执行顺序和步骤产出，但知识检索与工具调用
 ```text
 RUNTIME_BASE_URL=http://localhost:8000
 CONTROL_API_INTERNAL_BASE_URL=http://localhost:3001
-RUNTIME_INTERNAL_TOKEN=dev-runtime-internal-token
+RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 AGENT_RUNTIME_EXECUTION_MODE=runtime_first
 ```
 

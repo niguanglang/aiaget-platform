@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 
-const DEFAULT_QDRANT_URL = 'http://localhost:6333';
 const DEFAULT_COLLECTION_PREFIX = 'aiaget_knowledge_segments';
 const REQUEST_TIMEOUT_MS = 2500;
 
@@ -35,11 +34,9 @@ export interface QdrantWriteResult {
 
 @Injectable()
 export class QdrantService {
-  private readonly baseUrl = trimTrailingSlash(process.env.QDRANT_URL ?? DEFAULT_QDRANT_URL);
+  private readonly baseUrl = trimTrailingSlash(requireEnv('QDRANT_URL'));
   private readonly apiKey = process.env.QDRANT_API_KEY?.trim() || null;
-  private readonly collectionPrefix = sanitizeCollectionName(
-    process.env.QDRANT_COLLECTION_PREFIX ?? DEFAULT_COLLECTION_PREFIX,
-  );
+  private readonly collectionPrefix = sanitizeCollectionName(process.env.QDRANT_COLLECTION_PREFIX ?? DEFAULT_COLLECTION_PREFIX);
   private readonly enabled = process.env.QDRANT_ENABLED !== 'false' && Boolean(this.baseUrl);
   private readonly collectionCache = new Set<string>();
 
@@ -259,6 +256,16 @@ export class QdrantService {
       clearTimeout(timeout);
     }
   }
+}
+
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required for Qdrant configuration`);
+  }
+
+  return value;
 }
 
 class QdrantHttpError extends Error {

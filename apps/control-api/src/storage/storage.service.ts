@@ -28,8 +28,6 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import type { ListStorageObjectsDto } from './dto/list-storage-objects.dto';
 import type { UploadStorageObjectDto } from './dto/upload-storage-object.dto';
 
-const DEFAULT_ENDPOINT = 'http://localhost:9000';
-const DEFAULT_CONSOLE_URL = 'http://localhost:9001';
 const DEFAULT_BUCKET = 'aiaget-files';
 const DEFAULT_REGION = 'us-east-1';
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -37,12 +35,12 @@ const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
-  private readonly endpoint = process.env.MINIO_ENDPOINT ?? DEFAULT_ENDPOINT;
-  private readonly consoleUrl = process.env.MINIO_CONSOLE ?? DEFAULT_CONSOLE_URL;
-  private readonly accessKeyId = process.env.MINIO_ROOT_USER ?? 'minioadmin';
-  private readonly secretAccessKey = process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin_dev_password';
-  private readonly bucket = process.env.MINIO_BUCKET ?? DEFAULT_BUCKET;
-  private readonly region = process.env.MINIO_REGION ?? DEFAULT_REGION;
+  private readonly endpoint = requireEnv('MINIO_ENDPOINT');
+  private readonly consoleUrl = requireEnv('MINIO_CONSOLE');
+  private readonly accessKeyId = requireEnv('MINIO_ROOT_USER');
+  private readonly secretAccessKey = requireEnv('MINIO_ROOT_PASSWORD');
+  private readonly bucket = process.env.MINIO_BUCKET?.trim() || DEFAULT_BUCKET;
+  private readonly region = process.env.MINIO_REGION?.trim() || DEFAULT_REGION;
   private readonly forcePathStyle = true;
 
   constructor() {
@@ -249,6 +247,16 @@ export class StorageService {
       };
     }
   }
+}
+
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required for MinIO storage configuration`);
+  }
+
+  return value;
 }
 
 function buildTenantPrefix(tenantId: string) {

@@ -42,15 +42,15 @@ cp .env.example .env
 pnpm install
 pnpm lint
 pnpm typecheck
-docker compose -f deploy/docker-compose.yml config
 ```
 
 ## Run Services
 
-Start infrastructure:
+Use external PostgreSQL / MinIO / Qdrant / OpenSearch / Temporal first. Local container startup is optional and only available through the `local` compose profile. The local profile does not provide default middleware passwords, so review `.env` before starting it.
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d
+docker compose -f deploy/docker-compose.yml config
+docker compose -f deploy/docker-compose.yml --profile local up -d
 ```
 
 Apply Control API database migration and seed:

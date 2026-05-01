@@ -97,14 +97,14 @@ Control API：
 ```text
 KNOWLEDGE_WORKFLOW_MODE=local
 RUNTIME_BASE_URL=http://localhost:8000
-RUNTIME_INTERNAL_TOKEN=dev-runtime-internal-token
+RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 ```
 
 Runtime：
 
 ```text
 RUNTIME_CONTROL_API_BASE_URL=http://localhost:3001
-RUNTIME_INTERNAL_TOKEN=dev-runtime-internal-token
+RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 RUNTIME_TEMPORAL_ENABLED=false
 RUNTIME_TEMPORAL_ADDRESS=localhost:7233
 RUNTIME_TEMPORAL_NAMESPACE=default

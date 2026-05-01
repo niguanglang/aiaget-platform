@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import type { HealthResponse } from '@aiaget/shared-types';
-
-const DEFAULT_RUNTIME_BASE_URL = 'http://localhost:8000';
+import { requireEnv } from './common/env';
 
 @Injectable()
 export class RuntimeHealthService {
-  private readonly runtimeBaseUrl = process.env.RUNTIME_BASE_URL ?? DEFAULT_RUNTIME_BASE_URL;
+  private readonly runtimeBaseUrl = requireEnv('RUNTIME_BASE_URL');
 
   async getRuntimeHealth(): Promise<HealthResponse> {
     const runtimeHealthUrl = new URL('/runtime/health', this.runtimeBaseUrl);

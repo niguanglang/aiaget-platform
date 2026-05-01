@@ -29,10 +29,11 @@ import type {
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { requireEnv } from '../common/env';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ListMonitorEventsDto } from './dto/list-monitor-events.dto';
 
-const RUNTIME_BASE_URL = process.env.RUNTIME_BASE_URL ?? 'http://localhost:8000';
+const RUNTIME_BASE_URL = requireEnv('RUNTIME_BASE_URL');
 
 interface MonitorEventRecord extends MonitorEventListItem {
   error_message: string | null;

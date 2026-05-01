@@ -34,15 +34,16 @@ import {
   type ChatExecutionMessage,
 } from '../models/openai-compatible-client';
 import { ToolsService } from '../tools/tools.service';
+import { requireEnv } from '../common/env';
 import type { CreateConversationDto } from './dto/create-conversation.dto';
 import type { CreateConversationFeedbackDto } from './dto/create-conversation-feedback.dto';
 import type { ListConversationsDto } from './dto/list-conversations.dto';
 import type { SendConversationMessageDto } from './dto/send-conversation-message.dto';
 
-const RUNTIME_BASE_URL = process.env.RUNTIME_BASE_URL ?? 'http://localhost:8000';
+const RUNTIME_BASE_URL = requireEnv('RUNTIME_BASE_URL');
 const AGENT_RUNTIME_EXECUTION_MODE = process.env.AGENT_RUNTIME_EXECUTION_MODE ?? 'runtime_first';
-const CONTROL_API_INTERNAL_BASE_URL = process.env.CONTROL_API_INTERNAL_BASE_URL ?? 'http://localhost:3001';
-const RUNTIME_INTERNAL_TOKEN = process.env.RUNTIME_INTERNAL_TOKEN ?? 'dev-runtime-internal-token';
+const CONTROL_API_INTERNAL_BASE_URL = requireEnv('CONTROL_API_INTERNAL_BASE_URL');
+const RUNTIME_INTERNAL_TOKEN = requireEnv('RUNTIME_INTERNAL_TOKEN');
 
 const conversationListInclude = {
   agent: true,

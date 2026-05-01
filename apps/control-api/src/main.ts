@@ -6,13 +6,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 
 import { AppModule } from './app.module';
-
-const DEFAULT_CORS_ORIGIN = 'http://localhost:3000';
+import { requireEnv } from './common/env';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = Number(process.env.CONTROL_API_PORT ?? 3001);
-  const corsOrigins = (process.env.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN)
+  const corsOrigins = requireEnv('CORS_ORIGIN')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

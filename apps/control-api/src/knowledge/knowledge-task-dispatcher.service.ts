@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { requireEnv } from '../common/env';
 
 type KnowledgeTaskRunner = (taskId: string) => Promise<void>;
 type KnowledgeWorkflowMode = 'local' | 'temporal_first' | 'temporal';
@@ -9,8 +10,8 @@ type RuntimeWorkflowBackend = 'TEMPORAL' | 'LOCAL_FALLBACK';
 const RUNNABLE_TASK_TYPES = ['PROCESS', 'REBUILD'];
 const RUNNABLE_TASK_STATUSES = ['PENDING', 'RUNNING'];
 const WORKFLOW_MODE = normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
-const RUNTIME_BASE_URL = process.env.RUNTIME_BASE_URL ?? 'http://localhost:8000';
-const RUNTIME_INTERNAL_TOKEN = process.env.RUNTIME_INTERNAL_TOKEN ?? 'dev-runtime-internal-token';
+const RUNTIME_BASE_URL = requireEnv('RUNTIME_BASE_URL');
+const RUNTIME_INTERNAL_TOKEN = requireEnv('RUNTIME_INTERNAL_TOKEN');
 const WORKFLOW_REQUEST_TIMEOUT_MS = 5000;
 
 @Injectable()

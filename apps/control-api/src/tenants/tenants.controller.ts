@@ -1,7 +1,7 @@
-import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import type { PaginatedResult, TenantListItem } from '@aiaget/shared-types';
+import type { PaginatedResult, TenantDetail, TenantListItem } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { ListTenantsDto } from './dto/list-tenants.dto';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsService } from './tenants.service';
 
 @ApiTags('tenants')
@@ -19,12 +20,33 @@ export class TenantsController {
   constructor(@Inject(TenantsService) private readonly tenantsService: TenantsService) {}
 
   @Get()
-  @Permissions('tenant.read')
+  @Permissions('system:tenant:view')
   @ApiOkResponse({ description: 'Tenant list scoped to the current tenant context' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Query() query: ListTenantsDto,
   ): Promise<PaginatedResult<TenantListItem>> {
     return this.tenantsService.list(currentUser, query);
+  }
+
+  @Get(':id')
+  @Permissions('system:tenant:view')
+  @ApiOkResponse({ description: 'Get current tenant detail' })
+  async get(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<TenantDetail> {
+    return this.tenantsService.get(currentUser, id);
+  }
+
+  @Patch(':id')
+  @Permissions('system:tenant:manage')
+  @ApiOkResponse({ description: 'Update current tenant profile' })
+  async update(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateTenantDto,
+  ): Promise<TenantDetail> {
+    return this.tenantsService.update(currentUser, id, dto);
   }
 }

@@ -3,14 +3,20 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { ModuleSpec } from '@/config/modules';
 
+const statusLabels: Record<ModuleSpec['status'], string> = {
+  ready: '已接入',
+  planned: '规划中',
+  mock: '预览',
+};
+
 export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <StatusBadge tone={moduleSpec.status}>{moduleSpec.status}</StatusBadge>
-            <StatusBadge tone="planned">CRUD contract</StatusBadge>
+            <StatusBadge tone={moduleSpec.status}>{statusLabels[moduleSpec.status]}</StatusBadge>
+            <StatusBadge tone="planned">增删改查契约</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">{moduleSpec.title}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -30,10 +36,9 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         <div className="border-b p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">List View Design</h2>
+              <h2 className="text-sm font-semibold">列表视图设计</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Search, filters, pagination, row actions, and details will bind to real APIs in the
-                module milestone.
+                搜索、筛选、分页、行操作和详情将在对应模块里接入真实接口。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -76,7 +81,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
 
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">Row Actions</h2>
+          <h2 className="text-sm font-semibold">行操作</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {moduleSpec.rowActions.map((action) => (
               <Button disabled key={action} size="sm" variant="outline">
@@ -87,7 +92,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         </div>
 
         <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">Detail Page Sections</h2>
+          <h2 className="text-sm font-semibold">详情页区块</h2>
           <div className="mt-4 grid gap-2">
             {moduleSpec.detailSections.map((section) => (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm" key={section}>
@@ -100,4 +105,3 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
     </main>
   );
 }
-

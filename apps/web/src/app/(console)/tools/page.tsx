@@ -1,7 +1,5 @@
-import { ModulePageShell } from '@/components/modules/module-page-shell';
-import { requireModuleSpec } from '@/config/modules';
+import { ToolContent } from '@/components/tools/tool-content';
 
 export default function ToolsPage() {
-  return <ModulePageShell moduleSpec={requireModuleSpec('tools')} />;
+  return <ToolContent />;
 }
-

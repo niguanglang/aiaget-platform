@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
-const TENANT_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
+export const TENANT_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
 
 export class ListTenantsDto {
   @IsOptional()
@@ -25,4 +25,3 @@ export class ListTenantsDto {
   @IsIn(TENANT_STATUSES)
   status?: 'ACTIVE' | 'DISABLED' | 'DELETED';
 }
-

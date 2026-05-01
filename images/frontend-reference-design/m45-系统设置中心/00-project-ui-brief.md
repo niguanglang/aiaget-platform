@@ -1,0 +1,22 @@
+# Project UI Brief
+
+- Page: M45 系统设置中心
+- Route: /settings
+- Feature goal: 租户级系统参数配置中心
+- Product/module: Enterprise Agent Platform 控制台，系统管理下的设置中心。
+- Target users and permissions: 租户管理员、租户运营、安全管理员；读取需要 `system:settings:view`，修改需要 `system:settings:manage`，`tenant_admin` 通过后端 Guard 放行。
+- Parent layout: Next.js App Router `(console)` 控制台布局，左侧动态菜单、顶部栏，页面主体由 `SettingsContent` 渲染。
+- Existing page contract: `/settings` 已包含租户资料、接口密钥、角色目录、用户管理和安全摘要；M45 在同一入口增加“系统参数”配置区，不新增独立路由。
+- APIs/services:
+  - `GET /api/v1/system-settings/overview` -> `getSystemSettingsOverview()`
+  - `GET /api/v1/system-settings?category=&status=` -> `listSystemSettings()`
+  - `PATCH /api/v1/system-settings/:id` -> `updateSystemSetting()`
+  - `POST /api/v1/system-settings/:id/reset` -> `resetSystemSetting()`
+- Entities/fields:
+  - `SystemSettingItem`: `id`, `tenant_id`, `category`, `key`, `name`, `description`, `value`, `default_value`, `value_type`, `options`, `is_secret`, `is_system`, `status`, `sort_order`, `updated_at`, `updated_by`
+  - Categories: `GENERAL`, `SECURITY`, `RUNTIME`, `OBSERVABILITY`, `RETENTION`, `INTEGRATION`
+  - Value types: `STRING`, `NUMBER`, `BOOLEAN`, `JSON`, `SELECT`
+  - Status: `ACTIVE`, `DISABLED`, `DELETED`
+- Existing components/design system: Tailwind CSS, local shadcn-like `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`; icons from `lucide-react`; React Query for server state; React Hook Form/Zod is already present in the page.
+- Required states: loading, empty, error, validation, disabled, success, permission-denied/read-only, dirty value, secret masked value, reset confirmation.
+- Visual constraints: Chinese UI copy only; enterprise SaaS dashboard density; Bento/Grid cards; subtle borders, soft shadows, clean white surface; avoid heavy gradients, emojis, decorative glow, oversized cards, or information overload.

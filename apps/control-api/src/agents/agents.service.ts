@@ -5,17 +5,28 @@ import type {
   AgentAuditLogItem,
   AgentCategoryItem,
   AgentDetail,
+  AgentKnowledgeBindingItem,
   AgentListItem,
+  AgentModelBindingItem,
+  AgentPromptBindingItem,
+  AgentToolBindingItem,
   AgentVersionItem,
   PaginatedResult,
 } from '@aiaget/shared-types';
 
+import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateAgentDto } from './dto/create-agent.dto';
+import type { CreateAgentKnowledgeBindingDto } from './dto/create-agent-knowledge-binding.dto';
+import type { CreateAgentModelBindingDto } from './dto/create-agent-model-binding.dto';
+import type { CreateAgentPromptBindingDto } from './dto/create-agent-prompt-binding.dto';
+import type { CreateAgentToolBindingDto } from './dto/create-agent-tool-binding.dto';
 import type { CreateAgentVersionDto } from './dto/create-agent-version.dto';
 import type { ListAgentsDto } from './dto/list-agents.dto';
 import type { RollbackAgentDto } from './dto/rollback-agent.dto';
+import type { UpdateAgentKnowledgeBindingDto } from './dto/update-agent-knowledge-binding.dto';
+import type { UpdateAgentToolBindingDto } from './dto/update-agent-tool-binding.dto';
 import type { UpdateAgentDto } from './dto/update-agent.dto';
 
 type AgentWithRelations = Prisma.AgentGetPayload<{
@@ -69,7 +80,10 @@ const agentInclude = {
 
 @Injectable()
 export class AgentsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
+  ) {}
 
   async listCategories(currentUser: AuthenticatedUser): Promise<AgentCategoryItem[]> {
     const categories = await this.prisma.agentCategory.findMany({
@@ -137,6 +151,9 @@ export class AgentsService {
         },
       ];
     }
+
+    const dataScope = await this.dataScopeQuery.buildWhere<Prisma.AgentWhereInput>(currentUser, 'AGENT');
+    mergeDataScopeWhere(where, dataScope.where);
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.agent.findMany({
@@ -207,8 +224,9 @@ export class AgentsService {
 
   async get(currentUser: AuthenticatedUser, id: string): Promise<AgentDetail> {
     const agent = await this.findAgent(currentUser.tenantId, id);
+    const bindings = await this.hydrateBindings(currentUser.tenantId, agent);
 
-    return this.mapAgentDetail(agent);
+    return this.mapAgentDetail(agent, bindings);
   }
 
   async update(currentUser: AuthenticatedUser, id: string, dto: UpdateAgentDto): Promise<AgentDetail> {
@@ -426,6 +444,225 @@ export class AgentsService {
     return this.get(currentUser, id);
   }
 
+  async createModelBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    dto: CreateAgentModelBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    await this.ensureModelExists(currentUser.tenantId, dto.model_id);
+
+    if ((dto.binding_type ?? 'DEFAULT') === 'DEFAULT') {
+      await this.prisma.agentModelBinding.updateMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          agentId,
+          deletedAt: null,
+          bindingType: 'DEFAULT',
+        },
+        data: {
+          deletedAt: new Date(),
+          updatedBy: currentUser.id,
+        },
+      });
+    }
+
+    await this.prisma.agentModelBinding.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        agentId,
+        modelId: dto.model_id,
+        bindingType: dto.binding_type ?? 'DEFAULT',
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'BIND_MODEL', `Bound model ${dto.model_id}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async removeModelBinding(currentUser: AuthenticatedUser, agentId: string, bindingId: string): Promise<AgentDetail> {
+    const binding = await this.ensureModelBinding(currentUser.tenantId, agentId, bindingId);
+    await this.prisma.agentModelBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        deletedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UNBIND_MODEL', `Unbound model ${binding.modelId}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async createPromptBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    dto: CreateAgentPromptBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    await this.ensurePromptExists(currentUser.tenantId, dto.prompt_id);
+
+    await this.prisma.agentPromptBinding.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        agentId,
+        promptId: dto.prompt_id,
+        promptType: dto.prompt_type,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'BIND_PROMPT', `Bound prompt ${dto.prompt_id} as ${dto.prompt_type}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async removePromptBinding(currentUser: AuthenticatedUser, agentId: string, bindingId: string): Promise<AgentDetail> {
+    const binding = await this.ensurePromptBinding(currentUser.tenantId, agentId, bindingId);
+    await this.prisma.agentPromptBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        deletedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UNBIND_PROMPT', `Unbound prompt ${binding.promptId}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async createKnowledgeBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    dto: CreateAgentKnowledgeBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    await this.ensureKnowledgeExists(currentUser.tenantId, dto.knowledge_id);
+
+    await this.prisma.agentKnowledgeBinding.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        agentId,
+        knowledgeId: dto.knowledge_id,
+        weight: dto.weight ?? 100,
+        recallTopK: dto.recall_top_k ?? 5,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'BIND_KNOWLEDGE', `Bound knowledge ${dto.knowledge_id}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async updateKnowledgeBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    bindingId: string,
+    dto: UpdateAgentKnowledgeBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    const binding = await this.ensureKnowledgeBinding(currentUser.tenantId, agentId, bindingId);
+
+    await this.prisma.agentKnowledgeBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        ...(dto.weight !== undefined ? { weight: dto.weight } : {}),
+        ...(dto.recall_top_k !== undefined ? { recallTopK: dto.recall_top_k } : {}),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UPDATE_KNOWLEDGE_BINDING', `Updated knowledge binding ${binding.knowledgeId}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async removeKnowledgeBinding(currentUser: AuthenticatedUser, agentId: string, bindingId: string): Promise<AgentDetail> {
+    const binding = await this.ensureKnowledgeBinding(currentUser.tenantId, agentId, bindingId);
+    await this.prisma.agentKnowledgeBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        deletedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UNBIND_KNOWLEDGE', `Unbound knowledge ${binding.knowledgeId}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async createToolBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    dto: CreateAgentToolBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    await this.ensureToolExists(currentUser.tenantId, dto.tool_id);
+
+    await this.prisma.agentToolBinding.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        agentId,
+        toolId: dto.tool_id,
+        requireApproval: dto.require_approval ?? false,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'BIND_TOOL', `Bound tool ${dto.tool_id}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async updateToolBinding(
+    currentUser: AuthenticatedUser,
+    agentId: string,
+    bindingId: string,
+    dto: UpdateAgentToolBindingDto,
+  ): Promise<AgentDetail> {
+    await this.ensureAgentExists(currentUser.tenantId, agentId);
+    const binding = await this.ensureToolBinding(currentUser.tenantId, agentId, bindingId);
+
+    await this.prisma.agentToolBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        ...(dto.require_approval !== undefined ? { requireApproval: dto.require_approval } : {}),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UPDATE_TOOL_BINDING', `Updated tool binding ${binding.toolId}`);
+    return this.get(currentUser, agentId);
+  }
+
+  async removeToolBinding(currentUser: AuthenticatedUser, agentId: string, bindingId: string): Promise<AgentDetail> {
+    const binding = await this.ensureToolBinding(currentUser.tenantId, agentId, bindingId);
+    await this.prisma.agentToolBinding.update({
+      where: {
+        id: binding.id,
+      },
+      data: {
+        deletedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.writeAudit(currentUser, agentId, 'UNBIND_TOOL', `Unbound tool ${binding.toolId}`);
+    return this.get(currentUser, agentId);
+  }
+
   private async ensureAgentExists(tenantId: string, id: string) {
     const agent = await this.prisma.agent.findFirst({
       where: {
@@ -491,6 +728,142 @@ export class AgentsService {
     }
   }
 
+  private async ensureModelExists(tenantId: string, modelId: string) {
+    const model = await this.prisma.modelConfig.findFirst({
+      where: {
+        tenantId,
+        id: modelId,
+        deletedAt: null,
+        status: {
+          not: 'DELETED',
+        },
+      },
+    });
+
+    if (!model) {
+      throw new BadRequestException('Model config does not exist in this tenant');
+    }
+  }
+
+  private async ensurePromptExists(tenantId: string, promptId: string) {
+    const prompt = await this.prisma.promptTemplate.findFirst({
+      where: {
+        tenantId,
+        id: promptId,
+        deletedAt: null,
+        status: {
+          not: 'ARCHIVED',
+        },
+      },
+    });
+
+    if (!prompt) {
+      throw new BadRequestException('Prompt template does not exist in this tenant');
+    }
+  }
+
+  private async ensureKnowledgeExists(tenantId: string, knowledgeId: string) {
+    const knowledge = await this.prisma.knowledgeBase.findFirst({
+      where: {
+        tenantId,
+        id: knowledgeId,
+        deletedAt: null,
+        status: {
+          not: 'ARCHIVED',
+        },
+      },
+    });
+
+    if (!knowledge) {
+      throw new BadRequestException('Knowledge base does not exist in this tenant');
+    }
+  }
+
+  private async ensureToolExists(tenantId: string, toolId: string) {
+    const tool = await this.prisma.tool.findFirst({
+      where: {
+        tenantId,
+        id: toolId,
+        deletedAt: null,
+        status: {
+          not: 'DELETED',
+        },
+      },
+    });
+
+    if (!tool) {
+      throw new BadRequestException('Tool does not exist in this tenant');
+    }
+  }
+
+  private async ensureModelBinding(tenantId: string, agentId: string, bindingId: string) {
+    const binding = await this.prisma.agentModelBinding.findFirst({
+      where: {
+        id: bindingId,
+        tenantId,
+        agentId,
+        deletedAt: null,
+      },
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Agent model binding not found');
+    }
+
+    return binding;
+  }
+
+  private async ensurePromptBinding(tenantId: string, agentId: string, bindingId: string) {
+    const binding = await this.prisma.agentPromptBinding.findFirst({
+      where: {
+        id: bindingId,
+        tenantId,
+        agentId,
+        deletedAt: null,
+      },
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Agent prompt binding not found');
+    }
+
+    return binding;
+  }
+
+  private async ensureKnowledgeBinding(tenantId: string, agentId: string, bindingId: string) {
+    const binding = await this.prisma.agentKnowledgeBinding.findFirst({
+      where: {
+        id: bindingId,
+        tenantId,
+        agentId,
+        deletedAt: null,
+      },
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Agent knowledge binding not found');
+    }
+
+    return binding;
+  }
+
+  private async ensureToolBinding(tenantId: string, agentId: string, bindingId: string) {
+    const binding = await this.prisma.agentToolBinding.findFirst({
+      where: {
+        id: bindingId,
+        tenantId,
+        agentId,
+        deletedAt: null,
+      },
+    });
+
+    if (!binding) {
+      throw new NotFoundException('Agent tool binding not found');
+    }
+
+    return binding;
+  }
+
   private createSnapshot(agent: AgentWithRelations): Prisma.InputJsonObject {
     return {
       id: agent.id,
@@ -553,7 +926,15 @@ export class AgentsService {
     };
   }
 
-  private mapAgentDetail(agent: AgentWithRelations): AgentDetail {
+  private mapAgentDetail(
+    agent: AgentWithRelations,
+    bindings: {
+      models: AgentModelBindingItem[];
+      prompts: AgentPromptBindingItem[];
+      knowledge: AgentKnowledgeBindingItem[];
+      tools: AgentToolBindingItem[];
+    },
+  ): AgentDetail {
     return {
       ...this.mapAgentListItem(agent),
       temperature: Number(agent.temperature),
@@ -562,12 +943,139 @@ export class AgentsService {
       enable_log: agent.enableLog,
       versions: agent.versions.map((version) => this.mapVersion(version)),
       audit_logs: agent.auditLogs.map((auditLog) => this.mapAudit(auditLog)),
-      bindings: {
-        models: agent.modelBindings,
-        prompts: agent.promptBindings,
-        knowledge: agent.knowledgeBindings,
-        tools: agent.toolBindings,
-      },
+      bindings,
+    };
+  }
+
+  private async hydrateBindings(
+    tenantId: string,
+    agent: AgentWithRelations,
+  ): Promise<{
+    models: AgentModelBindingItem[];
+    prompts: AgentPromptBindingItem[];
+    knowledge: AgentKnowledgeBindingItem[];
+    tools: AgentToolBindingItem[];
+  }> {
+    const modelIds = agent.modelBindings.map((binding) => binding.modelId);
+    const promptIds = agent.promptBindings.map((binding) => binding.promptId);
+    const knowledgeIds = agent.knowledgeBindings.map((binding) => binding.knowledgeId);
+    const toolIds = agent.toolBindings.map((binding) => binding.toolId);
+
+    const [models, prompts, knowledgeBases, tools] = await Promise.all([
+      modelIds.length
+        ? this.prisma.modelConfig.findMany({
+            where: {
+              tenantId,
+              id: {
+                in: modelIds,
+              },
+              deletedAt: null,
+            },
+            include: {
+              provider: true,
+            },
+          })
+        : Promise.resolve([] as Prisma.ModelConfigGetPayload<{ include: { provider: true } }>[]),
+      promptIds.length
+        ? this.prisma.promptTemplate.findMany({
+            where: {
+              tenantId,
+              id: {
+                in: promptIds,
+              },
+              deletedAt: null,
+            },
+          })
+        : Promise.resolve([] as Prisma.PromptTemplateGetPayload<object>[]),
+      knowledgeIds.length
+        ? this.prisma.knowledgeBase.findMany({
+            where: {
+              tenantId,
+              id: {
+                in: knowledgeIds,
+              },
+              deletedAt: null,
+            },
+          })
+        : Promise.resolve([] as Prisma.KnowledgeBaseGetPayload<object>[]),
+      toolIds.length
+        ? this.prisma.tool.findMany({
+            where: {
+              tenantId,
+              id: {
+                in: toolIds,
+              },
+              deletedAt: null,
+            },
+          })
+        : Promise.resolve([] as Prisma.ToolGetPayload<object>[]),
+    ]);
+
+    const modelMap = new Map(models.map((model) => [model.id, model]));
+    const promptMap = new Map(prompts.map((prompt) => [prompt.id, prompt]));
+    const knowledgeMap = new Map(knowledgeBases.map((knowledge) => [knowledge.id, knowledge]));
+    const toolMap = new Map(tools.map((tool) => [tool.id, tool]));
+
+    return {
+      models: agent.modelBindings
+        .map((binding) => {
+          const model = modelMap.get(binding.modelId);
+          if (!model) return null;
+          return {
+            id: binding.id,
+            model_id: binding.modelId,
+            model_name: model.name,
+            model_code: model.model,
+            provider_id: model.providerId,
+            provider_name: model.provider.name,
+            binding_type: binding.bindingType as AgentModelBindingItem['binding_type'],
+            created_at: binding.createdAt.toISOString(),
+          };
+        })
+        .filter((item): item is AgentModelBindingItem => Boolean(item)),
+      prompts: agent.promptBindings
+        .map((binding) => {
+          const prompt = promptMap.get(binding.promptId);
+          if (!prompt) return null;
+          return {
+            id: binding.id,
+            prompt_id: binding.promptId,
+            prompt_name: prompt.name,
+            prompt_code: prompt.code,
+            prompt_type: binding.promptType as AgentPromptBindingItem['prompt_type'],
+            created_at: binding.createdAt.toISOString(),
+          };
+        })
+        .filter((item): item is AgentPromptBindingItem => Boolean(item)),
+      knowledge: agent.knowledgeBindings
+        .map((binding) => {
+          const knowledge = knowledgeMap.get(binding.knowledgeId);
+          if (!knowledge) return null;
+          return {
+            id: binding.id,
+            knowledge_id: binding.knowledgeId,
+            knowledge_name: knowledge.name,
+            knowledge_code: knowledge.code,
+            weight: binding.weight,
+            recall_top_k: binding.recallTopK,
+            created_at: binding.createdAt.toISOString(),
+          };
+        })
+        .filter((item): item is AgentKnowledgeBindingItem => Boolean(item)),
+      tools: agent.toolBindings
+        .map((binding) => {
+          const tool = toolMap.get(binding.toolId);
+          if (!tool) return null;
+          return {
+            id: binding.id,
+            tool_id: binding.toolId,
+            tool_name: tool.name,
+            tool_code: tool.code,
+            require_approval: binding.requireApproval,
+            created_at: binding.createdAt.toISOString(),
+          };
+        })
+        .filter((item): item is AgentToolBindingItem => Boolean(item)),
     };
   }
 
@@ -623,4 +1131,3 @@ export class AgentsService {
     };
   }
 }
-

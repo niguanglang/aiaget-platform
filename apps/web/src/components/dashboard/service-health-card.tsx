@@ -4,6 +4,13 @@ import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 
+const healthStatusLabels = {
+  healthy: '健康',
+  degraded: '降级',
+  unavailable: '不可用',
+  loading: '加载中',
+} as const;
+
 export function ServiceHealthCard({
   description,
   health,
@@ -34,29 +41,28 @@ export function ServiceHealthCard({
           </div>
           <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
         </div>
-        <StatusBadge tone={status}>{isLoading ? 'loading' : (health?.status ?? 'unavailable')}</StatusBadge>
+        <StatusBadge tone={status}>{healthStatusLabels[status]}</StatusBadge>
       </div>
 
       <div className="mt-5 grid gap-2 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Service</span>
-          <span className="font-medium">{health?.service ?? 'unknown'}</span>
+          <span className="text-muted-foreground">服务</span>
+          <span className="font-medium">{health?.service ?? '未知'}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Version</span>
-          <span className="font-medium">{health?.version ?? 'unknown'}</span>
+          <span className="text-muted-foreground">版本</span>
+          <span className="font-medium">{health?.version ?? '未知'}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Timestamp</span>
-          <span className="font-medium">{health?.timestamp ?? 'not loaded'}</span>
+          <span className="text-muted-foreground">时间戳</span>
+          <span className="font-medium">{health?.timestamp ?? '尚未加载'}</span>
         </div>
       </div>
 
       <Button className="mt-5" disabled={isLoading} onClick={onRefresh} size="sm" variant="outline">
         <RefreshCw className="size-4" />
-        Refresh
+        刷新
       </Button>
     </section>
   );
 }
-

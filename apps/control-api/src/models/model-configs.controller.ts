@@ -4,9 +4,14 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { ModelProviderDetail } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RequireDataScope } from '../common/decorators/data-scope.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
+import { RequireResourceAcl } from '../common/decorators/resource-acl.decorator';
+import { DataScopeGuard } from '../common/guards/data-scope.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
+import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CreateModelConfigDto } from './dto/create-model-config.dto';
 import { UpdateModelConfigDto } from './dto/update-model-config.dto';
@@ -15,12 +20,12 @@ import { ModelsService } from './models.service';
 @ApiTags('models')
 @ApiBearerAuth()
 @Controller('models')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, DataScopeGuard, ResourceAclGuard, SecurityPolicyGuard)
 export class ModelConfigsController {
   constructor(@Inject(ModelsService) private readonly modelsService: ModelsService) {}
 
   @Post()
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
   @ApiOkResponse({ description: 'Create model config under provider' })
   async create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -30,7 +35,9 @@ export class ModelConfigsController {
   }
 
   @Patch(':id')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Update model config' })
   async update(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -41,7 +48,9 @@ export class ModelConfigsController {
   }
 
   @Delete(':id')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Soft delete model config' })
   async remove(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -51,7 +60,9 @@ export class ModelConfigsController {
   }
 
   @Post(':id/disable')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Disable model config' })
   async disable(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -61,7 +72,9 @@ export class ModelConfigsController {
   }
 
   @Post(':id/enable')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Enable model config' })
   async enable(
     @CurrentUser() currentUser: AuthenticatedUser,

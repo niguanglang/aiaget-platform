@@ -1,0 +1,37 @@
+# Project UI Brief
+
+- Page: M10 Audit Center
+- Route: `/audit`
+- Feature goal: inspect tenant login logs, write-operation logs, security-relevant failures, and configuration changes in one structured audit console.
+- Target users and permissions: authenticated tenant users with `audit.read`.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Existing M03-M09 patterns: summary metrics, filter toolbar, event table, selected detail side panel, subtle atmosphere background.
+- Backend APIs to implement:
+  - `GET /api/v1/audit/overview`
+  - `GET /api/v1/audit/events`
+  - `GET /api/v1/audit/events/:eventId`
+- Data sources to aggregate:
+  - `login_log`
+  - `operation_log`
+- Main entities and fields:
+  - Audit summary: `login_total`, `operation_total`, `security_event_total`, `config_change_total`, `success_rate`.
+  - Unified audit row: `event_id`, `source_type`, `status`, `user_email`, `module`, `action`, `title`, `summary`, `request_id`, `occurred_at`.
+  - Audit detail: `ip`, `user_agent`, `request_summary`, `error_message`, `status_code`, `path`, `method`.
+  - Rankings: top users, top modules, recent failures.
+- Planned enums and filters:
+  - Source type: `login`, `operation`
+  - Event status: `SUCCESS`, `FAILED`, `DEGRADED`
+  - Time windows: `24h`, `7d`
+- Required states: loading, empty, error, no events in window, no failures, detail fetch failure.
+- Visual constraints:
+  - Keep M10 operational and trust-focused: quiet, dense, readable, no decorative analytics look.
+  - Primary surfaces: metrics, source/status filters, unified audit table, selected-event detail, failure list, user/module rankings.
+  - Use restrained charts only where they map to real counts.
+  - Atmosphere stays subtle and behind content; no hero composition or decorative glow.
+- M10 implementation boundary:
+  - First version focuses on login and operation audit only.
+  - Security events are derived from failed login attempts and failing write operations.
+  - Configuration changes are derived from write operations on configuration-heavy modules such as agents, models, prompts, knowledge, tools, users, tenants, and settings-adjacent routes.

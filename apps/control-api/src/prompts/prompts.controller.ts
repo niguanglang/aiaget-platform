@@ -44,7 +44,7 @@ export class PromptsController {
   constructor(@Inject(PromptsService) private readonly promptsService: PromptsService) {}
 
   @Get()
-  @Permissions('prompt.read')
+  @Permissions('prompt:template:view')
   @ApiOkResponse({ description: 'Tenant-isolated paginated prompt template list' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -54,7 +54,7 @@ export class PromptsController {
   }
 
   @Post()
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Create prompt template' })
   async create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -64,7 +64,7 @@ export class PromptsController {
   }
 
   @Get(':id')
-  @Permissions('prompt.read')
+  @Permissions('prompt:template:view')
   @ApiOkResponse({ description: 'Get prompt template detail' })
   async get(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -74,7 +74,7 @@ export class PromptsController {
   }
 
   @Patch(':id')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Update prompt template' })
   async update(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -85,7 +85,7 @@ export class PromptsController {
   }
 
   @Delete(':id')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Soft delete prompt template' })
   async remove(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -95,7 +95,7 @@ export class PromptsController {
   }
 
   @Post(':id/copy')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Copy prompt template and variables' })
   async copy(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -105,7 +105,7 @@ export class PromptsController {
   }
 
   @Post(':id/publish')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Publish immutable prompt version' })
   async publish(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -116,7 +116,7 @@ export class PromptsController {
   }
 
   @Post(':id/rollback')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Rollback prompt template to version snapshot' })
   async rollback(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -127,7 +127,7 @@ export class PromptsController {
   }
 
   @Post(':id/render')
-  @Permissions('prompt.read')
+  @Permissions('prompt:template:view')
   @ApiOkResponse({ description: 'Render prompt with variables' })
   async render(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -138,7 +138,7 @@ export class PromptsController {
   }
 
   @Post(':id/test')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Render and record prompt test' })
   async test(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -149,7 +149,7 @@ export class PromptsController {
   }
 
   @Post(':id/variables')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Create prompt variable' })
   async createVariable(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -160,7 +160,7 @@ export class PromptsController {
   }
 
   @Patch(':id/variables/:variableId')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Update prompt variable' })
   async updateVariable(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -172,7 +172,7 @@ export class PromptsController {
   }
 
   @Delete(':id/variables/:variableId')
-  @Permissions('prompt.write')
+  @Permissions('prompt:template:manage')
   @ApiOkResponse({ description: 'Soft delete prompt variable' })
   async removeVariable(
     @CurrentUser() currentUser: AuthenticatedUser,

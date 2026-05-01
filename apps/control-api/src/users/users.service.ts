@@ -4,6 +4,7 @@ import { hash } from 'bcryptjs';
 
 import type {
   PaginatedResult,
+  DepartmentSummary,
   UserListItem,
 } from '@aiaget/shared-types';
 
@@ -15,6 +16,7 @@ import type { UpdateUserDto } from './dto/update-user.dto';
 
 type UserWithRoles = Prisma.UserGetPayload<{
   include: {
+    department: true;
     userRoles: {
       include: {
         role: true;
@@ -43,6 +45,10 @@ export class UsersService {
       where.status = query.status;
     }
 
+    if (query.department_id) {
+      where.departmentId = query.department_id;
+    }
+
     if (keyword) {
       where.OR = [
         {
@@ -69,6 +75,7 @@ export class UsersService {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
+          department: true,
           userRoles: {
             where: {
               deletedAt: null,
@@ -93,11 +100,13 @@ export class UsersService {
   async create(currentUser: AuthenticatedUser, dto: CreateUserDto): Promise<UserListItem> {
     const roleCodes = dto.roleCodes && dto.roleCodes.length > 0 ? dto.roleCodes : ['tenant_viewer'];
     const roles = await this.findRoles(currentUser.tenantId, roleCodes);
+    const departmentId = await this.resolveDepartmentId(currentUser.tenantId, dto.department_id);
 
     try {
       const createdUser = await this.prisma.user.create({
         data: {
           tenantId: currentUser.tenantId,
+          departmentId,
           email: dto.email.trim().toLowerCase(),
           name: dto.name.trim(),
           passwordHash: await hash(dto.password, 12),
@@ -116,6 +125,7 @@ export class UsersService {
           },
         },
         include: {
+          department: true,
           userRoles: {
             where: {
               deletedAt: null,
@@ -153,6 +163,19 @@ export class UsersService {
 
     if (dto.status !== undefined) {
       data.status = dto.status;
+    }
+
+    if (dto.department_id !== undefined) {
+      const departmentId = await this.resolveDepartmentId(currentUser.tenantId, dto.department_id);
+      data.department = departmentId
+        ? {
+            connect: {
+              id: departmentId,
+            },
+          }
+        : {
+            disconnect: true,
+          };
     }
 
     if (dto.password !== undefined) {
@@ -224,6 +247,7 @@ export class UsersService {
         deletedAt: null,
       },
       include: {
+        department: true,
         userRoles: {
           where: {
             deletedAt: null,
@@ -260,13 +284,44 @@ export class UsersService {
     return roles;
   }
 
+  private async resolveDepartmentId(tenantId: string, departmentId: string | null | undefined) {
+    const normalizedDepartmentId = normalizeNullable(departmentId);
+    if (!normalizedDepartmentId) return null;
+
+    const department = await this.prisma.department.findFirst({
+      where: {
+        tenantId,
+        id: normalizedDepartmentId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!department) {
+      throw new BadRequestException('Department does not exist in the tenant');
+    }
+
+    return department.id;
+  }
+
   private mapUser(user: UserWithRoles): UserListItem {
     return {
       id: user.id,
       tenant_id: user.tenantId,
+      department_id: user.departmentId,
       email: user.email,
       name: user.name,
       status: user.status as UserListItem['status'],
+      department: user.department
+        ? {
+            id: user.department.id,
+            code: user.department.code,
+            name: user.department.name,
+            status: user.department.status as DepartmentSummary['status'],
+          }
+        : null,
       roles: user.userRoles.map((userRole) => ({
         id: userRole.role.id,
         code: userRole.role.code,
@@ -277,4 +332,10 @@ export class UsersService {
       updated_at: user.updatedAt.toISOString(),
     };
   }
+}
+
+function normalizeNullable(value: string | null | undefined) {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : null;
 }

@@ -15,6 +15,8 @@ import type {
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { decryptSecret } from '../models/model-secrets';
+import { executeOpenAiCompatibleChat, type ChatExecutionMessage } from '../models/openai-compatible-client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreatePromptTemplateDto } from './dto/create-prompt-template.dto';
 import type { CreatePromptVariableDto } from './dto/create-prompt-variable.dto';
@@ -47,6 +49,8 @@ const templateInclude = {
   },
   testRecords: {
     include: {
+      modelProvider: true,
+      modelConfig: true,
       operator: true,
     },
     orderBy: {
@@ -500,36 +504,68 @@ export class PromptsService {
     const startedAt = Date.now();
     const template = await this.findTemplate(currentUser.tenantId, templateId);
     const rendered = this.renderTemplate(template, dto.inputs);
-    const model = dto.model_config_id
-      ? await this.prisma.modelConfig.findFirst({
-          where: {
-            id: dto.model_config_id,
-            tenantId: currentUser.tenantId,
-            deletedAt: null,
-          },
-        })
-      : null;
-    const providerId = dto.model_provider_id ?? model?.providerId ?? null;
-    const status = rendered.missing_variables.length > 0 ? 'FAILED' : 'SUCCESS';
-    const errorMessage =
+    const missingVariableError =
       rendered.missing_variables.length > 0
         ? `Missing variables: ${rendered.missing_variables.join(', ')}`
         : null;
-    const outputText =
-      status === 'SUCCESS'
-        ? `Prompt rendered successfully${model ? ` for ${model.model}` : ''}. Runtime model execution lands in M08.`
-        : null;
+    let status: TestPromptResult['status'] = missingVariableError ? 'FAILED' : 'SUCCESS';
+    let errorMessage = missingVariableError;
+    let outputText: string | null = null;
+    let latencyMs = Date.now() - startedAt + 80;
+    let providerId: string | null = null;
+    let providerName: string | null = null;
+    let modelConfigId: string | null = null;
+    let requestModel: string | null = null;
+
+    if (!missingVariableError) {
+      const executionContext = await this.resolvePromptTestModelContext(currentUser.tenantId, dto);
+
+      if (!executionContext) {
+        status = 'FAILED';
+        errorMessage = 'No executable chat model is configured for this tenant';
+      } else if (executionContext.providerType !== 'OPENAI_COMPATIBLE') {
+        status = 'FAILED';
+        errorMessage = 'Only OPENAI_COMPATIBLE providers are executable for prompt tests';
+        providerId = executionContext.providerId;
+        providerName = executionContext.providerName;
+        modelConfigId = executionContext.modelConfigId;
+        requestModel = executionContext.model;
+      } else {
+        const execution = await executeOpenAiCompatibleChat({
+          apiKey: executionContext.apiKey,
+          baseUrl: executionContext.baseUrl,
+          model: executionContext.model,
+          temperature: 0.2,
+          messages: this.buildPromptTestMessages(template.type, rendered.rendered_content),
+        });
+
+        providerId = executionContext.providerId;
+        providerName = executionContext.providerName;
+        modelConfigId = executionContext.modelConfigId;
+        requestModel = execution.requestModel;
+        outputText = execution.outputText;
+        latencyMs = execution.latencyMs;
+
+        if (execution.errorMessage) {
+          status = 'FAILED';
+          errorMessage = execution.errorMessage;
+        }
+
+        await this.writePromptTestModelLog(currentUser, executionContext, execution, rendered.rendered_content);
+      }
+    }
+
     const record = await this.prisma.promptTestRecord.create({
       data: {
         tenantId: currentUser.tenantId,
         templateId,
         version: template.version || null,
         modelProviderId: providerId,
-        modelConfigId: dto.model_config_id ?? null,
+        modelConfigId,
         inputs: dto.inputs as Prisma.InputJsonObject,
         renderedContent: rendered.rendered_content,
         status,
-        latencyMs: Date.now() - startedAt + 80,
+        latencyMs,
         outputText,
         errorMessage,
         createdBy: currentUser.id,
@@ -541,8 +577,12 @@ export class PromptsService {
       rendered_content: rendered.rendered_content,
       missing_variables: rendered.missing_variables,
       status,
+      model_provider_id: providerId,
+      model_provider_name: providerName,
+      model_config_id: modelConfigId,
+      request_model: requestModel,
       output_text: outputText,
-      latency_ms: record.latencyMs,
+      latency_ms: latencyMs,
       error_message: errorMessage,
     };
   }
@@ -581,6 +621,208 @@ export class PromptsService {
       rendered_content: renderedContent,
       missing_variables: missingVariables,
     };
+  }
+
+  private async resolvePromptTestModelContext(
+    tenantId: string,
+    dto: TestPromptDto,
+  ): Promise<{
+    providerId: string;
+    providerName: string;
+    providerType: string;
+    modelConfigId: string;
+    model: string;
+    baseUrl: string;
+    apiKey: string;
+    providerKeyId: string;
+    inputPrice: number;
+    outputPrice: number;
+  } | null> {
+    const directModel = dto.model_config_id
+      ? await this.prisma.modelConfig.findFirst({
+          where: {
+            id: dto.model_config_id,
+            tenantId,
+            deletedAt: null,
+            status: 'ACTIVE',
+            capabilities: {
+              has: 'chat',
+            },
+          },
+          include: {
+            provider: {
+              include: {
+                apiKeys: {
+                  where: {
+                    deletedAt: null,
+                    status: 'ACTIVE',
+                  },
+                  orderBy: {
+                    createdAt: 'desc',
+                  },
+                },
+              },
+            },
+          },
+        })
+      : null;
+
+    const model = directModel ?? await this.prisma.modelConfig.findFirst({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: 'ACTIVE',
+        capabilities: {
+          has: 'chat',
+        },
+        ...(dto.model_provider_id ? { providerId: dto.model_provider_id } : {}),
+      },
+      include: {
+        provider: {
+          include: {
+            apiKeys: {
+              where: {
+                deletedAt: null,
+                status: 'ACTIVE',
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    if (!model) {
+      return null;
+    }
+
+    const activeKey = model.provider.apiKeys[0] ?? null;
+    if (!activeKey) {
+      return null;
+    }
+
+    return {
+      providerId: model.providerId,
+      providerName: model.provider.name,
+      providerType: model.provider.providerType,
+      modelConfigId: model.id,
+      model: model.model,
+      baseUrl: model.provider.baseUrl,
+      apiKey: decryptSecret(activeKey.encryptedKey),
+      providerKeyId: activeKey.id,
+      inputPrice: Number(model.inputPrice),
+      outputPrice: Number(model.outputPrice),
+    };
+  }
+
+  private buildPromptTestMessages(type: string, renderedContent: string): ChatExecutionMessage[] {
+    if (type === 'SYSTEM') {
+      return [
+        {
+          role: 'system',
+          content: renderedContent,
+        },
+        {
+          role: 'user',
+          content: '请基于以上系统提示词输出一条简短中文测试回复。',
+        },
+      ];
+    }
+
+    if (type === 'ASSISTANT') {
+      return [
+        {
+          role: 'system',
+          content: '你正在执行提示词模板测试。请根据已有助手上下文继续输出一条简短中文回复。',
+        },
+        {
+          role: 'assistant',
+          content: renderedContent,
+        },
+        {
+          role: 'user',
+          content: '请继续。',
+        },
+      ];
+    }
+
+    if (type === 'TOOL') {
+      return [
+        {
+          role: 'system',
+          content: '你正在执行提示词模板测试。请根据下面的工具结果上下文给出简短中文回复。',
+        },
+        {
+          role: 'user',
+          content: renderedContent,
+        },
+      ];
+    }
+
+    return [
+      {
+        role: 'system',
+        content: '你正在执行提示词模板测试。请根据提供的提示词内容输出一条简短中文回复。',
+      },
+      {
+        role: 'user',
+        content: renderedContent,
+      },
+    ];
+  }
+
+  private async writePromptTestModelLog(
+    currentUser: AuthenticatedUser,
+    context: {
+      providerId: string;
+      modelConfigId: string;
+      providerKeyId: string;
+      inputPrice: number;
+      outputPrice: number;
+    },
+    execution: Awaited<ReturnType<typeof executeOpenAiCompatibleChat>>,
+    renderedContent: string,
+  ) {
+    const inputCost = (execution.promptTokens / 1000) * context.inputPrice;
+    const outputCost = (execution.completionTokens / 1000) * context.outputPrice;
+    const totalCost = inputCost + outputCost;
+
+    await this.prisma.modelCallLog.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        providerId: context.providerId,
+        modelConfigId: context.modelConfigId,
+        traceId: execution.traceId,
+        requestModel: execution.requestModel,
+        status: execution.errorMessage ? 'FAILED' : 'SUCCESS',
+        promptTokens: execution.promptTokens,
+        completionTokens: execution.completionTokens,
+        totalTokens: execution.totalTokens,
+        inputCost,
+        outputCost,
+        totalCost,
+        latencyMs: execution.latencyMs,
+        requestSummary: {
+          adapter: 'PROMPT_TEST',
+          rendered_preview: renderedContent.slice(0, 240),
+        } as Prisma.InputJsonObject,
+        responseSummary: execution.responseSummary as unknown as Prisma.InputJsonValue,
+        errorMessage: execution.errorMessage,
+      },
+    });
+
+    await this.prisma.modelApiKey.update({
+      where: {
+        id: context.providerKeyId,
+      },
+      data: {
+        lastUsedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
   }
 
   private createSnapshot(template: PromptTemplateRecord): Prisma.InputJsonObject {
@@ -817,12 +1059,16 @@ export class PromptsService {
   }
 
   private mapTestRecord(
-    record: Prisma.PromptTestRecordGetPayload<{ include: { operator: true } }>,
+    record: Prisma.PromptTestRecordGetPayload<{ include: { operator: true; modelProvider: true; modelConfig: true } }>,
   ): PromptTestRecordItem {
     return {
       id: record.id,
       version: record.version,
       status: record.status as PromptTestRecordItem['status'],
+      model_provider_id: record.modelProviderId,
+      model_provider_name: record.modelProvider?.name ?? null,
+      model_config_id: record.modelConfigId,
+      request_model: record.modelConfig?.model ?? null,
       rendered_content: record.renderedContent,
       output_text: record.outputText,
       latency_ms: record.latencyMs,

@@ -2,20 +2,40 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AgentsModule } from './agents/agents.module';
+import { ApprovalsModule } from './approvals/approvals.module';
+import { AuditModule } from './audit/audit.module';
+import { BillingModule } from './billing/billing.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuthModule } from './auth/auth.module';
 import { OperationLogInterceptor } from './common/interceptors/operation-log.interceptor';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { ConversationsModule } from './conversations/conversations.module';
+import { DataScopesModule } from './data-scopes/data-scopes.module';
+import { DepartmentsModule } from './departments/departments.module';
+import { ExternalApiModule } from './external-api/external-api.module';
 import { HealthController } from './health.controller';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { MenusModule } from './menus/menus.module';
+import { MonitorModule } from './monitor/monitor.module';
 import { ModelsModule } from './models/models.module';
 import { PromptsModule } from './prompts/prompts.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ResourceAclsModule } from './resource-acls/resource-acls.module';
+import { RolesModule } from './roles/roles.module';
+import { RuntimeExecutionModule } from './runtime-execution/runtime-execution.module';
+import { SecurityCenterModule } from './security-center/security-center.module';
 import { RuntimeHealthController } from './runtime-health.controller';
 import { RuntimeHealthService } from './runtime-health.service';
+import { SecurityPoliciesModule } from './security-policies/security-policies.module';
+import { StorageModule } from './storage/storage.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { TenantsModule } from './tenants/tenants.module';
+import { ToolGatewayModule } from './tool-gateway/tool-gateway.module';
+import { ToolsModule } from './tools/tools.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, AgentsModule, ModelsModule, PromptsModule],
+  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, DepartmentsModule, AgentsModule, ModelsModule, PromptsModule, KnowledgeModule, ToolGatewayModule, ToolsModule, ConversationsModule, RuntimeExecutionModule, ExternalApiModule, ApprovalsModule, MonitorModule, AuditModule, BillingModule, RolesModule, ApiKeysModule, StorageModule, SystemSettingsModule, SecurityPoliciesModule, SecurityCenterModule, MenusModule, DataScopesModule, ResourceAclsModule],
   controllers: [HealthController, RuntimeHealthController],
   providers: [
     RuntimeHealthService,

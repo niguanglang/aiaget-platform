@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { promptVariableTypeLabel } from '@/components/prompts/prompt-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -15,12 +16,12 @@ const variableTypes = ['string', 'number', 'boolean', 'json'] as const satisfies
 const variableFormSchema = z.object({
   name: z
     .string()
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]{0,99}$/, 'Use letters, numbers, and underscores. Start with a letter or underscore.'),
+    .regex(/^[a-zA-Z_][a-zA-Z0-9_]{0,99}$/, '请使用字母、数字和下划线，并以字母或下划线开头。'),
   variable_type: z.enum(variableTypes),
   default_value: z.string().optional(),
   required: z.boolean(),
   description: z.string().optional(),
-  sort_order: z.number().int('Use an integer.').min(0, 'Minimum is 0.'),
+  sort_order: z.number().int('请使用整数。').min(0, '最小值为 0。'),
 });
 
 export type PromptVariableFormValues = z.infer<typeof variableFormSchema>;
@@ -67,9 +68,9 @@ export function PromptVariableFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? 'Edit variable' : 'Create variable'}</h2>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑变量' : '新建变量'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Variables are rendered from double-brace and single-brace placeholders.
+              变量会从双花括号和单花括号占位符中渲染。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -80,32 +81,32 @@ export function PromptVariableFormPanel({
 
       <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Name" message={form.formState.errors.name?.message}>
+          <Field label="名称" message={form.formState.errors.name?.message}>
             <Input {...form.register('name')} />
           </Field>
-          <Field label="Sort order" message={form.formState.errors.sort_order?.message}>
+          <Field label="排序" message={form.formState.errors.sort_order?.message}>
             <Input min="0" step="1" type="number" {...form.register('sort_order', { valueAsNumber: true })} />
           </Field>
         </div>
 
-        <Field label="Type" message={form.formState.errors.variable_type?.message}>
+        <Field label="类型" message={form.formState.errors.variable_type?.message}>
           <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('variable_type')}>
             {variableTypes.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {promptVariableTypeLabel(type)}
               </option>
             ))}
           </select>
         </Field>
 
-        <Field label="Default value" message={form.formState.errors.default_value?.message}>
+        <Field label="默认值" message={form.formState.errors.default_value?.message}>
           <textarea
             className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             {...form.register('default_value')}
           />
         </Field>
 
-        <Field label="Description" message={form.formState.errors.description?.message}>
+        <Field label="描述" message={form.formState.errors.description?.message}>
           <textarea
             className="min-h-20 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             {...form.register('description')}
@@ -114,7 +115,7 @@ export function PromptVariableFormPanel({
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...form.register('required')} />
-          Required when rendering
+          渲染时必填
         </label>
 
         {error ? (
@@ -125,10 +126,10 @@ export function PromptVariableFormPanel({
 
         <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
           <Button onClick={onClose} type="button" variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} type="submit">
-            {isEditing ? 'Save variable' : 'Create variable'}
+            {isEditing ? '保存变量' : '新建变量'}
           </Button>
         </div>
       </form>

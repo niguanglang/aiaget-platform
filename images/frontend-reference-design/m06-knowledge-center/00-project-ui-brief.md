@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M06 Knowledge Center
+- Route: `/knowledge`, `/knowledge/[id]`
+- Feature goal: Knowledge base, document upload, segmentation, retrieval test, processing tasks, and agent references.
+- Target users and permissions: authenticated tenant users with `knowledge.read`; write actions require `knowledge.write` or tenant admin.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, React Hook Form, Zod, Tailwind CSS, Motion.
+  - React Three Fiber and Three.js are available for quiet atmosphere layers.
+  - Existing shadcn-style primitives: `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Existing M03-M05 patterns: metrics, filter toolbar, table, detail side panel, drawer forms, confirmation modal, page detail route.
+- Backend APIs to implement:
+  - `GET /api/v1/knowledge-bases`
+  - `POST /api/v1/knowledge-bases`
+  - `GET /api/v1/knowledge-bases/:id`
+  - `PATCH /api/v1/knowledge-bases/:id`
+  - `DELETE /api/v1/knowledge-bases/:id`
+  - `POST /api/v1/knowledge-bases/:id/documents`
+  - `GET /api/v1/knowledge-bases/:id/documents/:documentId`
+  - `PATCH /api/v1/knowledge-bases/:id/documents/:documentId`
+  - `DELETE /api/v1/knowledge-bases/:id/documents/:documentId`
+  - `POST /api/v1/knowledge-bases/:id/documents/:documentId/reprocess`
+  - `POST /api/v1/knowledge-bases/:id/retrieval-test`
+  - `POST /api/v1/knowledge-bases/:id/rebuild-index`
+- Data entities and fields:
+  - KnowledgeBase: `id`, `tenant_id`, `name`, `code`, `visibility`, `status`, `description`, `owner`, document/segment/task/log counts, timestamps.
+  - KnowledgeDocument: `title`, `source_type`, `mime_type`, `file_name`, `file_size`, `status`, `segment_count`, `parsed_text`, `error_message`, uploader, timestamps.
+  - KnowledgeSegment: `content`, `token_count`, `keywords`, `metadata`, `vector_status`, `sort_order`.
+  - KnowledgeEmbeddingTask: `task_type`, `status`, `started_at`, `ended_at`, `error_message`.
+  - KnowledgeRecallLog: `query`, `mode`, `top_k`, `status`, `latency_ms`, `result_count`, `results`, operator, timestamp.
+  - Agent references: derived from `agent_knowledge_binding` records.
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, upload/processing failed, retrieval no results.
+- Visual constraints:
+  - Use a compact Bento/dashboard layout, thin borders, soft shadows, transparent surfaces, and restrained backdrop blur.
+  - Add subtle gradient mesh, grid/noise texture, and a low-opacity particle or wire geometry background only as atmosphere.
+  - Keep the interface operational and readable; no marketing hero, no oversized decorative circles, no cheap glow, no emoji, no crowded information blocks.
+- M06 implementation boundary: first version stores metadata/content/segments in PostgreSQL, processes TXT/Markdown synchronously for small files, and records task/log rows. MinIO, Qdrant, and OpenSearch integration points are preserved through storage/vector/index status fields and task design.

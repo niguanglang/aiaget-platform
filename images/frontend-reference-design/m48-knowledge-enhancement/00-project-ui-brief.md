@@ -1,0 +1,27 @@
+# Project UI Brief
+
+- Project: 企业 Agent 平台
+- Page: 知识库中心增强
+- Route: /knowledge
+- Feature goal: 在知识库列表页增加租户级治理总览，集中展示知识库健康、处理队列、索引就绪率和最近召回情况。
+- Users/roles: 租户管理员、知识库管理员、审计员、Agent 管理员
+- APIs/services:
+  - `GET /api/v1/knowledge-bases/overview`
+  - `GET /api/v1/knowledge-bases?keyword&status&visibility&owner_id&page&page_size`
+  - `GET /api/v1/knowledge-bases/:id`
+  - `POST /api/v1/knowledge-bases/:id/retrieval-test`
+- Entities/fields/statuses:
+  - `KnowledgeOverview.summary`: 知识库数量、启用数、文档数、切片数、处理中数、失败任务数、24h 召回成功率、向量就绪率、索引就绪率
+  - `KnowledgeOverview.recent_documents`: 标题、来源类型、状态、更新时间、切片数
+  - `KnowledgeOverview.recent_tasks`: 任务类型、状态、进度、开始/结束时间
+  - `KnowledgeOverview.recent_recall_logs`: 查询、模式、结果数、延迟、状态
+  - `KnowledgeBaseListItem`: 名称、编码、可见范围、状态、文档数、切片数、失败任务数、引用数、更新时间
+- Existing components/design system:
+  - Tailwind CSS
+  - shadcn-like `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - `motion/react`
+  - `lucide-react`
+  - `KnowledgeCenterBackground`
+- Required states: loading, empty, error, partial data, permission-denied, success
+- Style constraints: enterprise SaaS admin density, Bento Grid / dashboard layout, subtle borders, soft shadow, backdrop blur, clean hierarchy, Chinese UI copy only
+- Required states: loading, empty, error, validation, disabled, success, permission-denied

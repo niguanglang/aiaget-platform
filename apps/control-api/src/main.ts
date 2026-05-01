@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 
 import { AppModule } from './app.module';
 
@@ -16,6 +17,8 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+  app.use(json({ limit: '30mb' }));
+  app.use(urlencoded({ extended: true, limit: '30mb' }));
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     credentials: true,
@@ -35,6 +38,15 @@ async function bootstrap() {
     .setDescription('Control Plane API for tenant, configuration, audit, and run metadata.')
     .setVersion('0.1.0')
     .addBearerAuth()
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'Tenant API key for external Agent invocation.',
+      },
+      'x-api-key',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, openApiConfig);
@@ -44,4 +56,3 @@ async function bootstrap() {
 }
 
 void bootstrap();
-

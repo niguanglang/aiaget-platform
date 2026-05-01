@@ -10,7 +10,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <QueryProvider>
         <ConsoleAuthGuard>
-          <div className="flex min-h-screen bg-muted/30">
+          <div className="flex min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#f3f7fb_45%,#f8fafc_100%)]">
             <Sidebar />
             <div className="min-w-0 flex-1">
               <Topbar />

@@ -7,26 +7,27 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { agentStatusLabel } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 
 const agentStatuses = ['DRAFT', 'TESTING', 'PENDING', 'PUBLISHED', 'DISABLED', 'ARCHIVED'] as const;
 
 const agentFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
+  name: z.string().min(2, '名称至少需要 2 个字符。'),
   code: z
     .string()
-    .regex(/^[a-z][a-z0-9_-]{2,99}$/, 'Use 3-100 lowercase letters, numbers, underscores, or hyphens.'),
+    .regex(/^[a-z][a-z0-9_-]{2,99}$/, '请使用 3-100 位小写字母、数字、下划线或连字符。'),
   description: z.string().optional(),
   avatar_url: z.string().optional(),
   category_id: z.string().optional(),
   owner_id: z.string().optional(),
   status: z.enum(agentStatuses),
-  temperature: z.number().min(0, 'Minimum is 0.').max(2, 'Maximum is 2.'),
+  temperature: z.number().min(0, '最小值为 0。').max(2, '最大值为 2。'),
   max_context_tokens: z
     .number()
-    .int('Use an integer.')
-    .min(512, 'Minimum is 512.')
-    .max(200000, 'Maximum is 200000.'),
+    .int('请使用整数。')
+    .min(512, '最小值为 512。')
+    .max(200000, '最大值为 200000。'),
   enable_stream: z.boolean(),
   enable_log: z.boolean(),
 });
@@ -86,9 +87,9 @@ export function AgentFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? 'Edit agent' : 'Create agent'}</h2>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑智能体' : '新建智能体'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Basic profile and runtime defaults are versioned before publish.
+              基础资料和运行默认值会在发布前生成版本快照。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -99,14 +100,14 @@ export function AgentFormPanel({
 
       <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Name" message={form.formState.errors.name?.message}>
+          <Field label="名称" message={form.formState.errors.name?.message}>
             <input
               className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               {...form.register('name')}
             />
           </Field>
 
-          <Field label="Code" message={form.formState.errors.code?.message}>
+          <Field label="编码" message={form.formState.errors.code?.message}>
             <input
               className="h-10 rounded-md border bg-background px-3 text-sm outline-none read-only:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               readOnly={isEditing}
@@ -115,25 +116,25 @@ export function AgentFormPanel({
           </Field>
         </div>
 
-        <Field label="Description" message={form.formState.errors.description?.message}>
+        <Field label="描述" message={form.formState.errors.description?.message}>
           <textarea
             className="min-h-24 resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             {...form.register('description')}
           />
         </Field>
 
-        <Field label="Avatar URL" message={form.formState.errors.avatar_url?.message}>
+        <Field label="头像链接" message={form.formState.errors.avatar_url?.message}>
           <input
             className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="https://..."
+            placeholder="粘贴头像链接"
             {...form.register('avatar_url')}
           />
         </Field>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Category" message={form.formState.errors.category_id?.message}>
+          <Field label="分类" message={form.formState.errors.category_id?.message}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('category_id')}>
-              <option value="">Uncategorized</option>
+              <option value="">未分类</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -142,9 +143,9 @@ export function AgentFormPanel({
             </select>
           </Field>
 
-          <Field label="Owner" message={form.formState.errors.owner_id?.message}>
+          <Field label="负责人" message={form.formState.errors.owner_id?.message}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('owner_id')}>
-              <option value="">Current user</option>
+              <option value="">当前用户</option>
               {owners.map((owner) => (
                 <option key={owner.id} value={owner.id}>
                   {owner.name} ({owner.email})
@@ -155,11 +156,11 @@ export function AgentFormPanel({
         </div>
 
         {isEditing ? (
-          <Field label="Status" message={form.formState.errors.status?.message}>
+          <Field label="状态" message={form.formState.errors.status?.message}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('status')}>
               {agentStatuses.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {agentStatusLabel(status)}
                 </option>
               ))}
             </select>
@@ -167,9 +168,9 @@ export function AgentFormPanel({
         ) : null}
 
         <div className="rounded-lg border p-4">
-          <h3 className="text-sm font-semibold">Runtime defaults</h3>
+          <h3 className="text-sm font-semibold">运行默认值</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Field label="Temperature" message={form.formState.errors.temperature?.message}>
+            <Field label="温度" message={form.formState.errors.temperature?.message}>
               <input
                 className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 max="2"
@@ -180,7 +181,7 @@ export function AgentFormPanel({
               />
             </Field>
 
-            <Field label="Max context tokens" message={form.formState.errors.max_context_tokens?.message}>
+            <Field label="最大上下文词元" message={form.formState.errors.max_context_tokens?.message}>
               <input
                 className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 min="512"
@@ -194,11 +195,11 @@ export function AgentFormPanel({
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...form.register('enable_stream')} />
-              Stream responses
+              流式响应
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...form.register('enable_log')} />
-              Write run logs
+              写入运行日志
             </label>
           </div>
         </div>
@@ -211,10 +212,10 @@ export function AgentFormPanel({
 
         <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
           <Button onClick={onClose} type="button" variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} type="submit">
-            {isEditing ? 'Save changes' : 'Create agent'}
+            {isEditing ? '保存修改' : '新建智能体'}
           </Button>
         </div>
       </form>

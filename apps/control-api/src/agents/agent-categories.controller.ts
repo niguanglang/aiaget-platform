@@ -18,7 +18,7 @@ export class AgentCategoriesController {
   constructor(@Inject(AgentsService) private readonly agentsService: AgentsService) {}
 
   @Get()
-  @Permissions('agent.read')
+  @Permissions('agent:agent:view')
   @ApiOkResponse({ description: 'Tenant-scoped agent categories' })
   async list(@CurrentUser() currentUser: AuthenticatedUser): Promise<AgentCategoryItem[]> {
     return this.agentsService.listCategories(currentUser);

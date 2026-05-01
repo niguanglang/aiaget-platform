@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M09 Monitor Center
+- Route: `/monitor`
+- Feature goal: inspect platform health, unified event traces, latency/cost metrics, module-level rankings, and recent errors.
+- Target users and permissions: authenticated tenant users with `monitor.read`.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Existing M03-M08 patterns: metrics header, filter toolbar, main table, detail side panel, subtle atmosphere background.
+- Backend APIs to implement:
+  - `GET /api/v1/monitor/overview`
+  - `GET /api/v1/monitor/events`
+  - `GET /api/v1/monitor/events/:eventId`
+- Data sources to aggregate:
+  - `operation_log`
+  - `model_call_log`
+  - `tool_call_log`
+  - `knowledge_recall_log`
+  - `conversation_run`
+  - control service health
+  - runtime health
+- Main entities and fields:
+  - Monitor summary: `events_total`, `success_rate`, `average_latency_ms`, `p95_latency_ms`, `total_cost`, `active_conversations`, health states.
+  - Unified event row: `event_id`, `trace_id`, `module`, `source_type`, `status`, `title`, `summary`, `latency_ms`, `token_total`, `cost_total`, `occurred_at`.
+  - Event detail: request/response summary, error message, raw JSON payloads, trace steps, tool output preview.
+  - Rankings: agents, models, tools, knowledge recalls, module error counts.
+- Planned enums and filters:
+  - Monitor module: `control`, `model`, `tool`, `knowledge`, `conversation`
+  - Event status: `SUCCESS`, `FAILED`, `DEGRADED`
+  - Time windows: `24h`, `7d`
+- Required states: loading, empty, error, no events in window, no rankings, service unavailable, detail fetch failure.
+- Visual constraints:
+  - Keep M09 operational and dense: this page should feel like a serious observability surface, not an analytics landing page.
+  - Use restrained charts/sparklines or bars only where they correspond to real aggregated values.
+  - Primary surfaces: top summary metrics, health cards, rankings, event table, selected-event detail panel.
+  - Atmosphere stays subtle and behind content; no decorative hero or oversized gradients.
+- M09 implementation boundary:
+  - First version uses aggregated application tables already present in PostgreSQL.
+  - No external tracing system; synthetic event IDs and trace IDs are derived from current logs.
+  - Control service health is local, runtime health is proxied through the same environment configuration.

@@ -1,0 +1,43 @@
+# Project UI Brief
+
+- Page: M07 Tool Center
+- Route: `/tools`, `/tools/[id]`
+- Feature goal: manage tenant HTTP tools, request/response schemas, auth config, risk policy, test execution, and call logs.
+- Target users and permissions: authenticated tenant users with `tool.read`; write actions require `tool.write` or tenant admin.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, React Hook Form, Zod, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Established M03-M06 patterns: metrics, search/filter toolbar, table + side panel, detail route, drawer forms, local confirmation modal, restrained atmosphere background.
+- Backend APIs to implement:
+  - `GET /api/v1/tools`
+  - `POST /api/v1/tools`
+  - `GET /api/v1/tools/:id`
+  - `PATCH /api/v1/tools/:id`
+  - `DELETE /api/v1/tools/:id`
+  - `POST /api/v1/tools/:id/copy`
+  - `POST /api/v1/tools/:id/disable`
+  - `POST /api/v1/tools/:id/enable`
+  - `POST /api/v1/tools/:id/test`
+- Data entities and fields:
+  - Tool: `id`, `tenant_id`, `name`, `code`, `description`, `tool_type`, `method`, `url`, `status`, `risk_level`, `timeout_ms`, `require_approval`, `headers`, `auth_type`, `auth_config`, `input_schema`, `output_schema`, `updated_at`.
+  - ToolCallLog: `id`, `tool_id`, `trigger_source`, `status`, `request_url`, `request_method`, `request_body`, `response_status`, `response_body`, `latency_ms`, `error_message`, `created_at`, `created_by`.
+  - ToolAgentReference: derived from `agent_tool_binding` rows with `agent_name`, `agent_code`, `require_approval`, `created_at`.
+  - Tool test result: `status`, `latency_ms`, `request_preview`, `response_preview`, `response_status`, `error_message`, `approval_required`.
+- Planned enums and filters:
+  - Tool status: `ACTIVE`, `DISABLED`, `DELETED`
+  - Tool type: `HTTP`
+  - HTTP method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+  - Risk level: `LOW`, `MEDIUM`, `HIGH`
+  - Auth type: `NONE`, `BEARER`, `API_KEY_HEADER`, `API_KEY_QUERY`, `BASIC`
+  - Call status: `SUCCESS`, `FAILED`, `APPROVAL_REQUIRED`
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, schema parse failure, approval-required test result, upstream request failure, no call logs.
+- Visual constraints:
+  - Continue the current console language: compact dashboard density, thin borders, soft shadows, mild blur, structured spacing, Chinese UI copy.
+  - The tools module should feel more operational than decorative: endpoint profile, risk tags, request/response previews, call log rows.
+  - Atmosphere layers stay subtle and behind content; no oversized gradients, no glowing hero composition, no noisy charts.
+- M07 implementation boundary:
+  - First version supports tenant-scoped HTTP tools only.
+  - JSON schema handling focuses on JSON object syntax plus a practical subset of validation rules (`type`, `properties`, `required`, `items`, `enum`, `additionalProperties`).
+  - Tool test execution uses server-side fetch for real HTTP requests, records call logs, and returns approval-required placeholders for high-risk tools when approval is required.
+  - Agent bindings remain read-only derived data in this milestone.

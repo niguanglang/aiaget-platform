@@ -1,0 +1,28 @@
+# Project UI Brief
+
+- Page: 安全策略中心 / Security Policy Center
+- Route: `/security`
+- Feature goal: 在现有 RBAC 之上补充租户级 ABAC 策略管理、显式拒绝规则、策略模拟、评估日志与启停发布控制。
+- Target users and permissions: 租户管理员、安全管理员、审计员；读取权限 `security_policy.read`，写入权限 `security_policy.write`。`tenant_admin` 仍保持超级租户权限。
+- Parent layout: Next.js App Router console group `apps/web/src/app/(console)`，复用 `ConsoleShell` 左侧导航与顶部栏。
+- APIs/services:
+  - `GET /api/v1/security-policies/overview`
+  - `GET /api/v1/security-policies`
+  - `POST /api/v1/security-policies`
+  - `PATCH /api/v1/security-policies/:id`
+  - `DELETE /api/v1/security-policies/:id`
+  - `POST /api/v1/security-policies/:id/enable`
+  - `POST /api/v1/security-policies/:id/disable`
+  - `POST /api/v1/security-policies/simulate`
+  - `GET /api/v1/security-policies/evaluations`
+- Entities and fields:
+  - `security_policy`: `id`, `tenant_id`, `name`, `code`, `description`, `effect`, `resource_type`, `action`, `priority`, `status`, `conditions`, `created_at`, `updated_at`
+  - `security_policy_evaluation`: `id`, `request_id`, `subject`, `resource`, `action`, `decision`, `matched_policy_id`, `reason`, `context`, `created_at`
+- Status/enums:
+  - policy status: `ACTIVE`, `DISABLED`, `DELETED`
+  - effect: `ALLOW`, `DENY`
+  - decision: `ALLOW`, `DENY`, `NO_MATCH`
+  - condition operators: `eq`, `neq`, `in`, `not_in`, `contains`, `exists`
+- Available components and UI library: Tailwind CSS, React Query, React Hook Form, Zod, lucide-react icons, existing `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState` components. Existing pages use dense SaaS dashboard/table/panel layouts with Chinese text.
+- Required states and actions: loading, empty policy list, API error, form validation, disabled buttons during mutation, permission-denied fallback, create/edit policy modal, delete confirmation, enable/disable action, simulation result panel, evaluation log table.
+- Visual constraints: 企业级 SaaS 后台，Bento/Dashboard layout，细边框、轻阴影、backdrop blur，克制动效，中文界面，不使用 Emoji，不做大圆堆叠和廉价发光。

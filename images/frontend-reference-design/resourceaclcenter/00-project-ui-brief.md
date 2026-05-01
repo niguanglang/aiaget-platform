@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: ResourceAclCenter
+- Route: `/resource-acls`
+- Parent layout: Next.js App Router console shell, tenant-aware dynamic menu.
+- Feature goal: Resource ACL 资源授权中心，为 Agent、知识库、文档、工具、模型、会话和审计日志等具体资源授权给用户、角色、部门或租户主体。
+- Target users and permissions:
+  - 查看权限：`system:resource_acl:view`
+  - 管理权限：`system:resource_acl:manage`
+  - `tenant_admin` 角色拥有管理能力。
+- APIs/services:
+  - `GET /api/v1/resource-acls/overview`
+  - `GET /api/v1/resource-acls/options?resource_type=&subject_type=&keyword=`
+  - `GET /api/v1/resource-acls`
+  - `POST /api/v1/resource-acls`
+  - `PATCH /api/v1/resource-acls/:id`
+  - `DELETE /api/v1/resource-acls/:id`
+  - `POST /api/v1/resource-acls/check`
+- Entities and fields:
+  - `ResourceAclItem`: `resource_type`, `resource_id`, `resource`, `subject_type`, `subject_id`, `subject`, `permission_code`, `effect`, `status`, `conditions`, `condition_count`, `created_at`, `updated_at`
+  - `ResourceAclResourceSummary`: `id`, `type`, `name`, `code`, `description`, `status`
+  - `ResourceAclSubjectSummary`: `id`, `type`, `name`, `code`, `description`
+  - `ResourceAclOverview`: `total`, `active_count`, `disabled_count`, `allow_count`, `deny_count`, `resource_counts`, `subject_counts`
+- Enums/statuses:
+  - Resource type: `AGENT | KNOWLEDGE_BASE | DOCUMENT | TOOL | MODEL | CONVERSATION | AUDIT_LOG`
+  - Subject type: `USER | ROLE | DEPARTMENT | TENANT`
+  - Effect: `ALLOW | DENY`
+  - Status: `ACTIVE | DISABLED | DELETED`
+- Existing components/design system:
+  - Tailwind CSS, shadcn-style local components, `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - React Query for data loading/mutations
+  - `motion/react` for restrained reveal and hover feedback
+  - lucide icons
+  - Optional atmospheric Three.js particle field through `@react-three/fiber`
+- Required states:
+  - Loading: metrics/rules/options loading text and disabled actions
+  - Empty: no ACL rules yet
+  - Error: API mutation and query errors shown in Chinese
+  - Validation: missing resource/subject/permission and invalid JSON conditions
+  - Disabled: no write permission, no selected option, mutation in flight
+  - Success: saved/deleted/check result messages
+  - Permission denied: write actions disabled with Chinese hint

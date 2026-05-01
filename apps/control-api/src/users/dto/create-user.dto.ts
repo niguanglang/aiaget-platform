@@ -18,8 +18,11 @@ export class CreateUserDto {
   status?: 'ACTIVE' | 'DISABLED';
 
   @IsOptional()
+  @IsString()
+  department_id?: string | null;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   roleCodes?: string[];
 }
-

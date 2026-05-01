@@ -2,13 +2,20 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   Bot,
+  ClipboardCheck,
+  Coins,
   Database,
   FileText,
   Gauge,
+  HardDrive,
   KeyRound,
+  ListTree,
   MessageSquareText,
+  Network,
   ScrollText,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
   SquareTerminal,
   Wrench,
 } from 'lucide-react';
@@ -28,20 +35,29 @@ const moduleIconMap: Record<string, LucideIcon> = {
   prompts: FileText,
   models: KeyRound,
   knowledge: Database,
+  storage: HardDrive,
+  security: ShieldCheck,
   tools: Wrench,
   conversations: MessageSquareText,
+  approvals: ClipboardCheck,
   monitor: Activity,
+  billing: Coins,
   audit: ScrollText,
   settings: Settings,
+  departments: Network,
+  roles: ShieldCheck,
+  data_scopes: SlidersHorizontal,
+  resource_acls: KeyRound,
+  menus: ListTree,
 };
 
 export const consoleNavigation: ConsoleNavItem[] = [
   {
-    title: 'Dashboard',
+    title: '仪表盘',
     href: '/dashboard',
     icon: Gauge,
-    description: 'Platform overview and health',
-    permission: 'dashboard.read',
+    description: '平台概览与健康状态',
+    permission: 'dashboard:overview:view',
   },
   ...moduleSpecs.map((moduleSpec) => ({
     title: moduleSpec.navTitle,
@@ -51,4 +67,3 @@ export const consoleNavigation: ConsoleNavItem[] = [
     permission: moduleSpec.permission,
   })),
 ];
-

@@ -1,14 +1,14 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AgentDetail, AgentListItem, AgentStatus } from '@aiaget/shared-types';
+import { hasPermission, type AgentDetail, type AgentListItem, type AgentStatus } from '@aiaget/shared-types';
 import { Edit, Eye, Plus, Search, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { AgentFormPanel, type AgentFormValues } from '@/components/agents/agent-form-panel';
-import { agentStatusTone, formatDateTime } from '@/components/agents/agent-status';
+import { agentStatusLabel, agentStatusTone, formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -41,7 +41,7 @@ export function AgentsContent() {
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      currentUser?.user.permissions.includes('agent.write'),
+      hasPermission(currentUser?.user.permissions ?? [], 'agent:agent:manage'),
   );
 
   const agentsQuery = useQuery({
@@ -106,21 +106,21 @@ export function AgentsContent() {
   const owners = ownersQuery.data?.items ?? [];
   const metrics = useMemo(
     () => [
-      { label: 'Total agents', value: `${agentsQuery.data?.total ?? 0}`, helper: 'Tenant scoped' },
+      { label: '智能体', value: `${agentsQuery.data?.total ?? 0}`, helper: '租户范围' },
       {
-        label: 'Published',
+        label: '已发布',
         value: `${agents.filter((agent) => agent.status === 'PUBLISHED').length}`,
-        helper: 'Current page',
+        helper: '当前页',
       },
       {
-        label: 'Drafts',
+        label: '草稿',
         value: `${agents.filter((agent) => agent.status === 'DRAFT').length}`,
-        helper: 'Current page',
+        helper: '当前页',
       },
       {
-        label: 'Disabled',
+        label: '已停用',
         value: `${agents.filter((agent) => agent.status === 'DISABLED').length}`,
-        helper: 'Current page',
+        helper: '当前页',
       },
     ],
     [agents, agentsQuery.data?.total],
@@ -145,7 +145,7 @@ export function AgentsContent() {
 
       setEditingAgent(detail);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Failed to load agent detail.');
+      setFormError(error instanceof Error ? error.message : '智能体详情加载失败。');
     } finally {
       setEditLoadingId(null);
     }
@@ -188,17 +188,17 @@ export function AgentsContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M03</StatusBadge>
-            <StatusBadge tone="healthy">Agent CRUD</StatusBadge>
-            <StatusBadge tone="planned">Versioned publish</StatusBadge>
+            <StatusBadge tone="healthy">智能体增删改查</StatusBadge>
+            <StatusBadge tone="planned">版本化发布</StatusBadge>
           </div>
-          <h1 className="text-2xl font-semibold">Agent Configuration Center</h1>
+          <h1 className="text-2xl font-semibold">智能体配置中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Manage tenant agents, runtime defaults, version snapshots, publish state, and audit history.
+            管理租户智能体、运行默认值、版本快照、发布状态和审计历史。
           </p>
         </div>
         <Button disabled={!canWrite} onClick={openCreateForm}>
           <Plus className="size-4" />
-          New agent
+          新建智能体
         </Button>
       </section>
 
@@ -213,13 +213,13 @@ export function AgentsContent() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
-                <h2 className="text-sm font-semibold">Agents</h2>
+                <h2 className="text-sm font-semibold">智能体</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Search, filter, create, edit, delete, and open complete agent details.
+                  搜索、筛选、创建、编辑、删除，并打开完整智能体详情。
                 </p>
               </div>
               <div className="text-sm text-muted-foreground">
-                Showing {agents.length} of {agentsQuery.data?.total ?? 0}
+                显示 {agents.length} / {agentsQuery.data?.total ?? 0}
               </div>
             </div>
 
@@ -229,7 +229,7 @@ export function AgentsContent() {
                 <input
                   className="min-w-0 flex-1 bg-transparent outline-none"
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="Search name, code, description"
+                  placeholder="搜索名称、编码、描述"
                   value={keyword}
                 />
               </label>
@@ -238,10 +238,10 @@ export function AgentsContent() {
                 onChange={(event) => setStatus(event.target.value)}
                 value={status}
               >
-                <option value="">All statuses</option>
+                <option value="">全部状态</option>
                 {statusOptions.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {agentStatusLabel(option)}
                   </option>
                 ))}
               </select>
@@ -250,7 +250,7 @@ export function AgentsContent() {
                 onChange={(event) => setCategoryId(event.target.value)}
                 value={categoryId}
               >
-                <option value="">All categories</option>
+                <option value="">全部分类</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -262,7 +262,7 @@ export function AgentsContent() {
                 onChange={(event) => setOwnerId(event.target.value)}
                 value={ownerId}
               >
-                <option value="">All owners</option>
+                <option value="">全部负责人</option>
                 {owners.map((owner) => (
                   <option key={owner.id} value={owner.id}>
                     {owner.name}
@@ -270,21 +270,21 @@ export function AgentsContent() {
                 ))}
               </select>
               <Button onClick={clearFilters} type="button" variant="outline">
-                Clear
+                清空
               </Button>
             </div>
           </div>
         </div>
 
         {agentsQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">Failed to load agents.</div>
+          <div className="p-6 text-sm text-destructive">智能体加载失败。</div>
         ) : agentsQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">Loading agents...</div>
+          <div className="p-6 text-sm text-muted-foreground">正在加载智能体...</div>
         ) : agents.length === 0 ? (
           <div className="p-10 text-center">
-            <div className="font-medium">No agents found</div>
+            <div className="font-medium">暂无智能体</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create an agent or adjust keyword, status, category, and owner filters.
+              新建智能体，或调整关键词、状态、分类和负责人筛选。
             </p>
           </div>
         ) : (
@@ -292,7 +292,7 @@ export function AgentsContent() {
             <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  {['Agent', 'Status', 'Category', 'Version', 'Default model', 'Owner', 'Updated', 'Actions'].map(
+                  {['智能体', '状态', '分类', '版本', '默认模型', '负责人', '更新时间', '操作'].map(
                     (column) => (
                       <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
                         {column}
@@ -318,16 +318,16 @@ export function AgentsContent() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge tone={agentStatusTone(agent.status)}>{agent.status}</StatusBadge>
+                      <StatusBadge tone={agentStatusTone(agent.status)}>{agentStatusLabel(agent.status)}</StatusBadge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{agent.category?.name ?? '-'}</td>
                     <td className="px-4 py-3 font-medium">v{agent.version}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{agent.default_model ?? 'Unbound'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{agent.default_model ?? '未绑定'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{agent.owner?.name ?? '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(agent.updated_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <Button asChild size="sm" title="Details" variant="outline">
+                        <Button asChild size="sm" title="详情" variant="outline">
                           <Link href={`/agents/${agent.id}`}>
                             <Eye className="size-4" />
                           </Link>
@@ -336,7 +336,7 @@ export function AgentsContent() {
                           disabled={!canWrite || editLoadingId === agent.id}
                           onClick={() => void openEditForm(agent)}
                           size="sm"
-                          title="Edit"
+                          title="编辑"
                           variant="outline"
                         >
                           <Edit className="size-4" />
@@ -345,7 +345,7 @@ export function AgentsContent() {
                           disabled={!canWrite}
                           onClick={() => setDeleteTarget(agent)}
                           size="sm"
-                          title="Delete"
+                          title="删除"
                           variant="outline"
                         >
                           <Trash2 className="size-4" />
@@ -362,13 +362,13 @@ export function AgentsContent() {
 
       <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">Configuration Coverage</h2>
+          <h2 className="text-sm font-semibold">配置覆盖</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {[
-              ['Basic profile', 'Name, code, category, owner, avatar, description'],
-              ['Runtime defaults', 'Temperature, context tokens, stream and log switches'],
-              ['Lifecycle', 'Draft, testing, pending, published, disabled, archived'],
-              ['Bindings', 'Model, prompt, knowledge, and tool placeholders for M04-M07'],
+              ['基础资料', '名称、编码、分类、负责人、头像、描述'],
+              ['运行默认值', '温度、上下文词元、流式响应和日志开关'],
+              ['生命周期', '草稿、测试中、待发布、已发布、已停用、已归档'],
+              ['资源绑定', 'M04-M07 的模型、提示词、知识库和工具占位'],
             ].map(([label, value]) => (
               <div className="rounded-md border bg-muted/30 px-3 py-2" key={label}>
                 <div className="text-xs text-muted-foreground">{label}</div>
@@ -380,7 +380,7 @@ export function AgentsContent() {
 
         <div className="rounded-lg border bg-background p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Selected Agent</h2>
+            <h2 className="text-sm font-semibold">选中的智能体</h2>
             {selectedAgent ? (
               <Button onClick={() => setSelectedAgent(null)} size="icon" variant="ghost">
                 <X className="size-4" />
@@ -389,19 +389,19 @@ export function AgentsContent() {
           </div>
           {selectedAgent ? (
             <div className="mt-4 grid gap-3 text-sm">
-              <DetailRow label="Name" value={selectedAgent.name} />
-              <DetailRow label="Code" value={selectedAgent.code} />
-              <DetailRow label="Status" value={selectedAgent.status} />
-              <DetailRow label="Version" value={`v${selectedAgent.version}`} />
-              <DetailRow label="Category" value={selectedAgent.category?.name ?? '-'} />
-              <DetailRow label="Owner" value={selectedAgent.owner?.email ?? '-'} />
+              <DetailRow label="名称" value={selectedAgent.name} />
+              <DetailRow label="编码" value={selectedAgent.code} />
+              <DetailRow label="状态" value={agentStatusLabel(selectedAgent.status)} />
+              <DetailRow label="版本" value={`v${selectedAgent.version}`} />
+              <DetailRow label="分类" value={selectedAgent.category?.name ?? '-'} />
+              <DetailRow label="负责人" value={selectedAgent.owner?.email ?? '-'} />
               <Button asChild className="mt-1" variant="outline">
-                <Link href={`/agents/${selectedAgent.id}`}>Open full detail</Link>
+                <Link href={`/agents/${selectedAgent.id}`}>打开完整详情</Link>
               </Button>
             </div>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
-              Select a row to inspect its summary, or open the detail route for versions, publish, rollback, and audit.
+              选择一行查看摘要，或打开详情页处理版本、发布、回滚和审计。
             </p>
           )}
         </div>
@@ -423,20 +423,20 @@ export function AgentsContent() {
       {deleteTarget ? (
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Delete agent?</h2>
+            <h2 className="text-lg font-semibold">删除智能体？</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This will soft delete `{deleteTarget.name}` and keep versions plus audit history.
+              这会软删除 `{deleteTarget.name}`，并保留版本和审计历史。
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <Button onClick={() => setDeleteTarget(null)} variant="outline">
-                Cancel
+                取消
               </Button>
               <Button
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(deleteTarget.id)}
                 variant="destructive"
               >
-                Delete
+                删除
               </Button>
             </div>
           </div>

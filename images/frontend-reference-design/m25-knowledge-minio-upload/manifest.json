@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-04-30T02:28:28.777552+00:00",
+  "page": "M25 Knowledge MinIO Upload",
+  "route": "/knowledge",
+  "feature": "知识库文档上传接入 MinIO 原始文件存储",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

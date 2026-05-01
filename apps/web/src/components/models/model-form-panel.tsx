@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { modelCapabilityLabel, modelProviderStatusLabel } from '@/components/models/model-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -14,10 +15,10 @@ const capabilities: ModelCapability[] = ['chat', 'embedding', 'rerank', 'vision'
 const statuses: ModelProviderStatus[] = ['ACTIVE', 'DISABLED'];
 
 const modelFormSchema = z.object({
-  provider_id: z.string().min(1, 'Select a provider.'),
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
-  model: z.string().min(2, 'Model id is required.'),
-  capabilities: z.array(z.enum(capabilities)).min(1, 'Select at least one capability.'),
+  provider_id: z.string().min(1, '请选择供应商。'),
+  name: z.string().min(2, '名称至少需要 2 个字符。'),
+  model: z.string().min(2, '请输入模型 ID。'),
+  capabilities: z.array(z.enum(capabilities)).min(1, '至少选择一种能力。'),
   context_length: z.number().int().min(512).max(2000000),
   input_price: z.number().min(0),
   output_price: z.number().min(0),
@@ -78,9 +79,9 @@ export function ModelFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? 'Edit model' : 'Create model'}</h2>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑模型' : '新建模型'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Configure capabilities, token pricing, and rate limits for binding to agents.
+              配置模型能力、词元价格和限流，用于绑定到智能体。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -90,13 +91,13 @@ export function ModelFormPanel({
       </div>
 
       <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
-        <Field label="Provider" message={form.formState.errors.provider_id?.message}>
+        <Field label="供应商" message={form.formState.errors.provider_id?.message}>
           <select
             className="h-10 rounded-md border bg-background/80 px-3 text-sm"
             disabled={isEditing}
             {...form.register('provider_id')}
           >
-            <option value="">Select provider</option>
+            <option value="">选择供应商</option>
             {providers.map((provider) => (
               <option key={provider.id} value={provider.id}>
                 {provider.name}
@@ -106,21 +107,21 @@ export function ModelFormPanel({
         </Field>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Display name" message={form.formState.errors.name?.message}>
+          <Field label="显示名称" message={form.formState.errors.name?.message}>
             <Input {...form.register('name')} />
           </Field>
-          <Field label="Model id" message={form.formState.errors.model?.message}>
+          <Field label="模型 ID" message={form.formState.errors.model?.message}>
             <Input readOnly={isEditing} {...form.register('model')} />
           </Field>
         </div>
 
         <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium">Capabilities</legend>
+          <legend className="text-sm font-medium">能力</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {capabilities.map((capability) => (
               <label className="flex items-center gap-2 text-sm" key={capability}>
                 <input type="checkbox" value={capability} {...form.register('capabilities')} />
-                {capability}
+                {modelCapabilityLabel(capability)}
               </label>
             ))}
           </div>
@@ -130,28 +131,28 @@ export function ModelFormPanel({
         </fieldset>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Context length" message={form.formState.errors.context_length?.message}>
+          <Field label="上下文长度" message={form.formState.errors.context_length?.message}>
             <Input type="number" {...form.register('context_length', { valueAsNumber: true })} />
           </Field>
-          <Field label="Rate limit RPM" message={form.formState.errors.rate_limit_rpm?.message}>
+          <Field label="每分钟限流" message={form.formState.errors.rate_limit_rpm?.message}>
             <Input type="number" {...form.register('rate_limit_rpm', { setValueAs: nullableNumber })} />
           </Field>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Input price / 1K" message={form.formState.errors.input_price?.message}>
+          <Field label="输入价格 / 千词元" message={form.formState.errors.input_price?.message}>
             <Input step="0.000001" type="number" {...form.register('input_price', { valueAsNumber: true })} />
           </Field>
-          <Field label="Output price / 1K" message={form.formState.errors.output_price?.message}>
+          <Field label="输出价格 / 千词元" message={form.formState.errors.output_price?.message}>
             <Input step="0.000001" type="number" {...form.register('output_price', { valueAsNumber: true })} />
           </Field>
         </div>
 
-        <Field label="Status" message={form.formState.errors.status?.message}>
+        <Field label="状态" message={form.formState.errors.status?.message}>
           <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('status')}>
             {statuses.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {modelProviderStatusLabel(status)}
               </option>
             ))}
           </select>
@@ -159,7 +160,7 @@ export function ModelFormPanel({
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...form.register('is_default')} />
-          Set as provider default model
+          设为供应商默认模型
         </label>
 
         {error ? (
@@ -170,10 +171,10 @@ export function ModelFormPanel({
 
         <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
           <Button onClick={onClose} type="button" variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} type="submit">
-            {isEditing ? 'Save changes' : 'Create model'}
+            {isEditing ? '保存修改' : '新建模型'}
           </Button>
         </div>
       </form>

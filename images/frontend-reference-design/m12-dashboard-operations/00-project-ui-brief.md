@@ -1,0 +1,31 @@
+# Project UI Brief
+
+- Page: M12 Dashboard Operations
+- Route: `/dashboard`
+- Feature goal: replace the current mock dashboard with a real operational overview built on top of existing monitor and audit aggregates.
+- Target users and permissions: authenticated tenant users with `dashboard.read`.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `MetricCard`, `StatusBadge`.
+  - Existing reusable health surface: `ServiceHealthCard`.
+- Backend/data contracts to reuse:
+  - `GET /api/v1/health`
+  - `GET /api/v1/runtime/health`
+  - `GET /api/v1/monitor/overview`
+  - `GET /api/v1/audit/overview`
+- Main entities and fields:
+  - Service health: control service, runtime service
+  - Monitor summary: total events, success rate, average latency, P95 latency, total cost, active conversations
+  - Monitor trends/rankings: latency trend, agent/model/tool/knowledge rankings, recent errors
+  - Audit summary: login totals, operation totals, security event totals, config change totals
+  - Audit failure samples
+- Required states: loading, empty, error, health degraded/unavailable, no ranking data, no failures.
+- Visual constraints:
+  - Preserve current console shell and visual language.
+  - The page should feel like an executive-operations cockpit, not a BI dashboard template.
+  - Use compact metrics, health cards, trend strip, rankings, and incident/failure panels.
+  - No fake charts or placeholder text; every visual must map to real aggregated values.
+- M12 implementation boundary:
+  - No new backend module; this milestone composes existing monitor and audit APIs.
+  - Keep health cards and metrics lightweight and fast to refresh.

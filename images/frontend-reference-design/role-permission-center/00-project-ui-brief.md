@@ -1,0 +1,33 @@
+# Project UI Brief
+# Project UI Brief
+
+- Project: 企业 Agent 平台控制台。
+- Page: 角色权限中心，route `/roles`，挂在现有 Console Shell 下。
+- Target users: 租户管理员、平台管理员、安全管理员、审计员。写操作需要 `system:role:manage`，只读需要 `system:role:view`。
+- Goal: 把当前只读角色目录升级为可操作的角色权限中心，支持角色 CRUD、权限分组授权、菜单授权概览和用户引用查看。
+- Current contracts:
+  - Existing `GET /api/v1/roles` returns role list with `permission_count` and `menu_count`.
+  - Existing menu endpoints provide `GET /api/v1/menus/tree`, `GET /api/v1/menus/role-bindings`, `PUT /api/v1/menus/role-bindings/:roleId`.
+  - M34 adds role detail, overview, permission catalog, create/update/delete, enable/disable and role-permission binding APIs.
+- Entities:
+  - Role: `id`, `tenant_id`, `code`, `name`, `description`, `status`, `is_system`, `permission_count`, `menu_count`, `user_count`, timestamps.
+  - Permission: `id`, `code`, `name`, `module`, `resource`, `action`.
+  - Role detail includes `permissions`, `menus`, and `users`.
+- Actions:
+  - Search/filter roles, create role, edit role, disable/enable role, soft delete custom role.
+  - Select role, view detail, assign permissions grouped by module/resource, jump to menu authorization summary.
+- Required states:
+  - Loading role list/catalog/detail, empty custom roles, validation errors, mutation errors, permission-denied disabled controls, system-role guarded actions.
+- Components:
+  - Existing `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Tailwind layout with dashboard/bento grid, drawer panel, table, segmented filters and checkbox permission matrix.
+- Style:
+  - Chinese display text only.
+  - Enterprise SaaS console, minimal, clean, glass border/soft shadow, subtle motion, no exaggerated gradients or emoji.
+- Page: Role Permission Center
+- Route: /roles
+- Feature goal: 角色权限中心增强，角色 CRUD、权限分组授权、菜单授权摘要、用户引用查看
+- APIs/services: TBD
+- Entities/fields/statuses: TBD
+- Existing components/design system: TBD
+- Required states: loading, empty, error, validation, disabled, success, permission-denied

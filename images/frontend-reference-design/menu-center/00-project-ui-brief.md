@@ -1,0 +1,30 @@
+# Project UI Brief
+
+- Page: 菜单中心 / Menu Center
+- Route: `/menus`
+- Feature goal: 管理控制台多级菜单、目录/页面/按钮节点、角色菜单授权，并为左侧导航提供后端授权菜单树。
+- Target users and permissions: 租户管理员、系统管理员；读取权限 `menu.read`，写入权限 `menu.write`。`tenant_admin` 继续拥有全部菜单和权限。
+- Parent layout: Next.js App Router console group `apps/web/src/app/(console)`，复用 `ConsoleShell`、`Sidebar`、`MobileNav`、`Topbar`。
+- APIs/services:
+  - `GET /api/v1/menus/tree`
+  - `GET /api/v1/menus`
+  - `POST /api/v1/menus`
+  - `GET /api/v1/menus/:id`
+  - `PATCH /api/v1/menus/:id`
+  - `DELETE /api/v1/menus/:id`
+  - `POST /api/v1/menus/:id/enable`
+  - `POST /api/v1/menus/:id/disable`
+  - `GET /api/v1/menus/role-bindings`
+  - `PUT /api/v1/menus/role-bindings/:roleId`
+  - `GET /api/v1/auth/me` returns authorized `menus`
+- Data entities and fields:
+  - `menu`: `id`, `tenant_id`, `parent_id`, `name`, `code`, `type`, `path`, `component`, `icon`, `permission_code`, `sort_order`, `visible`, `enabled`, `created_at`, `updated_at`
+  - `role_menu`: `id`, `tenant_id`, `role_id`, `menu_id`, `created_at`, `updated_at`
+  - `CurrentUserResponse.menus`: authorized menu tree used by frontend navigation
+- Status/enums:
+  - menu type: `DIRECTORY`, `MENU`, `BUTTON`
+  - enabled: true/false
+  - visible: true/false
+- Available components and UI library: Tailwind CSS, React Query, lucide-react icons, existing `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`. Existing UI uses dense SaaS cards/tables/panels with Chinese copy.
+- Required states and actions: loading, empty menu tree, API error, disabled buttons during mutation, permission-denied disabled controls, create/edit modal, delete confirmation, enable/disable, role binding save state, dynamic navigation fallback.
+- Constraints: 中文界面；菜单最多三级；不破坏现有静态导航，先以授权菜单树优先、静态导航兜底；数据库表/字段必须有注释；不进行容器或中间件动作。

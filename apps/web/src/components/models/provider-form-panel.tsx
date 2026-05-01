@@ -7,18 +7,19 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { modelProviderTypeLabel } from '@/components/models/model-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 const providerTypes: ModelProviderType[] = ['OPENAI_COMPATIBLE', 'AZURE_OPENAI', 'ANTHROPIC', 'LOCAL'];
 
 const providerFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
+  name: z.string().min(2, '名称至少需要 2 个字符。'),
   code: z
     .string()
-    .regex(/^[a-z][a-z0-9_-]{2,99}$/, 'Use 3-100 lowercase letters, numbers, underscores, or hyphens.'),
+    .regex(/^[a-z][a-z0-9_-]{2,99}$/, '请使用 3-100 位小写字母、数字、下划线或连字符。'),
   provider_type: z.enum(providerTypes),
-  base_url: z.string().min(6, 'Base URL is required.'),
+  base_url: z.string().min(6, '请输入基础 URL。'),
   description: z.string().optional(),
   is_default: z.boolean(),
 });
@@ -67,9 +68,9 @@ export function ProviderFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? 'Edit provider' : 'Create provider'}</h2>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑供应商' : '新建供应商'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              OpenAI Compatible is the first executable provider adapter.
+              OpenAI 兼容是当前首个可执行的供应商适配器。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -80,29 +81,29 @@ export function ProviderFormPanel({
 
       <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Name" message={form.formState.errors.name?.message}>
+          <Field label="名称" message={form.formState.errors.name?.message}>
             <Input {...form.register('name')} />
           </Field>
-          <Field label="Code" message={form.formState.errors.code?.message}>
+          <Field label="编码" message={form.formState.errors.code?.message}>
             <Input readOnly={isEditing} {...form.register('code')} />
           </Field>
         </div>
 
-        <Field label="Provider type" message={form.formState.errors.provider_type?.message}>
+        <Field label="供应商类型" message={form.formState.errors.provider_type?.message}>
           <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('provider_type')}>
             {providerTypes.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {modelProviderTypeLabel(type)}
               </option>
             ))}
           </select>
         </Field>
 
-        <Field label="Base URL" message={form.formState.errors.base_url?.message}>
+        <Field label="基础 URL" message={form.formState.errors.base_url?.message}>
           <Input {...form.register('base_url')} />
         </Field>
 
-        <Field label="Description" message={form.formState.errors.description?.message}>
+        <Field label="描述" message={form.formState.errors.description?.message}>
           <textarea
             className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             {...form.register('description')}
@@ -111,7 +112,7 @@ export function ProviderFormPanel({
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...form.register('is_default')} />
-          Set as tenant default provider
+          设为租户默认供应商
         </label>
 
         {error ? (
@@ -122,10 +123,10 @@ export function ProviderFormPanel({
 
         <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
           <Button onClick={onClose} type="button" variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} type="submit">
-            {isEditing ? 'Save changes' : 'Create provider'}
+            {isEditing ? '保存修改' : '新建供应商'}
           </Button>
         </div>
       </form>

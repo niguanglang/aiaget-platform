@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { promptStatusLabel, promptTypeLabel } from '@/components/prompts/prompt-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -14,14 +15,14 @@ const promptTypes = ['SYSTEM', 'USER', 'ASSISTANT', 'TOOL'] as const satisfies r
 const promptStatuses = ['DRAFT', 'PUBLISHED', 'DISABLED', 'ARCHIVED'] as const satisfies readonly PromptStatus[];
 
 const promptFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.').max(160, 'Name is too long.'),
+  name: z.string().min(2, '名称至少需要 2 个字符。').max(160, '名称过长。'),
   code: z
     .string()
-    .regex(/^[a-z][a-z0-9_-]{2,99}$/, 'Use 3-100 lowercase letters, numbers, underscores, or hyphens.'),
+    .regex(/^[a-z][a-z0-9_-]{2,99}$/, '请使用 3-100 位小写字母、数字、下划线或连字符。'),
   type: z.enum(promptTypes),
   status: z.enum(promptStatuses),
   description: z.string().optional(),
-  content: z.string().min(1, 'Prompt content is required.'),
+  content: z.string().min(1, '请输入提示词内容。'),
   owner_id: z.string().optional(),
 });
 
@@ -36,7 +37,7 @@ function formDefaults(prompt?: PromptTemplateDetail | null): PromptFormValues {
     description: prompt?.description ?? '',
     content:
       prompt?.content ??
-      'You are a precise assistant for {{audience}}.\n\nGoal: {{goal}}\n\nReturn a concise answer with clear next steps.',
+      '你是面向 {{audience}} 的精准助手。\n\n目标：{{goal}}\n\n请输出简洁回答，并给出明确下一步。',
     owner_id: prompt?.owner?.id ?? '',
   };
 }
@@ -74,9 +75,9 @@ export function PromptFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? 'Edit prompt' : 'Create prompt'}</h2>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑提示词' : '新建提示词'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Prompt templates support versioned publishing, rollback, variables, and render tests.
+              提示词模板支持版本化发布、回滚、变量和渲染测试。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -87,38 +88,38 @@ export function PromptFormPanel({
 
       <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Name" message={form.formState.errors.name?.message}>
+          <Field label="名称" message={form.formState.errors.name?.message}>
             <Input {...form.register('name')} />
           </Field>
-          <Field label="Code" message={form.formState.errors.code?.message}>
+          <Field label="编码" message={form.formState.errors.code?.message}>
             <Input readOnly={isEditing} {...form.register('code')} />
           </Field>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Type" message={form.formState.errors.type?.message}>
+          <Field label="类型" message={form.formState.errors.type?.message}>
             <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('type')}>
               {promptTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {promptTypeLabel(type)}
                 </option>
               ))}
             </select>
           </Field>
           {isEditing ? (
-            <Field label="Status" message={form.formState.errors.status?.message}>
+            <Field label="状态" message={form.formState.errors.status?.message}>
               <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('status')}>
                 {promptStatuses.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {promptStatusLabel(status)}
                   </option>
                 ))}
               </select>
             </Field>
           ) : null}
-          <Field label="Owner" message={form.formState.errors.owner_id?.message}>
+          <Field label="负责人" message={form.formState.errors.owner_id?.message}>
             <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('owner_id')}>
-              <option value="">Current user</option>
+              <option value="">当前用户</option>
               {owners.map((owner) => (
                 <option key={owner.id} value={owner.id}>
                   {owner.name} ({owner.email})
@@ -128,14 +129,14 @@ export function PromptFormPanel({
           </Field>
         </div>
 
-        <Field label="Description" message={form.formState.errors.description?.message}>
+        <Field label="描述" message={form.formState.errors.description?.message}>
           <textarea
             className="min-h-20 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             {...form.register('description')}
           />
         </Field>
 
-        <Field label="Prompt content" message={form.formState.errors.content?.message}>
+        <Field label="提示词内容" message={form.formState.errors.content?.message}>
           <textarea
             className="min-h-72 resize-y rounded-md border bg-slate-950 px-3 py-3 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-ring"
             spellCheck={false}
@@ -151,10 +152,10 @@ export function PromptFormPanel({
 
         <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
           <Button onClick={onClose} type="button" variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} type="submit">
-            {isEditing ? 'Save changes' : 'Create prompt'}
+            {isEditing ? '保存修改' : '新建提示词'}
           </Button>
         </div>
       </form>

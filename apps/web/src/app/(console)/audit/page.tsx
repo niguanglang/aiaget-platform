@@ -1,7 +1,5 @@
-import { ModulePageShell } from '@/components/modules/module-page-shell';
-import { requireModuleSpec } from '@/config/modules';
+import { AuditContent } from '@/components/audit/audit-content';
 
 export default function AuditPage() {
-  return <ModulePageShell moduleSpec={requireModuleSpec('audit')} />;
+  return <AuditContent />;
 }
-

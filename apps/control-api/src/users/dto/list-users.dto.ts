@@ -24,5 +24,8 @@ export class ListUsersDto {
   @IsOptional()
   @IsIn(USER_STATUSES)
   status?: 'ACTIVE' | 'DISABLED' | 'DELETED';
-}
 
+  @IsOptional()
+  @IsString()
+  department_id?: string;
+}

@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M11 Settings Center
+- Route: `/settings`
+- Feature goal: manage tenant profile, users, roles, machine API keys, and basic security posture inside one operational settings surface.
+- Target users and permissions: authenticated tenant users with `settings.read`; edit actions require `tenant.write`, `user.write`, or `api_key.write`, and are primarily for tenant admins.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, React Hook Form, Zod, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Current settings page already has real user CRUD and tenant summary; M11 should preserve that working path and extend it.
+- Backend APIs to implement:
+  - `GET /api/v1/tenants`
+  - `GET /api/v1/tenants/:id`
+  - `PATCH /api/v1/tenants/:id`
+  - `GET /api/v1/users`
+  - `POST /api/v1/users`
+  - `PATCH /api/v1/users/:id`
+  - `DELETE /api/v1/users/:id`
+  - `GET /api/v1/roles`
+  - `GET /api/v1/api-keys`
+  - `POST /api/v1/api-keys`
+  - `DELETE /api/v1/api-keys/:id`
+- Data entities and fields:
+  - Tenant: `id`, `code`, `name`, `status`, `created_at`, `updated_at`
+  - User: `email`, `name`, `status`, `roles`, `last_login_at`, timestamps
+  - Role: `code`, `name`, `description`, `permission_count`
+  - Tenant API key: `name`, `key_prefix`, `status`, `expires_at`, `last_used_at`, `created_at`, one-time `plain_text_token`
+- Required states: loading, empty, error, validation, disabled, permission-denied, no API keys, no roles, one-time key creation success state.
+- Visual constraints:
+  - Continue the current console language: compact density, thin borders, soft shadows, Chinese UI copy.
+  - The page should feel like a real operational settings console, not a marketing or onboarding page.
+  - Primary surfaces: tenant profile card, user management table, role catalog, API key management, security summary.
+  - Atmosphere stays subtle and behind content; avoid oversized decorative treatment.
+- M11 implementation boundary:
+  - First version focuses on the current tenant only.
+  - Role management is read-only in M11; role assignment still happens through user CRUD.
+  - API keys are create/list/delete only, and plaintext is returned once at creation time.

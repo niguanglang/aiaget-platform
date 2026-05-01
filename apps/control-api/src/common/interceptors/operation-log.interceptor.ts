@@ -56,7 +56,7 @@ export class OperationLogInterceptor implements NestInterceptor {
         requestId: request.requestId ?? 'unknown',
         ip: request.ip,
         userAgent: request.headers['user-agent'],
-        requestSummary: sanitizePayload(request.body),
+        requestSummary: buildRequestSummary(request),
         errorMessage,
       },
     });
@@ -75,6 +75,17 @@ export class OperationLogInterceptor implements NestInterceptor {
         return method.toLowerCase();
     }
   }
+}
+
+function buildRequestSummary(request: RequestWithContext): Prisma.InputJsonObject {
+  return {
+    ...(sanitizePayload(request.body) ?? {}),
+    trace_id: request.traceId ?? null,
+    span_id: request.spanId ?? null,
+    parent_span_id: request.parentSpanId ?? null,
+    traceparent: request.traceparent ?? null,
+    request_id: request.requestId ?? null,
+  };
 }
 
 function sanitizePayload(value: unknown): Prisma.InputJsonObject | undefined {

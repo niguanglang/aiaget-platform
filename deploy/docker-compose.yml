@@ -59,6 +59,8 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: aiaget-qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-redacted-local-secret}
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -68,13 +70,12 @@ services:
       - aiaget
 
   opensearch:
-    image: opensearchproject/opensearch:latest
+    image: opensearchproject/opensearch:2.19.3
     container_name: aiaget-opensearch
     environment:
       discovery.type: single-node
-      plugins.security.disabled: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
       bootstrap.memory_lock: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-OpenSearchDevPassword123!}
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ulimits:
       memlock:
@@ -126,9 +127,10 @@ volumes:
   redis_data:
   minio_data:
   qdrant_data:
+    name: aiaget_qdrant_data
   opensearch_data:
+    name: aiaget_opensearch_data
 
 networks:
   aiaget:
     driver: bridge
-

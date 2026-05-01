@@ -21,7 +21,7 @@ export class UsersController {
   constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
 
   @Get()
-  @Permissions('user.read')
+  @Permissions('system:user:view')
   @ApiOkResponse({ description: 'Tenant-isolated paginated user list' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -31,7 +31,7 @@ export class UsersController {
   }
 
   @Post()
-  @Permissions('user.write')
+  @Permissions('system:user:manage')
   @ApiOkResponse({ description: 'Create tenant user' })
   async create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -41,7 +41,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Permissions('user.write')
+  @Permissions('system:user:manage')
   @ApiOkResponse({ description: 'Update tenant user' })
   async update(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -52,7 +52,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Permissions('user.write')
+  @Permissions('system:user:manage')
   @ApiOkResponse({ description: 'Soft delete tenant user' })
   async remove(
     @CurrentUser() currentUser: AuthenticatedUser,

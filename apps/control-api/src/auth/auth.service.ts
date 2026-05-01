@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 import { compare } from 'bcryptjs';
 import { createHash, randomUUID } from 'node:crypto';
 
-import type { CurrentUserResponse, LoginResponse } from '@aiaget/shared-types';
+import { expandPermissionCodes, type AuthorizedMenuItem, type CurrentUserResponse, type LoginResponse } from '@aiaget/shared-types';
 
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
@@ -198,7 +198,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       expiresIn: ACCESS_TOKEN_TTL_SECONDS,
-      currentUser: this.mapCurrentUser(user),
+      currentUser: await this.mapCurrentUser(user),
     };
   }
 
@@ -220,19 +220,24 @@ export class AuthService {
     return user;
   }
 
-  private mapCurrentUser(user: UserWithAuthRelations): CurrentUserResponse {
-    const roles = user.userRoles.map((userRole) => ({
+  private async mapCurrentUser(user: UserWithAuthRelations): Promise<CurrentUserResponse> {
+    const activeUserRoles = user.userRoles.filter((userRole) => userRole.role);
+    const roles = activeUserRoles.map((userRole) => ({
       id: userRole.role.id,
       code: userRole.role.code,
       name: userRole.role.name,
     }));
-    const permissions = Array.from(
-      new Set(
-        user.userRoles.flatMap((userRole) =>
-          userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code),
+    const permissions = expandPermissionCodes(
+      Array.from(
+        new Set(
+          activeUserRoles.flatMap((userRole) =>
+            userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code),
+          ),
         ),
       ),
     );
+    const roleCodes = roles.map((role) => role.code);
+    const menus = await this.loadAuthorizedMenus(user.tenantId, roleCodes, permissions);
 
     return {
       tenant: {
@@ -249,7 +254,103 @@ export class AuthService {
         roles,
         permissions,
       },
+      menus,
     };
+  }
+
+  private async loadAuthorizedMenus(
+    tenantId: string,
+    roles: string[],
+    permissions: string[],
+  ): Promise<AuthorizedMenuItem[]> {
+    const isTenantAdmin = roles.includes('tenant_admin');
+    const menus = await this.prisma.menu.findMany({
+      where: {
+        tenantId,
+        enabled: true,
+        visible: true,
+        deletedAt: null,
+        type: {
+          not: 'BUTTON',
+        },
+        ...(isTenantAdmin
+          ? {}
+          : {
+              roleMenus: {
+                some: {
+                  deletedAt: null,
+                  role: {
+                    code: {
+                      in: roles,
+                    },
+                    deletedAt: null,
+                  },
+                },
+              },
+              OR: [
+                {
+                  permissionCode: null,
+                },
+                {
+                  permissionCode: {
+                    in: permissions,
+                  },
+                },
+              ],
+            }),
+      },
+      select: {
+        id: true,
+        parentId: true,
+        name: true,
+        code: true,
+        type: true,
+        path: true,
+        icon: true,
+        permissionCode: true,
+        sortOrder: true,
+        createdAt: true,
+      },
+      orderBy: [
+        {
+          sortOrder: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    });
+
+    const nodeMap = new Map<string, AuthorizedMenuItem>();
+    const roots: AuthorizedMenuItem[] = [];
+
+    for (const menu of menus) {
+      nodeMap.set(menu.id, {
+        id: menu.id,
+        parent_id: menu.parentId,
+        name: menu.name,
+        code: menu.code,
+        type: menu.type as AuthorizedMenuItem['type'],
+        path: menu.path,
+        icon: menu.icon,
+        permission_code: menu.permissionCode,
+        sort_order: menu.sortOrder,
+        children: [],
+      });
+    }
+
+    for (const menu of menus) {
+      const node = nodeMap.get(menu.id);
+      if (!node) continue;
+      const parent = menu.parentId ? nodeMap.get(menu.parentId) : null;
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    return roots;
   }
 
   private authUserInclude() {
@@ -258,6 +359,10 @@ export class AuthService {
       userRoles: {
         where: {
           deletedAt: null,
+          role: {
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
         },
         include: {
           role: {

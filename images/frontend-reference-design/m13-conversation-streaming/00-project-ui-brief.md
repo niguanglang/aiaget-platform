@@ -1,0 +1,29 @@
+# Project UI Brief
+
+- Page: M13 Conversation Streaming
+- Route: `/conversations/[id]`
+- Feature goal: add real-time streaming assistant output over the existing conversation detail page while preserving persisted messages and run traces.
+- Target users and permissions: authenticated tenant users with `conversation.write`.
+- Existing frontend contract:
+  - Current conversation detail page already supports persisted request-response chat.
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, Tailwind CSS, Motion.
+  - Existing conversation cards, metrics, status badges, and detail sections should remain.
+- Backend APIs to extend:
+  - `POST /runtime/conversations/respond-stream`
+  - `POST /api/v1/conversations/:id/messages/stream`
+- Streaming contract:
+  - SSE-style stream over fetch response with event types: `start`, `delta`, `done`, `error`
+  - `start` includes run metadata preview such as request model and current steps
+  - `delta` carries assistant text chunks
+  - `done` includes the final persisted `ConversationDetail`
+  - `error` carries a user-facing failure message
+- Required states: connecting, streaming, stream failed, archived conversation disabled, persisted conversation refresh after stream complete.
+- Visual constraints:
+  - Keep the current conversation detail page structure; do not redesign the whole module.
+  - Streaming should appear as a live assistant bubble / response area rather than a raw event console.
+  - Use subtle progress indicators and status text, not flashy typing animations.
+- M13 implementation boundary:
+  - Only the conversation detail page is upgraded to streaming in this pass.
+  - Existing non-streaming create and list-side reply flows remain available.
+  - Runtime stays deterministic but emits chunked output to exercise the SSE path.

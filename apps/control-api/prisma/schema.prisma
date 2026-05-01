@@ -18,9 +18,15 @@ model Tenant {
   createdBy     String?        @map("created_by") @db.Uuid
   updatedBy     String?        @map("updated_by") @db.Uuid
   users         User[]
+  departments   Department[]
   roles         Role[]
   permissions   Permission[]
+  menus         Menu[]
+  roleMenus     RoleMenu[]
+  roleDataScopes RoleDataScope[]
+  resourceAcls ResourceAcl[]
   apiKeys       ApiKey[]
+  systemSettings SystemSetting[]
   loginLogs     LoginLog[]
   operationLogs OperationLog[]
   refreshTokens RefreshToken[]
@@ -42,6 +48,20 @@ model Tenant {
   promptVersions PromptVersion[]
   promptVariables PromptVariable[]
   promptTestRecords PromptTestRecord[]
+  knowledgeBases KnowledgeBase[]
+  knowledgeDocuments KnowledgeDocument[]
+  knowledgeSegments KnowledgeSegment[]
+  knowledgeEmbeddingTasks KnowledgeEmbeddingTask[]
+  knowledgeRecallLogs KnowledgeRecallLog[]
+  tools Tool[]
+  toolCallLogs ToolCallLog[]
+  toolApprovalRequests ToolApprovalRequest[]
+  conversations Conversation[]
+  conversationMessages ConversationMessage[]
+  conversationRuns ConversationRun[]
+  conversationFeedback ConversationFeedback[]
+  securityPolicies SecurityPolicy[]
+  securityPolicyEvaluations SecurityPolicyEvaluation[]
 
   @@index([status])
   @@index([createdAt])
@@ -53,6 +73,7 @@ model Tenant {
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   tenantId      String         @map("tenant_id") @db.Uuid
+  departmentId  String?        @map("department_id") @db.Uuid
   email         String         @db.VarChar(180)
   name          String         @db.VarChar(120)
   passwordHash  String         @map("password_hash") @db.VarChar(255)
@@ -64,7 +85,9 @@ model User {
   createdBy     String?        @map("created_by") @db.Uuid
   updatedBy     String?        @map("updated_by") @db.Uuid
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  department    Department?    @relation("DepartmentMembers", fields: [departmentId], references: [id])
   userRoles     UserRole[]
+  ledDepartments Department[]  @relation("DepartmentLeader")
   loginLogs     LoginLog[]
   operationLogs OperationLog[]
   refreshTokens RefreshToken[]
@@ -74,14 +97,62 @@ model User {
   ownedPromptTemplates PromptTemplate[] @relation("PromptTemplateOwner")
   createdPromptVersions PromptVersion[] @relation("PromptVersionCreator")
   promptTestRecords PromptTestRecord[] @relation("PromptTestOperator")
+  ownedKnowledgeBases KnowledgeBase[] @relation("KnowledgeBaseOwner")
+  uploadedKnowledgeDocuments KnowledgeDocument[] @relation("KnowledgeDocumentUploader")
+  knowledgeRecallLogs KnowledgeRecallLog[] @relation("KnowledgeRecallOperator")
+  toolCallLogs ToolCallLog[] @relation("ToolCallOperator")
+  requestedToolApprovals ToolApprovalRequest[] @relation("ToolApprovalRequester")
+  reviewedToolApprovals ToolApprovalRequest[] @relation("ToolApprovalReviewer")
+  conversations Conversation[] @relation("ConversationUser")
+  conversationMessages ConversationMessage[] @relation("ConversationMessageAuthor")
+  conversationRuns ConversationRun[] @relation("ConversationRunOperator")
+  conversationFeedback ConversationFeedback[] @relation("ConversationFeedbackAuthor")
+  createdSecurityPolicies SecurityPolicy[] @relation("SecurityPolicyCreator")
+  updatedSecurityPolicies SecurityPolicy[] @relation("SecurityPolicyUpdater")
+  securityPolicyEvaluations SecurityPolicyEvaluation[] @relation("SecurityPolicyEvaluationOperator")
+  updatedSystemSettings SystemSetting[] @relation("SystemSettingUpdater")
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([departmentId])
   @@index([status])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("user")
+}
+
+model Department {
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  parentId     String?      @map("parent_id") @db.Uuid
+  name         String       @db.VarChar(120)
+  code         String       @db.VarChar(100)
+  description  String?      @db.Text
+  leaderUserId String?      @map("leader_user_id") @db.Uuid
+  sortOrder    Int          @default(0) @map("sort_order")
+  status       String       @default("ACTIVE") @db.VarChar(30)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  parent       Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children     Department[] @relation("DepartmentTree")
+  leader       User?        @relation("DepartmentLeader", fields: [leaderUserId], references: [id])
+  members      User[]       @relation("DepartmentMembers")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([leaderUserId])
+  @@index([status])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("department")
 }
 
 model Role {
@@ -90,6 +161,7 @@ model Role {
   code            String           @db.VarChar(80)
   name            String           @db.VarChar(120)
   description     String?          @db.Text
+  status          String           @default("ACTIVE") @db.VarChar(30)
   isSystem        Boolean          @default(false) @map("is_system")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
@@ -99,9 +171,12 @@ model Role {
   tenant          Tenant           @relation(fields: [tenantId], references: [id])
   userRoles       UserRole[]
   rolePermissions RolePermission[]
+  roleMenus        RoleMenu[]
+  dataScopes       RoleDataScope[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
+  @@index([status])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
@@ -114,6 +189,7 @@ model Permission {
   code            String           @db.VarChar(120)
   name            String           @db.VarChar(160)
   module          String           @db.VarChar(80)
+  resource        String           @default("") @db.VarChar(80)
   action          String           @db.VarChar(80)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
@@ -126,6 +202,8 @@ model Permission {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([module])
+  @@index([resource])
+  @@index([action])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
@@ -174,6 +252,130 @@ model RolePermission {
   @@map("role_permission")
 }
 
+model Menu {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  name           String    @db.VarChar(120)
+  code           String    @db.VarChar(100)
+  type           String    @db.VarChar(20)
+  path           String?   @db.VarChar(255)
+  component      String?   @db.VarChar(255)
+  icon           String?   @db.VarChar(100)
+  permissionCode String?   @map("permission_code") @db.VarChar(120)
+  sortOrder      Int       @default(0) @map("sort_order")
+  visible        Boolean   @default(true)
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  parent         Menu?     @relation("MenuTree", fields: [parentId], references: [id])
+  children       Menu[]    @relation("MenuTree")
+  roleMenus      RoleMenu[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([type])
+  @@index([permissionCode])
+  @@index([sortOrder])
+  @@index([visible])
+  @@index([enabled])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("menu")
+}
+
+model RoleMenu {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  menuId    String   @map("menu_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+  menu      Menu     @relation(fields: [menuId], references: [id])
+
+  @@unique([tenantId, roleId, menuId])
+  @@index([tenantId])
+  @@index([roleId])
+  @@index([menuId])
+  @@index([tenantId, roleId, menuId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("role_menu")
+}
+
+model RoleDataScope {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  resourceType String   @map("resource_type") @db.VarChar(80)
+  scopeType    String   @map("scope_type") @db.VarChar(50)
+  scopeValue   Json?    @map("scope_value")
+  status       String   @default("ACTIVE") @db.VarChar(30)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?  @map("created_by") @db.Uuid
+  updatedBy    String?  @map("updated_by") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  role         Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([tenantId, roleId, resourceType])
+  @@index([tenantId])
+  @@index([roleId])
+  @@index([resourceType])
+  @@index([scopeType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("role_data_scope")
+}
+
+model ResourceAcl {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  resourceType   String   @map("resource_type") @db.VarChar(80)
+  resourceId     String   @map("resource_id") @db.Uuid
+  subjectType    String   @map("subject_type") @db.VarChar(50)
+  subjectId      String   @map("subject_id") @db.Uuid
+  permissionCode String   @map("permission_code") @db.VarChar(120)
+  effect         String   @default("ALLOW") @db.VarChar(20)
+  conditions     Json?
+  status         String   @default("ACTIVE") @db.VarChar(30)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?  @map("created_by") @db.Uuid
+  updatedBy      String?  @map("updated_by") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, resourceType, resourceId, subjectType, subjectId, permissionCode])
+  @@index([tenantId])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([subjectType])
+  @@index([subjectId])
+  @@index([permissionCode])
+  @@index([effect])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("resource_acl")
+}
+
 model ApiKey {
   id         String    @id @default(uuid()) @db.Uuid
   tenantId   String    @map("tenant_id") @db.Uuid
@@ -181,6 +383,14 @@ model ApiKey {
   keyPrefix  String    @map("key_prefix") @db.VarChar(30)
   keyHash    String    @map("key_hash") @db.VarChar(255)
   status     String    @default("ACTIVE") @db.VarChar(30)
+  scopes     Json?
+  allowedAgentIds Json? @map("allowed_agent_ids")
+  ipAllowlist Json? @map("ip_allowlist")
+  rateLimitPerMinute Int @default(60) @map("rate_limit_per_minute")
+  dailyQuota Int? @map("daily_quota")
+  usedCountToday Int @default(0) @map("used_count_today")
+  quotaResetDate DateTime? @map("quota_reset_date") @db.Date
+  allowStream Boolean @default(true) @map("allow_stream")
   expiresAt  DateTime? @map("expires_at")
   lastUsedAt DateTime? @map("last_used_at")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -192,10 +402,50 @@ model ApiKey {
 
   @@index([tenantId])
   @@index([status])
+  @@index([rateLimitPerMinute])
+  @@index([quotaResetDate])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("api_key")
+}
+
+model SystemSetting {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  category     String    @db.VarChar(80)
+  key          String    @db.VarChar(120)
+  name         String    @db.VarChar(160)
+  description  String?   @db.Text
+  value        Json      @default("{}")
+  defaultValue Json      @default("{}") @map("default_value")
+  valueType    String    @map("value_type") @db.VarChar(40)
+  options      Json?
+  isSecret     Boolean   @default(false) @map("is_secret")
+  isSystem     Boolean   @default(true) @map("is_system")
+  status       String    @default("ACTIVE") @db.VarChar(30)
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  updater      User?     @relation("SystemSettingUpdater", fields: [updatedBy], references: [id])
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@index([category])
+  @@index([key])
+  @@index([valueType])
+  @@index([isSecret])
+  @@index([isSystem])
+  @@index([status])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("system_setting")
 }
 
 model LoginLog {
@@ -318,8 +568,11 @@ model Agent {
   promptBindings   AgentPromptBinding[]
   knowledgeBindings AgentKnowledgeBinding[]
   toolBindings     AgentToolBinding[]
+  toolApprovalRequests ToolApprovalRequest[]
   publishChannels  AgentPublishChannel[]
   auditLogs        AgentAuditLog[]
+  conversations    Conversation[]
+  conversationRuns ConversationRun[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -773,4 +1026,443 @@ model PromptTestRecord {
   @@index([status])
   @@index([createdAt])
   @@map("prompt_test_record")
+}
+
+model KnowledgeBase {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  ownerId     String?   @map("owner_id") @db.Uuid
+  name        String    @db.VarChar(160)
+  code        String    @db.VarChar(100)
+  visibility  String    @default("PRIVATE") @db.VarChar(30)
+  status      String    @default("ACTIVE") @db.VarChar(30)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  owner       User?     @relation("KnowledgeBaseOwner", fields: [ownerId], references: [id])
+  documents   KnowledgeDocument[]
+  segments    KnowledgeSegment[]
+  tasks       KnowledgeEmbeddingTask[]
+  recallLogs  KnowledgeRecallLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([visibility])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("knowledge_base")
+}
+
+model KnowledgeDocument {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  knowledgeId  String    @map("knowledge_id") @db.Uuid
+  title        String    @db.VarChar(220)
+  sourceType   String    @default("TEXT") @map("source_type") @db.VarChar(30)
+  mimeType     String?   @map("mime_type") @db.VarChar(160)
+  fileName     String?   @map("file_name") @db.VarChar(260)
+  fileSize     Int       @default(0) @map("file_size")
+  storagePath  String?   @map("storage_path") @db.VarChar(500)
+  checksum     String?   @db.VarChar(120)
+  status       String    @default("PENDING") @db.VarChar(30)
+  parsedText   String?   @map("parsed_text") @db.Text
+  errorMessage String?   @map("error_message") @db.Text
+  segmentCount Int       @default(0) @map("segment_count")
+  tokenCount   Int       @default(0) @map("token_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  uploadedBy   String?   @map("uploaded_by") @db.Uuid
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  knowledge    KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  uploader     User?     @relation("KnowledgeDocumentUploader", fields: [uploadedBy], references: [id])
+  segments     KnowledgeSegment[]
+  tasks        KnowledgeEmbeddingTask[]
+
+  @@index([tenantId])
+  @@index([knowledgeId])
+  @@index([sourceType])
+  @@index([status])
+  @@index([checksum])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("knowledge_document")
+}
+
+model KnowledgeSegment {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  knowledgeId  String    @map("knowledge_id") @db.Uuid
+  documentId   String    @map("document_id") @db.Uuid
+  content      String    @db.Text
+  tokenCount   Int       @default(0) @map("token_count")
+  keywords     String[]  @default([])
+  embeddingVector Json?   @map("embedding_vector")
+  embeddingModel String?  @map("embedding_model") @db.VarChar(160)
+  metadata     Json?
+  vectorStatus String    @default("PENDING") @map("vector_status") @db.VarChar(30)
+  indexStatus  String    @default("PENDING") @map("index_status") @db.VarChar(30)
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  knowledge    KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  document     KnowledgeDocument @relation(fields: [documentId], references: [id])
+
+  @@index([tenantId])
+  @@index([knowledgeId])
+  @@index([documentId])
+  @@index([vectorStatus])
+  @@index([indexStatus])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("knowledge_segment")
+}
+
+model KnowledgeEmbeddingTask {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  knowledgeId  String    @map("knowledge_id") @db.Uuid
+  documentId   String?   @map("document_id") @db.Uuid
+  taskType     String    @default("PROCESS") @map("task_type") @db.VarChar(40)
+  status       String    @default("PENDING") @db.VarChar(30)
+  totalItems   Int       @default(0) @map("total_items")
+  processedItems Int     @default(0) @map("processed_items")
+  startedAt    DateTime? @map("started_at")
+  endedAt      DateTime? @map("ended_at")
+  errorMessage String?   @map("error_message") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  knowledge    KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  document     KnowledgeDocument? @relation(fields: [documentId], references: [id])
+
+  @@index([tenantId])
+  @@index([knowledgeId])
+  @@index([documentId])
+  @@index([taskType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@map("knowledge_embedding_task")
+}
+
+model KnowledgeRecallLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  knowledgeId  String   @map("knowledge_id") @db.Uuid
+  query        String   @db.Text
+  mode         String   @default("HYBRID") @db.VarChar(30)
+  topK         Int      @default(5) @map("top_k")
+  status       String   @db.VarChar(30)
+  latencyMs    Int      @default(0) @map("latency_ms")
+  resultCount  Int      @default(0) @map("result_count")
+  results      Json?
+  errorMessage String?  @map("error_message") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  createdBy    String?  @map("created_by") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  knowledge    KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  operator     User?    @relation("KnowledgeRecallOperator", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([knowledgeId])
+  @@index([mode])
+  @@index([status])
+  @@index([createdAt])
+  @@map("knowledge_recall_log")
+}
+
+model Tool {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  name            String    @db.VarChar(160)
+  code            String    @db.VarChar(100)
+  description     String?   @db.Text
+  toolType        String    @default("HTTP") @map("tool_type") @db.VarChar(30)
+  method          String    @default("POST") @db.VarChar(20)
+  url             String    @db.VarChar(1000)
+  status          String    @default("ACTIVE") @db.VarChar(30)
+  riskLevel       String    @default("LOW") @map("risk_level") @db.VarChar(30)
+  timeoutMs       Int       @default(10000) @map("timeout_ms")
+  requireApproval Boolean   @default(false) @map("require_approval")
+  headers         Json?
+  authType        String    @default("NONE") @map("auth_type") @db.VarChar(40)
+  authConfig      Json?     @map("auth_config")
+  inputSchema     Json?     @map("input_schema")
+  outputSchema    Json?     @map("output_schema")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  callLogs        ToolCallLog[]
+  approvalRequests ToolApprovalRequest[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([toolType])
+  @@index([method])
+  @@index([status])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("tool")
+}
+
+model ToolCallLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  toolId         String   @map("tool_id") @db.Uuid
+  triggerSource  String   @default("TEST") @map("trigger_source") @db.VarChar(30)
+  status         String   @db.VarChar(30)
+  requestUrl     String   @map("request_url") @db.VarChar(1000)
+  requestMethod  String   @map("request_method") @db.VarChar(20)
+  requestHeaders Json?    @map("request_headers")
+  requestBody    Json?    @map("request_body")
+  responseStatus Int?     @map("response_status")
+  responseHeaders Json?   @map("response_headers")
+  responseBody   Json?    @map("response_body")
+  latencyMs      Int      @default(0) @map("latency_ms")
+  errorMessage   String?  @map("error_message") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  createdBy      String?  @map("created_by") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  tool           Tool     @relation(fields: [toolId], references: [id])
+  operator       User?    @relation("ToolCallOperator", fields: [createdBy], references: [id])
+  approvalRequest ToolApprovalRequest?
+
+  @@index([tenantId])
+  @@index([toolId])
+  @@index([status])
+  @@index([triggerSource])
+  @@index([createdAt])
+  @@map("tool_call_log")
+}
+
+model ToolApprovalRequest {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  toolId         String    @map("tool_id") @db.Uuid
+  toolCallLogId  String    @unique @map("tool_call_log_id") @db.Uuid
+  agentId        String?   @map("agent_id") @db.Uuid
+  conversationId String?   @map("conversation_id") @db.Uuid
+  triggerSource  String    @default("TEST") @map("trigger_source") @db.VarChar(30)
+  status         String    @default("PENDING") @db.VarChar(30)
+  reason         String?   @db.Text
+  requestedBy    String?   @map("requested_by") @db.Uuid
+  reviewedBy     String?   @map("reviewed_by") @db.Uuid
+  decisionNote   String?   @map("decision_note") @db.Text
+  reviewedAt     DateTime? @map("reviewed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  tool           Tool      @relation(fields: [toolId], references: [id])
+  toolCallLog    ToolCallLog @relation(fields: [toolCallLogId], references: [id])
+  agent          Agent?    @relation(fields: [agentId], references: [id])
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  requester      User?     @relation("ToolApprovalRequester", fields: [requestedBy], references: [id])
+  reviewer       User?     @relation("ToolApprovalReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([toolId])
+  @@index([agentId])
+  @@index([conversationId])
+  @@index([status])
+  @@index([triggerSource])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@map("tool_approval_request")
+}
+
+model Conversation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  agentId            String    @map("agent_id") @db.Uuid
+  userId             String?   @map("user_id") @db.Uuid
+  title              String    @db.VarChar(220)
+  status             String    @default("ACTIVE") @db.VarChar(30)
+  messageCount       Int       @default(0) @map("message_count")
+  lastMessagePreview String?   @map("last_message_preview") @db.VarChar(500)
+  lastMessageAt      DateTime? @map("last_message_at")
+  lastRunStatus      String?   @map("last_run_status") @db.VarChar(30)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  agent              Agent     @relation(fields: [agentId], references: [id])
+  user               User?     @relation("ConversationUser", fields: [userId], references: [id])
+  messages           ConversationMessage[]
+  runs               ConversationRun[]
+  feedback           ConversationFeedback[]
+  toolApprovalRequests ToolApprovalRequest[]
+
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+  @@index([lastMessageAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("conversation")
+}
+
+model ConversationRun {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  conversationId   String    @map("conversation_id") @db.Uuid
+  agentId          String    @map("agent_id") @db.Uuid
+  status           String    @db.VarChar(30)
+  requestModel     String?   @map("request_model") @db.VarChar(160)
+  promptTokens     Int       @default(0) @map("prompt_tokens")
+  completionTokens Int       @default(0) @map("completion_tokens")
+  totalTokens      Int       @default(0) @map("total_tokens")
+  latencyMs        Int       @default(0) @map("latency_ms")
+  steps            Json?
+  errorMessage     String?   @map("error_message") @db.Text
+  startedAt        DateTime? @map("started_at")
+  endedAt          DateTime? @map("ended_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  createdBy        String?   @map("created_by") @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  agent            Agent     @relation(fields: [agentId], references: [id])
+  operator         User?     @relation("ConversationRunOperator", fields: [createdBy], references: [id])
+  messages         ConversationMessage[]
+  feedback         ConversationFeedback[]
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("conversation_run")
+}
+
+model ConversationMessage {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  runId      String?   @map("run_id") @db.Uuid
+  role       String    @db.VarChar(20)
+  content    String    @db.Text
+  references Json?
+  toolCalls  Json?     @map("tool_calls")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  createdBy  String?   @map("created_by") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  run        ConversationRun? @relation(fields: [runId], references: [id])
+  author     User?     @relation("ConversationMessageAuthor", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([runId])
+  @@index([role])
+  @@index([createdAt])
+  @@map("conversation_message")
+}
+
+model ConversationFeedback {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  conversationId String    @map("conversation_id") @db.Uuid
+  runId          String?   @map("run_id") @db.Uuid
+  rating         Int
+  comment        String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  run            ConversationRun? @relation(fields: [runId], references: [id])
+  author         User?     @relation("ConversationFeedbackAuthor", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([runId])
+  @@index([createdAt])
+  @@map("conversation_feedback")
+}
+
+model SecurityPolicy {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String    @db.VarChar(160)
+  code        String    @db.VarChar(100)
+  description String?   @db.Text
+  effect      String    @default("DENY") @db.VarChar(20)
+  resourceType String   @map("resource_type") @db.VarChar(80)
+  action      String    @db.VarChar(120)
+  priority    Int       @default(100)
+  status      String    @default("ACTIVE") @db.VarChar(30)
+  conditions  Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  creator     User?     @relation("SecurityPolicyCreator", fields: [createdBy], references: [id])
+  updater     User?     @relation("SecurityPolicyUpdater", fields: [updatedBy], references: [id])
+  evaluations SecurityPolicyEvaluation[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([effect])
+  @@index([resourceType])
+  @@index([action])
+  @@index([priority])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("security_policy")
+}
+
+model SecurityPolicyEvaluation {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  requestId   String   @map("request_id") @db.VarChar(120)
+  traceId     String?  @map("trace_id") @db.VarChar(120)
+  subject     Json
+  resource    Json
+  action      String   @db.VarChar(120)
+  decision    String   @db.VarChar(30)
+  matchedPolicyId String? @map("matched_policy_id") @db.Uuid
+  matchedPolicyCode String? @map("matched_policy_code") @db.VarChar(100)
+  reason      String   @db.Text
+  context     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  matchedPolicy SecurityPolicy? @relation(fields: [matchedPolicyId], references: [id])
+  operator    User?    @relation("SecurityPolicyEvaluationOperator", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([requestId])
+  @@index([traceId])
+  @@index([action])
+  @@index([decision])
+  @@index([matchedPolicyId])
+  @@index([createdAt])
+  @@map("security_policy_evaluation")
 }

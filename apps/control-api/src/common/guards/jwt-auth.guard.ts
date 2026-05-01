@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { expandPermissionCodes } from '@aiaget/shared-types';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestWithContext } from '../types/request-context';
@@ -48,6 +49,10 @@ export class JwtAuthGuard implements CanActivate {
           userRoles: {
             where: {
               deletedAt: null,
+              role: {
+                status: 'ACTIVE',
+                deletedAt: null,
+              },
             },
             include: {
               role: {
@@ -71,11 +76,14 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Invalid token user');
       }
 
-      const roles = user.userRoles.map((userRole) => userRole.role.code);
-      const permissions = Array.from(
-        new Set(
-          user.userRoles.flatMap((userRole) =>
-            userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code),
+      const activeUserRoles = user.userRoles.filter((userRole) => userRole.role);
+      const roles = activeUserRoles.map((userRole) => userRole.role.code);
+      const permissions = expandPermissionCodes(
+        Array.from(
+          new Set(
+            activeUserRoles.flatMap((userRole) =>
+              userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code),
+            ),
           ),
         ),
       );
@@ -83,9 +91,16 @@ export class JwtAuthGuard implements CanActivate {
       request.user = {
         id: user.id,
         tenantId: user.tenantId,
+        departmentId: user.departmentId,
         email: user.email,
         roles,
+        roleIds: activeUserRoles.map((userRole) => userRole.role.id),
         permissions,
+        requestId: request.requestId,
+        traceId: request.traceId,
+        spanId: request.spanId,
+        parentSpanId: request.parentSpanId,
+        traceparent: request.traceparent,
       };
 
       return true;

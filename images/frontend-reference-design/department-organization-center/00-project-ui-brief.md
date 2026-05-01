@@ -1,0 +1,28 @@
+# Project UI Brief
+
+- Page: 部门/组织架构中心 / Department Organization Center
+- Route: `/departments`
+- Feature goal: 管理租户内部门树、上级部门、负责人、成员归属、启停状态，并为后续 ABAC 数据范围和资源授权提供组织属性。
+- Target users and permissions: 租户管理员、系统管理员；读取权限 `department.read`，写入权限 `department.write`。`tenant_admin` 继续拥有全部权限。
+- Parent layout: Next.js App Router console group `apps/web/src/app/(console)`，复用 `ConsoleShell`、`Sidebar`、`MobileNav`、`Topbar` 和 M31 动态菜单。
+- APIs/services:
+  - `GET /api/v1/departments/overview`
+  - `GET /api/v1/departments/tree`
+  - `GET /api/v1/departments`
+  - `POST /api/v1/departments`
+  - `GET /api/v1/departments/:id`
+  - `PATCH /api/v1/departments/:id`
+  - `DELETE /api/v1/departments/:id`
+  - `POST /api/v1/departments/:id/enable`
+  - `POST /api/v1/departments/:id/disable`
+  - `GET /api/v1/users?department_id=...`
+  - `POST/PATCH /api/v1/users` accepts `department_id`
+- Data entities and fields:
+  - `department`: `id`, `tenant_id`, `parent_id`, `name`, `code`, `description`, `leader_user_id`, `sort_order`, `status`, `created_at`, `updated_at`, `deleted_at`
+  - `user.department_id`: 用户所属部门，用于组织树成员统计和 ABAC 主体属性
+  - response detail includes `parent_name`, `leader`, `member_count`, `child_count`, `level`, `children`, `members`
+- Status/enums:
+  - department status: `ACTIVE`, `DISABLED`, `DELETED`
+- Available components and UI library: Tailwind CSS, React Query, lucide-react icons, existing `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`，页面风格沿用 M31 菜单中心。
+- Required states and actions: loading, empty department tree, API error, disabled buttons during mutation, permission-denied disabled controls, create/edit drawer, delete confirmation, enable/disable, member list, department filter in user list.
+- Constraints: 中文界面；部门树最多六级；避免过度渐变和信息过满；不进行任何容器或中间件动作。

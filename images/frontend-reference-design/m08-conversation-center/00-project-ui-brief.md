@@ -1,0 +1,43 @@
+# Project UI Brief
+
+- Page: M08 Conversation Center
+- Route: `/conversations`, `/conversations/[id]`
+- Feature goal: manage tenant conversation threads, continue agent chat, inspect runtime run traces, review tool-call summaries, and collect operator feedback.
+- Target users and permissions: authenticated tenant users with `conversation.read`; create/send/delete/feedback actions require `conversation.write` or tenant admin.
+- Existing frontend contract:
+  - Next.js App Router protected `(console)` layout.
+  - TanStack Query, React Hook Form, Zod, Tailwind CSS, Motion.
+  - Existing primitives: `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`.
+  - Established M03-M07 patterns: metrics, table + selected side panel, detail route, drawer forms, local confirm modal, subtle atmosphere background.
+- Backend APIs to implement:
+  - `GET /api/v1/conversations`
+  - `POST /api/v1/conversations`
+  - `GET /api/v1/conversations/:id`
+  - `DELETE /api/v1/conversations/:id`
+  - `POST /api/v1/conversations/:id/messages`
+  - `POST /api/v1/conversations/:id/feedback`
+- Runtime APIs to implement:
+  - `POST /runtime/conversations/respond`
+- Data entities and fields:
+  - Conversation: `id`, `tenant_id`, `agent_id`, `agent_name`, `agent_code`, `user`, `title`, `status`, `message_count`, `last_message_preview`, `last_message_at`, `last_run_status`, `created_at`, `updated_at`.
+  - ConversationMessage: `role`, `content`, `references`, `tool_calls`, `created_at`, `created_by`.
+  - ConversationRun: `status`, `request_model`, `latency_ms`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `steps`, `error_message`, `started_at`, `ended_at`.
+  - ConversationFeedback: `rating`, `comment`, `created_at`, `created_by`.
+  - Tool call summary: `tool_name`, `tool_code`, `status`, `latency_ms`, `response_status`, `output_preview`, `error_message`.
+  - Reference summary: `title`, `snippet`, `score`, `source_type`.
+- Planned enums and states:
+  - Conversation status: `ACTIVE`, `ARCHIVED`
+  - Message role: `USER`, `ASSISTANT`, `SYSTEM`, `TOOL`
+  - Run status: `SUCCESS`, `FAILED`
+  - Feedback rating: 1-5
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, no agents available, no conversations, runtime call failed, tool-call summary present/absent, no feedback yet.
+- Visual constraints:
+  - Continue the current console visual language: compact dashboard density, thin borders, soft shadows, light blur, Chinese UI copy.
+  - Conversation UI should feel operational, not consumer chat: thread list, structured message stream, trace cards, metadata rail, and review surfaces.
+  - Include enough whitespace and stable sizing so long messages and trace summaries do not collapse the layout.
+  - Atmosphere stays subtle and behind content; no marketing hero, no gimmicky neon chat aesthetic.
+- M08 implementation boundary:
+  - First version supports request-response chat, not live token streaming.
+  - Runtime uses a deterministic responder with structured trace output and optional tool-call summary injection from Control API.
+  - Tool calls are triggered only by simple health/status intent heuristics and existing bound tools.
+  - Knowledge citations remain optional and may be empty in the first pass; UI must handle empty reference state gracefully.

@@ -1,7 +1,5 @@
-import { ModulePageShell } from '@/components/modules/module-page-shell';
-import { requireModuleSpec } from '@/config/modules';
+import { KnowledgeContent } from '@/components/knowledge/knowledge-content';
 
 export default function KnowledgePage() {
-  return <ModulePageShell moduleSpec={requireModuleSpec('knowledge')} />;
+  return <KnowledgeContent />;
 }
-

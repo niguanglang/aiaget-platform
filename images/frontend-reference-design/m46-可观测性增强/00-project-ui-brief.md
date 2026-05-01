@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M46 可观测性增强
+- Route: /monitor
+- Feature goal: Trace 链路下钻与观测质量面板
+- Product/module: Enterprise Agent Platform 控制台，监控中心。
+- Parent layout: Next.js App Router `(console)` 控制台布局，现有 `/monitor` 页面由 `MonitorContent` 渲染。
+- Target users and permissions: 租户管理员、运营、安全管理员、审计员；读取需要 `monitor:log:view`。
+- Existing frontend stack: Next.js + React + TypeScript + Tailwind CSS + local shadcn-like `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`; `motion/react` 用于克制动效；图标使用 `lucide-react`。
+- Existing monitor APIs:
+  - `GET /api/v1/monitor/overview`
+  - `GET /api/v1/monitor/events`
+  - `GET /api/v1/monitor/events/:eventId`
+- M46 API additions:
+  - `GET /api/v1/monitor/traces/:traceId`
+  - `GET /api/v1/monitor/observability`
+- Data contract:
+  - `MonitorTraceDetail`: `trace_id`, `root_event`, `events`, `timeline`, `metrics`, `propagation`, `errors`
+  - `MonitorTraceTimelineItem`: `event_id`, `source_type`, `module`, `step_type`, `status`, `title`, `started_at`, `duration_ms`, `span_id`, `parent_span_id`
+  - `MonitorObservabilityOverview`: `generated_at`, `trace_coverage`, `linked_trace_count`, `orphan_event_count`, `error_trace_count`, `slow_trace_count`, `top_error_modules`, `slow_traces`, `recent_error_traces`
+- Required actions: select event, inspect trace, copy trace id, filter event list, refresh, view slow/error trace cards.
+- Required states: loading, empty, error, selected trace missing, no trace id, permission-denied via backend, partial trace data.
+- Visual constraints: Chinese UI copy only; enterprise SaaS/admin page; Bento/Grid; subtle borders, soft shadows, clean technical hierarchy; no excessive gradients, emoji, cheap glow or decorative 3D that distracts from observability data.

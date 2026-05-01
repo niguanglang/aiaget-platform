@@ -18,6 +18,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (input: LoginInput) => Promise<AuthSession>;
   logout: () => Promise<void>;
+  refreshCurrentUser: () => Promise<CurrentUserResponse | null>;
   session: AuthSession | null;
 }
 
@@ -90,6 +91,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextSession;
   }, []);
 
+  const refreshCurrentUser = useCallback(async () => {
+    const storedSession = getStoredSession();
+
+    if (!storedSession) {
+      setSession(null);
+      return null;
+    }
+
+    const currentUser = await getMe();
+    const nextSession = {
+      ...storedSession,
+      currentUser,
+    };
+
+    saveStoredSession(nextSession);
+    setSession(nextSession);
+
+    return currentUser;
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getStoredSession()?.refreshToken;
 
@@ -107,9 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       login,
       logout,
+      refreshCurrentUser,
       session,
     }),
-    [isLoading, login, logout, session],
+    [isLoading, login, logout, refreshCurrentUser, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -124,4 +146,3 @@ export function useAuth() {
 
   return context;
 }
-

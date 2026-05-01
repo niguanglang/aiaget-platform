@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M47 成本与额度中心
+- Route: /billing
+- Feature goal: 模型成本、API Key 额度和用量风险治理
+- Product/module: Enterprise Agent Platform 控制台，新增“成本与额度中心”。
+- Parent layout: Next.js App Router `(console)` 控制台布局，左侧动态菜单 + 顶部栏。
+- Target users and permissions: 租户管理员、运营管理员、模型管理员、审计员；读取权限复用 `monitor:log:view`，因为 M47 第一版只做成本与额度观测，不做额度写入。
+- Existing data sources:
+  - `model_call_log`: `prompt_tokens`, `completion_tokens`, `total_tokens`, `input_cost`, `output_cost`, `total_cost`, `latency_ms`, `status`, `created_at`
+  - `model_provider`, `model_config`: 模型供应商、模型价格、限流
+  - `api_key`: `rate_limit_per_minute`, `daily_quota`, `used_count_today`, `quota_reset_date`, `allow_stream`, `status`, `expires_at`, `last_used_at`
+  - `conversation_run.steps`: step-level `cost_total`, `total_tokens`
+- API/service contract:
+  - `GET /api/v1/billing/overview?window=24h|7d`
+  - Frontend `getBillingOverview({ window })`
+- Entities/fields:
+  - `BillingOverview`: summary, cost_trend, provider_costs, model_costs, quota_overview, risky_api_keys, conversation_costs
+  - Summary: total_cost, model_cost, run_step_cost, total_tokens, model_calls, projected_monthly_cost, quota_usage_rate, risky_api_key_count
+  - API key quota item: key id/name/masked key/status, rate limit, daily quota, used today, usage rate, remaining today, expires at, last used at, risk level
+- Required states: loading, empty, error, permission-denied via backend, partial data, no quota configured, over-quota risk.
+- Available components/design system: Tailwind CSS, local shadcn-like `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`; `motion/react`; `lucide-react`.
+- Visual constraints: Chinese UI copy only; enterprise SaaS admin density; Bento/Grid; subtle borders, soft shadows, clean hierarchy; avoid excessive gradients, emoji, cheap glow and overloaded tables.

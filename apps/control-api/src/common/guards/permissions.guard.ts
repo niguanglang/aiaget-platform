@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { hasEveryPermission } from '@aiaget/shared-types';
 
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import type { RequestWithContext } from '../types/request-context';
@@ -29,9 +30,7 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const hasPermission = requiredPermissions.every((permission) =>
-      user.permissions.includes(permission),
-    );
+    const hasPermission = hasEveryPermission(user.permissions, requiredPermissions);
 
     if (!hasPermission) {
       throw new ForbiddenException('Permission denied');

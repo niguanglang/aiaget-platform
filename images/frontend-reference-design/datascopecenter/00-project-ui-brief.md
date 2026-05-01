@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: DataScopeCenter
+- Route: /data-scopes
+- Feature goal: 数据权限中心：按角色配置资源数据范围，支持租户、部门、本人和自定义范围预览
+- Target users: 租户管理员、安全管理员、系统管理员。只读需要 `system:data_scope:view`，保存需要 `system:data_scope:manage`。
+- APIs/services:
+  - `GET /api/v1/data-scopes/overview`
+  - `GET /api/v1/data-scopes`
+  - `GET /api/v1/data-scopes/roles/:roleId`
+  - `PUT /api/v1/data-scopes/roles/:roleId`
+  - `POST /api/v1/data-scopes/preview`
+  - 复用 `GET /api/v1/roles`、`GET /api/v1/departments/tree`、`GET /api/v1/users`
+- Entities/fields/statuses:
+  - `RoleListItem`: `id/code/name/status/is_system/user_count/permission_count/menu_count`
+  - `RoleDataScopeItem`: `role_id/resource_type/scope_type/scope_value/status/department_count/user_count/resource_count/updated_at`
+  - `DataScopeType`: `ALL/TENANT/DEPT/DEPT_AND_CHILD/SELF/CUSTOM`
+  - `DataScopeResourceType`: `AGENT/KNOWLEDGE_BASE/DOCUMENT/TOOL/MODEL/CONVERSATION/AUDIT_LOG`
+  - `RoleDataScopeValue`: `department_ids/user_ids/resource_ids/include_children`
+- Existing components/design system: Next.js App Router console shell, Tailwind CSS, shadcn 风格 `Button/Card/Input/MetricCard/StatusBadge/EmptyState`，React Query，`motion/react`，Lucide 图标。
+- Required states: loading, empty, error, validation, disabled, success, permission-denied。
+- Layout constraints: 企业后台左侧导航 + 顶栏；页面主体使用 Bento/Dashboard Layout，左侧角色目录，中间资源数据范围矩阵，右侧编辑与预览面板。
+- Visual direction: 极简、科技、产品感，细边框、轻阴影、backdrop-blur、克制 Motion 微交互，中文界面。

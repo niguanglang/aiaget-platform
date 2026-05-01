@@ -20,9 +20,14 @@ import type {
 } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RequireDataScope } from '../common/decorators/data-scope.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
+import { RequireResourceAcl } from '../common/decorators/resource-acl.decorator';
+import { DataScopeGuard } from '../common/guards/data-scope.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
+import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CreateModelApiKeyDto } from './dto/create-model-api-key.dto';
 import { CreateModelProviderDto } from './dto/create-model-provider.dto';
@@ -34,12 +39,12 @@ import { ModelsService } from './models.service';
 @ApiTags('model-providers')
 @ApiBearerAuth()
 @Controller('model-providers')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, DataScopeGuard, ResourceAclGuard, SecurityPolicyGuard)
 export class ModelProvidersController {
   constructor(@Inject(ModelsService) private readonly modelsService: ModelsService) {}
 
   @Get()
-  @Permissions('model.read')
+  @Permissions('model:config:view')
   @ApiOkResponse({ description: 'Tenant-isolated paginated model provider list' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -49,7 +54,7 @@ export class ModelProvidersController {
   }
 
   @Post()
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
   @ApiOkResponse({ description: 'Create model provider' })
   async create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -59,7 +64,9 @@ export class ModelProvidersController {
   }
 
   @Get(':id')
-  @Permissions('model.read')
+  @Permissions('model:config:view')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:view' })
   @ApiOkResponse({ description: 'Get model provider detail' })
   async get(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -69,7 +76,9 @@ export class ModelProvidersController {
   }
 
   @Patch(':id')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Update model provider' })
   async update(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -80,7 +89,9 @@ export class ModelProvidersController {
   }
 
   @Delete(':id')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Soft delete model provider' })
   async remove(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -90,7 +101,9 @@ export class ModelProvidersController {
   }
 
   @Post(':id/disable')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Disable model provider' })
   async disable(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -100,7 +113,9 @@ export class ModelProvidersController {
   }
 
   @Post(':id/enable')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Enable model provider' })
   async enable(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -110,7 +125,9 @@ export class ModelProvidersController {
   }
 
   @Post(':id/api-keys')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Add masked model provider API key' })
   async createApiKey(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -121,7 +138,9 @@ export class ModelProvidersController {
   }
 
   @Delete(':id/api-keys/:keyId')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Soft delete model provider API key' })
   async removeApiKey(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -132,7 +151,9 @@ export class ModelProvidersController {
   }
 
   @Post(':id/test')
-  @Permissions('model.write')
+  @Permissions('model:config:manage')
+  @RequireDataScope({ resourceType: 'MODEL' })
+  @RequireResourceAcl({ resourceType: 'MODEL', permissionCode: 'model:config:manage' })
   @ApiOkResponse({ description: 'Run model provider compatibility test' })
   async test(
     @CurrentUser() currentUser: AuthenticatedUser,

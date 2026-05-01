@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Project: Enterprise Agent Control Console
+- Page: Login Page
+- Route: `/login`
+- Feature goal: redesign the login page to match the provided UI and background references while preserving the real Control API login flow.
+- Target users: tenant administrators and future tenant operators entering the protected console.
+- Existing frontend stack and design system:
+  - Next.js App Router
+  - React 19 + TypeScript
+  - Tailwind CSS v4
+  - shadcn-compatible `Button`, `Card`, `Input`
+  - `motion` for micro interactions
+  - `three` + `@react-three/fiber` for ambient background depth
+- Existing auth contract:
+  - `POST /api/v1/auth/login`
+  - redirect to `next` param or `/dashboard` on success
+  - `AuthProvider` persists access token, refresh token, and current user session
+- Required form fields:
+  - `tenantCode`
+  - `email`
+  - `password`
+- Required states:
+  - initial loading fallback for the suspense boundary
+  - client-side validation errors
+  - submitting state
+  - server error state from Control API
+  - success redirect after login
+- Visual constraints from reference:
+  - light blue and white background
+  - left narrative hero and right glassmorphism login card
+  - floor grid, subtle gradient mesh, soft noise texture
+  - restrained blue primary action
+  - 3D ambient element should stay behind the content

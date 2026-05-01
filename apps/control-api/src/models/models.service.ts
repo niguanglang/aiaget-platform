@@ -1,6 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { createCipheriv, createHash, randomBytes, randomUUID } from 'crypto';
 
 import type {
   ModelApiKeyItem,
@@ -13,6 +12,7 @@ import type {
   TestModelProviderResult,
 } from '@aiaget/shared-types';
 
+import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateModelApiKeyDto } from './dto/create-model-api-key.dto';
@@ -22,6 +22,8 @@ import type { ListModelProvidersDto } from './dto/list-model-providers.dto';
 import type { TestModelProviderDto } from './dto/test-model-provider.dto';
 import type { UpdateModelConfigDto } from './dto/update-model-config.dto';
 import type { UpdateModelProviderDto } from './dto/update-model-provider.dto';
+import { decryptSecret, encryptSecret, getKeyPrefix, hashSecret, maskApiKey } from './model-secrets';
+import { executeOpenAiCompatibleChat } from './openai-compatible-client';
 
 const providerListInclude = {
   models: {
@@ -83,7 +85,10 @@ type ProviderDetailRecord = Prisma.ModelProviderGetPayload<{ include: typeof pro
 
 @Injectable()
 export class ModelsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
+  ) {}
 
   async listProviders(
     currentUser: AuthenticatedUser,
@@ -159,6 +164,9 @@ export class ModelsService {
         },
       ];
     }
+
+    const dataScope = await this.dataScopeQuery.buildWhere<Prisma.ModelProviderWhereInput>(currentUser, 'MODEL');
+    mergeDataScopeWhere(where, dataScope.where);
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.modelProvider.findMany({
@@ -513,70 +521,77 @@ export class ModelsService {
     }
 
     const activeKey = provider.apiKeys.find((apiKey) => apiKey.status === 'ACTIVE');
-    const startedAt = Date.now();
-    const promptTokens = estimateTokens(dto.prompt);
-    const completionTokens = Math.max(16, Math.min(96, Math.ceil(promptTokens * 0.6)));
-    const totalTokens = promptTokens + completionTokens;
-    const inputCost = (promptTokens / 1000) * Number(model.inputPrice);
-    const outputCost = (completionTokens / 1000) * Number(model.outputPrice);
+    if (!activeKey) {
+      throw new BadRequestException('No active API key configured for this provider');
+    }
+
+    if (provider.providerType !== 'OPENAI_COMPATIBLE') {
+      throw new BadRequestException('Only OPENAI_COMPATIBLE providers are executable in M17');
+    }
+
+    const execution = await executeOpenAiCompatibleChat({
+      apiKey: decryptSecret(activeKey.encryptedKey),
+      baseUrl: provider.baseUrl,
+      model: model.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: '你正在执行企业智能体平台的模型兼容性检查。请用一句简短中文确认调用结果。',
+        },
+        {
+          role: 'user',
+          content: dto.prompt,
+        },
+      ],
+    });
+    const status = execution.errorMessage ? 'FAILED' : 'SUCCESS';
+    const inputCost = (execution.promptTokens / 1000) * Number(model.inputPrice);
+    const outputCost = (execution.completionTokens / 1000) * Number(model.outputPrice);
     const totalCost = inputCost + outputCost;
-    const traceId = `trace_${randomUUID().replaceAll('-', '')}`;
-    const status = activeKey ? 'SUCCESS' : 'FAILED';
-    const errorMessage = activeKey ? null : 'No active API key configured for this provider';
-    const latencyMs = Date.now() - startedAt + 180;
-    const outputText = activeKey
-      ? `Compatibility test passed for ${model.model}. The provider, model, masked key, cost rule, and log pipeline are reachable.`
-      : 'Compatibility test could not run because the provider has no active API key.';
 
     await this.prisma.modelCallLog.create({
       data: {
         tenantId: currentUser.tenantId,
         providerId,
         modelConfigId: model.id,
-        traceId,
-        requestModel: model.model,
+        traceId: execution.traceId,
+        requestModel: execution.requestModel,
         status,
-        promptTokens,
-        completionTokens: activeKey ? completionTokens : 0,
-        totalTokens: activeKey ? totalTokens : promptTokens,
+        promptTokens: execution.promptTokens,
+        completionTokens: execution.completionTokens,
+        totalTokens: execution.totalTokens,
         inputCost,
-        outputCost: activeKey ? outputCost : 0,
-        totalCost: activeKey ? totalCost : inputCost,
-        latencyMs,
-        errorMessage,
-        requestSummary: {
-          prompt_preview: dto.prompt.slice(0, 240),
-        },
-        responseSummary: {
-          output_preview: outputText,
-          adapter: 'OPENAI_COMPATIBLE_MOCK',
-        },
+        outputCost,
+        totalCost,
+        latencyMs: execution.latencyMs,
+        errorMessage: execution.errorMessage,
+        requestSummary: execution.requestSummary as unknown as Prisma.InputJsonValue,
+        responseSummary: execution.responseSummary as unknown as Prisma.InputJsonValue,
       },
     });
 
-    if (activeKey) {
-      await this.prisma.modelApiKey.update({
-        where: {
-          id: activeKey.id,
-        },
-        data: {
-          lastUsedAt: new Date(),
-          updatedBy: currentUser.id,
-        },
-      });
-    }
+    await this.prisma.modelApiKey.update({
+      where: {
+        id: activeKey.id,
+      },
+      data: {
+        lastUsedAt: new Date(),
+        updatedBy: currentUser.id,
+      },
+    });
 
     return {
-      trace_id: traceId,
+      trace_id: execution.traceId,
       status,
-      request_model: model.model,
-      latency_ms: latencyMs,
-      prompt_tokens: promptTokens,
-      completion_tokens: activeKey ? completionTokens : 0,
-      total_tokens: activeKey ? totalTokens : promptTokens,
-      total_cost: Number((activeKey ? totalCost : inputCost).toFixed(6)),
-      output_text: outputText,
-      error_message: errorMessage,
+      request_model: execution.requestModel,
+      latency_ms: execution.latencyMs,
+      prompt_tokens: execution.promptTokens,
+      completion_tokens: execution.completionTokens,
+      total_tokens: execution.totalTokens,
+      total_cost: Number(totalCost.toFixed(6)),
+      output_text: execution.outputText,
+      error_message: execution.errorMessage,
     };
   }
 
@@ -788,39 +803,4 @@ export class ModelsService {
       created_at: callLog.createdAt.toISOString(),
     };
   }
-}
-
-function getEncryptionKey() {
-  return createHash('sha256')
-    .update(process.env.MODEL_KEY_ENCRYPTION_SECRET ?? process.env.JWT_ACCESS_TOKEN_SECRET ?? 'dev-model-key-secret')
-    .digest();
-}
-
-function encryptSecret(secret: string) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return `${iv.toString('base64')}:${tag.toString('base64')}:${encrypted.toString('base64')}`;
-}
-
-function hashSecret(secret: string) {
-  return createHash('sha256').update(secret).digest('hex');
-}
-
-function getKeyPrefix(secret: string) {
-  return secret.slice(0, Math.min(8, secret.length));
-}
-
-function maskApiKey(secret: string) {
-  if (secret.length <= 10) {
-    return `${secret.slice(0, 2)}****${secret.slice(-2)}`;
-  }
-
-  return `${secret.slice(0, 6)}****${secret.slice(-4)}`;
-}
-
-function estimateTokens(text: string) {
-  return Math.max(1, Math.ceil(text.trim().length / 4));
 }

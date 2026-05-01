@@ -1,8 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  ModelConfigItem,
+import {
+  hasPermission,
+  type ModelConfigItem,
   ModelProviderDetail,
   ModelProviderListItem,
   ModelProviderStatus,
@@ -25,7 +26,15 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { ModelCenterBackground } from '@/components/models/model-center-background';
 import { ModelFormPanel, type ModelFormValues } from '@/components/models/model-form-panel';
-import { formatDateTime, formatMoney, modelStatusTone } from '@/components/models/model-status';
+import {
+  formatDateTime,
+  formatMoney,
+  modelCallStatusLabel,
+  modelCapabilityLabel,
+  modelProviderStatusLabel,
+  modelProviderTypeLabel,
+  modelStatusTone,
+} from '@/components/models/model-status';
 import { ProviderFormPanel, type ProviderFormValues } from '@/components/models/provider-form-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -71,14 +80,14 @@ export function ModelsContent() {
   const [deleteModelTarget, setDeleteModelTarget] = useState<ModelConfigItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [keyName, setKeyName] = useState('Primary key');
+  const [keyName, setKeyName] = useState('主密钥');
   const [apiKey, setApiKey] = useState('');
-  const [testPrompt, setTestPrompt] = useState('Reply with a one sentence compatibility check.');
+  const [testPrompt, setTestPrompt] = useState('用一句中文回复兼容性检查结果。');
   const [testResult, setTestResult] = useState<TestModelProviderResult | null>(null);
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      currentUser?.user.permissions.includes('model.write'),
+      hasPermission(currentUser?.user.permissions ?? [], 'model:config:manage'),
   );
 
   const providersQuery = useQuery({
@@ -111,15 +120,15 @@ export function ModelsContent() {
     const enabledModels = providers.reduce((sum, provider) => sum + provider.enabled_model_count, 0);
 
     return [
-      { label: 'Providers', value: `${providersQuery.data?.total ?? 0}`, helper: 'Tenant scoped' },
-      { label: 'Enabled models', value: `${enabledModels}`, helper: 'Current page' },
-      { label: 'Calls today', value: `${selectedProvider?.call_logs.length ?? 0}`, helper: 'Selected provider' },
+      { label: '供应商', value: `${providersQuery.data?.total ?? 0}`, helper: '租户范围' },
+      { label: '启用模型', value: `${enabledModels}`, helper: '当前页' },
+      { label: '今日调用', value: `${selectedProvider?.call_logs.length ?? 0}`, helper: '选中供应商' },
       {
-        label: 'Cost today',
+        label: '今日成本',
         value: formatMoney(
           selectedProvider?.call_logs.reduce((sum, log) => sum + log.total_cost, 0) ?? 0,
         ),
-        helper: 'Selected provider',
+        helper: '选中供应商',
       },
     ];
   }, [providers, providersQuery.data?.total, selectedProvider?.call_logs]);
@@ -236,7 +245,7 @@ export function ModelsContent() {
     onSuccess: async (provider) => {
       await refreshProvider(provider);
       setApiKey('');
-      setKeyName('Primary key');
+      setKeyName('主密钥');
     },
     onError: (error: ApiClientError) => setActionError(error.message),
   });
@@ -363,24 +372,23 @@ export function ModelsContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M04</StatusBadge>
-            <StatusBadge tone="healthy">OpenAI compatible</StatusBadge>
-            <StatusBadge tone="planned">Masked keys</StatusBadge>
+            <StatusBadge tone="ready">M17</StatusBadge>
+            <StatusBadge tone="healthy">OpenAI 兼容</StatusBadge>
+            <StatusBadge tone="healthy">真实调用</StatusBadge>
           </div>
-          <h1 className="text-2xl font-semibold">Model Center</h1>
+          <h1 className="text-2xl font-semibold">模型中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Configure tenant model providers, model capabilities, masked API keys, token pricing,
-            rate limits, compatibility tests, and call logs.
+            配置租户模型供应商、模型能力、脱敏接口密钥、词元价格、限流、真实兼容性测试和调用日志。
           </p>
         </div>
         <div className="flex gap-2">
           <Button disabled={!canWrite} onClick={openCreateProvider}>
             <Plus className="size-4" />
-            New provider
+            新建供应商
           </Button>
           <Button disabled={!canWrite || providers.length === 0} onClick={() => openCreateModel(selectedProvider)} variant="outline">
             <Plus className="size-4" />
-            New model
+            新建模型
           </Button>
         </div>
       </motion.section>
@@ -408,13 +416,13 @@ export function ModelsContent() {
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
-                  <h2 className="text-sm font-semibold">Providers</h2>
+                  <h2 className="text-sm font-semibold">供应商</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Manage provider connection profiles and open their model inventory.
+                    管理供应商连接资料，并查看对应模型清单。
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Showing {providers.length} of {providersQuery.data?.total ?? 0}
+                  显示 {providers.length} / {providersQuery.data?.total ?? 0}
                 </div>
               </div>
 
@@ -424,7 +432,7 @@ export function ModelsContent() {
                   <input
                     className="min-w-0 flex-1 bg-transparent outline-none"
                     onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="Search provider, URL, model"
+                    placeholder="搜索供应商、链接、模型"
                     value={keyword}
                   />
                 </label>
@@ -433,10 +441,10 @@ export function ModelsContent() {
                   onChange={(event) => setProviderType(event.target.value)}
                   value={providerType}
                 >
-                  <option value="">All types</option>
+                  <option value="">全部类型</option>
                   {providerTypes.map((type) => (
                     <option key={type} value={type}>
-                      {type}
+                      {modelProviderTypeLabel(type)}
                     </option>
                   ))}
                 </select>
@@ -445,10 +453,10 @@ export function ModelsContent() {
                   onChange={(event) => setStatus(event.target.value)}
                   value={status}
                 >
-                  <option value="">All statuses</option>
+                  <option value="">全部状态</option>
                   {statuses.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {modelProviderStatusLabel(option)}
                     </option>
                   ))}
                 </select>
@@ -457,41 +465,41 @@ export function ModelsContent() {
                   onChange={(event) => setCapability(event.target.value)}
                   value={capability}
                 >
-                  <option value="">All capabilities</option>
+                  <option value="">全部能力</option>
                   {capabilities.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {modelCapabilityLabel(option)}
                     </option>
                   ))}
                 </select>
                 <Button onClick={clearFilters} type="button" variant="outline">
-                  Clear
+                  清空
                 </Button>
               </div>
             </div>
           </div>
 
           {providersQuery.isError ? (
-            <div className="p-6 text-sm text-destructive">Failed to load model providers.</div>
+            <div className="p-6 text-sm text-destructive">模型供应商加载失败。</div>
           ) : providersQuery.isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading model providers...</div>
+            <div className="p-6 text-sm text-muted-foreground">正在加载模型供应商...</div>
           ) : providers.length === 0 ? (
             <EmptyState
               action={
                 <Button disabled={!canWrite} onClick={openCreateProvider}>
                   <Plus className="size-4" />
-                  New provider
+                  新建供应商
                 </Button>
               }
-              description="Create an OpenAI Compatible provider, add a masked API key, then register model configs for agent bindings."
-              title="No model providers found"
+              description="创建 OpenAI 兼容供应商，添加脱敏接口密钥，再注册可绑定到智能体的模型配置。"
+              title="暂无模型供应商"
             />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[960px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    {['Provider', 'Type', 'Status', 'Models', 'Keys', 'Last call', 'Updated', 'Actions'].map(
+                    {['供应商', '类型', '状态', '模型', '密钥', '最近调用', '更新时间', '操作'].map(
                       (column) => (
                         <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
                           {column}
@@ -520,13 +528,13 @@ export function ModelsContent() {
                           <span className="line-clamp-1 text-xs text-muted-foreground">{provider.base_url}</span>
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{provider.provider_type}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{modelProviderTypeLabel(provider.provider_type)}</td>
                       <td className="px-4 py-3">
-                        <StatusBadge tone={modelStatusTone(provider.status)}>{provider.status}</StatusBadge>
+                        <StatusBadge tone={modelStatusTone(provider.status)}>{modelProviderStatusLabel(provider.status)}</StatusBadge>
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{provider.enabled_model_count}</div>
-                        <div className="text-xs text-muted-foreground">of {provider.model_count}</div>
+                        <div className="text-xs text-muted-foreground">共 {provider.model_count}</div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{provider.api_key_count}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(provider.last_call_at)}</td>
@@ -626,21 +634,21 @@ export function ModelsContent() {
 
       {deleteProviderTarget ? (
         <ConfirmDialog
-          description={`This will soft delete provider ${deleteProviderTarget.name}, its models, and API keys.`}
+          description={`这会软删除供应商 ${deleteProviderTarget.name}、其模型和接口密钥。`}
           isPending={deleteProviderMutation.isPending}
           onCancel={() => setDeleteProviderTarget(null)}
           onConfirm={() => deleteProviderMutation.mutate(deleteProviderTarget.id)}
-          title="Delete provider?"
+          title="删除供应商？"
         />
       ) : null}
 
       {deleteModelTarget ? (
         <ConfirmDialog
-          description={`This will soft delete model ${deleteModelTarget.model}.`}
+          description={`这会软删除模型 ${deleteModelTarget.model}。`}
           isPending={deleteModelMutation.isPending}
           onCancel={() => setDeleteModelTarget(null)}
           onConfirm={() => deleteModelMutation.mutate(deleteModelTarget.id)}
-          title="Delete model?"
+          title="删除模型？"
         />
       ) : null}
     </main>
@@ -693,7 +701,7 @@ function ProviderDetailPanel({
   if (providerLoading) {
     return (
       <Card className="p-5">
-        <div className="text-sm text-muted-foreground">Loading provider detail...</div>
+        <div className="text-sm text-muted-foreground">正在加载供应商详情...</div>
       </Card>
     );
   }
@@ -702,8 +710,8 @@ function ProviderDetailPanel({
     return (
       <Card>
         <EmptyState
-          description="Select a provider to inspect masked keys, model configs, cost rules, rate limits, call tests, and logs."
-          title="No provider selected"
+          description="选择供应商后查看脱敏密钥、模型配置、成本规则、限流、调用测试和日志。"
+          title="未选择供应商"
         />
       </Card>
     );
@@ -715,25 +723,25 @@ function ProviderDetailPanel({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-sm font-semibold">{provider.name}</h2>
-            <StatusBadge tone={modelStatusTone(provider.status)}>{provider.status}</StatusBadge>
-            {provider.is_default ? <StatusBadge tone="ready">Default</StatusBadge> : null}
+            <StatusBadge tone={modelStatusTone(provider.status)}>{modelProviderStatusLabel(provider.status)}</StatusBadge>
+            {provider.is_default ? <StatusBadge tone="ready">默认</StatusBadge> : null}
           </div>
           <p className="mt-1 break-all text-xs text-muted-foreground">{provider.base_url}</p>
         </div>
         <Button disabled={!canWrite} onClick={onNewModel} size="sm" variant="outline">
           <Plus className="size-4" />
-          Model
+          模型
         </Button>
       </div>
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Models</h3>
-          <div className="text-xs text-muted-foreground">{provider.models.length} configs</div>
+          <h3 className="text-sm font-semibold">模型</h3>
+          <div className="text-xs text-muted-foreground">{provider.models.length} 个配置</div>
         </div>
         {provider.models.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            No model configs yet.
+            暂无模型配置。
           </div>
         ) : (
           <div className="grid gap-2">
@@ -743,8 +751,8 @@ function ProviderDetailPanel({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{model.name}</span>
-                      <StatusBadge tone={modelStatusTone(model.status)}>{model.status}</StatusBadge>
-                      {model.is_default ? <StatusBadge tone="ready">Default</StatusBadge> : null}
+                      <StatusBadge tone={modelStatusTone(model.status)}>{modelProviderStatusLabel(model.status)}</StatusBadge>
+                      {model.is_default ? <StatusBadge tone="ready">默认</StatusBadge> : null}
                     </div>
                     <div className="mt-1 break-all text-xs text-muted-foreground">{model.model}</div>
                   </div>
@@ -763,14 +771,14 @@ function ProviderDetailPanel({
                 <div className="mt-3 flex flex-wrap gap-1">
                   {model.capabilities.map((capability) => (
                     <span className="rounded-md border bg-background/70 px-2 py-0.5 text-xs" key={capability}>
-                      {capability}
+                      {modelCapabilityLabel(capability)}
                     </span>
                   ))}
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-                  <span>Context {model.context_length}</span>
-                  <span>Input {formatMoney(model.input_price)}</span>
-                  <span>Output {formatMoney(model.output_price)}</span>
+                  <span>上下文 {model.context_length}</span>
+                  <span>输入 {formatMoney(model.input_price)}</span>
+                  <span>输出 {formatMoney(model.output_price)}</span>
                 </div>
               </div>
             ))}
@@ -779,11 +787,11 @@ function ProviderDetailPanel({
       </section>
 
       <section className="grid gap-3">
-        <h3 className="text-sm font-semibold">Masked API Keys</h3>
+        <h3 className="text-sm font-semibold">脱敏接口密钥</h3>
         <div className="grid gap-2">
           {provider.api_keys.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              No API keys configured. Keys are write-only and shown masked after creation.
+              暂无接口密钥。密钥只写入一次，创建后仅显示脱敏内容。
             </div>
           ) : (
             provider.api_keys.map((key) => (
@@ -794,7 +802,7 @@ function ProviderDetailPanel({
                     {key.name}
                   </div>
                   <div className="mt-1 break-all text-xs text-muted-foreground">
-                    {key.masked_key} · Last used {formatDateTime(key.last_used_at)}
+                    {key.masked_key} · 最近使用 {formatDateTime(key.last_used_at)}
                   </div>
                 </div>
                 <Button disabled={!canWrite || deleteKeyPending} onClick={() => onDeleteKey(key.id)} size="sm" variant="outline">
@@ -805,17 +813,17 @@ function ProviderDetailPanel({
           )}
         </div>
         <div className="grid gap-2">
-          <Input disabled={!canWrite} onChange={(event) => onChangeKeyName(event.target.value)} placeholder="Key name" value={keyName} />
-          <Input disabled={!canWrite} onChange={(event) => onChangeApiKey(event.target.value)} placeholder="Paste API key once" type="password" value={apiKey} />
+          <Input disabled={!canWrite} onChange={(event) => onChangeKeyName(event.target.value)} placeholder="密钥名称" value={keyName} />
+          <Input disabled={!canWrite} onChange={(event) => onChangeApiKey(event.target.value)} placeholder="仅粘贴一次接口密钥" type="password" value={apiKey} />
           <Button disabled={!canWrite || createKeyPending || apiKey.length < 8} onClick={onAddKey} type="button" variant="outline">
             <KeyRound className="size-4" />
-            Add masked key
+            添加脱敏密钥
           </Button>
         </div>
       </section>
 
       <section className="grid gap-3">
-        <h3 className="text-sm font-semibold">Call Test</h3>
+        <h3 className="text-sm font-semibold">调用测试</h3>
         <textarea
           className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           disabled={!canWrite}
@@ -824,17 +832,17 @@ function ProviderDetailPanel({
         />
         <Button disabled={!canWrite || testPending || provider.models.length === 0} onClick={onRunTest}>
           <Send className="size-4" />
-          Run compatibility test
+          运行兼容性测试
         </Button>
         {testResult ? (
           <div className="rounded-md border bg-muted/20 p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <StatusBadge tone={modelStatusTone(testResult.status)}>{testResult.status}</StatusBadge>
+              <StatusBadge tone={modelStatusTone(testResult.status)}>{modelCallStatusLabel(testResult.status)}</StatusBadge>
               <span className="text-xs text-muted-foreground">{testResult.latency_ms} ms</span>
             </div>
             <p className="mt-2 text-muted-foreground">{testResult.output_text}</p>
             <div className="mt-2 text-xs text-muted-foreground">
-              {testResult.request_model} · {testResult.total_tokens} tokens · {formatMoney(testResult.total_cost)}
+              {testResult.request_model} · {testResult.total_tokens} 个词元 · {formatMoney(testResult.total_cost)}
             </div>
           </div>
         ) : null}
@@ -842,24 +850,24 @@ function ProviderDetailPanel({
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Call Logs</h3>
+          <h3 className="text-sm font-semibold">调用日志</h3>
           <Activity className="size-4 text-muted-foreground" />
         </div>
         {provider.call_logs.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            No call logs yet.
+            暂无调用日志。
           </div>
         ) : (
           <div className="grid gap-2">
             {provider.call_logs.map((log) => (
               <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm" key={log.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <StatusBadge tone={modelStatusTone(log.status)}>{log.status}</StatusBadge>
+                  <StatusBadge tone={modelStatusTone(log.status)}>{modelCallStatusLabel(log.status)}</StatusBadge>
                   <span className="text-xs text-muted-foreground">{formatDateTime(log.created_at)}</span>
                 </div>
                 <div className="mt-1 break-all text-xs text-muted-foreground">{log.trace_id}</div>
                 <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
-                  <span>{log.total_tokens} tokens</span>
+                  <span>{log.total_tokens} 个词元</span>
                   <span>{log.latency_ms} ms</span>
                   <span>{formatMoney(log.total_cost)}</span>
                 </div>
@@ -898,10 +906,10 @@ function ConfirmDialog({
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         <div className="mt-6 flex justify-end gap-2">
           <Button onClick={onCancel} variant="outline">
-            Cancel
+            取消
           </Button>
           <Button disabled={isPending} onClick={onConfirm} variant="destructive">
-            Delete
+            删除
           </Button>
         </div>
       </div>

@@ -2904,6 +2904,10 @@ export interface SecurityCenterOverview {
     operation_alert_notification_archive_delete_approved: number;
     operation_alert_notification_archive_delete_rejected: number;
     operation_alert_notification_archive_delete_applied: number;
+    agent_team_report_archive_delete_pending: number;
+    agent_team_report_archive_delete_approved: number;
+    agent_team_report_archive_delete_rejected: number;
+    agent_team_report_archive_delete_applied: number;
     sla_dead_letter_archive_delete_pending: number;
     sla_dead_letter_archive_delete_approved: number;
     sla_dead_letter_archive_delete_rejected: number;

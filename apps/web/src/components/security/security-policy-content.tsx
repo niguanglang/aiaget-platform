@@ -3569,6 +3569,7 @@ function ApprovalArchiveOperationsCard({
   const operations = overview.approval_operations;
   const archiveDeletePendingTotal =
     operations.archive_delete_pending +
+    operations.agent_team_report_archive_delete_pending +
     operations.sla_dead_letter_archive_delete_pending +
     operations.notification_task_recovery_audit_archive_delete_pending;
   const pendingTotal =
@@ -3590,22 +3591,27 @@ function ApprovalArchiveOperationsCard({
     operations.notification_task_recovery_audit_archive_delete_rejected > 0 &&
     operations.notification_task_recovery_audit_archive_delete_rejected >=
       operations.notification_task_recovery_audit_archive_delete_applied;
+  const agentTeamReportArchiveDeleteRisk =
+    operations.agent_team_report_archive_delete_rejected > 0 &&
+    operations.agent_team_report_archive_delete_rejected >= operations.agent_team_report_archive_delete_applied;
   const archiveRisk = operations.archive_storage_status === 'UNKNOWN' || operations.archive_storage_status === 'UNAVAILABLE';
   const statusTone =
-    archiveRisk || auditRiskTotal > 0 || notificationTaskRisk || notificationTaskRecoveryArchiveDeleteRisk
+    archiveRisk || auditRiskTotal > 0 || notificationTaskRisk || notificationTaskRecoveryArchiveDeleteRisk || agentTeamReportArchiveDeleteRisk
       ? 'degraded'
       : pendingTotal > 0
         ? 'planned'
         : 'healthy';
   const statusLabel = archiveRisk
     ? '归档风险'
-    : notificationTaskRecoveryArchiveDeleteRisk
-      ? '自愈归档风险'
-      : notificationTaskRisk
-        ? '通知风险'
-        : pendingTotal > 0
-          ? '待处理'
-          : '正常';
+    : agentTeamReportArchiveDeleteRisk
+      ? '团队归档风险'
+      : notificationTaskRecoveryArchiveDeleteRisk
+        ? '自愈归档风险'
+        : notificationTaskRisk
+          ? '通知风险'
+          : pendingTotal > 0
+            ? '待处理'
+            : '正常';
   const approvalMetrics = [
     {
       label: '工具待审',
@@ -3620,7 +3626,7 @@ function ApprovalArchiveOperationsCard({
     {
       label: '归档删除待审',
       value: archiveDeletePendingTotal,
-      helper: `审计 ${operations.archive_delete_pending} / SLA ${operations.sla_dead_letter_archive_delete_pending} / 自愈 ${operations.notification_task_recovery_audit_archive_delete_pending}`,
+      helper: `审计 ${operations.archive_delete_pending} / 团队 ${operations.agent_team_report_archive_delete_pending} / SLA ${operations.sla_dead_letter_archive_delete_pending} / 自愈 ${operations.notification_task_recovery_audit_archive_delete_pending}`,
     },
     {
       label: '审批审计',
@@ -3653,6 +3659,33 @@ function ApprovalArchiveOperationsCard({
           operations.sla_dead_letter_archive_delete_rejected,
       ),
       helper: '已生效或已拒绝占比',
+    },
+  ];
+  const agentTeamReportArchiveDeleteMetrics = [
+    {
+      label: '团队报告删除待审',
+      value: operations.agent_team_report_archive_delete_pending,
+      helper: `已生效 ${operations.agent_team_report_archive_delete_applied} 个`,
+    },
+    {
+      label: '团队报告已批准',
+      value: operations.agent_team_report_archive_delete_approved,
+      helper: '等待或已完成删除',
+    },
+    {
+      label: '团队报告已拒绝',
+      value: operations.agent_team_report_archive_delete_rejected,
+      helper: agentTeamReportArchiveDeleteRisk ? '需要复核申请原因' : '审批意见已留存',
+    },
+    {
+      label: '团队报告闭环率',
+      value: approvalClosureRate(
+        operations.agent_team_report_archive_delete_applied + operations.agent_team_report_archive_delete_rejected,
+        operations.agent_team_report_archive_delete_pending +
+          operations.agent_team_report_archive_delete_applied +
+          operations.agent_team_report_archive_delete_rejected,
+      ),
+      helper: `${operations.agent_team_report_archive_delete_applied} 生效 / ${operations.agent_team_report_archive_delete_rejected} 拒绝`,
     },
   ];
   const notificationTaskRecoveryArchiveDeleteMetrics = [
@@ -3794,6 +3827,51 @@ function ApprovalArchiveOperationsCard({
 
         <div className="grid gap-3 md:grid-cols-2">
           {archiveMetrics.map((metric) => (
+            <OperationMetricTile
+              helper={metric.helper}
+              key={metric.label}
+              label={metric.label}
+              value={String(metric.value)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t bg-muted/10 p-5">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">M72</StatusBadge>
+              <StatusBadge
+                tone={
+                  agentTeamReportArchiveDeleteRisk
+                    ? 'degraded'
+                    : operations.agent_team_report_archive_delete_pending > 0
+                      ? 'planned'
+                      : 'healthy'
+                }
+              >
+                {agentTeamReportArchiveDeleteRisk
+                  ? '拒绝复核'
+                  : operations.agent_team_report_archive_delete_pending > 0
+                    ? '存在待审'
+                    : '已闭环'}
+              </StatusBadge>
+            </div>
+            <h3 className="mt-3 text-sm font-semibold">团队运行报告归档删除审批运营</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              团队运行报告归档删除申请进入安全中心运营看板，追踪待审、批准、拒绝和删除生效，防止多 Agent 运行报告留存被绕过。
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline">
+            <Link href="/security">
+              <Archive className="size-4" />
+              查看统一审批工作台
+            </Link>
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {agentTeamReportArchiveDeleteMetrics.map((metric) => (
             <OperationMetricTile
               helper={metric.helper}
               key={metric.label}
@@ -3973,14 +4051,20 @@ function ApprovalArchiveOperationsCard({
       </div>
 
       <div className="grid gap-4 border-t bg-muted/10 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-5">
           <div>
             <span className="font-medium text-foreground">工具审批：</span>
             已通过 {operations.tool_approved}，已拒绝 {operations.tool_rejected}
           </div>
           <div>
-            <span className="font-medium text-foreground">归档删除：</span>
+            <span className="font-medium text-foreground">审计归档删除：</span>
             已通过 {operations.archive_delete_approved}，已拒绝 {operations.archive_delete_rejected}
+          </div>
+          <div>
+            <span className="font-medium text-foreground">团队报告归档：</span>
+            待审 {operations.agent_team_report_archive_delete_pending}，拒绝{' '}
+            {operations.agent_team_report_archive_delete_rejected}，生效{' '}
+            {operations.agent_team_report_archive_delete_applied}
           </div>
           <div>
             <span className="font-medium text-foreground">自愈归档删除：</span>
@@ -4594,6 +4678,9 @@ function OperationAlertNotificationAuditCard({
   const hasTaskRecoveryArchiveDeleteNotification = items.some(
     (item) => item.alert_category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
   );
+  const hasAgentTeamReportArchiveDeleteNotification = items.some(
+    (item) => item.alert_category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE',
+  );
   const [selectedArchiveApprovalId, setSelectedArchiveApprovalId] = useState<string | null>(null);
   const [archiveApprovalKeyword, setArchiveApprovalKeyword] = useState('');
   const [archiveApprovalStatus, setArchiveApprovalStatus] = useState<
@@ -4698,6 +4785,9 @@ function OperationAlertNotificationAuditCard({
             {hasTaskRecoveryArchiveDeleteNotification ? (
               <StatusBadge tone="degraded">M109 自愈归档通知</StatusBadge>
             ) : null}
+            {hasAgentTeamReportArchiveDeleteNotification ? (
+              <StatusBadge tone="degraded">M72 团队归档通知</StatusBadge>
+            ) : null}
             <StatusBadge tone="ready">M115 审计检索</StatusBadge>
           </div>
           <h3 className="mt-3 text-sm font-semibold">通知投递审计</h3>
@@ -4763,6 +4853,7 @@ function OperationAlertNotificationAuditCard({
         >
           <option value="">全部来源</option>
           <option value="NOTIFICATION_TASK">通知任务风险</option>
+          <option value="AGENT_TEAM_REPORT_ARCHIVE_DELETE">团队报告归档删除</option>
           <option value="SLA_DEAD_LETTER_ARCHIVE_DELETE">SLA 死信归档删除</option>
           <option value="NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE">自愈归档删除</option>
           <option value="NOTIFICATION_TASK_MIXED_FAILURE_SOURCE">双来源失败</option>
@@ -8919,6 +9010,7 @@ function notificationChannelLabel(channel: SecurityOperationAlertNotificationRes
 function operationAlertNotificationCategoryLabel(category: string) {
   if (category === 'NOTIFICATION_TASK') return '通知任务风险';
   if (category === 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE') return '双来源失败';
+  if (category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
   if (category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
   if (category === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档删除';
   if (category === 'ARCHIVE_OPERATION') return '归档运营';
@@ -8930,6 +9022,7 @@ function operationAlertNotificationCategoryLabel(category: string) {
 function operationAlertNotificationCategoryRisk(category: string | null) {
   return (
     category === 'SLA_DEAD_LETTER_ARCHIVE_DELETE' ||
+    category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE' ||
     category === 'NOTIFICATION_TASK' ||
     category === 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE' ||
     category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE'
@@ -8954,6 +9047,9 @@ function operationAlertCategory(alertId: string) {
   }
   if (alertId === 'sla-dead-letter-archive-delete-pending' || alertId === 'sla-dead-letter-archive-delete-rejected-risk') {
     return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  }
+  if (alertId === 'agent-team-report-archive-delete-pending' || alertId === 'agent-team-report-archive-delete-rejected-risk') {
+    return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
   }
   if (
     alertId === 'notification-task-recovery-audit-archive-delete-pending' ||

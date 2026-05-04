@@ -88,6 +88,9 @@ export const PERMISSION_CODES = {
   conversationHistoryView: 'conversation:history:view',
   conversationChatManage: 'conversation:chat:manage',
   monitorLogView: 'monitor:log:view',
+  billingCenterView: 'billing:center:view',
+  billingAdjustmentView: 'billing:adjustment:view',
+  billingAdjustmentManage: 'billing:adjustment:manage',
 } as const;
 
 export type PermissionCode = (typeof PERMISSION_CODES)[keyof typeof PERMISSION_CODES];
@@ -461,6 +464,30 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'monitor',
     resource: 'log',
     action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.billingCenterView,
+    legacy_code: 'monitor.read',
+    name: 'Billing Center View',
+    module: 'billing',
+    resource: 'center',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.billingAdjustmentView,
+    legacy_code: 'billing.adjustment.read',
+    name: 'Billing Adjustment View',
+    module: 'billing',
+    resource: 'adjustment',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.billingAdjustmentManage,
+    legacy_code: 'billing.adjustment.write',
+    name: 'Billing Adjustment Manage',
+    module: 'billing',
+    resource: 'adjustment',
+    action: 'manage',
   },
   {
     code: PERMISSION_CODES.securityAuditView,
@@ -5566,6 +5593,8 @@ export type BillingQuotaMetricType = 'COST' | 'TOKEN' | 'MODEL_CALL' | 'API_CALL
 export type BillingQuotaPeriod = 'DAY' | 'MONTH';
 export type BillingQuotaAction = 'WARN' | 'THROTTLE' | 'REQUIRE_APPROVAL' | 'BLOCK';
 export type BillingQuotaPolicyStatus = 'ACTIVE' | 'DISABLED' | 'DELETED';
+export type BillingAdjustmentType = 'CREDIT' | 'DEBIT' | 'REFUND' | 'DISCOUNT' | 'CORRECTION';
+export type BillingAdjustmentStatus = 'PENDING' | 'APPROVED' | 'APPLIED' | 'REJECTED' | 'VOID';
 
 export interface BillingSummary {
   total_cost: number;
@@ -5587,6 +5616,7 @@ export interface BillingSummary {
   current_period_tokens: number;
   current_period_calls: number;
   overage_cost: number;
+  adjustment_total: number;
   next_invoice_amount: number;
   active_quota_policy_count: number;
   quota_blocking_policy_count: number;
@@ -5728,6 +5758,36 @@ export interface BillingQuotaPolicyItem {
   updated_at: string;
 }
 
+export interface BillingAdjustmentItem {
+  id: string;
+  invoice_id: string | null;
+  invoice_no: string | null;
+  adjustment_no: string;
+  type: BillingAdjustmentType;
+  status: BillingAdjustmentStatus;
+  currency: string;
+  amount: number;
+  signed_amount: number;
+  reason: string;
+  description: string | null;
+  effective_at: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBillingAdjustmentInput {
+  invoice_id?: string | null;
+  type: BillingAdjustmentType;
+  amount: number;
+  reason: string;
+  description?: string | null;
+  status?: BillingAdjustmentStatus;
+}
+
 export interface UpdateBillingSubscriptionInput {
   plan_id?: string;
   billing_cycle?: BillingCycle;
@@ -5751,6 +5811,7 @@ export interface BillingOverview {
   subscription: BillingSubscriptionItem | null;
   invoices: BillingInvoiceItem[];
   quota_policies: BillingQuotaPolicyItem[];
+  adjustments: BillingAdjustmentItem[];
   cost_trend: BillingCostTrendPoint[];
   provider_costs: BillingProviderCostItem[];
   model_costs: BillingModelCostItem[];

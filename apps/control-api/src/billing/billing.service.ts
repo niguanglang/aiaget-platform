@@ -2,6 +2,9 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 
 import type {
+  BillingAdjustmentItem,
+  BillingAdjustmentStatus,
+  BillingAdjustmentType,
   BillingApiKeyQuotaItem,
   BillingCycle,
   BillingConversationCostItem,
@@ -21,6 +24,7 @@ import type {
   BillingSubscriptionItem,
   BillingSubscriptionStatus,
   BillingWindow,
+  CreateBillingAdjustmentInput,
   UpdateBillingQuotaPolicyInput,
   UpdateBillingSubscriptionInput,
 } from '@aiaget/shared-types';
@@ -41,7 +45,7 @@ export class BillingService {
     const since = windowStart(normalizedWindow);
     await this.ensureCommercialDefaults(currentUser);
     const period = currentBillingPeriod();
-    const [modelLogs, apiKeys, conversationRuns, plans, subscription, invoices, quotaPolicies, periodUsage] = await this.prisma.$transaction([
+    const [modelLogs, apiKeys, conversationRuns, plans, subscription, invoices, quotaPolicies, periodUsage, adjustments] = await this.prisma.$transaction([
       this.prisma.modelCallLog.findMany({
         where: {
           tenantId: currentUser.tenantId,
@@ -145,6 +149,19 @@ export class BillingService {
         },
         take: 5000,
       }),
+      this.prisma.billingAdjustment.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          deletedAt: null,
+        },
+        include: {
+          invoice: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 12,
+      }),
     ]);
     const quotaItems = apiKeys.map(mapApiKeyQuota);
     const modelCost = sum(modelLogs.map((log) => Number(log.totalCost)));
@@ -170,7 +187,10 @@ export class BillingService {
     }));
     const includedCost = mappedSubscription?.included_monthly_cost ?? 0;
     const overageCost = Math.max(0, periodCost - includedCost);
-    const nextInvoiceAmount = (mappedSubscription?.base_price ?? 0) + overageCost;
+    const adjustmentTotal = roundMoney(sum(adjustments
+      .filter((item) => item.status === 'APPROVED' || item.status === 'APPLIED')
+      .map((item) => signedAdjustmentAmount(item.type, Number(item.amount)))));
+    const nextInvoiceAmount = Math.max(0, (mappedSubscription?.base_price ?? 0) + overageCost + adjustmentTotal);
 
     return {
       generated_at: new Date().toISOString(),
@@ -195,6 +215,7 @@ export class BillingService {
         current_period_tokens: periodTokens,
         current_period_calls: periodCalls,
         overage_cost: roundMoney(overageCost),
+        adjustment_total: adjustmentTotal,
         next_invoice_amount: roundMoney(nextInvoiceAmount),
         active_quota_policy_count: mappedQuotaPolicies.filter((policy) => policy.status === 'ACTIVE').length,
         quota_blocking_policy_count: mappedQuotaPolicies.filter((policy) => policy.action === 'BLOCK' && policy.status === 'ACTIVE').length,
@@ -203,6 +224,7 @@ export class BillingService {
       subscription: mappedSubscription,
       invoices: invoices.map(mapInvoice),
       quota_policies: mappedQuotaPolicies,
+      adjustments: adjustments.map(mapAdjustment),
       cost_trend: buildCostTrend(modelLogs, conversationRuns, normalizedWindow),
       provider_costs: buildProviderCosts(modelLogs),
       model_costs: buildModelCosts(modelLogs),
@@ -282,6 +304,76 @@ export class BillingService {
     });
 
     return mapSubscription(updated);
+  }
+
+  async createAdjustment(currentUser: AuthenticatedUser, dto: CreateBillingAdjustmentInput): Promise<BillingAdjustmentItem> {
+    const amount = Number(dto.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Adjustment amount must be greater than 0');
+    }
+    if (!dto.reason?.trim()) {
+      throw new BadRequestException('Adjustment reason is required');
+    }
+
+    const invoice = dto.invoice_id
+      ? await this.prisma.billingInvoice.findFirst({
+          where: {
+            id: dto.invoice_id,
+            tenantId: currentUser.tenantId,
+            deletedAt: null,
+          },
+        })
+      : null;
+    if (dto.invoice_id && !invoice) throw new NotFoundException('Billing invoice not found');
+
+    const status = dto.status ?? 'PENDING';
+    const now = new Date();
+    const adjustment = await this.prisma.billingAdjustment.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        invoiceId: invoice?.id ?? null,
+        adjustmentNo: await this.nextAdjustmentNo(currentUser.tenantId),
+        type: dto.type,
+        status,
+        currency: invoice?.currency ?? 'USD',
+        amount: new Prisma.Decimal(amount),
+        reason: dto.reason.trim(),
+        description: dto.description?.trim() || null,
+        effectiveAt: status === 'APPROVED' || status === 'APPLIED' ? now : null,
+        approvedAt: status === 'APPROVED' || status === 'APPLIED' ? now : null,
+        approvedBy: status === 'APPROVED' || status === 'APPLIED' ? currentUser.id : null,
+        sourceType: 'MANUAL',
+        sourceId: currentUser.id,
+        metadata: {
+          request_id: currentUser.requestId ?? null,
+          trace_id: currentUser.traceId ?? null,
+        },
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+      include: {
+        invoice: true,
+      },
+    });
+
+    await this.recordBillingEvent(currentUser, {
+      resourceType: 'BILLING_ADJUSTMENT',
+      resourceId: adjustment.id,
+      eventType: 'billing.adjustment.created',
+      summary: `创建计费调整单 ${adjustment.adjustmentNo}`,
+      sourceId: adjustment.id,
+      payloadJson: {
+        adjustment_no: adjustment.adjustmentNo,
+        invoice_id: adjustment.invoiceId,
+        type: adjustment.type,
+        status: adjustment.status,
+        amount: Number(adjustment.amount),
+        signed_amount: signedAdjustmentAmount(adjustment.type, Number(adjustment.amount)),
+        reason: adjustment.reason,
+      },
+    });
+
+    return mapAdjustment(adjustment);
   }
 
   async updateQuotaPolicy(
@@ -513,6 +605,21 @@ export class BillingService {
       });
     }
   }
+
+  private async nextAdjustmentNo(tenantId: string) {
+    const date = new Date();
+    const prefix = `ADJ-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+    const count = await this.prisma.billingAdjustment.count({
+      where: {
+        tenantId,
+        adjustmentNo: {
+          startsWith: prefix,
+        },
+      },
+    });
+
+    return `${prefix}-${String(count + 1).padStart(4, '0')}`;
+  }
 }
 
 type ModelLogRecord = Prisma.ModelCallLogGetPayload<{
@@ -531,6 +638,7 @@ type ConversationRunRecord = Prisma.ConversationRunGetPayload<{
 type BillingPlanRecord = Prisma.BillingPlanGetPayload<object>;
 type BillingSubscriptionRecord = Prisma.TenantSubscriptionGetPayload<{ include: { plan: true } }>;
 type BillingInvoiceRecord = Prisma.BillingInvoiceGetPayload<object>;
+type BillingAdjustmentRecord = Prisma.BillingAdjustmentGetPayload<{ include: { invoice: true } }>;
 type BillingQuotaPolicyRecord = Prisma.BillingQuotaPolicyGetPayload<object>;
 
 const DEFAULT_BILLING_PLANS = [
@@ -837,6 +945,31 @@ function mapInvoice(invoice: BillingInvoiceRecord): BillingInvoiceItem {
   };
 }
 
+function mapAdjustment(adjustment: BillingAdjustmentRecord): BillingAdjustmentItem {
+  const amount = Number(adjustment.amount);
+
+  return {
+    id: adjustment.id,
+    invoice_id: adjustment.invoiceId,
+    invoice_no: adjustment.invoice?.invoiceNo ?? null,
+    adjustment_no: adjustment.adjustmentNo,
+    type: adjustment.type as BillingAdjustmentType,
+    status: adjustment.status as BillingAdjustmentStatus,
+    currency: adjustment.currency,
+    amount,
+    signed_amount: signedAdjustmentAmount(adjustment.type, amount),
+    reason: adjustment.reason,
+    description: adjustment.description,
+    effective_at: adjustment.effectiveAt?.toISOString() ?? null,
+    approved_at: adjustment.approvedAt?.toISOString() ?? null,
+    approved_by: adjustment.approvedBy,
+    source_type: adjustment.sourceType,
+    source_id: adjustment.sourceId,
+    created_at: adjustment.createdAt.toISOString(),
+    updated_at: adjustment.updatedAt.toISOString(),
+  };
+}
+
 function mapQuotaPolicy(
   policy: BillingQuotaPolicyRecord,
   usage: { cost: number; tokens: number; calls: number },
@@ -884,6 +1017,11 @@ function quotaRiskLevel(usageRate: number | null): BillingQuotaRiskLevel {
   if (usageRate >= 90) return 'CRITICAL';
   if (usageRate >= 70) return 'WARNING';
   return 'NORMAL';
+}
+
+function signedAdjustmentAmount(type: string, amount: number) {
+  if (type === 'DEBIT') return roundMoney(Math.abs(amount));
+  return roundMoney(-Math.abs(amount));
 }
 
 function normalizeJson(value: Prisma.JsonValue | null) {

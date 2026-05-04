@@ -19,9 +19,11 @@ import type {
   AgentDetail,
   AgentListItem,
   BillingOverview,
+  BillingAdjustmentItem,
   BillingQuotaPolicyItem,
   BillingSubscriptionItem,
   BillingWindow,
+  CreateBillingAdjustmentInput,
   CreateAgentKnowledgeBindingInput,
   CreateAgentModelBindingInput,
   CreateAgentPromptBindingInput,
@@ -2242,6 +2244,13 @@ export function updateBillingSubscription(input: UpdateBillingSubscriptionInput)
 export function updateBillingQuotaPolicy(id: string, input: UpdateBillingQuotaPolicyInput) {
   return request<BillingQuotaPolicyItem>(`/billing/quota-policies/${id}`, {
     method: 'PATCH',
+    body: input,
+  });
+}
+
+export function createBillingAdjustment(input: CreateBillingAdjustmentInput) {
+  return request<BillingAdjustmentItem>('/billing/adjustments', {
+    method: 'POST',
     body: input,
   });
 }

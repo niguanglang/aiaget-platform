@@ -2,6 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  BillingAdjustmentItem,
+  BillingAdjustmentStatus,
+  BillingAdjustmentType,
   BillingApiKeyQuotaItem,
   BillingCycle,
   BillingConversationCostItem,
@@ -20,12 +23,15 @@ import type {
   BillingSubscriptionItem,
   BillingSubscriptionStatus,
   BillingWindow,
+  CreateBillingAdjustmentInput,
   UpdateBillingQuotaPolicyInput,
 } from '@aiaget/shared-types';
+import { hasPermission } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { CalendarClock, Coins, FileText, Gauge, RefreshCw, ShieldAlert, SlidersHorizontal } from 'lucide-react';
+import { CalendarClock, Coins, FileText, Gauge, Plus, RefreshCw, ShieldAlert, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { useAuth } from '@/components/auth/auth-provider';
 import { formatDateTime, formatLatency, formatMoney, formatPercent } from '@/components/monitor/monitor-status';
 import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
 import { Button } from '@/components/ui/button';
@@ -34,7 +40,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getBillingOverview, updateBillingQuotaPolicy, updateBillingSubscription } from '@/lib/api-client';
+import { createBillingAdjustment, getBillingOverview, updateBillingQuotaPolicy, updateBillingSubscription } from '@/lib/api-client';
 
 const windows: BillingWindow[] = ['24h', '7d'];
 
@@ -59,6 +65,22 @@ const invoiceStatusLabels: Record<BillingInvoiceItem['status'], string> = {
   PAID: '已支付',
   VOID: '已作废',
   OVERDUE: '已逾期',
+};
+
+const adjustmentTypeLabels: Record<BillingAdjustmentType, string> = {
+  CREDIT: '减免',
+  DEBIT: '补收',
+  REFUND: '退款',
+  DISCOUNT: '折扣',
+  CORRECTION: '纠错',
+};
+
+const adjustmentStatusLabels: Record<BillingAdjustmentStatus, string> = {
+  PENDING: '待处理',
+  APPROVED: '已批准',
+  APPLIED: '已生效',
+  REJECTED: '已拒绝',
+  VOID: '已作废',
 };
 
 const planTierLabels: Record<BillingPlanItem['tier'], string> = {
@@ -105,14 +127,21 @@ const quotaPolicyStatusLabels: Record<BillingQuotaPolicyStatus, string> = {
 
 const quotaActions: BillingQuotaAction[] = ['WARN', 'THROTTLE', 'REQUIRE_APPROVAL', 'BLOCK'];
 const quotaPolicyStatuses: BillingQuotaPolicyStatus[] = ['ACTIVE', 'DISABLED'];
+const adjustmentTypes: BillingAdjustmentType[] = ['CREDIT', 'DEBIT', 'REFUND', 'DISCOUNT', 'CORRECTION'];
 
 export function BillingContent() {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
   const [windowValue, setWindowValue] = useState<BillingWindow>('24h');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('MONTHLY');
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [policyDraft, setPolicyDraft] = useState<QuotaPolicyDraft | null>(null);
+  const [adjustmentDraft, setAdjustmentDraft] = useState<AdjustmentDraft>(() => defaultAdjustmentDraft());
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const canManageAdjustments = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'billing:adjustment:manage'),
+  );
   const billingQuery = useQuery({
     queryKey: ['billing-overview', windowValue],
     queryFn: () => getBillingOverview({ window: windowValue }),
@@ -143,6 +172,16 @@ export function BillingContent() {
     onError: () => setActionMessage('额度策略保存失败，请检查阈值或权限。'),
   });
 
+  const adjustmentMutation = useMutation({
+    mutationFn: (input: CreateBillingAdjustmentInput) => createBillingAdjustment(input),
+    onSuccess: async (adjustment) => {
+      setActionMessage(`已创建调账单 ${adjustment.adjustment_no}，账单估算已刷新。`);
+      setAdjustmentDraft(defaultAdjustmentDraft());
+      await invalidateBilling();
+    },
+    onError: () => setActionMessage('调账单创建失败，请检查金额、原因或权限。'),
+  });
+
   const startEditPolicy = (policy: BillingQuotaPolicyItem) => {
     setEditingPolicyId(policy.id);
     setPolicyDraft({
@@ -165,6 +204,15 @@ export function BillingContent() {
     quotaPolicyMutation.mutate({ id: activePolicy.id, input });
   };
 
+  const createAdjustment = () => {
+    const input = toAdjustmentInput(adjustmentDraft);
+    if (!input) {
+      setActionMessage('调账金额必须大于 0，原因至少需要 2 个字符。');
+      return;
+    }
+    adjustmentMutation.mutate(input);
+  };
+
   const metrics = useMemo(() => {
     const summary = overview?.summary;
     if (!summary) return [];
@@ -177,6 +225,7 @@ export function BillingContent() {
       { label: '月度预测', value: formatMoney(summary.projected_monthly_cost), helper: '按窗口折算' },
       { label: '当前周期成本', value: formatMoney(summary.current_period_cost), helper: summary.plan_name ?? '未配置订阅' },
       { label: '超额成本', value: formatMoney(summary.overage_cost), helper: `下期估算 ${formatMoney(summary.next_invoice_amount)}` },
+      { label: '调账影响', value: formatMoney(summary.adjustment_total), helper: '已批准/已生效调整' },
       { label: '额度策略', value: formatInteger(summary.active_quota_policy_count), helper: `${summary.quota_blocking_policy_count} 条阻断策略` },
       { label: '风险密钥', value: formatInteger(summary.risky_api_key_count), helper: `平均额度 ${formatPercent(summary.quota_usage_rate)}` },
     ];
@@ -273,6 +322,17 @@ export function BillingContent() {
         <InvoiceCard invoices={overview?.invoices ?? []} loading={billingQuery.isLoading} />
       </section>
 
+      <AdjustmentCard
+        canManage={canManageAdjustments}
+        draft={adjustmentDraft}
+        invoices={overview?.invoices ?? []}
+        items={overview?.adjustments ?? []}
+        loading={billingQuery.isLoading}
+        onCreate={createAdjustment}
+        onDraftChange={setAdjustmentDraft}
+        saving={adjustmentMutation.isPending}
+      />
+
       <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <CostTrendCard loading={billingQuery.isLoading} points={overview?.cost_trend ?? []} />
         <QuotaRiskCard items={overview?.risky_api_keys ?? []} loading={billingQuery.isLoading} />
@@ -299,6 +359,14 @@ interface QuotaPolicyDraft {
   hard_threshold: string;
   action: BillingQuotaAction;
   status: Exclude<BillingQuotaPolicyStatus, 'DELETED'>;
+}
+
+interface AdjustmentDraft {
+  invoice_id: string;
+  type: BillingAdjustmentType;
+  amount: string;
+  reason: string;
+  description: string;
 }
 
 function SubscriptionCard({
@@ -629,6 +697,150 @@ function InvoiceCard({ invoices, loading }: { invoices: BillingInvoiceItem[]; lo
   );
 }
 
+function AdjustmentCard({
+  canManage,
+  draft,
+  invoices,
+  items,
+  loading,
+  onCreate,
+  onDraftChange,
+  saving,
+}: {
+  canManage: boolean;
+  draft: AdjustmentDraft;
+  invoices: BillingInvoiceItem[];
+  items: BillingAdjustmentItem[];
+  loading: boolean;
+  onCreate: () => void;
+  onDraftChange: (draft: AdjustmentDraft) => void;
+  saving: boolean;
+}) {
+  return (
+    <Card className="grid gap-4 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Plus className="size-4 text-primary" />
+            调账中心
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            用于登记退款、折扣、减免、补收和纠错，已批准或已生效的调整会进入下期账单估算。
+          </p>
+        </div>
+        <StatusBadge tone={canManage ? 'healthy' : 'planned'}>
+          {canManage ? '可创建调账' : '仅查看'}
+        </StatusBadge>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+        <div className="grid gap-3 rounded-md border bg-muted/15 p-4">
+          <div className="text-sm font-medium">新建调账单</div>
+          <SegmentedSelect
+            label="调整类型"
+            onChange={(value) => onDraftChange({ ...draft, type: value as BillingAdjustmentType })}
+            options={adjustmentTypes.map((type) => ({ label: adjustmentTypeLabels[type], value: type }))}
+            value={draft.type}
+          />
+          <Field label="关联账单">
+            <select
+              className="h-10 rounded-md border bg-background/80 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70"
+              disabled={!canManage || saving}
+              onChange={(event) => onDraftChange({ ...draft, invoice_id: event.target.value })}
+              value={draft.invoice_id}
+            >
+              <option value="">不绑定具体账单</option>
+              {invoices.map((invoice) => (
+                <option key={invoice.id} value={invoice.id}>
+                  {invoice.invoice_no} · {formatMoney(invoice.total_amount)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="调整金额">
+            <Input
+              disabled={!canManage || saving}
+              min="0.01"
+              onChange={(event) => onDraftChange({ ...draft, amount: event.target.value })}
+              placeholder="例如 128.50"
+              type="number"
+              value={draft.amount}
+            />
+          </Field>
+          <Field label="调整原因">
+            <Input
+              disabled={!canManage || saving}
+              maxLength={220}
+              onChange={(event) => onDraftChange({ ...draft, reason: event.target.value })}
+              placeholder="例如：客户服务补偿"
+              value={draft.reason}
+            />
+          </Field>
+          <Field label="说明">
+            <textarea
+              className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70"
+              disabled={!canManage || saving}
+              maxLength={2000}
+              onChange={(event) => onDraftChange({ ...draft, description: event.target.value })}
+              placeholder="填写调账依据、工单或财务备注。"
+              value={draft.description}
+            />
+          </Field>
+          <Button disabled={!canManage || saving} onClick={onCreate} type="button">
+            {saving ? '提交中...' : '创建调账单'}
+          </Button>
+          {!canManage ? (
+            <div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+              当前账号缺少 `billing:adjustment:manage` 权限，不能创建调账单。
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium">最近调整单</div>
+            <span className="text-xs text-muted-foreground">{items.length} 条记录</span>
+          </div>
+          {loading ? (
+            <div className="text-sm text-muted-foreground">正在加载调账记录...</div>
+          ) : items.length === 0 ? (
+            <EmptyState description="暂无退款、折扣、补收或纠错记录。" title="暂无调账单" />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    {['调账单', '类型', '状态', '金额', '关联账单', '原因', '创建时间'].map((column) => (
+                      <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr className="border-b last:border-0" key={item.id}>
+                      <td className="px-3 py-2 font-medium">{item.adjustment_no}</td>
+                      <td className="px-3 py-2">
+                        <StatusBadge tone={adjustmentTypeTone(item.type)}>{adjustmentTypeLabels[item.type]}</StatusBadge>
+                      </td>
+                      <td className="px-3 py-2">
+                        <StatusBadge tone={adjustmentStatusTone(item.status)}>{adjustmentStatusLabels[item.status]}</StatusBadge>
+                      </td>
+                      <td className="px-3 py-2 font-medium">{formatSignedMoney(item.signed_amount)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{item.invoice_no ?? '-'}</td>
+                      <td className="max-w-[220px] truncate px-3 py-2 text-muted-foreground">{item.reason}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{formatDateShort(item.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function UsageMiniCard({ label, rate, total, usage }: { label: string; rate: number; total: string; usage: string }) {
   return (
     <div className="rounded-md border bg-muted/15 p-3">
@@ -937,6 +1149,19 @@ function invoiceTone(status: BillingInvoiceItem['status']) {
   return 'unavailable';
 }
 
+function adjustmentTypeTone(type: BillingAdjustmentType) {
+  if (type === 'DEBIT') return 'degraded';
+  if (type === 'CORRECTION') return 'mock';
+  return 'healthy';
+}
+
+function adjustmentStatusTone(status: BillingAdjustmentStatus) {
+  if (status === 'APPROVED' || status === 'APPLIED') return 'healthy';
+  if (status === 'PENDING') return 'planned';
+  if (status === 'REJECTED' || status === 'VOID') return 'unavailable';
+  return 'planned';
+}
+
 function percentValue(usage: number, total: number) {
   if (!total) return 0;
   return Number(((usage / total) * 100).toFixed(1));
@@ -963,6 +1188,11 @@ function formatQuotaValue(metricType: BillingQuotaMetricType, value: number) {
   return formatInteger(value);
 }
 
+function formatSignedMoney(value: number) {
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${formatMoney(value)}`;
+}
+
 function toQuotaPolicyInput(draft: QuotaPolicyDraft): UpdateBillingQuotaPolicyInput | null {
   const limitValue = Number(draft.limit_value);
   const warnThreshold = Number(draft.warn_threshold);
@@ -985,6 +1215,30 @@ function toQuotaPolicyInput(draft: QuotaPolicyDraft): UpdateBillingQuotaPolicyIn
     hard_threshold: hardThreshold,
     action: draft.action,
     status: draft.status,
+  };
+}
+
+function defaultAdjustmentDraft(): AdjustmentDraft {
+  return {
+    invoice_id: '',
+    type: 'CREDIT',
+    amount: '',
+    reason: '',
+    description: '',
+  };
+}
+
+function toAdjustmentInput(draft: AdjustmentDraft): CreateBillingAdjustmentInput | null {
+  const amount = Number(draft.amount);
+  if (!Number.isFinite(amount) || amount <= 0 || draft.reason.trim().length < 2) return null;
+
+  return {
+    invoice_id: draft.invoice_id || null,
+    type: draft.type,
+    amount,
+    reason: draft.reason.trim(),
+    description: draft.description.trim() || null,
+    status: 'APPROVED',
   };
 }
 

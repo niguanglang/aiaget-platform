@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Inject, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import type { BillingOverview, BillingQuotaPolicyItem, BillingSubscriptionItem } from '@aiaget/shared-types';
+import type { BillingAdjustmentItem, BillingOverview, BillingQuotaPolicyItem, BillingSubscriptionItem } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { BillingService } from './billing.service';
+import { CreateBillingAdjustmentDto } from './dto/create-billing-adjustment.dto';
 import { GetBillingOverviewDto } from './dto/get-billing-overview.dto';
 import { UpdateBillingQuotaPolicyDto } from './dto/update-billing-quota-policy.dto';
 import { UpdateBillingSubscriptionDto } from './dto/update-billing-subscription.dto';
@@ -21,13 +22,23 @@ export class BillingController {
   constructor(@Inject(BillingService) private readonly billingService: BillingService) {}
 
   @Get('overview')
-  @Permissions('monitor:log:view')
+  @Permissions('billing:center:view')
   @ApiOkResponse({ description: 'Tenant cost and quota overview' })
   async getOverview(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Query() query: GetBillingOverviewDto,
   ): Promise<BillingOverview> {
     return this.billingService.getOverview(currentUser, query.window);
+  }
+
+  @Post('adjustments')
+  @Permissions('billing:adjustment:manage')
+  @ApiOkResponse({ description: 'Create one billing adjustment' })
+  async createAdjustment(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CreateBillingAdjustmentDto,
+  ): Promise<BillingAdjustmentItem> {
+    return this.billingService.createAdjustment(currentUser, dto);
   }
 
   @Patch('subscription')

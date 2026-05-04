@@ -459,7 +459,7 @@ export const moduleSpecs: ModuleSpec[] = [
     navTitle: '成本额度',
     href: '/billing',
     description: '查看模型成本、接口密钥额度、成本趋势和用量风险。',
-    permission: 'monitor:log:view',
+    permission: 'billing:center:view',
     status: 'ready',
     primaryAction: '刷新成本数据',
     metrics: [

@@ -229,6 +229,20 @@ const approvalWorkbenchRiskDomains: Array<{ label: string; value: SecurityApprov
   { label: '审计归档', value: 'AUDIT_ARCHIVE' },
   { label: '运营告警', value: 'OPERATION_ALERT' },
 ];
+const agentTeamArchiveDetailMetadataKeys = new Set([
+  'archive_id',
+  'archive_key',
+  'archive_file_name',
+  'archive_size_bytes',
+  'archive_folder',
+  'archive_source',
+  'archive_context',
+  'source_id',
+  'team_id',
+  'team_name',
+  'run_id',
+  'run_objective',
+]);
 const eventPageSize = 20;
 const securityApprovalWorkbenchPageSize = 12;
 const slaDeadLetterAuditPageSize = 6;
@@ -237,6 +251,19 @@ type PaginatedSecurityOperationAlertSlaDeadLetterAudits = {
   page: number;
   page_size: number;
   total: number;
+};
+type SecurityApprovalAgentTeamArchiveMetadata = {
+  archiveId: string;
+  archiveKey: string;
+  archiveFileName: string;
+  archiveSizeBytes: number;
+  archiveFolder: string;
+  archiveSource: string;
+  archiveContext: string;
+  teamId: string;
+  teamName: string;
+  runId: string;
+  runObjective: string;
 };
 const securityModuleIcons = {
   security_policies: ShieldCheck,
@@ -2141,6 +2168,11 @@ function SecurityApprovalWorkbenchDetailPanel({
   const pending = current.status === 'PENDING';
   const timeline = detail?.timeline ?? [];
   const metadata = detail?.metadata ?? {};
+  const isAgentTeamArchiveDelete = current.type === 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE';
+  const agentTeamArchiveMetadata = isAgentTeamArchiveDelete ? readAgentTeamArchiveMetadata(metadata) : null;
+  const metadataEntries = Object.entries(metadata).filter(([key]) => (
+    !isAgentTeamArchiveDelete || !agentTeamArchiveDetailMetadataKeys.has(key)
+  ));
 
   return (
     <div className="grid content-start gap-5 p-5">
@@ -2165,6 +2197,14 @@ function SecurityApprovalWorkbenchDetailPanel({
         <SummaryTile label="审批时间" value={formatDateTime(current.reviewed_at)} />
       </div>
 
+      {agentTeamArchiveMetadata ? (
+        <SecurityApprovalAgentTeamArchiveContext metadata={agentTeamArchiveMetadata} />
+      ) : null}
+
+      {agentTeamArchiveMetadata ? (
+        <SecurityApprovalArchiveObjectPanel metadata={agentTeamArchiveMetadata} />
+      ) : null}
+
       <div className="rounded-md border bg-background/75 p-4">
         <h4 className="text-sm font-semibold">审批原因与链路</h4>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.reason ?? '未填写审批原因。'}</p>
@@ -2188,11 +2228,11 @@ function SecurityApprovalWorkbenchDetailPanel({
         </div>
       </div>
 
-      {Object.keys(metadata).length > 0 ? (
+      {metadataEntries.length > 0 ? (
         <div className="rounded-md border bg-background/75 p-4">
-          <h4 className="text-sm font-semibold">来源扩展信息</h4>
+          <h4 className="text-sm font-semibold">{isAgentTeamArchiveDelete ? '其他扩展信息' : '来源扩展信息'}</h4>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-            {Object.entries(metadata).slice(0, 12).map(([key, value]) => (
+            {metadataEntries.slice(0, 12).map(([key, value]) => (
               <div className="min-w-0 rounded-md border bg-muted/10 px-3 py-2" key={key}>
                 <div className="font-medium text-foreground">{securityApprovalMetadataLabel(key)}</div>
                 <div className="mt-1 truncate">{formatSecurityApprovalMetadataValue(value)}</div>
@@ -2249,6 +2289,58 @@ function SecurityApprovalWorkbenchDetailPanel({
             {reviewing ? '处理中' : '通过'}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SecurityApprovalAgentTeamArchiveContext({
+  metadata,
+}: {
+  metadata: SecurityApprovalAgentTeamArchiveMetadata;
+}) {
+  return (
+    <div className="rounded-md border bg-background/75 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold">团队运行上下文</h4>
+          <p className="mt-1 text-xs text-muted-foreground">用于确认本次删除影响的多 Agent 团队和具体运行记录。</p>
+        </div>
+        <StatusBadge tone="degraded">高危归档删除</StatusBadge>
+      </div>
+      <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+        <SummaryTile label="团队名称" value={metadata.teamName} />
+        <SummaryTile label="团队 ID" value={metadata.teamId} />
+        <SummaryTile label="运行 ID" value={metadata.runId} />
+        <SummaryTile label="运行目标" value={metadata.runObjective} />
+      </div>
+    </div>
+  );
+}
+
+function SecurityApprovalArchiveObjectPanel({
+  metadata,
+}: {
+  metadata: SecurityApprovalAgentTeamArchiveMetadata;
+}) {
+  return (
+    <div className="rounded-md border bg-background/75 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold">归档对象</h4>
+          <p className="mt-1 text-xs text-muted-foreground">审批通过后会删除该对象存储文件，操作会写入审计时间线。</p>
+        </div>
+        <StatusBadge tone="planned">{metadata.archiveContext}</StatusBadge>
+      </div>
+      <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+        <SummaryTile label="归档文件" value={metadata.archiveFileName} />
+        <SummaryTile label="归档大小" value={metadata.archiveSizeBytes > 0 ? formatBytes(metadata.archiveSizeBytes) : '未知'} />
+        <SummaryTile label="归档目录" value={metadata.archiveFolder} />
+        <SummaryTile label="归档来源" value={metadata.archiveSource} />
+      </div>
+      <div className="mt-3 rounded-md border bg-muted/10 px-3 py-2">
+        <div className="text-xs font-medium text-foreground">对象路径</div>
+        <div className="mt-1 break-all font-mono text-xs text-muted-foreground">{metadata.archiveKey}</div>
       </div>
     </div>
   );
@@ -9353,10 +9445,13 @@ function securityApprovalMetadataLabel(key: string) {
   const labels: Record<string, string> = {
     action: '动作',
     agent_name: 'Agent',
+    archive_context: '归档上下文',
     archive_file_name: '归档文件',
+    archive_folder: '归档目录',
     archive_id: '归档 ID',
     archive_key: '对象路径',
     archive_size_bytes: '归档大小',
+    archive_source: '归档来源',
     conversation_title: '会话',
     execution_status: '执行状态',
     impact_level: '影响等级',
@@ -9377,6 +9472,52 @@ function securityApprovalMetadataLabel(key: string) {
   };
 
   return labels[key] ?? key;
+}
+
+function readAgentTeamArchiveMetadata(metadata: Record<string, unknown>): SecurityApprovalAgentTeamArchiveMetadata {
+  const archiveKey = metadataString(metadata.archive_key);
+  const archiveFileName = metadataString(metadata.archive_file_name) || archiveKey.split('/').at(-1) || '团队运行报告归档.csv';
+  const inferred = inferAgentTeamArchiveMetadata(archiveKey);
+
+  return {
+    archiveId: metadataString(metadata.archive_id),
+    archiveKey: archiveKey || '-',
+    archiveFileName,
+    archiveSizeBytes: metadataNumber(metadata.archive_size_bytes),
+    archiveFolder: metadataString(metadata.archive_folder) || inferred.archiveFolder,
+    archiveSource: metadataString(metadata.archive_source) || inferred.archiveSource,
+    archiveContext: metadataString(metadata.archive_context) || '团队运行报告归档',
+    teamId: metadataString(metadata.team_id) || inferred.teamId,
+    teamName: metadataString(metadata.team_name) || '未记录团队名称',
+    runId: metadataString(metadata.run_id) || inferred.runId,
+    runObjective: metadataString(metadata.run_objective) || '未记录运行目标',
+  };
+}
+
+function inferAgentTeamArchiveMetadata(archiveKey: string) {
+  const parts = archiveKey.split('/').filter(Boolean);
+  const fileName = parts.at(-1) ?? '';
+  const fileNameWithoutExtension = fileName.endsWith('.csv') ? fileName.slice(0, -4) : fileName;
+  const candidateRunId = fileNameWithoutExtension.slice(-36);
+  const teamId = parts.length >= 3 && parts[0] === 'agent-team-run-reports' ? parts[1] ?? '' : '';
+  const runId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidateRunId)
+    ? candidateRunId
+    : '';
+
+  return {
+    archiveFolder: parts.length > 1 ? parts.slice(0, -1).join('/') : '-',
+    archiveSource: parts[0] ?? '-',
+    teamId: teamId || '-',
+    runId: runId || '-',
+  };
+}
+
+function metadataString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : '';
+}
+
+function metadataNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function formatSecurityApprovalMetadataValue(value: unknown) {

@@ -1039,6 +1039,7 @@ export class AgentTeamsService {
   ): Promise<{ success: boolean; approval_id: string }> {
     const key = agentTeamRunReportArchiveKeyFromId(archiveId);
     const sourceId = agentTeamRunReportArchiveSourceIdFromKey(key);
+    const archiveContext = await this.resolveRunReportArchiveContext(currentUser.tenantId, key);
     const existing = await this.findPendingRunReportArchiveDeleteApproval(currentUser.tenantId, sourceId);
 
     if (existing) {
@@ -1061,6 +1062,13 @@ export class AgentTeamsService {
         archive_id: archiveId,
         archive_key: key,
         archive_file_name: key.split('/').at(-1) ?? key,
+        archive_folder: key.split('/').slice(0, -1).join('/') || null,
+        archive_source: AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX,
+        archive_context: '团队运行报告归档',
+        team_id: archiveContext.teamId,
+        team_name: archiveContext.teamName,
+        run_id: archiveContext.runId,
+        run_objective: archiveContext.runObjective,
       },
       actorId: currentUser.id,
     });
@@ -1151,6 +1159,52 @@ export class AgentTeamsService {
     });
 
     return this.getRunReportArchiveDeleteApproval(currentUser, approvalId);
+  }
+
+  private async resolveRunReportArchiveContext(tenantId: string, key: string) {
+    const parsed = parseRunReportArchiveKey(key);
+    const run = parsed.runId
+      ? await this.prisma.agentTeamRun.findFirst({
+          where: {
+            tenantId,
+            id: parsed.runId,
+            deletedAt: null,
+          },
+          include: {
+            team: true,
+          },
+        })
+      : null;
+
+    if (run) {
+      return {
+        teamId: run.teamId,
+        teamName: run.team.name,
+        runId: run.id,
+        runObjective: run.objective,
+      };
+    }
+
+    const team = parsed.teamId
+      ? await this.prisma.agentTeam.findFirst({
+          where: {
+            tenantId,
+            id: parsed.teamId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : null;
+
+    return {
+      teamId: parsed.teamId,
+      teamName: team?.name ?? null,
+      runId: parsed.runId,
+      runObjective: null,
+    };
   }
 
   async runWorkflowRun(runId: string): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {

@@ -99,6 +99,8 @@ const NOTIFICATION_SETTING_KEYS = [
   'operation_alert_sla_notification_lookback_hours',
 ] as const;
 
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX = 'agent-team-run-reports';
+
 @Injectable()
 export class SecurityApprovalWorkbenchService {
   constructor(
@@ -590,14 +592,19 @@ function mapPlatformTimeline(event: PlatformEventRecord): SecurityApprovalWorkbe
 }
 
 function archiveTimelineMetadata(metadata: Record<string, unknown>) {
+  const archiveKey = typeof metadata.archive_key === 'string' ? metadata.archive_key : null;
+  const inferred = inferArchiveContext(archiveKey);
   return {
     archive_id: typeof metadata.archive_id === 'string' ? metadata.archive_id : null,
-    archive_key: typeof metadata.archive_key === 'string' ? metadata.archive_key : null,
+    archive_key: archiveKey,
     archive_file_name: typeof metadata.archive_file_name === 'string' ? metadata.archive_file_name : null,
     archive_size_bytes: typeof metadata.archive_size_bytes === 'number' ? metadata.archive_size_bytes : 0,
-    team_id: typeof metadata.team_id === 'string' ? metadata.team_id : null,
+    archive_folder: typeof metadata.archive_folder === 'string' ? metadata.archive_folder : inferred.archiveFolder,
+    archive_source: typeof metadata.archive_source === 'string' ? metadata.archive_source : inferred.archiveSource,
+    archive_context: typeof metadata.archive_context === 'string' ? metadata.archive_context : inferred.archiveContext,
+    team_id: typeof metadata.team_id === 'string' ? metadata.team_id : inferred.teamId,
     team_name: typeof metadata.team_name === 'string' ? metadata.team_name : null,
-    run_id: typeof metadata.run_id === 'string' ? metadata.run_id : null,
+    run_id: typeof metadata.run_id === 'string' ? metadata.run_id : inferred.runId,
     run_objective: typeof metadata.run_objective === 'string' ? metadata.run_objective : null,
   };
 }
@@ -608,6 +615,9 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     archive_key?: string | null;
     archive_file_name?: string | null;
     archive_size_bytes?: number;
+    archive_folder?: string | null;
+    archive_source?: string | null;
+    archive_context?: string | null;
     source_id?: string | null;
     team_id?: string | null;
     team_name?: string | null;
@@ -615,17 +625,54 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     run_objective?: string | null;
   };
   const archiveKey = raw.archive_key ?? '';
+  const inferred = inferArchiveContext(archiveKey || null);
   return {
     archive_id: raw.archive_id ?? event.id,
     archive_key: archiveKey,
     archive_file_name: raw.archive_file_name ?? archiveKey.split('/').at(-1) ?? '归档文件',
     archive_size_bytes: raw.archive_size_bytes ?? 0,
+    archive_folder: raw.archive_folder ?? inferred.archiveFolder,
+    archive_source: raw.archive_source ?? inferred.archiveSource,
+    archive_context: raw.archive_context ?? inferred.archiveContext,
     source_id: raw.source_id ?? null,
-    team_id: raw.team_id ?? null,
+    team_id: raw.team_id ?? inferred.teamId,
     team_name: raw.team_name ?? null,
-    run_id: raw.run_id ?? null,
+    run_id: raw.run_id ?? inferred.runId,
     run_objective: raw.run_objective ?? null,
   };
+}
+
+function inferArchiveContext(archiveKey: string | null) {
+  if (!archiveKey) {
+    return {
+      archiveFolder: null,
+      archiveSource: null,
+      archiveContext: null,
+      teamId: null,
+      runId: null,
+    };
+  }
+
+  const parts = archiveKey.split('/').filter(Boolean);
+  const fileName = parts.at(-1) ?? '';
+  const archiveFolder = parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+  const archiveSource = parts[0] ?? null;
+  const fileNameWithoutExtension = fileName.endsWith('.csv') ? fileName.slice(0, -4) : fileName;
+  const candidateRunId = fileNameWithoutExtension.slice(-36);
+  const teamId = parts.length >= 3 && parts[0] === AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
+  const runId = teamId && isUuid(candidateRunId) ? candidateRunId : null;
+
+  return {
+    archiveFolder,
+    archiveSource,
+    archiveContext: teamId || runId ? '团队运行报告归档' : archiveSource,
+    teamId,
+    runId,
+  };
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 function groupBySource(events: SecurityApprovalWorkbenchTimelineItem[]) {
@@ -659,8 +706,25 @@ function filterItems(items: WorkbenchSourceRecord[], query: ListSecurityApproval
       item.reviewer?.email,
       item.request_id,
       item.trace_id,
+      ...Object.entries(item.metadata).flatMap(([key, value]) => [key, searchableMetadataValue(value)]),
+      ...item.timeline.flatMap((event) => [
+        event.id,
+        event.title,
+        event.note,
+        event.actor?.name,
+        event.actor?.email,
+        event.request_id,
+        event.trace_id,
+      ]),
     ].some((value) => value?.toLowerCase().includes(keyword));
   });
+}
+
+function searchableMetadataValue(value: unknown) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value);
 }
 
 function stripDetail(item: WorkbenchSourceRecord): SecurityApprovalWorkbenchItem {

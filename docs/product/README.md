@@ -89,6 +89,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M72 团队运行报告归档删除审批运营闭环](./m72-agent-team-report-archive-operations.md)
 - [M73 团队运行报告归档删除审批告警自动通知分类](./m73-agent-team-report-archive-auto-notify.md)
 - [M74 团队运行报告归档删除 SLA 通知与死信来源闭环](./m74-agent-team-report-archive-sla-dead-letter.md)
+- [M75 团队运行报告归档删除审批详情与筛选增强](./m75-agent-team-report-archive-approval-workbench-detail.md)
 - [M67 统一用量 Rollup 聚合任务](./m67-platform-usage-rollup-task.md)
 - [M68 统一用量异常检测与告警闭环](./m68-platform-usage-anomaly-alerts.md)
 - [M69 告警生命周期与通知策略](./m69-usage-alert-lifecycle.md)

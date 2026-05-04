@@ -212,6 +212,7 @@ const approvalWorkbenchTypes: Array<{ label: string; value: SecurityApprovalWork
   { label: '工具调用审批', value: 'TOOL_CALL' },
   { label: '通知策略审批', value: 'NOTIFICATION_POLICY' },
   { label: '审批审计归档删除', value: 'APPROVAL_AUDIT_ARCHIVE_DELETE' },
+  { label: '团队运行报告归档删除', value: 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE' },
   { label: '运营告警通知归档删除', value: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE' },
   { label: 'SLA 死信审计归档删除', value: 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE' },
   { label: '自愈审计归档删除', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
@@ -1896,7 +1897,7 @@ function SecurityApprovalWorkbenchCard({
             </div>
             <h2 className="mt-3 text-sm font-semibold">安全细分审批工作台</h2>
             <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">
-              汇总工具调用、通知策略、审批审计归档、SLA 死信审计归档和通知任务自愈归档删除审批，统一筛选、查看时间线和处理待办。
+              汇总工具调用、通知策略、团队运行报告、审批审计归档、SLA 死信审计归档和通知任务自愈归档删除审批，统一筛选、查看时间线和处理待办。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -9159,7 +9160,11 @@ function securityApprovalMetadataLabel(key: string) {
     previous_value: '变更前值',
     request_method: '请求方法',
     request_url: '请求地址',
+    run_id: '运行 ID',
+    run_objective: '运行目标',
     setting_key: '配置键',
+    team_id: '团队 ID',
+    team_name: '团队名称',
     tool_code: '工具编码',
     trigger_source: '触发来源',
     version: '版本',

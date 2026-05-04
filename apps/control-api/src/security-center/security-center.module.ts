@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AgentTeamsModule } from '../agent-teams/agent-teams.module';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -12,7 +13,7 @@ import { SecurityOperationAlertSlaService } from './security-operation-alert-sla
 import { SecurityCenterService } from './security-center.service';
 
 @Module({
-  imports: [AuthModule, PrismaModule, StorageModule, ApprovalsModule, SystemSettingsModule],
+  imports: [AuthModule, PrismaModule, StorageModule, ApprovalsModule, SystemSettingsModule, AgentTeamsModule],
   controllers: [SecurityCenterController],
   providers: [
     SecurityCenterService,

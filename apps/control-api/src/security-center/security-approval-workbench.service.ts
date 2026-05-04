@@ -15,6 +15,7 @@ import type {
   ToolMethod,
 } from '@aiaget/shared-types';
 
+import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
@@ -103,6 +104,7 @@ export class SecurityApprovalWorkbenchService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ApprovalsService) private readonly approvalsService: ApprovalsService,
+    @Inject(AgentTeamsService) private readonly agentTeamsService: AgentTeamsService,
     @Inject(SystemSettingsService) private readonly systemSettingsService: SystemSettingsService,
     @Inject(SecurityCenterService) private readonly securityCenterService: SecurityCenterService,
     @Inject(SecurityOperationAlertSlaService) private readonly operationAlertSlaService: SecurityOperationAlertSlaService,
@@ -182,6 +184,12 @@ export class SecurityApprovalWorkbenchService {
     } else if (item.type === 'APPROVAL_AUDIT_ARCHIVE_DELETE') {
       if (input.decision === 'APPROVE') await this.approvalsService.approveArchiveDeleteApproval(currentUser, item.source_id, payload);
       else await this.approvalsService.rejectArchiveDeleteApproval(currentUser, item.source_id, payload);
+    } else if (item.type === 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE') {
+      if (input.decision === 'APPROVE') {
+        await this.agentTeamsService.approveRunReportArchiveDeleteApproval(currentUser, item.source_id, payload);
+      } else {
+        await this.agentTeamsService.rejectRunReportArchiveDeleteApproval(currentUser, item.source_id, payload);
+      }
     } else if (item.type === 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE') {
       if (input.decision === 'APPROVE') {
         await this.securityCenterService.approveOperationAlertNotificationArchiveApproval(currentUser, item.source_id, payload);
@@ -206,11 +214,20 @@ export class SecurityApprovalWorkbenchService {
   }
 
   private async loadAll(tenantId: string): Promise<WorkbenchSourceRecord[]> {
-    const [toolApprovals, notificationApprovals, approvalAuditEvents, operationNotificationEvents, slaEvents, recoveryEvents] =
+    const [
+      toolApprovals,
+      notificationApprovals,
+      approvalAuditEvents,
+      agentTeamReportArchiveEvents,
+      operationNotificationEvents,
+      slaEvents,
+      recoveryEvents,
+    ] =
       await Promise.all([
         this.loadToolApprovals(tenantId),
         this.loadNotificationApprovals(tenantId),
         this.loadApprovalAuditArchiveEvents(tenantId),
+        this.loadAgentTeamRunReportArchiveEvents(tenantId),
         this.loadPlatformArchiveEvents(tenantId, [
           'platform.security.approval_operation_alert_notification.archive.delete_requested',
           'platform.security.approval_operation_alert_notification.archive.delete_approved',
@@ -235,6 +252,7 @@ export class SecurityApprovalWorkbenchService {
       ...toolApprovals.map(mapToolApproval),
       ...notificationApprovals.map(mapNotificationApproval),
       ...buildApprovalAuditArchiveDeleteItems(approvalAuditEvents),
+      ...buildAgentTeamRunReportArchiveDeleteItems(agentTeamReportArchiveEvents),
       ...buildPlatformArchiveDeleteItems(operationNotificationEvents, {
         type: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE',
         sourceModule: '运营告警通知归档',
@@ -286,6 +304,19 @@ export class SecurityApprovalWorkbenchService {
       where: {
         tenantId,
         sourceType: 'APPROVAL_AUDIT_ARCHIVE',
+        eventType: { in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'] },
+      },
+      include: approvalAuditInclude,
+      orderBy: { occurredAt: 'desc' },
+      take: 500,
+    });
+  }
+
+  private loadAgentTeamRunReportArchiveEvents(tenantId: string) {
+    return this.prisma.approvalAuditEvent.findMany({
+      where: {
+        tenantId,
+        sourceType: 'AGENT_TEAM_RUN_REPORT_ARCHIVE',
         eventType: { in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'] },
       },
       include: approvalAuditInclude,
@@ -407,10 +438,27 @@ function buildApprovalAuditArchiveDeleteItems(events: ApprovalAuditEventRecord[]
     .filter((item): item is WorkbenchSourceRecord => Boolean(item));
 }
 
+function buildAgentTeamRunReportArchiveDeleteItems(events: ApprovalAuditEventRecord[]): WorkbenchSourceRecord[] {
+  const groups = groupBySource(events.map(mapApprovalAuditTimeline));
+  return Array.from(groups.entries())
+    .map(([sourceId, timeline]) => buildArchiveItemFromTimeline(timeline, {
+      sourceId,
+      type: 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE',
+      sourceModule: '团队运行报告归档',
+      title: '团队运行报告归档删除',
+      description: '删除多 Agent 团队运行报告归档属于高危审计操作，需要审批后生效。',
+      riskDomain: 'AUDIT_ARCHIVE',
+    }))
+    .filter((item): item is WorkbenchSourceRecord => Boolean(item));
+}
+
 function buildPlatformArchiveDeleteItems(
   events: PlatformEventRecord[],
   config: {
-    type: Exclude<SecurityApprovalWorkbenchType, 'TOOL_CALL' | 'NOTIFICATION_POLICY' | 'APPROVAL_AUDIT_ARCHIVE_DELETE'>;
+    type: Exclude<
+      SecurityApprovalWorkbenchType,
+      'TOOL_CALL' | 'NOTIFICATION_POLICY' | 'APPROVAL_AUDIT_ARCHIVE_DELETE' | 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE'
+    >;
     sourceModule: string;
     title: string;
     description: string;
@@ -520,6 +568,7 @@ function mapApprovalAuditTimeline(event: ApprovalAuditEventRecord): SecurityAppr
     request_id: event.requestId,
     trace_id: event.traceId,
     occurred_at: event.occurredAt.toISOString(),
+    source_id: event.sourceId,
     ...archiveTimelineMetadata(metadata),
   } as SecurityApprovalWorkbenchTimelineItem;
 }
@@ -546,6 +595,10 @@ function archiveTimelineMetadata(metadata: Record<string, unknown>) {
     archive_key: typeof metadata.archive_key === 'string' ? metadata.archive_key : null,
     archive_file_name: typeof metadata.archive_file_name === 'string' ? metadata.archive_file_name : null,
     archive_size_bytes: typeof metadata.archive_size_bytes === 'number' ? metadata.archive_size_bytes : 0,
+    team_id: typeof metadata.team_id === 'string' ? metadata.team_id : null,
+    team_name: typeof metadata.team_name === 'string' ? metadata.team_name : null,
+    run_id: typeof metadata.run_id === 'string' ? metadata.run_id : null,
+    run_objective: typeof metadata.run_objective === 'string' ? metadata.run_objective : null,
   };
 }
 
@@ -555,6 +608,11 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     archive_key?: string | null;
     archive_file_name?: string | null;
     archive_size_bytes?: number;
+    source_id?: string | null;
+    team_id?: string | null;
+    team_name?: string | null;
+    run_id?: string | null;
+    run_objective?: string | null;
   };
   const archiveKey = raw.archive_key ?? '';
   return {
@@ -562,6 +620,11 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     archive_key: archiveKey,
     archive_file_name: raw.archive_file_name ?? archiveKey.split('/').at(-1) ?? '归档文件',
     archive_size_bytes: raw.archive_size_bytes ?? 0,
+    source_id: raw.source_id ?? null,
+    team_id: raw.team_id ?? null,
+    team_name: raw.team_name ?? null,
+    run_id: raw.run_id ?? null,
+    run_objective: raw.run_objective ?? null,
   };
 }
 
@@ -569,7 +632,7 @@ function groupBySource(events: SecurityApprovalWorkbenchTimelineItem[]) {
   const groups = new Map<string, SecurityApprovalWorkbenchTimelineItem[]>();
   for (const event of events) {
     const metadata = archiveMetadata(event);
-    const source = metadata.archive_id || event.id;
+    const source = metadata.source_id || metadata.archive_id || event.id;
     groups.set(source, [...(groups.get(source) ?? []), event]);
   }
   return groups;

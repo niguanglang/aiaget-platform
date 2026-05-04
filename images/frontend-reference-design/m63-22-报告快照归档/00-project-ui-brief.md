@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M63-22 报告快照归档
+- Route: `/channels`
+- Feature goal: 将 M63-21 按需生成的渠道发布复盘报告归档为快照，并支持快照列表和详情查看。
+- Target users: 渠道管理员、安全管理员、审计员、租户管理员。
+- Permissions:
+  - `channel:publish:view`: 查看报告和快照
+  - `channel:publish:manage`: 归档当前报告
+- API/services:
+  - `listChannelReleaseReportSnapshots(channelId)`
+  - `createChannelReleaseReportSnapshot(channelId)`
+  - `getChannelReleaseReportSnapshot(channelId, snapshotId)`
+  - Control API:
+    - `GET /channels/:channelId/release-report/snapshots`
+    - `POST /channels/:channelId/release-report/snapshots`
+    - `GET /channels/:channelId/release-report/snapshots/:snapshotId`
+- Data entities:
+  - `ChannelReleaseReportSnapshotOverview`
+  - `ChannelReleaseReportSnapshotListItem`
+  - `ChannelReleaseReportSnapshotDetail`
+- Storage strategy:
+  - Reuse `platform_event`
+  - `eventType=channel.release_report.snapshot_created`
+  - `sourceSystem=channel_release_report`
+  - `sourceId=snapshot_id`
+  - `payloadJson.report=ChannelReleaseReport`
+- Required states:
+  - Snapshot loading
+  - Empty snapshot list
+  - Snapshot detail loading
+  - Permission-denied archive button
+  - Snapshot detail error
+- Constraints:
+  - Chinese UI text.
+  - No new database table.
+  - No migration.
+  - No middleware/container action.

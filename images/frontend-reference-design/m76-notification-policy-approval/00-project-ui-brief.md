@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M76 Notification Policy Approval
+- Route: /approvals
+- Feature goal: 通知策略审批流接入安全中心
+- Target users/roles: 安全管理员、租户管理员、监控运营；审批查看需要 `security:approval:view`，处理需要 `security:approval:handle`。
+- APIs/services:
+  - `getToolApprovalOverview()`
+  - `listToolApprovals()`
+  - `listNotificationPolicyApprovalRequests()`
+  - `approveNotificationPolicyApproval(snapshotId, { decision_note })`
+  - `rejectNotificationPolicyApproval(snapshotId, { decision_note })`
+  - `getNotificationPolicyApproval(snapshotId)`
+- Entities/fields/statuses:
+  - `ToolApprovalListItem` and existing tool approval detail
+  - `SystemSettingSnapshotItem` as notification policy approval request
+  - approval_status: PENDING / APPROVED / REJECTED / RESERVED / NOT_REQUIRED
+  - action: UPDATE / RESET / ROLLBACK
+- Existing components/design system: `ApprovalContent`, `StatusBadge`, `MetricCard`, `Card`, `Button`, `EmptyState`, `motion/react`, Tailwind CSS.
+- Required states: loading, empty, error, permission-denied, pending approval, approved/rejected detail, decision note validation.
+- Constraints:
+  - Do not replace tool approval center; add a notification policy approval lane/tab/filter.
+  - Keep UI text Chinese.
+  - Do not create fake generic approval workflow beyond notification policy snapshots.
+  - Reuse existing approval page layout and security permissions.

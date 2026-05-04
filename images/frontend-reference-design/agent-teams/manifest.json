@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-01T14:36:25.207037+00:00",
+  "page": "Agent 协作中心",
+  "route": "/agent-teams",
+  "feature": "多 Agent 团队编排、成员协作、运行轨迹和人工接管",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

@@ -9,6 +9,7 @@ import type {
 
 import { traceHeaders, type TraceContext } from '../common/tracing/trace-context';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { evaluateSecurityPolicies, type PolicyLike } from '../security-policies/security-policy-evaluator';
 import { isPlainObject, validateValueAgainstSchema } from '../tools/tool-schema';
@@ -66,7 +67,10 @@ interface ToolGatewayAttemptResult {
 
 @Injectable()
 export class ToolGatewayService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+  ) {}
 
   async execute(
     currentUser: AuthenticatedUser,
@@ -90,7 +94,7 @@ export class ToolGatewayService {
     await this.enforceSecurityPolicies(currentUser, tool, preparedRequest, context);
 
     if (!consumeRateLimit(currentUser.tenantId, tool.id)) {
-      await this.createFailedCallLog(
+      const callLog = await this.createFailedCallLog(
         currentUser,
         tool,
         preparedRequest,
@@ -98,15 +102,30 @@ export class ToolGatewayService {
         'Tool Gateway rate limit exceeded',
         HttpStatus.TOO_MANY_REQUESTS,
       );
+      await this.recordToolGatewayProjection(currentUser, tool, callLog, context, {
+        eventType: 'tool.call.rate_limited',
+        approvalRequired: false,
+        attempts: 0,
+      });
       throw new HttpException('Tool Gateway rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     if (requiresApproval(tool, context)) {
       const callLog = await this.createApprovalPlaceholder(currentUser, tool, preparedRequest, context);
+      await this.recordToolGatewayProjection(currentUser, tool, callLog, context, {
+        eventType: 'tool.call.approval_required',
+        approvalRequired: true,
+        attempts: 0,
+      });
       return this.wrapResult(tool, callLog, true, 0);
     }
 
     const execution = await this.runPreparedRequest(currentUser, tool, preparedRequest, context);
+    await this.recordToolGatewayProjection(currentUser, tool, execution.callLog, context, {
+      eventType: execution.callLog.status === 'SUCCESS' ? 'tool.call.finished' : 'tool.call.failed',
+      approvalRequired: false,
+      attempts: execution.attempts,
+    });
     return this.wrapResult(tool, execution.callLog, false, execution.attempts);
   }
 
@@ -174,6 +193,11 @@ export class ToolGatewayService {
         'Tool Gateway rate limit exceeded',
         HttpStatus.TOO_MANY_REQUESTS,
       );
+      await this.recordToolGatewayProjection(currentUser, approvalRequest.tool, callLog, context, {
+        eventType: 'tool.call.rate_limited',
+        approvalRequired: false,
+        attempts: 0,
+      });
       throw new HttpException(`Tool Gateway rate limit exceeded; call_log_id=${callLog.id}`, HttpStatus.TOO_MANY_REQUESTS);
     }
 
@@ -184,6 +208,12 @@ export class ToolGatewayService {
       context,
       approvalRequest.toolCallLog.id,
     );
+
+    await this.recordToolGatewayProjection(currentUser, approvalRequest.tool, execution.callLog, context, {
+      eventType: execution.callLog.status === 'SUCCESS' ? 'tool.call.approved_finished' : 'tool.call.approved_failed',
+      approvalRequired: false,
+      attempts: execution.attempts,
+    });
 
     return this.wrapResult(approvalRequest.tool, execution.callLog, false, execution.attempts);
   }
@@ -374,6 +404,29 @@ export class ToolGatewayService {
         requestedBy: currentUser.id,
       },
     });
+    await this.prisma.approvalAuditEvent.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        sourceType: 'TOOL_APPROVAL',
+        sourceId: approvalRequest.id,
+        eventType: 'REQUEST_CREATED',
+        eventStatus: 'INFO',
+        title: '工具审批请求已创建',
+        note: approvalRequest.reason,
+        requestId: context.traceContext?.requestId ?? currentUser.requestId ?? null,
+        traceId: context.traceContext?.traceId ?? currentUser.traceId ?? null,
+        metadata: toJsonInput({
+          tool_id: tool.id,
+          tool_name: tool.name,
+          tool_code: tool.code,
+          risk_level: tool.riskLevel,
+          trigger_source: context.triggerSource,
+          request_method: preparedRequest.method,
+          request_url: preparedRequest.url,
+        }),
+        actorId: currentUser.id,
+      },
+    });
 
     return {
       ...callLog,
@@ -530,6 +583,10 @@ export class ToolGatewayService {
         errorMessage,
         createdBy: currentUser.id,
       },
+      include: {
+        operator: true,
+        approvalRequest: true,
+      },
     });
   }
 
@@ -630,10 +687,94 @@ export class ToolGatewayService {
       },
     };
   }
+
+  private async recordToolGatewayProjection(
+    currentUser: AuthenticatedUser,
+    tool: ToolGatewayToolRecord,
+    callLog: ToolGatewayCallLogRecord,
+    context: ToolGatewayExecutionContext,
+    options: {
+      eventType: string;
+      approvalRequired: boolean;
+      attempts: number;
+    },
+  ) {
+    const traceContext = context.traceContext ?? traceContextFromUser(currentUser);
+    const status = callLog.status;
+    const event = await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: context.triggerSource === 'RUNTIME' ? 'RUNTIME' : 'USER',
+      resourceType: 'TOOL',
+      resourceId: tool.id,
+      agentId: context.agentId ?? null,
+      conversationId: context.conversationId ?? null,
+      requestId: traceContext?.requestId ?? currentUser.requestId ?? null,
+      traceId: traceContext?.traceId ?? currentUser.traceId ?? null,
+      parentTraceId: traceContext?.parentSpanId ?? currentUser.parentSpanId ?? null,
+      eventSource: 'tool_gateway',
+      eventType: options.eventType,
+      status,
+      severity: status === 'FAILED' ? 'ERROR' : status === 'APPROVAL_REQUIRED' ? 'WARN' : 'INFO',
+      securityLevel: tool.riskLevel === 'HIGH' ? 'CONFIDENTIAL' : 'INTERNAL',
+      billable: status === 'SUCCESS',
+      summary: `${tool.name} 工具调用${toolGatewayStatusSummary(status)}`,
+      payloadJson: {
+        tool_id: tool.id,
+        tool_code: tool.code,
+        tool_name: tool.name,
+        risk_level: tool.riskLevel,
+        trigger_source: context.triggerSource,
+        approval_required: options.approvalRequired,
+        approval_request_id: callLog.approvalRequest?.id ?? null,
+        call_log_id: callLog.id,
+        response_status: callLog.responseStatus,
+        latency_ms: callLog.latencyMs,
+        attempts: options.attempts,
+        error_message: callLog.errorMessage,
+      },
+      occurredAt: callLog.createdAt,
+      sourceSystem: 'tool_gateway',
+      sourceId: callLog.id,
+      dedupeKey: `tool_gateway:${callLog.id}:${options.eventType}`,
+    });
+
+    await this.platformEvents.recordUsage({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      subjectType: context.triggerSource === 'RUNTIME' ? 'AGENT' : 'USER',
+      subjectId: context.agentId ?? currentUser.id,
+      resourceType: 'TOOL',
+      resourceId: tool.id,
+      metricType: status === 'SUCCESS' ? 'tool_calls' : 'tool_call_attempts',
+      unit: 'call',
+      quantity: 1,
+      amount: 0,
+      currency: 'USD',
+      billable: false,
+      costSource: 'tool_gateway',
+      traceId: traceContext?.traceId ?? currentUser.traceId ?? null,
+      requestId: traceContext?.requestId ?? currentUser.requestId ?? null,
+      eventId: event.id,
+      sourceSystem: 'tool_gateway',
+      sourceId: callLog.id,
+      occurredAt: callLog.createdAt,
+    });
+  }
 }
 
 function requiresApproval(tool: ToolGatewayToolRecord, context: ToolGatewayExecutionContext) {
   return tool.riskLevel === 'HIGH' || tool.requireApproval || context.requireApproval === true;
+}
+
+function toolGatewayStatusSummary(status: string) {
+  if (status === 'SUCCESS') return '成功';
+  if (status === 'APPROVAL_REQUIRED') return '进入审批';
+  if (status === 'REJECTED') return '被拒绝';
+
+  return '失败';
 }
 
 function consumeRateLimit(tenantId: string, toolId: string) {

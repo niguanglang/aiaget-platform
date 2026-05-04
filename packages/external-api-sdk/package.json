@@ -1,0 +1,24 @@
+{
+  "name": "@aiaget/external-api-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aiaget/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@aiaget/tsconfig": "workspace:*"
+  }
+}

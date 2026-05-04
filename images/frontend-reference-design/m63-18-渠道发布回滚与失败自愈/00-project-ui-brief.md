@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-18 渠道发布回滚与失败自愈
+- Route: `/channels`
+- Feature goal: 在渠道自动推进全量后，基于健康状态、灰度门控拦截数、放行率和最近自动推进结果，判断是否需要自愈、演练回滚或真实回滚。
+- Target users and permissions:
+  - 租户管理员：查看、配置、执行自愈。
+  - 发布负责人：需要 `channel:publish:deploy` 执行自愈。
+  - 渠道管理员：需要 `channel:publish:manage` 保存自愈策略。
+  - 审计员：查看最近自愈事件和结果。
+- Existing route and layout:
+  - 复用 `/channels` 页面和 `ChannelContent`。
+  - 放在 M63-17/M63-16 自动推进执行器之后，渠道投递后台任务之前。
+- APIs/services:
+  - `getChannelReleaseSelfHealing(channelId)` -> `GET /channels/:channelId/release-self-healing`
+  - `updateChannelReleaseSelfHealing(channelId, input)` -> `PUT /channels/:channelId/release-self-healing`
+  - `runChannelReleaseSelfHealing(channelId)` -> `POST /channels/:channelId/release-self-healing/run`
+- Data entities:
+  - `ChannelReleaseSelfHealingPolicy`: `enabled`, `dry_run`, `auto_rollback_enabled`, `max_error_requests`, `min_allowed_rate`, `observation_window_hours`, `cooldown_minutes`, `updated_at`
+  - `ChannelReleaseSelfHealingEvaluation`: `decision`, `reason`, `rollback_recommended`, `rollback_available`, `metrics`, `last_automation_run`, `current_batch`, `evaluated_at`
+  - `ChannelReleaseSelfHealingRunResult`: `run_id`, `decision`, `rolled_back`, `dry_run`, `reason`, `started_at`, `finished_at`
+- Status/enums:
+  - decision: `HEALTHY`, `OBSERVE`, `ROLLBACK_RECOMMENDED`, `ROLLED_BACK`, `SKIPPED`, `DISABLED`, `FAILED`
+- Existing components/design system:
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, `PolicyToggle`, `NumberField`, `InfoRow`, `DetailRow`, Tailwind CSS。
+- Required states/actions:
+  - 查看自愈结论
+  - 保存自愈策略
+  - 手动执行一次自愈
+  - 展示最近运行和最近事件
+  - loading、empty、error、disabled、read-only
+- Constraints:
+  - 不新增数据库表；策略和最近运行保存于渠道 `config`。
+  - 默认演练模式，不会自动真实回滚。
+  - 真实回滚复用已有 `publish_control` 稳定配置。

@@ -8,6 +8,22 @@ import urllib.request
 from typing import Any
 
 from app.core.settings import settings
+from app.workflows.agent_team_runs import (
+    AgentTeamRunResumeSignal,
+    AgentTeamRunWorkflow,
+    AgentTeamRunWorkflowInput,
+    run_agent_team_run_activity,
+)
+from app.workflows.channel_release_automation import (
+    ChannelReleaseAutomationWorkflow,
+    ChannelReleaseAutomationWorkflowInput,
+    run_channel_release_automation_activity,
+)
+from app.workflows.channel_release_self_healing import (
+    ChannelReleaseSelfHealingWorkflow,
+    ChannelReleaseSelfHealingWorkflowInput,
+    run_channel_release_self_healing_activity,
+)
 from app.workflows.knowledge_tasks import KnowledgeTaskWorkflow, KnowledgeTaskWorkflowInput, run_knowledge_task_activity
 
 try:
@@ -50,6 +66,133 @@ async def start_knowledge_task_workflow(task_id: str) -> dict[str, str]:
     }
 
 
+async def start_agent_team_run_workflow(run_id: str) -> dict[str, str]:
+    workflow_id = f"agent-team-run-{run_id}"
+    if not settings.temporal_enabled:
+        schedule_agent_team_local_fallback(run_id)
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "STARTED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = await client.start_workflow(
+        AgentTeamRunWorkflow.run,
+        AgentTeamRunWorkflowInput(run_id=run_id),
+        id=workflow_id,
+        task_queue=settings.temporal_task_queue,
+    )
+    return {
+        "workflow_id": workflow_id,
+        "run_id": getattr(handle, "result_run_id", "") or "",
+        "status": "STARTED",
+        "backend": "TEMPORAL",
+    }
+
+
+async def resume_agent_team_run_workflow(
+    run_id: str,
+    approved: bool,
+    handoff_id: str | None = None,
+    decision_note: str | None = None,
+) -> dict[str, str]:
+    workflow_id = f"agent-team-run-{run_id}"
+    if not settings.temporal_enabled:
+        if approved:
+            schedule_agent_team_local_fallback(run_id)
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "RESUMED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = client.get_workflow_handle(workflow_id)
+    await handle.signal(
+        AgentTeamRunWorkflow.resume_after_handoff,
+        AgentTeamRunResumeSignal(
+            approved=approved,
+            handoff_id=handoff_id,
+            decision_note=decision_note,
+        ),
+    )
+    return {
+        "workflow_id": workflow_id,
+        "run_id": "",
+        "status": "SIGNALED",
+        "backend": "TEMPORAL",
+    }
+
+
+async def start_channel_release_automation_workflow(channel_id: str) -> dict[str, str]:
+    workflow_id = f"channel-release-automation-{channel_id}"
+    if not settings.temporal_enabled:
+        schedule_channel_release_automation_local_fallback(channel_id, workflow_id, "local-fallback")
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "STARTED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = await client.start_workflow(
+        ChannelReleaseAutomationWorkflow.run,
+        ChannelReleaseAutomationWorkflowInput(channel_id=channel_id, workflow_id=workflow_id),
+        id=workflow_id,
+        task_queue=settings.temporal_task_queue,
+    )
+    run_id = getattr(handle, "result_run_id", "") or ""
+    return {
+        "workflow_id": workflow_id,
+        "run_id": run_id,
+        "status": "STARTED",
+        "backend": "TEMPORAL",
+    }
+
+
+async def start_channel_release_self_healing_workflow(channel_id: str) -> dict[str, str]:
+    workflow_id = f"channel-release-self-healing-{channel_id}"
+    if not settings.temporal_enabled:
+        schedule_channel_release_self_healing_local_fallback(channel_id, workflow_id, "local-fallback")
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "STARTED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = await client.start_workflow(
+        ChannelReleaseSelfHealingWorkflow.run,
+        ChannelReleaseSelfHealingWorkflowInput(channel_id=channel_id, workflow_id=workflow_id),
+        id=workflow_id,
+        task_queue=settings.temporal_task_queue,
+    )
+    run_id = getattr(handle, "result_run_id", "") or ""
+    return {
+        "workflow_id": workflow_id,
+        "run_id": run_id,
+        "status": "STARTED",
+        "backend": "TEMPORAL",
+    }
+
+
 async def run_worker() -> None:
     if not settings.temporal_enabled:
         raise RuntimeError("RUNTIME_TEMPORAL_ENABLED must be true to start the Temporal worker")
@@ -60,8 +203,13 @@ async def run_worker() -> None:
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
-        workflows=[KnowledgeTaskWorkflow],
-        activities=[run_knowledge_task_activity],
+        workflows=[KnowledgeTaskWorkflow, AgentTeamRunWorkflow, ChannelReleaseAutomationWorkflow, ChannelReleaseSelfHealingWorkflow],
+        activities=[
+            run_knowledge_task_activity,
+            run_agent_team_run_activity,
+            run_channel_release_automation_activity,
+            run_channel_release_self_healing_activity,
+        ],
     )
     await worker.run()
 
@@ -70,9 +218,78 @@ async def run_control_api_knowledge_task(task_id: str) -> None:
     await asyncio.to_thread(post_control_api_json, "/api/v1/runtime/internal/knowledge-tasks/run", {"task_id": task_id})
 
 
+async def run_control_api_agent_team_run(run_id: str) -> str:
+    response = await asyncio.to_thread(post_control_api_json, "/api/v1/runtime/internal/agent-team-runs/run", {"run_id": run_id})
+    status = response.get("status")
+    return status if isinstance(status, str) else "SUCCESS"
+
+
+async def run_control_api_channel_release_automation(
+    channel_id: str,
+    workflow_id: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    response = await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/channel-release-automation/run",
+        {
+            "channel_id": channel_id,
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+        },
+    )
+    last_run = response.get("last_run")
+    if isinstance(last_run, dict) and isinstance(last_run.get("decision"), str):
+        return last_run["decision"]
+    return "SUCCESS"
+
+
+async def run_control_api_channel_release_self_healing(
+    channel_id: str,
+    workflow_id: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    response = await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/channel-release-self-healing/run",
+        {
+            "channel_id": channel_id,
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+        },
+    )
+    last_run = response.get("last_run")
+    if isinstance(last_run, dict) and isinstance(last_run.get("decision"), str):
+        return last_run["decision"]
+    return "SUCCESS"
+
+
 def schedule_local_fallback(task_id: str) -> None:
     task = asyncio.create_task(run_control_api_knowledge_task(task_id))
     task.add_done_callback(lambda completed: log_background_task_error(task_id, completed))
+
+
+def schedule_agent_team_local_fallback(run_id: str) -> None:
+    task = asyncio.create_task(run_control_api_agent_team_run(run_id))
+    task.add_done_callback(lambda completed: log_background_task_error(run_id, completed))
+
+
+def schedule_channel_release_automation_local_fallback(
+    channel_id: str,
+    workflow_id: str,
+    run_id: str,
+) -> None:
+    task = asyncio.create_task(run_control_api_channel_release_automation(channel_id, workflow_id, run_id))
+    task.add_done_callback(lambda completed: log_background_task_error(channel_id, completed))
+
+
+def schedule_channel_release_self_healing_local_fallback(
+    channel_id: str,
+    workflow_id: str,
+    run_id: str,
+) -> None:
+    task = asyncio.create_task(run_control_api_channel_release_self_healing(channel_id, workflow_id, run_id))
+    task.add_done_callback(lambda completed: log_background_task_error(channel_id, completed))
 
 
 def log_background_task_error(task_id: str, task: asyncio.Task[None]) -> None:

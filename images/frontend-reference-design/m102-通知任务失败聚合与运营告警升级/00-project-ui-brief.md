@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: M102 通知任务失败聚合与运营告警升级
+- Route: `/security`
+- Feature goal: 基于 M101 通知任务执行历史，聚合最近 24 小时自动通知/自动重试任务的失败次数、跳过次数、连续失败和失败率，并把风险投影为安全中心运营告警，进入已有告警确认、升级、关闭、通知闭环。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`。
+- APIs/services:
+  - `GET /security-center/overview`
+  - `POST /security-center/operation-alerts/:alertId/notify`
+  - `POST /security-center/operation-alerts/:alertId/actions`
+- Data entities and fields:
+  - `SecurityCenterOverview.approval_operations`
+  - `notification_task_runs_24h`
+  - `notification_task_failed_24h`
+  - `notification_task_skipped_24h`
+  - `notification_task_failure_rate_24h`
+  - `notification_task_consecutive_failures`
+  - `notification_task_failure_oldest_at`
+  - `operational_alerts[]`
+- New operational alert IDs:
+  - `operation-alert-notification-task-failure-risk`
+  - `operation-alert-notification-task-consecutive-failure`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Security page component: `apps/web/src/components/security/security-policy-content.tsx`
+  - Backend projection: `apps/control-api/src/security-center/security-center.service.ts`
+- Required states:
+  - healthy: 失败率和连续失败未触发阈值
+  - degraded: 高失败率或存在跳过
+  - unavailable/high risk: 连续失败或失败率过高
+  - action states: 复用现有告警确认/升级/关闭/通知按钮状态
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，直接使用 `platform_event`
+  - 不启动容器、不执行迁移、不安装中间件

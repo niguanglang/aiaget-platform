@@ -1,0 +1,12 @@
+{
+  "page": "M116 来源型运营告警通知归档删除审批化",
+  "route": "/security",
+  "feature": "通知投递审计归档删除从直接操作升级为审批后生效",
+  "created_at": "2026-05-04",
+  "files": [
+    "00-project-ui-brief.md",
+    "01-product-ui-design-prompt.md",
+    "02-product-prototype-prompt.md",
+    "03-component-mapping.md"
+  ]
+}

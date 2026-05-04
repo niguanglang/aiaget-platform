@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Page: M77 Approval Audit Timeline
+- Route: `/approvals`
+- Feature goal: 审批审计增强与统一审计时间线。
+- Target users/roles: 安全管理员、租户管理员、审计员；查看需要 `security:approval:view`，处理需要 `security:approval:handle`。
+- APIs/services:
+  - Tool approvals: `getToolApproval`, `approveToolApproval`, `rejectToolApproval`
+  - Notification policy approvals: `getNotificationPolicyApproval`, `approveNotificationPolicyApproval`, `rejectNotificationPolicyApproval`
+  - New audit timelines embedded in `ToolApprovalDetail` and `SystemSettingSnapshotItem`
+- Data entities:
+  - `ToolApprovalDetail.audit_timeline`
+  - `SystemSettingSnapshotItem.audit_timeline`
+  - audit event fields: type/source/status/operator/note/request_id/trace_id/occurred_at/metadata
+- Existing components/design system:
+  - `ApprovalContent`
+  - `StatusBadge`
+  - `MetricCard`
+  - `Card`
+  - `Button`
+  - `EmptyState`
+  - `PreviewCard`
+  - Tailwind + motion/react
+- Required states:
+  - loading detail
+  - empty timeline
+  - pending/approved/rejected
+  - action disabled without permission
+  - audit event note and metadata preview
+- Constraints:
+  - UI text must be Chinese.
+  - Keep existing tool approval and notification policy approval workflows.
+  - Add audit timeline as detail enhancement, not a separate new menu.
+  - Do not execute migrations or touch external services.

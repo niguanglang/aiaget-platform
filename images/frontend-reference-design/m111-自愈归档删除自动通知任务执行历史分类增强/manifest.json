@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-04T06:16:31.785072+00:00",
+  "page": "M111 自愈归档删除自动通知任务执行历史分类增强",
+  "route": "/security",
+  "feature": "任务执行历史区分 SLA 死信归档删除与自愈归档删除自动通知覆盖数量",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

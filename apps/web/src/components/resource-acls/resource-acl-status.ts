@@ -7,6 +7,9 @@ import type {
 
 export const resourceAclResourceOrder: ResourceAclResourceType[] = [
   'AGENT',
+  'AGENT_TEAM',
+  'CHANNEL',
+  'PLUGIN',
   'KNOWLEDGE_BASE',
   'DOCUMENT',
   'TOOL',
@@ -17,6 +20,9 @@ export const resourceAclResourceOrder: ResourceAclResourceType[] = [
 
 export const resourceAclResourceLabels: Record<ResourceAclResourceType, string> = {
   AGENT: 'Agent',
+  AGENT_TEAM: 'Agent 协作团队',
+  CHANNEL: '发布渠道',
+  PLUGIN: '插件',
   KNOWLEDGE_BASE: '知识库',
   DOCUMENT: '知识文档',
   TOOL: '工具',

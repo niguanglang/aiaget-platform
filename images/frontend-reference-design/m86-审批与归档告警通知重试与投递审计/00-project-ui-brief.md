@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: m86-审批与归档告警通知重试与投递审计
+- Route: /security
+- Feature goal: 查询审批与归档告警通知投递记录并支持失败重试
+- Target users: 安全管理员、审计员、租户管理员
+- Existing page:
+  - `/security`
+  - `ApprovalArchiveOperationsCard`
+- Existing event source:
+  - `platform_event`
+  - `event_source = security_center`
+  - `event_type = platform.security.approval_operation_alert.notification_sent`
+- New APIs:
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `POST /api/v1/security-center/operation-alert-notifications/:notificationEventId/retry`
+- Frontend services:
+  - `listSecurityOperationAlertNotifications`
+  - `retrySecurityOperationAlertNotification`
+- Types:
+  - `SecurityOperationAlertNotificationItem`
+  - `SecurityOperationAlertNotificationOverview`
+  - `SecurityOperationAlertNotificationStatus`
+  - `SecurityOperationAlertNotificationResult`
+- UI:
+  - 在 `审批与归档运营` 卡片里新增“通知投递审计”区域。
+  - 展示最近投递、投递状态、渠道、Webhook 状态、重试次数。
+  - 失败或部分成功可点击“重试”。
+  - 支持按状态筛选。
+- Required states: loading, empty, filter, retry pending, retry success, retry error.
+- Constraints:
+  - 中文 UI。
+  - 不新增表。
+  - 不新增独立页面。
+  - 不执行迁移。
+  - 不启动容器。

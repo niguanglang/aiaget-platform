@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T05:56:26.930507+00:00",
+  "page": "M63-20 渠道发布巡检调度器",
+  "route": "/channels",
+  "feature": "渠道自动推进和发布自愈的后台巡检触发器，展示调度状态、候选渠道、最近执行和手动巡检入口",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

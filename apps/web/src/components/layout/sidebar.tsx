@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 export function Sidebar() {
   const pathname = usePathname();
   const { currentUser } = useAuth();
-  const navigation = buildNavigationLinks(currentUser?.menus);
+  const navigation = buildNavigationLinks(currentUser?.menus, currentUser?.user.permissions ?? []);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[222px] shrink-0 flex-col border-r border-white/70 bg-background/[0.88] shadow-[8px_0_35px_rgba(15,23,42,0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/[0.78] lg:flex">

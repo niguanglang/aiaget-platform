@@ -1,0 +1,21 @@
+# Project UI Brief
+
+- Page: M69 Usage Alert Lifecycle
+- Route: /monitor
+- Feature goal: 统一用量告警生命周期与通知策略
+- Target users/roles: 监控、审计、成本运营人员；后端接口使用 `monitor:log:view` 权限。
+- APIs/services:
+  - `listPlatformUsageAlerts({ window })`
+  - `updatePlatformUsageAlert(alertId, { action, note })`
+  - `detectPlatformUsageAnomalies({ window })`
+  - `listPlatformEvents({ window })`
+- Entities/fields/statuses:
+  - `PlatformUsageAlertItem`: alert_id, source_event_id, status, severity, title, summary, anomaly_count, highest_severity, assignee_id, acknowledged_at, escalated_at, closed_at, notification_targets
+  - Status: `OPEN`, `ACKNOWLEDGED`, `ESCALATED`, `CLOSED`
+  - Action: `ACKNOWLEDGE`, `ESCALATE`, `CLOSE`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, shared `StatusBadge`, `EmptyState`, React Query, lucide icons, `motion/react`.
+- Required states: loading, empty, error, disabled while updating, success notice after action, failure notice.
+- Constraints:
+  - Do not add database tables; alert lifecycle is derived from `platform_event`.
+  - Detection events are `platform.usage.anomaly.detected`; lifecycle events are `platform.usage.alert.acknowledged/escalated/closed`.
+  - UI text must be Chinese.

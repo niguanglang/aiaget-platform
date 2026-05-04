@@ -195,10 +195,22 @@ function scopedWhere(
 function userOwnedWhere(resourceType: DataScopeResourceType, userIds: string[]) {
   if (userIds.length === 0) return null;
 
-  switch (resourceType) {
+    switch (resourceType) {
     case 'AGENT':
+    case 'AGENT_TEAM':
+    case 'PLUGIN':
     case 'KNOWLEDGE_BASE':
       return { OR: [{ ownerId: { in: userIds } }, { createdBy: { in: userIds } }, { updatedBy: { in: userIds } }] };
+    case 'CHANNEL':
+      return {
+        OR: [
+          { createdBy: { in: userIds } },
+          { updatedBy: { in: userIds } },
+          { agent: { ownerId: { in: userIds } } },
+          { agent: { createdBy: { in: userIds } } },
+          { agent: { updatedBy: { in: userIds } } },
+        ],
+      };
     case 'DOCUMENT':
       return { OR: [{ uploadedBy: { in: userIds } }, { createdBy: { in: userIds } }, { updatedBy: { in: userIds } }] };
     case 'TOOL':
@@ -217,10 +229,14 @@ function userOwnedWhere(resourceType: DataScopeResourceType, userIds: string[]) 
 function departmentOwnedWhere(resourceType: DataScopeResourceType, departmentIds: string[]) {
   if (departmentIds.length === 0) return null;
 
-  switch (resourceType) {
+    switch (resourceType) {
     case 'AGENT':
+    case 'AGENT_TEAM':
+    case 'PLUGIN':
     case 'KNOWLEDGE_BASE':
       return { owner: { departmentId: { in: departmentIds } } };
+    case 'CHANNEL':
+      return { agent: { owner: { departmentId: { in: departmentIds } } } };
     case 'DOCUMENT':
       return {
         OR: [

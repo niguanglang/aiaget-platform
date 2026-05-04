@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   Max,
   MaxLength,
@@ -54,6 +55,27 @@ export class CreateApiKeyDto {
   @IsOptional()
   @IsBoolean()
   allow_stream?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  webhook_enabled?: boolean;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false, require_protocol: true })
+  @MaxLength(1000)
+  webhook_url?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  webhook_events?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  webhook_secret?: string | null;
 
   @IsOptional()
   @IsDateString()

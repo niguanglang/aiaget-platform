@@ -1,0 +1,32 @@
+# Project UI Brief
+
+- Page: 租户管理中心
+- Route: /tenants
+- Feature goal: 当前租户资料、状态和上下文治理
+- Parent layout: Next.js App Router console layout `apps/web/src/app/(console)/layout.tsx`
+- Target users/permissions:
+  - 查看：`system:tenant:view`
+  - 管理：`system:tenant:manage`
+  - 租户管理员角色 `tenant_admin` 视为可管理
+- API/service functions:
+  - `listTenants({ page, page_size, keyword, status })`
+  - `getTenant(tenantId)`
+  - `updateTenant(tenantId, input)`
+- Data entities and fields:
+  - `TenantListItem` / `TenantDetail`: `id`, `code`, `name`, `status`, `created_at`, `updated_at`
+  - `UpdateTenantInput`: `name`, `status`
+  - 状态：`ACTIVE`, `DISABLED`, `DELETED`
+- Existing components/design system:
+  - Tailwind CSS + shadcn/ui style local components
+  - `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`, `Input`
+  - React Query, React Hook Form, Zod, motion, lucide icons
+- Required states:
+  - loading, empty, error, validation, disabled, success, permission-denied
+- Actions:
+  - view current tenant
+  - search/filter tenant list within current context
+  - edit tenant name/status
+  - refresh
+- Constraints:
+  - Current backend is tenant-context scoped; list returns only current tenant
+  - Do not implement cross-tenant SaaS admin features until backend supports them

@@ -1,0 +1,47 @@
+# Project UI Brief
+
+- Page: M63-23 报告快照版本对比
+- Route: `/channels`
+- Feature goal: 在渠道发布复盘报告区域内选择两个已归档快照，展示风险等级、摘要字段、指标、风险建议和关键时间线的审计差异。
+- Target users: 渠道管理员、安全管理员、审计员、租户管理员。
+- Permissions:
+  - `channel:publish:view`: 查看快照列表、快照详情和版本对比。
+  - `channel:publish:manage`: 继续沿用 M63-22 的归档快照能力。
+- API/services:
+  - `listChannelReleaseReportSnapshots(channelId)`
+  - `getChannelReleaseReportSnapshot(channelId, snapshotId)`
+  - `compareChannelReleaseReportSnapshots(channelId, baseSnapshotId, targetSnapshotId)`
+  - Control API:
+    - `GET /channels/:channelId/release-report/snapshots`
+    - `GET /channels/:channelId/release-report/snapshots/:snapshotId`
+    - `GET /channels/:channelId/release-report/snapshots/:baseSnapshotId/compare/:targetSnapshotId`
+- Data entities:
+  - `ChannelReleaseReportSnapshotOverview`
+  - `ChannelReleaseReportSnapshotListItem`
+  - `ChannelReleaseReportSnapshotDetail`
+  - `ChannelReleaseReportSnapshotCompareResult`
+  - `ChannelReleaseReportDiffItem`
+- Existing component system:
+  - `Card`
+  - `Button`
+  - `StatusBadge`
+  - `EmptyState`
+  - `MetricCard`
+  - local `DetailRow`
+  - local release report label/tone helpers
+- Required states:
+  - 快照列表加载、空状态和错误
+  - 基准快照未选择
+  - 对比快照未选择
+  - 两个快照相同导致对比不可用
+  - 对比结果加载
+  - 对比错误
+  - 无差异
+  - 有差异且按严重程度突出
+- Constraints:
+  - 中文 UI 文案。
+  - 不新增独立路由，嵌入现有 `ReleaseReportPanel`。
+  - 不新增数据库表和迁移。
+  - 复用 `platform_event.payloadJson` 中的归档报告快照。
+  - 不启动或新增中间件、容器。
+  - 不能引入未被接口支撑的导出、回滚或编辑动作。

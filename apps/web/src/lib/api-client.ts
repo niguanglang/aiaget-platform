@@ -1,8 +1,24 @@
 import type {
+  ApprovalAuditArchiveApprovalDetail,
+  ApprovalAuditArchiveApprovalItem,
+  ApprovalAuditArchiveApprovalOverview,
+  ApprovalAuditArchiveListResult,
+  ApprovalAuditEventItem,
+  ApprovalAuditEventStatus,
+  ApprovalAuditEventType,
+  ApprovalAuditOverview,
+  ApprovalAuditSourceType,
+  ApprovalAuditWindow,
+  CreateApprovalAuditArchiveResult,
   AgentCategoryItem,
+  AgentTeamDetail,
+  AgentTeamListItem,
+  AgentTeamOverview,
   AgentDetail,
   AgentListItem,
   BillingOverview,
+  BillingQuotaPolicyItem,
+  BillingSubscriptionItem,
   BillingWindow,
   CreateAgentKnowledgeBindingInput,
   CreateAgentModelBindingInput,
@@ -14,6 +30,10 @@ import type {
   AuditEventListItem,
   AuditOverview,
   CreateMenuInput,
+  CreateAgentTeamFeedbackInput,
+  CreateAgentTeamHandoffInput,
+  CreateAgentTeamInput,
+  CreateAgentTeamMemberInput,
   CreateDepartmentInput,
   CreateModelApiKeyInput,
   CreateModelConfigInput,
@@ -25,6 +45,28 @@ import type {
   CreateUserInput,
   CreateAgentInput,
   CreateAgentVersionInput,
+  ChannelSenderDeliveryDetail,
+  ChannelRolloutGateOverview,
+  ChannelSenderPolicy,
+  ChannelSenderTaskOverview,
+  ChannelSenderTaskRunResult,
+  ChannelPublishApprovalInput,
+  ChannelPublishControl,
+  ChannelPublishRolloutInput,
+  ChannelReleaseBatchInput,
+  ChannelReleaseAutomationOverview,
+  ChannelReleaseAutomationPolicyInput,
+  ChannelReleaseGateOverview,
+  ChannelReleaseGatePolicyInput,
+  ChannelReleasePipeline,
+  ChannelReleaseReport,
+  ChannelReleaseReportSnapshotCompareResult,
+  ChannelReleaseReportSnapshotDetail,
+  ChannelReleaseReportSnapshotOverview,
+  ChannelReleaseSchedulerOverview,
+  ChannelReleaseSchedulerRunResult,
+  ChannelReleaseSelfHealingOverview,
+  ChannelReleaseSelfHealingPolicyInput,
   ConversationDetail,
   ConversationFeedbackItem,
   ConversationListItem,
@@ -52,12 +94,42 @@ import type {
   MonitorEventDetail,
   MonitorEventListItem,
   MonitorObservabilityOverview,
+  NotifyPlatformUsageAlertInput,
+  NotifySecurityOperationAlertInput,
+  UpdateSecurityOperationAlertInput,
   MonitorOverview,
   MonitorTraceDetail,
+  NotificationPolicyApprovalOverview,
+  NotificationPolicyAuditOverview,
+  NotificationPolicyChangePreview,
+  NotificationPolicySnapshotOverview,
+  PlatformEventDetail,
+  PlatformEventListItem,
+  PlatformEventRelationItem,
+  PlatformEventUsageOverview,
+  PlatformUsageAnomalyOverview,
+  PlatformUsageAlertItem,
+  PlatformUsageAlertNotificationOverview,
+  PlatformUsageAlertNotificationResult,
+  PlatformUsageAlertNotificationStatus,
+  PlatformUsageAlertNotificationTaskOverview,
+  PlatformUsageAlertNotificationTaskRunResult,
+  PlatformUsageAlertOverview,
+  PlatformUsageLedgerItem,
+  PlatformUsageRollupItem,
+  PlatformUsageTrendPoint,
   PaginatedResult,
   PermissionCatalogGroup,
   PromptTemplateDetail,
   PromptTemplateListItem,
+  PluginHookItem,
+  PluginInstallationDetail,
+  PluginInstallationItem,
+  PluginMarketItem,
+  PluginMenuBindingItem,
+  PluginOverview,
+  PublishChannelListItem,
+  PublishChannelOverview,
   PublishPromptInput,
   RenderPromptInput,
   RenderPromptResult,
@@ -66,11 +138,60 @@ import type {
   RoleOverview,
   RollbackAgentInput,
   RollbackPromptInput,
+  ExternalApiObservabilityOverview,
+  ExternalApiObservabilityWindow,
+  ListChannelSenderDeliveriesResult,
+  ListWebhookDeliveriesResult,
+  RetryChannelSenderDeliveryResult,
+  RetryWebhookDeliveryResult,
+  WebhookDeliveryDetail,
   SecurityPolicyDetail,
   SecurityPolicyEvaluationItem,
   SecurityPolicyListItem,
   SecurityPolicyOverview,
+  SecurityCenterEventDetail,
+  SecurityCenterEventListItem,
+  SecurityCenterEventWindow,
   SecurityCenterOverview,
+  SecurityOperationAlertActionResult,
+  SecurityOperationAlertNotificationArchiveApprovalDetail,
+  SecurityOperationAlertNotificationArchiveApprovalItem,
+  SecurityOperationAlertNotificationArchiveApprovalOverview,
+  SecurityOperationAlertNotificationArchiveListResult,
+  SecurityOperationAlertNotificationOverview,
+  SecurityOperationAlertNotificationResult,
+  SecurityOperationAlertNotificationTaskRecoveryActionInput,
+  SecurityOperationAlertNotificationTaskRecoveryActionResult,
+  SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail,
+  SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem,
+  SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview,
+  SecurityOperationAlertNotificationTaskRecoveryAuditArchiveListResult,
+  SecurityOperationAlertNotificationTaskRecoveryAuditOverview,
+  SecurityOperationAlertNotificationTaskOverview,
+  SecurityOperationAlertNotificationTaskRunOverview,
+  SecurityOperationAlertNotificationTaskRunResult,
+  ListSecurityOperationAlertNotificationsParams,
+  ListSecurityOperationAlertNotificationTaskRecoveryAuditsParams,
+  CreateSecurityOperationAlertNotificationArchiveResult,
+  ListSecurityOperationAlertSlaDeadLetterAuditsParams,
+  CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult,
+  CreateSecurityOperationAlertSlaDeadLetterAuditArchiveResult,
+  ReviewToolApprovalInput,
+  SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDetail,
+  SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem,
+  SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalOverview,
+  SecurityOperationAlertSlaDeadLetterAuditArchiveListResult,
+  SecurityOperationAlertSlaDeadLetterAuditItem,
+  SecurityOperationAlertSlaDeadLetterActionInput,
+  SecurityOperationAlertSlaDeadLetterActionResult,
+  SecurityOperationAlertSlaDeadLetterOverview,
+  SecurityOperationAlertSlaOverview,
+  SecurityOperationAlertSlaNotificationOverview,
+  SecurityOperationAlertSlaNotificationItem,
+  SecurityOperationAlertSlaNotificationRetryOverview,
+  SecurityOperationAlertSlaNotificationRetryTaskRunResult,
+  SecurityOperationAlertSlaNotificationResult,
+  SecurityOperationAlertSlaTaskRunResult,
   SimulateSecurityPolicyInput,
   SimulateSecurityPolicyResult,
   StorageDownloadUrlResult,
@@ -81,6 +202,8 @@ import type {
   StorageSettings,
   SystemSettingCategory,
   SystemSettingItem,
+  SystemSettingSnapshotApprovalStatus,
+  SystemSettingSnapshotItem,
   SystemSettingOverview,
   TenantApiKeyListItem,
   TenantDetail,
@@ -96,8 +219,12 @@ import type {
   ToolDetail,
   ToolListItem,
   ToolApprovalListItem,
-  ReviewToolApprovalInput,
+  ReviewAgentTeamHandoffInput,
+  RollbackSystemSettingSnapshotInput,
+  ReviewNotificationPolicyApprovalInput,
   UpdateAgentInput,
+  UpdateAgentTeamInput,
+  UpdateAgentTeamMemberInput,
   UpdateAgentKnowledgeBindingInput,
   UpdateAgentToolBindingInput,
   UpdateDepartmentInput,
@@ -107,6 +234,7 @@ import type {
   UpdateSystemSettingInput,
   UpdateToolInput,
   SendConversationMessageInput,
+  StartAgentTeamRunInput,
   UpdateTenantInput,
   RebuildKnowledgeIndexResult,
   ResourceAclCheckInput,
@@ -120,8 +248,17 @@ import type {
   CreatePromptVariableInput,
   UpdateKnowledgeBaseInput,
   UpdateKnowledgeDocumentInput,
+  UpdatePublishChannelInput,
+  UpdateChannelPublishControlInput,
+  UpdateChannelSenderPolicyInput,
+  UpdatePluginHookInput,
+  UpdatePluginInstallationInput,
+  UpdatePluginMenuBindingInput,
   UpdatePromptTemplateInput,
   UpdatePromptVariableInput,
+  UpdateBillingQuotaPolicyInput,
+  UpdateBillingSubscriptionInput,
+  UpdatePlatformUsageAlertInput,
   CreateRoleInput,
   UpdateRoleInput,
   UpdateRolePermissionsInput,
@@ -132,6 +269,7 @@ import type {
   ReplaceRoleDataScopeInput,
   RoleDataScopeDetail,
   RoleDataScopeItem,
+  UpsertPublishChannelInput,
   UploadKnowledgeDocumentInput,
   UpdateModelConfigInput,
   UpdateModelProviderInput,
@@ -452,6 +590,10 @@ export function listTenantApiKeys() {
   return request<TenantApiKeyListItem[]>('/api-keys');
 }
 
+export function getExternalApiObservability(params: { window?: ExternalApiObservabilityWindow } = {}) {
+  return request<ExternalApiObservabilityOverview>(`/api-keys/external-observability?${toSearchParams(params)}`);
+}
+
 export function createTenantApiKey(input: CreateTenantApiKeyInput) {
   return request<CreateTenantApiKeyResult>('/api-keys', {
     method: 'POST',
@@ -465,8 +607,34 @@ export function deleteTenantApiKey(keyId: string) {
   });
 }
 
+export function listWebhookDeliveries(params: { api_key_id?: string } = {}) {
+  return request<ListWebhookDeliveriesResult>(`/api-keys/webhook-deliveries?${toSearchParams(params)}`);
+}
+
+export function getWebhookDelivery(deliveryId: string) {
+  return request<WebhookDeliveryDetail>(`/api-keys/webhook-deliveries/${deliveryId}`);
+}
+
+export function retryWebhookDelivery(deliveryId: string) {
+  return request<RetryWebhookDeliveryResult>(`/api-keys/webhook-deliveries/${deliveryId}/retry`, {
+    method: 'POST',
+  });
+}
+
 export function getExternalAgentChatEndpoint(agentId = '{agentId}') {
   return `${CONTROL_API_BASE_URL}/external/agents/${agentId}/chat`;
+}
+
+export function getExternalChannelChatEndpoint(channelId = '{channelId}') {
+  return `${CONTROL_API_BASE_URL}/external/channels/${channelId}/chat`;
+}
+
+export function getExternalChannelStreamEndpoint(channelId = '{channelId}') {
+  return `${CONTROL_API_BASE_URL}/external/channels/${channelId}/chat/stream`;
+}
+
+export function getExternalChannelCallbackEndpoint(channelId = '{channelId}') {
+  return `${CONTROL_API_BASE_URL}/external/channels/${channelId}/callback`;
 }
 
 export function getDepartmentOverview() {
@@ -643,6 +811,61 @@ export function updateSystemSetting(settingId: string, input: UpdateSystemSettin
   });
 }
 
+export function previewNotificationPolicySettingChange(settingId: string, input: UpdateSystemSettingInput) {
+  return request<NotificationPolicyChangePreview>(`/system-settings/notification-policy/preview/${settingId}`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getNotificationPolicyAudit() {
+  return request<NotificationPolicyAuditOverview>('/system-settings/notification-policy/audit');
+}
+
+export function listNotificationPolicySnapshots() {
+  return request<NotificationPolicySnapshotOverview>('/system-settings/notification-policy/snapshots');
+}
+
+export function rollbackNotificationPolicySnapshot(snapshotId: string, input: RollbackSystemSettingSnapshotInput = {}) {
+  return request<SystemSettingItem>(`/system-settings/notification-policy/snapshots/${snapshotId}/rollback`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getNotificationPolicyApprovalOverview() {
+  return request<NotificationPolicyApprovalOverview>('/system-settings/notification-policy/approvals/overview');
+}
+
+export function listNotificationPolicyApprovals(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  status?: SystemSettingSnapshotApprovalStatus | '';
+}) {
+  return request<PaginatedResult<SystemSettingSnapshotItem>>(
+    `/system-settings/notification-policy/approvals?${toSearchParams(params)}`,
+  );
+}
+
+export function getNotificationPolicyApproval(snapshotId: string) {
+  return request<SystemSettingSnapshotItem>(`/system-settings/notification-policy/approvals/${snapshotId}`);
+}
+
+export function approveNotificationPolicyApproval(snapshotId: string, input: ReviewNotificationPolicyApprovalInput) {
+  return request<SystemSettingSnapshotItem>(`/system-settings/notification-policy/approvals/${snapshotId}/approve`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rejectNotificationPolicyApproval(snapshotId: string, input: ReviewNotificationPolicyApprovalInput) {
+  return request<SystemSettingSnapshotItem>(`/system-settings/notification-policy/approvals/${snapshotId}/reject`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function resetSystemSetting(settingId: string) {
   return request<SystemSettingItem>(`/system-settings/${settingId}/reset`, {
     method: 'POST',
@@ -675,6 +898,247 @@ export function listAgents(params: {
   owner_id?: string;
 }) {
   return request<PaginatedResult<AgentListItem>>(`/agents?${toSearchParams(params)}`);
+}
+
+export function getPublishChannelOverview() {
+  return request<PublishChannelOverview>('/channels/overview');
+}
+
+export function listChannelSenderDeliveries(params: {
+  channel_id?: string;
+  status?: string;
+  provider?: string;
+} = {}) {
+  return request<ListChannelSenderDeliveriesResult>(`/channels/sender-deliveries?${toSearchParams(params)}`);
+}
+
+export function getChannelSenderDelivery(deliveryId: string) {
+  return request<ChannelSenderDeliveryDetail>(`/channels/sender-deliveries/${deliveryId}`);
+}
+
+export function retryChannelSenderDelivery(deliveryId: string) {
+  return request<RetryChannelSenderDeliveryResult>(`/channels/sender-deliveries/${deliveryId}/retry`, {
+    method: 'POST',
+  });
+}
+
+export function getChannelSenderPolicy(channelId: string) {
+  return request<ChannelSenderPolicy>(`/channels/${channelId}/sender-policy`);
+}
+
+export function updateChannelSenderPolicy(channelId: string, input: UpdateChannelSenderPolicyInput) {
+  return request<ChannelSenderPolicy>(`/channels/${channelId}/sender-policy`, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export function getChannelSenderTaskOverview() {
+  return request<ChannelSenderTaskOverview>('/channels/sender-tasks/overview');
+}
+
+export function runChannelSenderAutoRetry() {
+  return request<ChannelSenderTaskRunResult>('/channels/sender-tasks/run-auto-retry', {
+    method: 'POST',
+  });
+}
+
+export function runChannelSenderCleanup() {
+  return request<ChannelSenderTaskRunResult>('/channels/sender-tasks/run-cleanup', {
+    method: 'POST',
+  });
+}
+
+export function getChannelReleaseSchedulerOverview() {
+  return request<ChannelReleaseSchedulerOverview>('/channels/release-scheduler/overview');
+}
+
+export function runChannelReleaseSchedulerOnce() {
+  return request<ChannelReleaseSchedulerRunResult>('/channels/release-scheduler/run-once', {
+    method: 'POST',
+  });
+}
+
+export function upsertPublishChannel(input: UpsertPublishChannelInput) {
+  return request<PublishChannelListItem>('/channels', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updatePublishChannel(channelId: string, input: UpdatePublishChannelInput) {
+  return request<PublishChannelListItem>(`/channels/${channelId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enablePublishChannel(channelId: string) {
+  return request<PublishChannelListItem>(`/channels/${channelId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disablePublishChannel(channelId: string) {
+  return request<PublishChannelListItem>(`/channels/${channelId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function checkPublishChannel(channelId: string) {
+  return request<PublishChannelListItem>(`/channels/${channelId}/check`, {
+    method: 'POST',
+  });
+}
+
+export function getChannelPublishControl(channelId: string) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control`);
+}
+
+export function getChannelRolloutGateOverview(channelId: string) {
+  return request<ChannelRolloutGateOverview>(`/channels/${channelId}/rollout-gate/overview`);
+}
+
+export function getChannelReleasePipeline(channelId: string) {
+  return request<ChannelReleasePipeline>(`/channels/${channelId}/release-pipeline`);
+}
+
+export function getChannelReleaseReport(channelId: string) {
+  return request<ChannelReleaseReport>(`/channels/${channelId}/release-report`);
+}
+
+export function listChannelReleaseReportSnapshots(channelId: string) {
+  return request<ChannelReleaseReportSnapshotOverview>(`/channels/${channelId}/release-report/snapshots`);
+}
+
+export function createChannelReleaseReportSnapshot(channelId: string) {
+  return request<ChannelReleaseReportSnapshotDetail>(`/channels/${channelId}/release-report/snapshots`, {
+    method: 'POST',
+  });
+}
+
+export function getChannelReleaseReportSnapshot(channelId: string, snapshotId: string) {
+  return request<ChannelReleaseReportSnapshotDetail>(`/channels/${channelId}/release-report/snapshots/${snapshotId}`);
+}
+
+export function compareChannelReleaseReportSnapshots(channelId: string, baseSnapshotId: string, targetSnapshotId: string) {
+  return request<ChannelReleaseReportSnapshotCompareResult>(
+    `/channels/${channelId}/release-report/snapshots/${baseSnapshotId}/compare/${targetSnapshotId}`,
+  );
+}
+
+export function startChannelReleaseBatch(channelId: string, input: ChannelReleaseBatchInput) {
+  return request<ChannelReleasePipeline>(`/channels/${channelId}/release-pipeline/start`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function markChannelReleaseFull(channelId: string, input: ChannelReleaseBatchInput) {
+  return request<ChannelReleasePipeline>(`/channels/${channelId}/release-pipeline/mark-full`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function abortChannelReleaseBatch(channelId: string, input: ChannelReleaseBatchInput) {
+  return request<ChannelReleasePipeline>(`/channels/${channelId}/release-pipeline/abort`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getChannelReleaseGate(channelId: string) {
+  return request<ChannelReleaseGateOverview>(`/channels/${channelId}/release-gate`);
+}
+
+export function updateChannelReleaseGate(channelId: string, input: ChannelReleaseGatePolicyInput) {
+  return request<ChannelReleaseGateOverview>(`/channels/${channelId}/release-gate`, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export function evaluateChannelReleaseGate(channelId: string) {
+  return request<ChannelReleaseGateOverview>(`/channels/${channelId}/release-gate/evaluate`, {
+    method: 'POST',
+  });
+}
+
+export function getChannelReleaseAutomation(channelId: string) {
+  return request<ChannelReleaseAutomationOverview>(`/channels/${channelId}/release-automation`);
+}
+
+export function updateChannelReleaseAutomation(channelId: string, input: ChannelReleaseAutomationPolicyInput) {
+  return request<ChannelReleaseAutomationOverview>(`/channels/${channelId}/release-automation`, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export function runChannelReleaseAutomation(channelId: string) {
+  return request<ChannelReleaseAutomationOverview>(`/channels/${channelId}/release-automation/run`, {
+    method: 'POST',
+  });
+}
+
+export function getChannelReleaseSelfHealing(channelId: string) {
+  return request<ChannelReleaseSelfHealingOverview>(`/channels/${channelId}/release-self-healing`);
+}
+
+export function updateChannelReleaseSelfHealing(channelId: string, input: ChannelReleaseSelfHealingPolicyInput) {
+  return request<ChannelReleaseSelfHealingOverview>(`/channels/${channelId}/release-self-healing`, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export function runChannelReleaseSelfHealing(channelId: string) {
+  return request<ChannelReleaseSelfHealingOverview>(`/channels/${channelId}/release-self-healing/run`, {
+    method: 'POST',
+  });
+}
+
+export function updateChannelPublishControl(channelId: string, input: UpdateChannelPublishControlInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control`, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export function requestChannelPublishApproval(channelId: string, input: ChannelPublishApprovalInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control/request-approval`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function approveChannelPublish(channelId: string, input: ChannelPublishApprovalInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control/approve`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rejectChannelPublish(channelId: string, input: ChannelPublishApprovalInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control/reject`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateChannelRollout(channelId: string, input: ChannelPublishRolloutInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control/rollout`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rollbackChannelPublish(channelId: string, input: ChannelPublishApprovalInput) {
+  return request<ChannelPublishControl>(`/channels/${channelId}/publish-control/rollback`, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export function createAgent(input: CreateAgentInput) {
@@ -796,6 +1260,100 @@ export function updateAgentToolBinding(agentId: string, bindingId: string, input
 export function deleteAgentToolBinding(agentId: string, bindingId: string) {
   return request<AgentDetail>(`/agents/${agentId}/bindings/tools/${bindingId}`, {
     method: 'DELETE',
+  });
+}
+
+export function getAgentTeamOverview() {
+  return request<AgentTeamOverview>('/agent-teams/overview');
+}
+
+export function listAgentTeams(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  status?: string;
+  mode?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<AgentTeamListItem>>(`/agent-teams?${toSearchParams(params)}`);
+}
+
+export function createAgentTeam(input: CreateAgentTeamInput) {
+  return request<AgentTeamDetail>('/agent-teams', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getAgentTeam(teamId: string) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}`);
+}
+
+export function updateAgentTeam(teamId: string, input: UpdateAgentTeamInput) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteAgentTeam(teamId: string) {
+  return request<{ success: boolean }>(`/agent-teams/${teamId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createAgentTeamMember(teamId: string, input: CreateAgentTeamMemberInput) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}/members`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateAgentTeamMember(teamId: string, memberId: string, input: UpdateAgentTeamMemberInput) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}/members/${memberId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteAgentTeamMember(teamId: string, memberId: string) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}/members/${memberId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function startAgentTeamRun(teamId: string, input: StartAgentTeamRunInput) {
+  return request<AgentTeamDetail>(`/agent-teams/${teamId}/runs`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function createAgentTeamHandoff(runId: string, input: CreateAgentTeamHandoffInput) {
+  return request<AgentTeamDetail>(`/agent-teams/runs/${runId}/handoff`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function approveAgentTeamHandoff(handoffId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<AgentTeamDetail>(`/agent-teams/handoffs/${handoffId}/approve`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rejectAgentTeamHandoff(handoffId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<AgentTeamDetail>(`/agent-teams/handoffs/${handoffId}/reject`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function createAgentTeamFeedback(runId: string, input: CreateAgentTeamFeedbackInput) {
+  return request<unknown>(`/agent-teams/runs/${runId}/feedback`, {
+    method: 'POST',
+    body: input,
   });
 }
 
@@ -1133,6 +1691,77 @@ export function testTool(toolId: string, input: TestToolInput) {
   });
 }
 
+export function getPluginOverview() {
+  return request<PluginOverview>('/plugins/overview');
+}
+
+export function listPluginMarket() {
+  return request<PluginMarketItem[]>('/plugins/market');
+}
+
+export function listPluginInstallations() {
+  return request<PluginInstallationItem[]>('/plugins/installations');
+}
+
+export function getPluginInstallation(pluginId: string) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}`);
+}
+
+export function installPlugin(input: PluginMarketItem) {
+  return request<PluginInstallationDetail>('/plugins/install', {
+    method: 'POST',
+    body: {
+      code: input.code,
+      name: input.name,
+      provider: input.provider,
+      description: input.description,
+      latest_version: input.latest_version,
+      source_type: 'MARKET',
+      permission_preview: input.permission_codes,
+      risk_level: input.risk_level,
+    },
+  });
+}
+
+export function updatePluginInstallation(pluginId: string, input: UpdatePluginInstallationInput) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enablePlugin(pluginId: string) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disablePlugin(pluginId: string) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function upgradePlugin(pluginId: string) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}/upgrade`, {
+    method: 'POST',
+  });
+}
+
+export function updatePluginHook(pluginId: string, hookId: string, input: UpdatePluginHookInput) {
+  return request<PluginHookItem>(`/plugins/${pluginId}/hooks/${hookId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function updatePluginMenuBinding(pluginId: string, bindingId: string, input: UpdatePluginMenuBindingInput) {
+  return request<PluginMenuBindingItem>(`/plugins/${pluginId}/menu-bindings/${bindingId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
 export function getToolApprovalOverview() {
   return request<ToolApprovalOverview>('/tool-approvals/overview');
 }
@@ -1164,6 +1793,123 @@ export function rejectToolApproval(approvalId: string, input: ReviewToolApproval
     method: 'POST',
     body: input,
   });
+}
+
+export function getApprovalAuditOverview(params: { window?: ApprovalAuditWindow }) {
+  return request<ApprovalAuditOverview>(`/tool-approvals/audit-events/overview?${toSearchParams(params)}`);
+}
+
+export function listApprovalAuditEvents(params: {
+  page?: number;
+  page_size?: number;
+  window?: ApprovalAuditWindow;
+  keyword?: string;
+  source_type?: ApprovalAuditSourceType | '';
+  event_type?: ApprovalAuditEventType | '';
+  event_status?: ApprovalAuditEventStatus | '';
+  trace_only?: boolean;
+}) {
+  return request<PaginatedResult<ApprovalAuditEventItem>>(`/tool-approvals/audit-events?${toSearchParams(params)}`);
+}
+
+export function getApprovalAuditEvent(eventId: string) {
+  return request<ApprovalAuditEventItem>(`/tool-approvals/audit-events/${eventId}`);
+}
+
+export async function exportApprovalAuditEvents(params: {
+  window?: ApprovalAuditWindow;
+  keyword?: string;
+  source_type?: ApprovalAuditSourceType | '';
+  event_type?: ApprovalAuditEventType | '';
+  event_status?: ApprovalAuditEventStatus | '';
+  trace_only?: boolean;
+}) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${CONTROL_API_BASE_URL}/tool-approvals/audit-events/export?${toSearchParams(params)}`,
+    {
+      headers,
+    },
+  );
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
+export function createApprovalAuditArchive(params: {
+  window?: ApprovalAuditWindow;
+  keyword?: string;
+  source_type?: ApprovalAuditSourceType | '';
+  event_type?: ApprovalAuditEventType | '';
+  event_status?: ApprovalAuditEventStatus | '';
+  trace_only?: boolean;
+}) {
+  return request<CreateApprovalAuditArchiveResult>(`/tool-approvals/audit-events/archives?${toSearchParams(params)}`, {
+    method: 'POST',
+  });
+}
+
+export function listApprovalAuditArchives() {
+  return request<ApprovalAuditArchiveListResult>('/tool-approvals/audit-events/archives');
+}
+
+export function getApprovalAuditArchiveDownloadUrl(archiveId: string) {
+  return request<StorageDownloadUrlResult>(`/tool-approvals/audit-events/archives/${archiveId}/download-url`);
+}
+
+export function deleteApprovalAuditArchive(archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(`/tool-approvals/audit-events/archives/${archiveId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getApprovalAuditArchiveApprovalOverview() {
+  return request<ApprovalAuditArchiveApprovalOverview>('/tool-approvals/audit-events/archive-approvals/overview');
+}
+
+export function listApprovalAuditArchiveApprovals() {
+  return request<ApprovalAuditArchiveApprovalItem[]>('/tool-approvals/audit-events/archive-approvals');
+}
+
+export function getApprovalAuditArchiveApproval(approvalId: string) {
+  return request<ApprovalAuditArchiveApprovalDetail>(`/tool-approvals/audit-events/archive-approvals/${approvalId}`);
+}
+
+export function approveApprovalAuditArchiveApproval(approvalId: string, input: ReviewToolApprovalInput) {
+  return request<ApprovalAuditArchiveApprovalDetail>(
+    `/tool-approvals/audit-events/archive-approvals/${approvalId}/approve`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function rejectApprovalAuditArchiveApproval(approvalId: string, input: ReviewToolApprovalInput) {
+  return request<ApprovalAuditArchiveApprovalDetail>(
+    `/tool-approvals/audit-events/archive-approvals/${approvalId}/reject`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
 }
 
 export function listConversations(params: {
@@ -1301,8 +2047,130 @@ export function getMonitorObservabilityOverview(params: { window?: string }) {
   return request<MonitorObservabilityOverview>(`/monitor/observability?${toSearchParams(params)}`);
 }
 
+export function listPlatformEvents(params: {
+  page?: number;
+  page_size?: number;
+  window?: string;
+  event_type?: string;
+  resource_type?: string;
+  status?: string;
+  severity?: string;
+  trace_id?: string;
+  request_id?: string;
+  source_system?: string;
+  keyword?: string;
+}) {
+  return request<PaginatedResult<PlatformEventListItem>>(`/platform-events?${toSearchParams(params)}`);
+}
+
+export function getPlatformEvent(eventId: string) {
+  return request<PlatformEventDetail>(`/platform-events/${eventId}`);
+}
+
+export function listPlatformEventRelations(eventId: string) {
+  return request<PlatformEventRelationItem[]>(`/platform-events/${eventId}/relations`);
+}
+
+export function getPlatformUsageOverview(params: { window?: string }) {
+  return request<PlatformEventUsageOverview>(`/platform-usage/overview?${toSearchParams(params)}`);
+}
+
+export function listPlatformUsageTrends(params: {
+  window?: string;
+  period?: string;
+  metric_type?: string;
+  resource_type?: string;
+}) {
+  return request<PlatformUsageTrendPoint[]>(`/platform-usage/trends?${toSearchParams(params)}`);
+}
+
+export function listPlatformUsageLedger(params: {
+  page?: number;
+  page_size?: number;
+  window?: string;
+  subject_type?: string;
+  resource_type?: string;
+  metric_type?: string;
+  billable?: boolean;
+  trace_id?: string;
+  request_id?: string;
+  event_id?: string;
+  source_system?: string;
+  keyword?: string;
+}) {
+  return request<PaginatedResult<PlatformUsageLedgerItem>>(`/platform-usage/ledger?${toSearchParams(params)}`);
+}
+
+export function rebuildPlatformUsageRollups(params: { window?: string }) {
+  return request<{ rebuilt_count: number; items: PlatformUsageRollupItem[] }>(`/platform-usage/rollups/rebuild?${toSearchParams(params)}`, {
+    method: 'POST',
+  });
+}
+
+export function detectPlatformUsageAnomalies(params: { window?: string }) {
+  return request<PlatformUsageAnomalyOverview>(`/platform-usage/anomalies/detect?${toSearchParams(params)}`, {
+    method: 'POST',
+  });
+}
+
+export function listPlatformUsageAlerts(params: { window?: string }) {
+  return request<PlatformUsageAlertOverview>(`/platform-usage/alerts?${toSearchParams(params)}`);
+}
+
+export function updatePlatformUsageAlert(alertId: string, input: UpdatePlatformUsageAlertInput) {
+  return request<PlatformUsageAlertItem>(`/platform-usage/alerts/${alertId}/actions`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function notifyPlatformUsageAlert(alertId: string, input: NotifyPlatformUsageAlertInput = {}) {
+  return request<PlatformUsageAlertNotificationResult>(`/platform-usage/alerts/${alertId}/notify`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function listPlatformUsageAlertNotifications(params: {
+  window?: string;
+  status?: PlatformUsageAlertNotificationStatus;
+  alert_id?: string;
+} = {}) {
+  return request<PlatformUsageAlertNotificationOverview>(`/platform-usage/alert-notifications?${toSearchParams(params)}`);
+}
+
+export function retryPlatformUsageAlertNotification(notificationEventId: string) {
+  return request<PlatformUsageAlertNotificationResult>(`/platform-usage/alert-notifications/${notificationEventId}/retry`, {
+    method: 'POST',
+  });
+}
+
+export function getPlatformUsageAlertNotificationTaskOverview() {
+  return request<PlatformUsageAlertNotificationTaskOverview>('/platform-usage/alert-notification-tasks/overview');
+}
+
+export function runPlatformUsageAlertNotificationAutoRetry() {
+  return request<PlatformUsageAlertNotificationTaskRunResult>('/platform-usage/alert-notification-tasks/run-auto-retry', {
+    method: 'POST',
+  });
+}
+
 export function getBillingOverview(params: { window?: BillingWindow }) {
   return request<BillingOverview>(`/billing/overview?${toSearchParams(params)}`);
+}
+
+export function updateBillingSubscription(input: UpdateBillingSubscriptionInput) {
+  return request<BillingSubscriptionItem>('/billing/subscription', {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function updateBillingQuotaPolicy(id: string, input: UpdateBillingQuotaPolicyInput) {
+  return request<BillingQuotaPolicyItem>(`/billing/quota-policies/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
 }
 
 export function getAuditOverview(params: { window?: string }) {
@@ -1330,6 +2198,550 @@ export function getSecurityPolicyOverview() {
 
 export function getSecurityCenterOverview() {
   return request<SecurityCenterOverview>('/security-center/overview');
+}
+
+export function listSecurityCenterEvents(params: {
+  page?: number;
+  page_size?: number;
+  window?: SecurityCenterEventWindow;
+  source?: string;
+  keyword?: string;
+  trace_only?: boolean;
+}) {
+  return request<PaginatedResult<SecurityCenterEventListItem>>(`/security-center/events?${toSearchParams(params)}`);
+}
+
+export function getSecurityCenterEvent(eventId: string) {
+  return request<SecurityCenterEventDetail>(`/security-center/events/${eventId}`);
+}
+
+export function notifySecurityOperationAlert(alertId: string, input: NotifySecurityOperationAlertInput) {
+  return request<SecurityOperationAlertNotificationResult>(`/security-center/operation-alerts/${alertId}/notify`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateSecurityOperationAlert(alertId: string, input: UpdateSecurityOperationAlertInput) {
+  return request<SecurityOperationAlertActionResult>(`/security-center/operation-alerts/${alertId}/actions`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function listSecurityOperationAlertNotifications(params: ListSecurityOperationAlertNotificationsParams = {}) {
+  return request<SecurityOperationAlertNotificationOverview>(
+    `/security-center/operation-alert-notifications?${toSearchParams(toSecurityOperationAlertNotificationQuery(params))}`,
+  );
+}
+
+export async function exportSecurityOperationAlertNotifications(
+  params: ListSecurityOperationAlertNotificationsParams = {},
+) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${CONTROL_API_BASE_URL}/security-center/operation-alert-notifications/export?${toSearchParams(toSecurityOperationAlertNotificationQuery(params))}`,
+    {
+      headers,
+    },
+  );
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
+export function createSecurityOperationAlertNotificationArchive(
+  params: ListSecurityOperationAlertNotificationsParams = {},
+) {
+  return request<CreateSecurityOperationAlertNotificationArchiveResult>(
+    `/security-center/operation-alert-notifications/archives?${toSearchParams(toSecurityOperationAlertNotificationQuery(params))}`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+function toSecurityOperationAlertNotificationQuery(params: ListSecurityOperationAlertNotificationsParams = {}) {
+  return {
+    status: params.status,
+    alert_category: params.alert_category,
+    keyword: params.keyword,
+  };
+}
+
+export function listSecurityOperationAlertNotificationArchives() {
+  return request<SecurityOperationAlertNotificationArchiveListResult>(
+    '/security-center/operation-alert-notifications/archives',
+  );
+}
+
+export function getSecurityOperationAlertNotificationArchiveDownloadUrl(archiveId: string) {
+  return request<StorageDownloadUrlResult>(
+    `/security-center/operation-alert-notifications/archives/${archiveId}/download-url`,
+  );
+}
+
+export function deleteSecurityOperationAlertNotificationArchive(archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(
+    `/security-center/operation-alert-notifications/archives/${archiveId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export function getSecurityOperationAlertNotificationArchiveApprovalOverview() {
+  return request<SecurityOperationAlertNotificationArchiveApprovalOverview>(
+    '/security-center/operation-alert-notifications/archive-approvals/overview',
+  );
+}
+
+export function listSecurityOperationAlertNotificationArchiveApprovals() {
+  return request<SecurityOperationAlertNotificationArchiveApprovalItem[]>(
+    '/security-center/operation-alert-notifications/archive-approvals',
+  );
+}
+
+export function getSecurityOperationAlertNotificationArchiveApproval(approvalId: string) {
+  return request<SecurityOperationAlertNotificationArchiveApprovalDetail>(
+    `/security-center/operation-alert-notifications/archive-approvals/${approvalId}`,
+  );
+}
+
+export function approveSecurityOperationAlertNotificationArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertNotificationArchiveApprovalDetail>(
+    `/security-center/operation-alert-notifications/archive-approvals/${approvalId}/approve`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function rejectSecurityOperationAlertNotificationArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertNotificationArchiveApprovalDetail>(
+    `/security-center/operation-alert-notifications/archive-approvals/${approvalId}/reject`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function retrySecurityOperationAlertNotification(notificationEventId: string) {
+  return request<SecurityOperationAlertNotificationResult>(
+    `/security-center/operation-alert-notifications/${notificationEventId}/retry`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function getSecurityOperationAlertNotificationTaskOverview() {
+  return request<SecurityOperationAlertNotificationTaskOverview>(
+    '/security-center/operation-alert-notification-tasks/overview',
+  );
+}
+
+export function listSecurityOperationAlertNotificationTaskRuns(params: {
+  task?: string;
+  status?: string;
+  keyword?: string;
+} = {}) {
+  return request<SecurityOperationAlertNotificationTaskRunOverview>(
+    `/security-center/operation-alert-notification-tasks/runs?${toSearchParams(params)}`,
+  );
+}
+
+export function runSecurityOperationAlertNotificationAutoNotify() {
+  return request<SecurityOperationAlertNotificationTaskRunResult>(
+    '/security-center/operation-alert-notification-tasks/run-auto-notify',
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function runSecurityOperationAlertNotificationAutoRetry() {
+  return request<SecurityOperationAlertNotificationTaskRunResult>(
+    '/security-center/operation-alert-notification-tasks/run-auto-retry',
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function updateSecurityOperationAlertNotificationTaskRecoverySuggestion(
+  suggestionId: string,
+  input: SecurityOperationAlertNotificationTaskRecoveryActionInput,
+) {
+  return request<SecurityOperationAlertNotificationTaskRecoveryActionResult>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/${suggestionId}/actions`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function listSecurityOperationAlertNotificationTaskRecoveryAudits(params: {
+  action?: string;
+  status?: string;
+  reason_code?: string;
+  failure_source?: string;
+  keyword?: string;
+} = {}) {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditOverview>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits?${toSearchParams(params)}`,
+  );
+}
+
+export async function exportSecurityOperationAlertNotificationTaskRecoveryAudits(
+  params: ListSecurityOperationAlertNotificationTaskRecoveryAuditsParams = {},
+) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+  const queryParams = {
+    action: params.action,
+    status: params.status,
+    reason_code: params.reason_code,
+    failure_source: params.failure_source,
+    keyword: params.keyword,
+  };
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${CONTROL_API_BASE_URL}/security-center/operation-alert-notification-task-recovery-suggestions/audits/export?${toSearchParams(queryParams)}`,
+    {
+      headers,
+    },
+  );
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
+export function createSecurityOperationAlertNotificationTaskRecoveryAuditArchive(
+  params: ListSecurityOperationAlertNotificationTaskRecoveryAuditsParams = {},
+) {
+  const queryParams = {
+    action: params.action,
+    status: params.status,
+    reason_code: params.reason_code,
+    failure_source: params.failure_source,
+    keyword: params.keyword,
+  };
+
+  return request<CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archives?${toSearchParams(queryParams)}`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function listSecurityOperationAlertNotificationTaskRecoveryAuditArchives() {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveListResult>(
+    '/security-center/operation-alert-notification-task-recovery-suggestions/audits/archives',
+  );
+}
+
+export function getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveDownloadUrl(archiveId: string) {
+  return request<StorageDownloadUrlResult>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archives/${archiveId}/download-url`,
+  );
+}
+
+export function deleteSecurityOperationAlertNotificationTaskRecoveryAuditArchive(archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archives/${archiveId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export function getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview() {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview>(
+    '/security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/overview',
+  );
+}
+
+export function listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals() {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem[]>(
+    '/security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals',
+  );
+}
+
+export function getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval(approvalId: string) {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/${approvalId}`,
+  );
+}
+
+export function approveSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/${approvalId}/approve`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function rejectSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/${approvalId}/reject`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function getSecurityOperationAlertSlaOverview() {
+  return request<SecurityOperationAlertSlaOverview>('/security-center/operation-alert-sla/overview');
+}
+
+export function runSecurityOperationAlertSlaEscalation() {
+  return request<SecurityOperationAlertSlaTaskRunResult>('/security-center/operation-alert-sla/run-escalation', {
+    method: 'POST',
+  });
+}
+
+export function getSecurityOperationAlertSlaNotificationOverview() {
+  return request<SecurityOperationAlertSlaNotificationOverview>(
+    '/security-center/operation-alert-sla/notifications/overview',
+  );
+}
+
+export function notifySecurityOperationAlertSlaOverdue() {
+  return request<SecurityOperationAlertSlaNotificationResult>('/security-center/operation-alert-sla/notify-overdue', {
+    method: 'POST',
+  });
+}
+
+export function getSecurityOperationAlertSlaNotificationRetryOverview() {
+  return request<SecurityOperationAlertSlaNotificationRetryOverview>(
+    '/security-center/operation-alert-sla/notification-retry/overview',
+  );
+}
+
+export function runSecurityOperationAlertSlaNotificationAutoRetry() {
+  return request<SecurityOperationAlertSlaNotificationRetryTaskRunResult>(
+    '/security-center/operation-alert-sla/notification-retry/run',
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function retrySecurityOperationAlertSlaNotification(notificationEventId: string) {
+  return request<SecurityOperationAlertSlaNotificationItem>(
+    `/security-center/operation-alert-sla/notifications/${notificationEventId}/retry`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function getSecurityOperationAlertSlaDeadLetterOverview() {
+  return request<SecurityOperationAlertSlaDeadLetterOverview>(
+    '/security-center/operation-alert-sla/dead-letters/overview',
+  );
+}
+
+export function handleSecurityOperationAlertSlaDeadLetterAction(
+  notificationEventId: string,
+  input: SecurityOperationAlertSlaDeadLetterActionInput,
+) {
+  return request<SecurityOperationAlertSlaDeadLetterActionResult>(
+    `/security-center/operation-alert-sla/dead-letters/${notificationEventId}/actions`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function listSecurityOperationAlertSlaDeadLetterAudits(
+  params: ListSecurityOperationAlertSlaDeadLetterAuditsParams = {},
+) {
+  const queryParams = {
+    action: params.action,
+    disposition_status: params.disposition_status,
+    keyword: params.keyword,
+    page: params.page,
+    page_size: params.page_size,
+  };
+
+  return request<PaginatedResult<SecurityOperationAlertSlaDeadLetterAuditItem>>(
+    `/security-center/operation-alert-sla/dead-letter-audits?${toSearchParams(queryParams)}`,
+  );
+}
+
+export async function exportSecurityOperationAlertSlaDeadLetterAudits(
+  params: ListSecurityOperationAlertSlaDeadLetterAuditsParams = {},
+) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+  const queryParams = {
+    action: params.action,
+    disposition_status: params.disposition_status,
+    keyword: params.keyword,
+    page: params.page,
+    page_size: params.page_size,
+  };
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${CONTROL_API_BASE_URL}/security-center/operation-alert-sla/dead-letter-audits/export?${toSearchParams(queryParams)}`,
+    {
+      headers,
+    },
+  );
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
+export function createSecurityOperationAlertSlaDeadLetterAuditArchive(
+  params: ListSecurityOperationAlertSlaDeadLetterAuditsParams = {},
+) {
+  const queryParams = {
+    action: params.action,
+    disposition_status: params.disposition_status,
+    keyword: params.keyword,
+  };
+
+  return request<CreateSecurityOperationAlertSlaDeadLetterAuditArchiveResult>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archives?${toSearchParams(queryParams)}`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function listSecurityOperationAlertSlaDeadLetterAuditArchives() {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveListResult>(
+    '/security-center/operation-alert-sla/dead-letter-audits/archives',
+  );
+}
+
+export function getSecurityOperationAlertSlaDeadLetterAuditArchiveDownloadUrl(archiveId: string) {
+  return request<StorageDownloadUrlResult>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archives/${archiveId}/download-url`,
+  );
+}
+
+export function deleteSecurityOperationAlertSlaDeadLetterAuditArchive(archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archives/${archiveId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export function getSecurityOperationAlertSlaDeadLetterAuditArchiveApprovalOverview() {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalOverview>(
+    '/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/overview',
+  );
+}
+
+export function listSecurityOperationAlertSlaDeadLetterAuditArchiveApprovals() {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem[]>(
+    '/security-center/operation-alert-sla/dead-letter-audits/archive-approvals',
+  );
+}
+
+export function getSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(approvalId: string) {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/${approvalId}`,
+  );
+}
+
+export function approveSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/${approvalId}/approve`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function rejectSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(
+  approvalId: string,
+  input: ReviewToolApprovalInput,
+) {
+  return request<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDetail>(
+    `/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/${approvalId}/reject`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
 }
 
 export function listSecurityPolicies(params: {

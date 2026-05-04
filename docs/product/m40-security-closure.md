@@ -32,6 +32,10 @@ M40 把 M31-M39 的权限、安全能力进一步闭环：
   - `not_in`
   - `contains`
   - `exists`
+- Resource ACL 主体支持部门继承：
+  - 当前部门
+  - 所有上级部门
+  - 显式 `DENY` 优先
 - 新增安全拒绝事件写入：
   - `SecurityEventService`
   - Guard 拒绝写入 `operation_log`

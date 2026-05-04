@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T06:48:04.779334+00:00",
+  "page": "M63-23 报告快照版本对比",
+  "route": "/channels",
+  "feature": "渠道发布复盘报告快照版本对比，展示风险等级、核心指标、建议和时间线差异",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

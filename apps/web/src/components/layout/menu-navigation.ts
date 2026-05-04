@@ -1,21 +1,26 @@
 'use client';
 
-import type { AuthorizedMenuItem } from '@aiaget/shared-types';
+import { hasPermission, type AuthorizedMenuItem } from '@aiaget/shared-types';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   Bot,
+  BookOpen,
   ClipboardCheck,
   Coins,
   Database,
   FileText,
   Gauge,
   HardDrive,
+  KeySquare,
   KeyRound,
   LayoutDashboard,
   ListTree,
   MessageSquareText,
   Network,
+  Boxes,
+  RadioTower,
+  UsersRound,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -39,17 +44,21 @@ export interface NavigationLink {
 const iconMap: Record<string, LucideIcon> = {
   Activity,
   Bot,
+  BookOpen,
   ClipboardCheck,
   Coins,
   Database,
   FileText,
   Gauge,
   HardDrive,
+  KeySquare,
   KeyRound,
   LayoutDashboard,
   ListTree,
   MessageSquareText,
   Network,
+  RadioTower,
+  UsersRound,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -62,6 +71,7 @@ const codeIconMap: Record<string, LucideIcon> = {
   dashboard: Gauge,
   agent_center: Bot,
   agents: Bot,
+  channels: RadioTower,
   prompts: FileText,
   models: KeyRound,
   knowledge: Database,
@@ -70,12 +80,17 @@ const codeIconMap: Record<string, LucideIcon> = {
   conversations: MessageSquareText,
   monitor: Activity,
   billing: Coins,
+  api_keys: KeySquare,
+  api_reference: BookOpen,
   security_center: ShieldCheck,
   security_policies: ShieldCheck,
   approvals: ClipboardCheck,
   audit: ScrollText,
   system_management: Settings,
   settings: Settings,
+  plugins: Boxes,
+  tenants: Network,
+  users: UsersRound,
   departments: Network,
   roles: ShieldCheck,
   data_scopes: SlidersHorizontal,
@@ -83,20 +98,24 @@ const codeIconMap: Record<string, LucideIcon> = {
   menus: ListTree,
 };
 
-export function buildNavigationLinks(menus: AuthorizedMenuItem[] | undefined): NavigationLink[] {
+export function buildNavigationLinks(menus: AuthorizedMenuItem[] | undefined, permissions: readonly string[] = []): NavigationLink[] {
   if (!menus || menus.length === 0) {
-    return consoleNavigation.map((item) => ({
-      id: item.href,
-      title: item.title,
-      href: item.href,
-      icon: item.icon,
-      description: item.description,
-      level: 1,
-      children: [],
-    }));
+    return consoleNavigation
+      .filter((item) => !item.permission || hasPermission(permissions, item.permission))
+      .map((item) => ({
+        id: item.href,
+        title: item.title,
+        href: item.href,
+        icon: item.icon,
+        description: item.description,
+        level: 1,
+        children: [],
+      }));
   }
 
-  return menus.flatMap((menu) => mapAuthorizedMenu(menu, 1));
+  const navigation = menus.flatMap((menu) => mapAuthorizedMenu(menu, 1));
+
+  return appendFallbackModules(navigation, permissions);
 }
 
 export function flattenNavigationLinks(items: NavigationLink[]) {
@@ -138,4 +157,23 @@ function resolveIcon(menu: AuthorizedMenuItem) {
   }
 
   return codeIconMap[menu.code] ?? SquareTerminal;
+}
+
+function appendFallbackModules(navigation: NavigationLink[], permissions: readonly string[]) {
+  const existingHrefs = new Set(flattenNavigationLinks(navigation).map((item) => item.href));
+  const additions = consoleNavigation
+    .filter((item) => item.href === '/api-reference')
+    .filter((item) => !existingHrefs.has(item.href))
+    .filter((item) => !item.permission || hasPermission(permissions, item.permission))
+    .map((item) => ({
+      id: item.href,
+      title: item.title,
+      href: item.href,
+      icon: item.icon,
+      description: item.description,
+      level: 1,
+      children: [],
+    }));
+
+  return [...navigation, ...additions];
 }

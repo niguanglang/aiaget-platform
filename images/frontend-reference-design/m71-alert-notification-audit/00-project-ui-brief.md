@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M71 Alert Notification Audit
+- Route: /monitor
+- Feature goal: 告警通知重试与投递审计中心
+- Target users/roles: 监控、审计、成本运营人员；后端接口使用 `monitor:log:view` 权限。
+- APIs/services:
+  - `listPlatformUsageAlertNotifications({ window, status, alert_id })`
+  - `retryPlatformUsageAlertNotification(notificationEventId)`
+  - `notifyPlatformUsageAlert(alertId, { channels, note })`
+  - `listPlatformUsageAlerts({ window })`
+- Entities/fields/statuses:
+  - `PlatformUsageAlertNotificationItem`: notification_event_id, alert_id, status, channels, targets, webhook_status, webhook_error, retry_count, retried_from_event_id, delivered_at, summary
+  - `PlatformUsageAlertNotificationOverview`: summary, items
+  - Status: `SENT`, `PARTIAL`, `SKIPPED`, `FAILED`
+  - Channels: `IN_APP`, `WEBHOOK`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, shared `StatusBadge`, `EmptyState`, React Query, lucide icons, `motion/react`.
+- Required states: loading, empty, error, disabled while retrying, retry success, retry failure, compact view hidden.
+- Constraints:
+  - Do not add notification tables; audit list is projected from `platform_event`.
+  - Do not run migrations or start containers.
+  - UI text must be Chinese.
+  - Keep it inside the existing monitor dashboard layout.

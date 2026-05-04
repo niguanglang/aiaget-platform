@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M63-4 全渠道发布中心
+- Route: /channels
+- Feature goal: Agent 多渠道发布配置、启停、健康检查和用量观测
+- Parent layout: Next.js App Router `apps/web/src/app/(console)/layout.tsx` 控制台壳，左侧菜单与移动端横向菜单由 `currentUser.menus` 和 `moduleSpecs` 驱动。
+- Target users and permissions: 租户管理员直接放行；普通用户需要 `channel:publish:view` 查看，`channel:publish:manage` 新建/编辑，`channel:publish:deploy` 启用，`channel:publish:disable` 停用。资源级授权资源类型为 `CHANNEL`。
+- APIs/services:
+  - `GET /channels/overview` -> `getPublishChannelOverview()`
+  - `POST /channels` -> `upsertPublishChannel(input)`
+  - `PATCH /channels/:id` -> `updatePublishChannel(id, input)`
+  - `POST /channels/:id/enable` -> `enablePublishChannel(id)`
+  - `POST /channels/:id/disable` -> `disablePublishChannel(id)`
+  - `POST /channels/:id/check` -> `checkPublishChannel(id)`
+  - `GET /agents?status=PUBLISHED` -> `listAgents()` 作为 Agent 选项
+- Entities/fields/statuses:
+  - `PublishChannelOverview.summary`: `total_channels`, `active_channels`, `error_channels`, `total_requests_24h`, `success_rate_24h`, `active_agent_count`
+  - `PublishChannelListItem`: `agent`, `channel`, `name`, `description`, `status`, `endpoint_url`, `callback_url`, `secret_masked`, `config`, `health_status`, `health_message`, `request_count_24h`, `success_rate_24h`, `last_request_at`, `last_published_at`, `last_checked_at`
+  - Channel enum: `WEB_WIDGET`, `OPEN_API`, `WECHAT_WORK`, `DINGTALK`, `FEISHU`, `SLACK`, `CUSTOM_WEBHOOK`
+  - Status enum: `DRAFT`, `ACTIVE`, `DISABLED`, `ERROR`, `ARCHIVED`
+  - Health enum: `UNKNOWN`, `HEALTHY`, `DEGRADED`, `UNAVAILABLE`
+- Existing components/design system: Tailwind CSS, shadcn-like `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`; TanStack Query; `motion/react`; lucide-react icons; existing page style uses fine borders, light shadow, backdrop blur and restrained grid/particle Three.js backgrounds.
+- Required actions: refresh, search/filter, create channel, edit channel, enable, disable, health check, select channel row, inspect config JSON and recent events.
+- Required states: loading, empty, API error, form validation, disabled buttons when permission is missing, success notice, permission-denied view.
+- UI constraints: page text must be Chinese; use dense operational SaaS layout, Bento metrics, table/detail split, subtle mesh/grid/noise texture, restrained motion, no emoji, no exaggerated glow, no overloaded information.

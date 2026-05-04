@@ -1,0 +1,44 @@
+# Project UI Brief
+
+- Page: m85-审批与归档告警生命周期
+- Route: /security
+- Feature goal: 为审批与归档运营告警增加确认升级关闭生命周期动作
+- Target users: 安全管理员、审计员、租户管理员
+- Existing page:
+  - `/security`
+  - `ApprovalArchiveOperationsCard`
+  - `OperationAlertCard`
+- Existing API:
+  - `GET /api/v1/security-center/overview`
+  - `POST /api/v1/security-center/operation-alerts/:alertId/notify`
+- New API:
+  - `POST /api/v1/security-center/operation-alerts/:alertId/actions`
+- New lifecycle actions:
+  - `ACKNOWLEDGE`
+  - `ESCALATE`
+  - `CLOSE`
+- New lifecycle statuses:
+  - `OPEN`
+  - `ACKNOWLEDGED`
+  - `ESCALATED`
+  - `CLOSED`
+- Event strategy:
+  - 不新增表。
+  - 写入 `platform_event`。
+  - 同一 `resourceType=security_operation_alert`、`resourceId=alertId` 的事件推导生命周期。
+- New event types:
+  - `platform.security.approval_operation_alert.acknowledged`
+  - `platform.security.approval_operation_alert.escalated`
+  - `platform.security.approval_operation_alert.closed`
+- Frontend:
+  - 每条运营告警展示生命周期状态。
+  - 展示“确认 / 升级 / 关闭”按钮。
+  - 已关闭告警禁用后续动作。
+  - 操作成功后刷新安全中心总览。
+- Required states: loading, empty, action pending, success, disabled closed state, API error.
+- Constraints:
+  - 中文 UI。
+  - 不新增路由。
+  - 不新增数据库表。
+  - 不执行迁移。
+  - 不启动容器。

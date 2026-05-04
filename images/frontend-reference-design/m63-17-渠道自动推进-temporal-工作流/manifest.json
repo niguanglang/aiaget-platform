@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T05:12:08.456762+00:00",
+  "page": "M63-17 渠道自动推进 Temporal 工作流",
+  "route": "/channels",
+  "feature": "把渠道自动推进执行器接入 Runtime workflow / Temporal fallback 边界",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

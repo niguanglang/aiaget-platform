@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M81 归档操作审计与删除审批化
+- Route: /approval-audits /approvals
+- Feature goal: 归档生成下载删除写入审计事件，删除归档进入审批队列并由审批中心处理
+- Target users: 安全管理员、审计员、租户管理员
+- Permissions:
+  - archive view/create/download/delete request: `security:approval:view`
+  - archive deletion approve/reject: `security:approval:handle`
+- Existing frontend stack: Next.js App Router, React, TypeScript, Tailwind CSS, local shadcn-like components, TanStack Query, Motion.
+- Existing pages:
+  - `/approval-audits`: approval audit search, CSV export, MinIO archive list
+  - `/approvals`: tool approvals and notification policy approvals
+- Existing backend:
+  - `approval_audit_event` records source_type/source_id/event_type/event_status/metadata.
+  - `ApprovalsService` already writes audit events for tool approvals and archive list/create/download/delete endpoints exist from M80.
+- M81 strategy:
+  - No new DB table.
+  - Use `approval_audit_event` with source type `APPROVAL_AUDIT_ARCHIVE` for archive lifecycle and deletion approval.
+  - Archive deletion request creates `REQUEST_CREATED` event with status `WARNING`.
+  - Pending archive delete approvals are derived from latest archive events by `archive_key`.
+  - Approving delete writes `APPROVED` + `APPLIED` and deletes the object.
+  - Rejecting delete writes `REJECTED`.
+- New backend endpoints:
+  - `GET /api/v1/tool-approvals/audit-events/archive-approvals/overview`
+  - `GET /api/v1/tool-approvals/audit-events/archive-approvals`
+  - `GET /api/v1/tool-approvals/audit-events/archive-approvals/:approvalId`
+  - `POST /api/v1/tool-approvals/audit-events/archive-approvals/:approvalId/approve`
+  - `POST /api/v1/tool-approvals/audit-events/archive-approvals/:approvalId/reject`
+- Existing archive delete endpoint changes:
+  - `DELETE /api/v1/tool-approvals/audit-events/archives/:archiveId` creates deletion approval instead of direct delete.
+- Required frontend:
+  - `/approval-audits`: delete action becomes `申请删除`, shows approval request created.
+  - `/approvals`: add third tab `归档删除`, list pending archive delete approvals, detail panel approve/reject.
+- Required states:
+  - pending/approved/rejected archive approval
+  - loading, empty, error, disabled by permission
+  - success/failure message
+- Constraints:
+  - UI text must be Chinese.
+  - Do not run migrations.
+  - Do not start containers or install middleware.

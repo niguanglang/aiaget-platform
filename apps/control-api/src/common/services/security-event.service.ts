@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlatformEventsService } from '../../platform-events/platform-events.service';
 import type { RequestWithContext } from '../types/request-context';
 
 export interface SecurityDenyEventInput {
@@ -19,7 +20,10 @@ export interface SecurityDenyEventInput {
 
 @Injectable()
 export class SecurityEventService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+  ) {}
 
   async recordDeny(request: RequestWithContext, input: SecurityDenyEventInput) {
     const user = request.user;
@@ -43,7 +47,7 @@ export class SecurityEventService {
       context: input.context ?? null,
     });
 
-    await this.prisma.operationLog.create({
+    const operationLog = await this.prisma.operationLog.create({
       data: {
         tenantId: user.tenantId,
         userId: user.id,
@@ -58,6 +62,30 @@ export class SecurityEventService {
         requestSummary,
         errorMessage: input.reason,
       },
+    });
+
+    await this.platformEvents.recordEvent({
+      tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
+      userId: user.id,
+      actorType: 'USER',
+      resourceType: input.resourceType ?? 'SECURITY',
+      resourceId: input.resourceId ?? null,
+      requestId: request.requestId ?? 'unknown',
+      traceId: request.traceId ?? null,
+      parentTraceId: request.parentSpanId ?? null,
+      eventSource: 'security_center',
+      eventType: input.source === 'SECURITY_POLICY' ? 'security.policy.denied' : 'security.access.denied',
+      status: 'DENIED',
+      severity: 'ERROR',
+      securityLevel: 'CONFIDENTIAL',
+      billable: false,
+      summary: input.reason,
+      payloadJson: requestSummary,
+      occurredAt: operationLog.createdAt,
+      sourceSystem: 'security_guard',
+      sourceId: operationLog.id,
+      dedupeKey: `security_guard:${operationLog.id}`,
     });
   }
 }

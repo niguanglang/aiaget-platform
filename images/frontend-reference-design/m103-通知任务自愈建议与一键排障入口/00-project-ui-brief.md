@@ -1,0 +1,33 @@
+# Project UI Brief
+
+- Page: M103 通知任务自愈建议与一键排障入口
+- Route: `/security`
+- Feature goal: 基于 M102 通知任务失败聚合和 M101 任务/投递历史，生成可操作的排障建议，帮助安全管理员快速定位 Webhook 未配置、投递失败、策略关闭、连续失败等问题。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`。
+- APIs/services:
+  - `GET /security-center/overview`
+  - Existing links: `/settings?category=INTEGRATION`、`/settings?category=NOTIFICATION`、`/security`、`/monitor`、`/audit`
+- Data entities and fields:
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_suggestions`
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion`
+  - `id`、`title`、`description`、`severity`、`reason_code`、`primary_action_label`、`primary_action_href`、`secondary_action_label`、`secondary_action_href`、`evidence`
+- Reason codes:
+  - `WEBHOOK_NOT_CONFIGURED`
+  - `WEBHOOK_DELIVERY_FAILED`
+  - `AUTO_NOTIFY_DISABLED`
+  - `AUTO_RETRY_DISABLED`
+  - `CONSECUTIVE_FAILURES`
+  - `HIGH_FAILURE_RATE`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Security page: `apps/web/src/components/security/security-policy-content.tsx`
+  - Backend projection: `apps/control-api/src/security-center/security-center.service.ts`
+- Required states:
+  - healthy empty: 无需排障建议
+  - degraded/high: 展示建议卡片与入口
+  - disabled: 只提供跳转入口，不自动修改配置
+- Constraints:
+  - 中文界面文字
+  - 不自动修改系统设置或中间件
+  - 不新增数据库表，不执行迁移，不启动容器

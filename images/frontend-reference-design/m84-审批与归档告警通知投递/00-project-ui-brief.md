@@ -1,0 +1,39 @@
+# Project UI Brief
+
+- Page: m84-审批与归档告警通知投递
+- Route: /security
+- Feature goal: 把审批与归档运营告警支持站内记录和Webhook投递
+- Target users: 安全管理员、审计员、租户管理员
+- Existing page:
+  - `/security`
+  - `SecurityPolicyContent`
+  - `ApprovalArchiveOperationsCard`
+- Existing API:
+  - `GET /api/v1/security-center/overview`
+  - `getSecurityCenterOverview()`
+- New API:
+  - `POST /api/v1/security-center/operation-alerts/:alertId/notify`
+  - frontend service `notifySecurityOperationAlert(alertId, input)`
+- Existing event base:
+  - `platform_event`
+  - `platform_event_relation`
+- New event:
+  - `platform.security.approval_operation_alert.notification_sent`
+- Existing external webhook setting:
+  - `external_webhook_url`
+- Types:
+  - `SecurityCenterOperationalAlert`
+  - `NotifySecurityOperationAlertInput`
+  - `SecurityOperationAlertNotificationResult`
+- UI behavior:
+  - Add notification controls on each M83 operational alert card.
+  - Default channels: 站内记录 + Webhook。
+  - Show pending, success, partial, skipped and failed result states in Chinese.
+  - Refresh security overview after notification.
+- Required states: loading, empty alert, pending notification, success, partial, skipped, failed, webhook not configured, permission-denied via disabled button if needed.
+- Constraints:
+  - 中文 UI。
+  - 不新增表。
+  - 不执行迁移。
+  - 不启动容器。
+  - 不安装中间件。

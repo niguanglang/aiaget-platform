@@ -6,6 +6,9 @@ import type {
 
 export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'AGENT',
+  'AGENT_TEAM',
+  'CHANNEL',
+  'PLUGIN',
   'KNOWLEDGE_BASE',
   'DOCUMENT',
   'TOOL',
@@ -26,10 +29,36 @@ export const RESOURCE_ACL_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
 
 export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] = [
   {
+    resource_type: 'PLUGIN',
+    name: '插件',
+    description: '控制具体插件的查看、安装、启停、升级、菜单注入和审计。',
+    permission_codes: [
+      'plugin:center:view',
+      'plugin:center:manage',
+      'plugin:center:install',
+      'plugin:center:enable',
+      'plugin:center:disable',
+      'plugin:center:upgrade',
+      'plugin:center:audit',
+    ],
+  },
+  {
     resource_type: 'AGENT',
     name: 'Agent',
     description: '控制具体 Agent 的查看、编辑、测试、发布和使用。',
     permission_codes: ['agent:agent:view', 'agent:agent:manage', 'agent:agent:use'],
+  },
+  {
+    resource_type: 'AGENT_TEAM',
+    name: 'Agent 协作团队',
+    description: '控制具体多 Agent 团队的查看、编辑、运行、接力和反馈。',
+    permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'CHANNEL',
+    name: '发布渠道',
+    description: '控制具体发布渠道的查看、编辑、启用、停用和健康检查。',
+    permission_codes: ['channel:publish:view', 'channel:publish:manage', 'channel:publish:deploy', 'channel:publish:disable'],
   },
   {
     resource_type: 'KNOWLEDGE_BASE',

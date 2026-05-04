@@ -1,0 +1,37 @@
+# Project UI Brief
+
+- Page: m88-审批与归档告警 SLA 与超时升级
+- Route: /security
+- Feature goal: 审批与归档告警 SLA 风险、超时升级与闭环观测
+- Target users: 安全管理员、审计员、租户管理员
+- Existing APIs:
+  - `GET /api/v1/security-center/overview`
+  - `POST /api/v1/security-center/operation-alerts/:alertId/actions`
+  - `GET /api/v1/security-center/operation-alert-notification-tasks/overview`
+- New APIs:
+  - `GET /api/v1/security-center/operation-alert-sla/overview`
+  - `POST /api/v1/security-center/operation-alert-sla/run-escalation`
+- Existing storage:
+  - `platform_event`
+  - `system_setting` notification policy keys
+- Type model:
+  - `SecurityOperationAlertSlaOverview`
+  - `SecurityOperationAlertSlaItem`
+  - `SecurityOperationAlertSlaTaskRunResult`
+- UI:
+  - 在 `/security` 的审批与归档运营卡片中新增“告警 SLA 与超时升级”区域。
+  - 展示 SLA 内、临近超时、已超时、已自动升级、已关闭数量。
+  - 展示每条告警的触发时间、到期时间、剩余/超时分钟、SLA 状态、升级状态。
+  - 支持“立即扫描升级”和“刷新 SLA”。
+- Required states: loading、empty、error、running、success、disabled。
+- Constraints:
+  - 中文 UI。
+  - 不新增数据库表。
+  - 不执行数据库迁移。
+  - 不启动容器。
+  - 不安装中间件。
+  - SLA 先通过 `platform_event` 派生，不引入独立告警表。
+- APIs/services: TBD
+- Entities/fields/statuses: TBD
+- Existing components/design system: TBD
+- Required states: loading, empty, error, validation, disabled, success, permission-denied

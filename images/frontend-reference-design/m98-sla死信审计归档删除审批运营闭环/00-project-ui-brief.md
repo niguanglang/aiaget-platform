@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M98 SLA死信审计归档删除审批运营闭环
+- Route: /security
+- Feature goal: 归档删除审批积压与拒绝风险回流运营看板
+- Target users: 安全管理员、租户管理员、审计员
+- Parent layout: 安全中心 `/security` 的“审批与归档运营”看板
+- APIs/services:
+  - `getSecurityCenterOverview()`
+  - `SecurityCenterOverview.approval_operations`
+- Backend source:
+  - `platform_event` 中 `platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_*`
+- Data fields:
+  - `sla_dead_letter_archive_delete_pending`
+  - `sla_dead_letter_archive_delete_approved`
+  - `sla_dead_letter_archive_delete_rejected`
+  - `sla_dead_letter_archive_delete_applied`
+- Existing components/design system:
+  - `OperationMetricTile`、`OperationAlertCard`、`StatusBadge`、`Card`
+  - Tailwind CSS，中文 UI，紧凑后台布局
+- Required states:
+  - overview loading
+  - no-alert healthy state
+  - pending/rejected risk state
+  - operation alert lifecycle actions remain available

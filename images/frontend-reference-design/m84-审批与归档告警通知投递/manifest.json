@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T15:47:09.225745+00:00",
+  "page": "m84-审批与归档告警通知投递",
+  "route": "/security",
+  "feature": "把审批与归档运营告警支持站内记录和Webhook投递",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

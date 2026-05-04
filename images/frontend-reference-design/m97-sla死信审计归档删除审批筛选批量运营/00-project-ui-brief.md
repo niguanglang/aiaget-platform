@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M97 SLA死信审计归档删除审批筛选批量运营
+- Route: /security
+- Feature goal: 归档删除审批筛选、只看待办与CSV导出
+- Target users: 安全管理员、租户管理员、审计员
+- Parent layout: 安全中心 `/security` 内的 M95/M96 归档删除审批区域
+- APIs/services:
+  - `listSecurityOperationAlertSlaDeadLetterAuditArchiveApprovals()`
+  - `getSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(approvalId)`
+  - approve/reject APIs remain unchanged
+- Data entities:
+  - `SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem`
+  - fields: `id`、`archive_id`、`archive_key`、`archive_file_name`、`archive_size_bytes`、`status`、`reason`、`requested_by`、`reviewed_by`、`requested_at`、`reviewed_at`
+- Statuses:
+  - `PENDING`、`APPROVED`、`REJECTED`、`APPLIED`
+- Existing components/design system:
+  - `Card`、`Button`、`Input`、`EmptyState`、`StatusBadge`、`ArchiveMetric`
+  - Tailwind CSS，紧凑后台布局，中文 UI 文案
+- Required states:
+  - 筛选空态
+  - loading
+  - 导出 disabled
+  - reset filters
+  - selected detail remains compatible with filtered results

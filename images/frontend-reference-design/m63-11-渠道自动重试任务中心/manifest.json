@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T03:08:57.596187+00:00",
+  "page": "M63-11 渠道自动重试任务中心",
+  "route": "/channels",
+  "feature": "渠道主动回复自动重试和投递记录清理任务状态面板",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

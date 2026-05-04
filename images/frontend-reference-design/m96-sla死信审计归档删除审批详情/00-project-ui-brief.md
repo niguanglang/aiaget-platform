@@ -1,0 +1,31 @@
+# Project UI Brief
+
+- Page: M96 SLA死信审计归档删除审批详情
+- Route: /security
+- Feature goal: 归档删除审批详情与审计时间线联动
+- Target users: 安全管理员、租户管理员、审计员
+- Parent layout: 安全中心 `/security` 内的审批与归档运营卡片，继续增强 M95 “归档删除审批”区域
+- APIs/services:
+  - `listSecurityOperationAlertSlaDeadLetterAuditArchiveApprovals()`
+  - `getSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(approvalId)`
+  - `approveSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(approvalId, input)`
+  - `rejectSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(approvalId, input)`
+- Data entities:
+  - `SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem`
+  - `SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDetail`
+  - `SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalTimelineItem`
+- Fields:
+  - 审批：`id`、`archive_id`、`archive_key`、`archive_file_name`、`archive_size_bytes`、`status`、`reason`、`requested_by`、`reviewed_by`、`requested_at`、`reviewed_at`
+  - 时间线：`event_id`、`event_type`、`status`、`title`、`note`、`actor`、`request_id`、`trace_id`、`occurred_at`
+- Statuses:
+  - 审批状态：`PENDING`、`APPROVED`、`REJECTED`、`APPLIED`
+  - 事件类型：`DELETE_REQUESTED`、`APPROVED`、`REJECTED`、`DELETE_APPLIED`
+- Existing components/design system:
+  - `Card`、`Button`、`Input`、`EmptyState`、`ArchiveMetric`、`SummaryTile`、`StatusBadge`
+  - Tailwind CSS，细边框、轻背景、紧凑后台布局，中文 UI 文案
+- Required states:
+  - 审批详情 loading、empty、error
+  - 详情选择态
+  - 批准/拒绝 disabled 和 pending
+  - 事件时间线空态
+  - 审计中心 / Trace 跳转

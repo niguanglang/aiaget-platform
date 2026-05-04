@@ -11,6 +11,8 @@ GET  /runtime/health
 POST /runtime/conversations/respond
 POST /runtime/conversations/respond-stream
 POST /runtime/workflows/knowledge-tasks/start
+POST /runtime/workflows/channel-release-automation/start
+POST /runtime/workflows/channel-release-self-healing/start
 ```
 
 Runtime can call the Control API internal execution adapters when it needs to reuse tenant-scoped services:
@@ -19,6 +21,8 @@ Runtime can call the Control API internal execution adapters when it needs to re
 POST /api/v1/runtime/internal/knowledge/retrieve
 POST /api/v1/runtime/internal/tools/call
 POST /api/v1/runtime/internal/knowledge-tasks/run
+POST /api/v1/runtime/internal/channel-release-automation/run
+POST /api/v1/runtime/internal/channel-release-self-healing/run
 ```
 
 Those adapter calls require `RUNTIME_INTERNAL_TOKEN` and preserve trace headers. Control API still owns authentication context reconstruction, resource binding checks, knowledge recall logging, tool approval/log persistence, model call log persistence, conversation persistence, and security/audit boundaries.
@@ -27,16 +31,16 @@ If `langgraph` is not installed in a local development environment, Runtime fall
 
 ## Temporal workflow boundary
 
-Knowledge document processing can be dispatched through the Runtime workflow endpoint. By default `RUNTIME_TEMPORAL_ENABLED=false`, so the endpoint schedules a local Runtime fallback task and calls the Control API internal knowledge-task adapter in the background. When Temporal is explicitly enabled, the endpoint starts a Temporal workflow and a separate worker executes the activity.
+Knowledge document processing, channel release automation, and channel release self-healing can be dispatched through Runtime workflow endpoints. By default `RUNTIME_TEMPORAL_ENABLED=false`, so the endpoint schedules a local Runtime fallback task and calls the matching Control API internal adapter in the background. When Temporal is explicitly enabled, the endpoint starts a Temporal workflow and a separate worker executes the activity.
 
 Runtime environment:
 
 ```text
 RUNTIME_CORS_ORIGIN=http://localhost:3000
-RUNTIME_CONTROL_API_BASE_URL=http://127.0.0.1:3001
+RUNTIME_CONTROL_API_BASE_URL=http://localhost:3001
 RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 RUNTIME_TEMPORAL_ENABLED=false
-RUNTIME_TEMPORAL_ADDRESS=127.0.0.1:7233
+RUNTIME_TEMPORAL_ADDRESS=localhost:7233
 RUNTIME_TEMPORAL_NAMESPACE=default
 RUNTIME_TEMPORAL_TASK_QUEUE=aiaget-knowledge-tasks
 ```
@@ -46,3 +50,17 @@ Worker command when Temporal is available:
 ```text
 RUNTIME_TEMPORAL_ENABLED=true python -m app.workflows.worker
 ```
+
+## Runtime module layout
+
+M53 splits the previous single-file Runtime implementation into a stable productization boundary:
+
+```text
+app/main.py                  FastAPI HTTP routes and SSE response shell
+app/runtime/contracts.py     Request/response snapshots and graph state models
+app/runtime/execution.py     LangGraph execution graph, fallback sequence, model execution
+app/runtime/helpers.py       Prompt rendering, trace helpers, Control API adapters, SSE helpers
+app/workflows/               Temporal/local workflow dispatch boundary
+```
+
+The public Runtime endpoints and SSE event contract are unchanged by this split. Control API can continue calling the same `/runtime/conversations/respond`, `/runtime/conversations/respond-stream`, and `/runtime/workflows/knowledge-tasks/start` endpoints.

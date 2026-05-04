@@ -1,0 +1,46 @@
+# Project UI Brief
+
+- Page: M109 通知任务自愈归档删除审批通知投递
+- Route: `/security`
+- Feature goal: 把 M108 自愈归档删除审批运营告警接入现有通知投递识别体系，手动通知后在投递审计中显示专属分类、通知目标、渠道、Webhook 状态和重试能力。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心通知权限和后端 JWT/租户隔离。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 运营告警闭环 -> 通知投递审计。
+- APIs/services:
+  - `POST /api/v1/security-center/operation-alerts/:alertId/notify`
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `POST /api/v1/security-center/operation-alert-notifications/:notificationEventId/retry`
+- Alert ids:
+  - `notification-task-recovery-audit-archive-delete-pending`
+  - `notification-task-recovery-audit-archive-delete-rejected-risk`
+- Notification category:
+  - `NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE`
+- Notification targets:
+  - MEDIUM: 安全管理员、审计员
+  - HIGH: 租户管理员、安全管理员、审计员
+- Data entities and fields:
+  - `SecurityCenterOperationalAlert`
+  - `SecurityOperationAlertNotificationResult`
+  - `SecurityOperationAlertNotificationItem`
+  - fields: `alert_id`、`alert_category`、`status`、`channels`、`targets`、`webhook_status`、`webhook_error`、`retry_count`、`delivered_at`
+- Status values:
+  - `SENT` 已投递
+  - `PARTIAL` 部分成功
+  - `SKIPPED` 已跳过
+  - `FAILED` 投递失败
+- Existing components/design system:
+  - `OperationAlertCard`
+  - `OperationAlertNotificationAuditCard`
+  - `StatusBadge`、`Button`、`EmptyState`
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - notifying：告警卡片通知按钮禁用并显示“正在通知”。
+  - notification result：卡片内显示投递状态、渠道、目标和 Webhook 状态。
+  - audit loading：投递审计列表加载。
+  - empty audit：无投递记录。
+  - retryable：失败或部分成功可重试。
+  - category risk：自愈归档删除审批通知显示专属风险标签。
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - M109 只做手动通知和投递审计识别；自动首发通知任务预留给 M110。

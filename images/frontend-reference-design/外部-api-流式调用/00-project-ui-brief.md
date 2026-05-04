@@ -1,0 +1,45 @@
+# Project UI Brief
+
+- Page: 外部 API 流式调用
+- Route: /api-reference
+- Feature goal: 开放接口文档中心补齐外部 SSE 流式调用说明
+- Parent layout: `(console)` route under `ConsoleShell`
+- Target users:
+  - 租户管理员
+  - API Key 管理员
+  - 外部系统接入研发
+  - 运维和审计人员
+- Permission:
+  - 页面可见：`system:api_key:view`
+  - API Key 管理：`system:api_key:manage`
+- Existing API contracts:
+  - `POST /api/v1/external/agents/{agentId}/chat`
+  - New M58 endpoint: `POST /api/v1/external/agents/{agentId}/chat/stream`
+  - `GET /api/v1/api-keys/external-observability?window=24h|7d`
+- Stream event contract:
+  - `start`
+  - `delta`
+  - `done`
+  - `error`
+- Auth:
+  - `Authorization: Bearer ak_xxx`
+  - `x-api-key: ak_xxx`
+- Required API Key policy:
+  - `allow_stream=true`
+  - scope includes `external:agent:stream`
+  - Agent whitelist / IP whitelist / quota / permission / data scope / resource ACL continue to apply
+- Existing components/design system:
+  - Tailwind CSS
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`
+  - lucide icons
+  - motion reveal
+- Required page states:
+  - static documentation
+  - copy success
+  - security warning
+  - endpoint comparison
+  - stream event schema
+- Constraints:
+  - Do not add middleware or containers
+  - Do not expose full API Key secret
+  - All visible copy in Chinese

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 export function MobileNav() {
   const pathname = usePathname();
   const { currentUser } = useAuth();
-  const navigation = flattenNavigationLinks(buildNavigationLinks(currentUser?.menus));
+  const navigation = flattenNavigationLinks(buildNavigationLinks(currentUser?.menus, currentUser?.user.permissions ?? []));
 
   return (
     <div className="border-b border-white/70 bg-background/[0.85] shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/75 lg:hidden">

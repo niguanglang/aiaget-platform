@@ -1,23 +1,64 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 
 import {
   PERMISSION_CODES,
+  type PaginatedResult,
   type AuditFailureItem,
+  type CreateSecurityOperationAlertNotificationArchiveResult,
+  type CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult,
   type MonitorErrorSampleItem,
   type MonitorModule,
+  type SecurityCenterEventDetail,
+  type SecurityCenterEventListItem,
+  type SecurityCenterEventSource,
+  type SecurityCenterEventWindow,
   type SecurityCenterMetric,
   type SecurityCenterModuleSummary,
   type SecurityCenterDenialItem,
+  type SecurityCenterOperationalAlert,
   type SecurityCenterOverview,
   type SecurityCenterRiskLevel,
   type SecurityCenterRiskSignal,
+  type SecurityOperationAlertAction,
+  type SecurityOperationAlertActionResult,
+  type SecurityOperationAlertNotificationChannel,
+  type SecurityOperationAlertNotificationArchiveApprovalDetail,
+  type SecurityOperationAlertNotificationArchiveApprovalItem,
+  type SecurityOperationAlertNotificationArchiveApprovalOverview,
+  type SecurityOperationAlertNotificationArchiveApprovalTimelineItem,
+  type SecurityOperationAlertNotificationArchiveItem,
+  type SecurityOperationAlertNotificationArchiveListResult,
+  type SecurityOperationAlertNotificationItem,
+  type SecurityOperationAlertNotificationOverview,
+  type SecurityOperationAlertNotificationResult,
+  type SecurityOperationAlertNotificationStatus,
+  type SecurityOperationAlertNotificationTaskRecoveryAction,
+  type SecurityOperationAlertNotificationTaskRecoveryActionResult,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveListResult,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditItem,
+  type SecurityOperationAlertNotificationTaskRecoveryAuditOverview,
+  type SecurityOperationAlertNotificationTaskRecoveryFailureSource,
+  type SecurityOperationAlertNotificationTaskRecoverySuggestion,
+  type SecurityOperationAlertNotificationTaskRecoveryStatus,
+  type SecurityOperationAlertStatus,
   type SecurityPolicyDecision,
   type SecurityPolicyEvaluationItem,
+  type StorageDownloadUrlResult,
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import type { ListSecurityCenterEventsDto } from './dto/list-security-center-events.dto';
+import type { ListSecurityOperationAlertNotificationsDto } from './dto/list-security-operation-alert-notifications.dto';
+import type { ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto } from './dto/list-security-operation-alert-notification-task-recovery-audits.dto';
 
 type EvaluationRecord = Prisma.SecurityPolicyEvaluationGetPayload<{
   include: {
@@ -26,9 +67,99 @@ type EvaluationRecord = Prisma.SecurityPolicyEvaluationGetPayload<{
   };
 }>;
 
+type OperationSecurityEventRecord = Prisma.OperationLogGetPayload<{
+  include: {
+    user: true;
+  };
+}>;
+
+type PolicySecurityEventRecord = Prisma.SecurityPolicyEvaluationGetPayload<{
+  include: {
+    matchedPolicy: true;
+    operator: true;
+  };
+}>;
+
+type SecurityOperationNotificationEventRecord = Prisma.PlatformEventGetPayload<object>;
+
+type NotificationTaskStats = ReturnType<typeof summarizeNotificationTaskEvents>;
+type NotificationTaskPolicySnapshot = {
+  auto_notify_enabled: boolean;
+  auto_retry_enabled: boolean;
+};
+type NotificationDeliveryStats = {
+  total: number;
+  failed: number;
+  partial: number;
+  skipped: number;
+  webhookFailed: number;
+  latestWebhookError: string | null;
+};
+type NotificationTaskRecoveryLifecycle = {
+  action: SecurityOperationAlertNotificationTaskRecoveryAction;
+  note: string | null;
+  occurredAt: Date;
+};
+
+type NotificationTaskRecoveryFailureSourceSummary = {
+  failureSource: SecurityOperationAlertNotificationTaskRecoveryFailureSource;
+  slaDeadLetterFailedCount: number;
+  recoveryArchiveDeleteFailedCount: number;
+};
+
+type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations'], 'operational_alerts'> & {
+  tool_pending_oldest_at: Date | null;
+  runtime_pending_oldest_at: Date | null;
+  notification_pending_oldest_at: Date | null;
+  notification_high_impact_pending_oldest_at: Date | null;
+  archive_delete_pending_oldest_at: Date | null;
+  operation_alert_notification_archive_delete_pending_oldest_at: Date | null;
+  sla_dead_letter_archive_delete_pending_oldest_at: Date | null;
+  notification_task_recovery_audit_archive_delete_pending_oldest_at: Date | null;
+  notification_task_failure_oldest_at: Date | null;
+  audit_risk_oldest_at: Date | null;
+  audit_trace_gap_oldest_at: Date | null;
+  approval_audit_oldest_at: Date | null;
+  archive_storage_checked_at: Date;
+};
+
+const NOTIFICATION_POLICY_SETTING_KEYS = [
+  'alert_notification_auto_notify_enabled',
+  'alert_notification_auto_notify_interval_ms',
+  'alert_notification_auto_notify_batch_size',
+  'alert_notification_auto_retry_enabled',
+  'alert_notification_retry_interval_ms',
+  'alert_notification_retry_batch_size',
+  'alert_notification_max_retry_count',
+  'alert_notification_retry_backoff_seconds',
+  'alert_notification_lookback_hours',
+  'operation_alert_sla_enabled',
+  'operation_alert_sla_scan_interval_ms',
+  'operation_alert_sla_due_minutes',
+  'operation_alert_sla_warning_minutes',
+  'operation_alert_sla_auto_escalate_enabled',
+  'operation_alert_sla_lookback_hours',
+  'operation_alert_sla_subscription_policy',
+  'operation_alert_sla_notification_auto_retry_enabled',
+  'operation_alert_sla_notification_retry_interval_ms',
+  'operation_alert_sla_notification_retry_batch_size',
+  'operation_alert_sla_notification_max_retry_count',
+  'operation_alert_sla_notification_retry_backoff_seconds',
+  'operation_alert_sla_notification_lookback_hours',
+] as const;
+
+const SECURITY_OPERATION_ALERT_WEBHOOK_TIMEOUT_MS = 5000;
+const OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX = 'audit-archives/security-operation-alert-notifications';
+const OPERATION_ALERT_NOTIFICATION_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
+const NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_PREFIX = 'audit-archives/security-notification-task-recovery-audits';
+const NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
+
 @Injectable()
 export class SecurityCenterService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(StorageService) private readonly storageService: StorageService,
+  ) {}
 
   async getOverview(currentUser: AuthenticatedUser): Promise<SecurityCenterOverview> {
     const tenantId = currentUser.tenantId;
@@ -46,6 +177,7 @@ export class SecurityCenterService {
       recentDenials,
       recentAuditFailures,
       recentMonitorErrors,
+      approvalOperations,
     ] = await Promise.all([
       this.loadPolicyStats(tenantId),
       this.loadDataScopeStats(tenantId),
@@ -58,6 +190,7 @@ export class SecurityCenterService {
       this.loadRecentDenials(tenantId, since24h),
       this.loadRecentAuditFailures(tenantId, since24h),
       this.loadRecentMonitorErrors(tenantId, since24h),
+      this.loadApprovalOperations(tenantId, since24h),
     ]);
 
     const metrics = {
@@ -89,13 +222,1146 @@ export class SecurityCenterService {
       posture,
       metrics,
       modules,
-      risks: buildRiskSignals(metrics, posture),
+      approval_operations: approvalOperations,
+      risks: buildRiskSignals(metrics, posture, approvalOperations),
       recent: {
         policy_evaluations: recentEvaluations,
         security_denials: recentDenials,
         audit_failures: recentAuditFailures,
         monitor_errors: recentMonitorErrors,
       },
+    };
+  }
+
+  async listEvents(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityCenterEventsDto,
+  ): Promise<PaginatedResult<SecurityCenterEventListItem>> {
+    const page = Number(query.page ?? 1);
+    const pageSize = Number(query.page_size ?? 20);
+    const window = normalizeEventWindow(query.window);
+    const since = eventWindowStart(window);
+    const keyword = query.keyword?.trim().toLowerCase();
+    const source = normalizeEventSource(query.source);
+
+    const events = (await this.loadSecurityEvents(currentUser.tenantId, since)).filter((event) => {
+      if (source && event.source !== source) return false;
+      if (query.trace_only && !event.has_trace) return false;
+      if (!keyword) return true;
+
+      return [
+        event.title,
+        event.reason,
+        event.resource_type,
+        event.resource_id,
+        event.action,
+        event.path,
+        event.method,
+        event.request_id,
+        event.trace_id,
+        event.matched_code,
+      ].some((value) => value?.toLowerCase().includes(keyword));
+    });
+
+    return {
+      items: events.slice((page - 1) * pageSize, page * pageSize).map(stripEventDetail),
+      page,
+      page_size: pageSize,
+      total: events.length,
+    };
+  }
+
+  async notifyOperationAlert(
+    currentUser: AuthenticatedUser,
+    alertId: string,
+    input: {
+      channels?: SecurityOperationAlertNotificationChannel[];
+      note?: string | null;
+    },
+  ): Promise<SecurityOperationAlertNotificationResult> {
+    const overview = await this.getOverview(currentUser);
+    const alert = overview.approval_operations.operational_alerts.find((item) => item.id === alertId);
+
+    if (!alert) {
+      throw new NotFoundException('Security operation alert not found');
+    }
+
+    return this.deliverOperationAlertNotification(currentUser, alert.id, input, {});
+  }
+
+  async updateOperationAlert(
+    currentUser: AuthenticatedUser,
+    alertId: string,
+    input: {
+      action: SecurityOperationAlertAction;
+      note?: string | null;
+    },
+  ): Promise<SecurityOperationAlertActionResult> {
+    const overview = await this.getOverview(currentUser);
+    const alert = overview.approval_operations.operational_alerts.find((item) => item.id === alertId);
+
+    if (!alert) {
+      throw new NotFoundException('Security operation alert not found');
+    }
+
+    const occurredAt = new Date();
+    const status = securityOperationStatusFromAction(input.action);
+    const eventType = securityOperationAlertEventType(input.action);
+    await this.prisma.platformEvent.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        userId: isSystemActor(currentUser) ? null : currentUser.id,
+        actorType: isSystemActor(currentUser) ? 'SYSTEM' : 'USER',
+        resourceType: 'security_operation_alert',
+        resourceId: alert.id,
+        requestId: currentUser.requestId,
+        traceId: currentUser.traceId,
+        eventSource: 'security_center',
+        eventType,
+        status: 'SUCCESS',
+        severity: input.action === 'ESCALATE' ? 'WARN' : 'INFO',
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary: securityOperationLifecycleMessage(input.action, alert.title),
+        payloadJson: {
+          alert_id: alert.id,
+          title: alert.title,
+          severity: alert.severity,
+          metric: alert.metric,
+          href: alert.href,
+          action: input.action,
+          status,
+          note: input.note ?? null,
+          occurred_at: occurredAt.toISOString(),
+        },
+        occurredAt,
+        sourceSystem: 'security_center',
+        sourceId: `approval-operation-alert-lifecycle:${alert.id}:${input.action}:${occurredAt.toISOString()}`,
+        dedupeKey: null,
+      },
+    });
+
+    return {
+      alert_id: alert.id,
+      status,
+      last_action: input.action,
+      last_note: input.note ?? null,
+      updated_at: occurredAt.toISOString(),
+    };
+  }
+
+  async listOperationAlertNotifications(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationsDto,
+  ): Promise<SecurityOperationAlertNotificationOverview> {
+    const items = await this.loadFilteredOperationAlertNotificationItems(currentUser.tenantId, query, 1000);
+
+    return {
+      generated_at: new Date().toISOString(),
+      summary: buildSecurityOperationAlertNotificationSummary(items),
+      items: items.slice(0, 100),
+    };
+  }
+
+  async exportOperationAlertNotifications(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationsDto,
+  ): Promise<string> {
+    const items = await this.loadFilteredOperationAlertNotificationItems(currentUser.tenantId, query, 1000);
+    return buildSecurityOperationAlertNotificationCsv(items);
+  }
+
+  async createOperationAlertNotificationArchive(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationsDto,
+  ): Promise<CreateSecurityOperationAlertNotificationArchiveResult> {
+    const csv = await this.exportOperationAlertNotifications(currentUser, query);
+    const createdAt = new Date();
+    const archiveKey = `${OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX}/${createdAt.toISOString().replace(/[:.]/g, '-')}.csv`;
+    const item = await this.storageService.putTenantObject({
+      tenantId: currentUser.tenantId,
+      key: archiveKey,
+      body: `\uFEFF${csv}`,
+      contentType: 'text/csv; charset=utf-8',
+      metadata: {
+        archive_type: 'security_operation_alert_notification_audit',
+        created_by: currentUser.id,
+        status: query.status ?? '',
+        alert_category: query.alert_category ?? '',
+        keyword: query.keyword ?? '',
+      },
+    });
+
+    return {
+      item: mapOperationAlertNotificationArchive(item),
+    };
+  }
+
+  async listOperationAlertNotificationArchives(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationArchiveListResult> {
+    const items = (await this.storageService.listTenantObjects({
+      tenantId: currentUser.tenantId,
+      prefix: OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX,
+      limit: 100,
+    })).map(mapOperationAlertNotificationArchive);
+
+    return {
+      items,
+      total: items.length,
+      summary: {
+        archive_count: items.length,
+        total_size_bytes: items.reduce((sum, item) => sum + item.size_bytes, 0),
+      },
+    };
+  }
+
+  async getOperationAlertNotificationArchiveDownloadUrl(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<StorageDownloadUrlResult> {
+    return this.storageService.getTenantObjectDownloadUrl(
+      currentUser.tenantId,
+      operationAlertNotificationArchiveKeyFromId(archiveId),
+      OPERATION_ALERT_NOTIFICATION_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    );
+  }
+
+  async deleteOperationAlertNotificationArchive(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    const key = operationAlertNotificationArchiveKeyFromId(archiveId);
+    const sourceId = operationAlertNotificationArchiveSourceIdFromKey(key);
+    const existing = await this.findPendingOperationAlertNotificationArchiveDeleteApproval(
+      currentUser.tenantId,
+      sourceId,
+    );
+
+    if (existing) {
+      return {
+        success: true,
+        approval_id: existing.id,
+      };
+    }
+
+    const archive = mapOperationAlertNotificationArchive({
+      key,
+      relative_key: key,
+      file_name: key.split('/').at(-1) ?? key,
+      folder: OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX,
+      size_bytes: 0,
+      etag: null,
+      last_modified: null,
+    });
+    const event = await this.recordOperationAlertNotificationArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId,
+      eventType: 'DELETE_REQUESTED',
+      status: 'WARNING',
+      severity: 'WARN',
+      summary: '运营告警通知审计归档删除待审批',
+      note: '删除通知投递审计归档属于高危审计操作，已进入审批队列。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_id: archiveId,
+        archive_key: key,
+        archive_file_name: archive.file_name,
+        archive_size_bytes: archive.size_bytes,
+      },
+    });
+
+    return {
+      success: true,
+      approval_id: event.id,
+    };
+  }
+
+  async getOperationAlertNotificationArchiveApprovalOverview(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalOverview> {
+    const items = await this.listOperationAlertNotificationArchiveApprovals(currentUser);
+
+    return {
+      pending_count: items.filter((item) => item.status === 'PENDING').length,
+      approved_count: items.filter((item) => item.status === 'APPROVED').length,
+      rejected_count: items.filter((item) => item.status === 'REJECTED').length,
+      applied_count: items.filter((item) => item.status === 'APPLIED').length,
+    };
+  }
+
+  async listOperationAlertNotificationArchiveApprovals(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalItem[]> {
+    const events = await this.loadOperationAlertNotificationArchiveDeleteEvents(currentUser.tenantId);
+    return buildOperationAlertNotificationArchiveDeleteApprovals(events);
+  }
+
+  async getOperationAlertNotificationArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalDetail> {
+    const events = await this.loadOperationAlertNotificationArchiveDeleteEvents(currentUser.tenantId);
+    const item = buildOperationAlertNotificationArchiveDeleteApprovals(events).find(
+      (approval) => approval.id === approvalId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('运营告警通知审计归档删除审批不存在。');
+    }
+
+    return {
+      ...item,
+      audit_timeline: events
+        .filter((event) => event.source_id === item.archive_id)
+        .sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at)),
+    };
+  }
+
+  async approveOperationAlertNotificationArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    input: { decision_note?: string | null },
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalDetail> {
+    const detail = await this.getOperationAlertNotificationArchiveApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的运营告警通知审计归档删除申请可以批准。');
+    }
+
+    await this.recordOperationAlertNotificationArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'APPROVED',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      summary: '运营告警通知审计归档删除已批准',
+      note: nullableText(input.decision_note),
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    await this.storageService.deleteTenantObject(currentUser.tenantId, detail.archive_key);
+
+    await this.recordOperationAlertNotificationArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'DELETE_APPLIED',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      summary: '运营告警通知审计归档删除已生效',
+      note: '归档文件已从对象存储删除。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    return this.getOperationAlertNotificationArchiveApproval(currentUser, approvalId);
+  }
+
+  async rejectOperationAlertNotificationArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    input: { decision_note?: string | null },
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalDetail> {
+    const detail = await this.getOperationAlertNotificationArchiveApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的运营告警通知审计归档删除申请可以拒绝。');
+    }
+
+    await this.recordOperationAlertNotificationArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'REJECTED',
+      status: 'WARNING',
+      severity: 'WARN',
+      summary: '运营告警通知审计归档删除已拒绝',
+      note: nullableText(input.decision_note) ?? '归档删除申请已拒绝。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    return this.getOperationAlertNotificationArchiveApproval(currentUser, approvalId);
+  }
+
+  private async loadFilteredOperationAlertNotificationItems(
+    tenantId: string,
+    query: ListSecurityOperationAlertNotificationsDto,
+    take: number,
+  ) {
+    const keyword = query.keyword?.trim().toLowerCase();
+    const events = await this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        eventType: 'platform.security.approval_operation_alert.notification_sent',
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take,
+    });
+
+    return events
+      .map(mapSecurityOperationAlertNotificationEvent)
+      .filter((item) => !query.status || item.status === query.status)
+      .filter((item) => !query.alert_category || item.alert_category === query.alert_category)
+      .filter((item) => {
+        if (!keyword) return true;
+        return [
+          item.alert_id,
+          item.notification_event_id,
+          item.alert_category,
+          item.status,
+          item.message,
+          item.webhook_error,
+          item.request_id,
+          item.trace_id,
+          item.targets.join(' '),
+          item.channels.join(' '),
+        ].some((value) => value?.toLowerCase().includes(keyword));
+      });
+  }
+
+  private async loadOperationAlertNotificationArchiveDeleteEvents(
+    tenantId: string,
+  ): Promise<SecurityOperationAlertNotificationArchiveApprovalTimelineItem[]> {
+    const events = await this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        eventType: {
+          in: [
+            'platform.security.approval_operation_alert_notification.archive.delete_requested',
+            'platform.security.approval_operation_alert_notification.archive.delete_approved',
+            'platform.security.approval_operation_alert_notification.archive.delete_rejected',
+            'platform.security.approval_operation_alert_notification.archive.delete_applied',
+          ],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 500,
+    });
+
+    return events.map(mapOperationAlertNotificationArchiveApprovalEvent);
+  }
+
+  private async findPendingOperationAlertNotificationArchiveDeleteApproval(tenantId: string, sourceId: string) {
+    const events = (await this.loadOperationAlertNotificationArchiveDeleteEvents(tenantId)).filter(
+      (event) => event.source_id === sourceId,
+    );
+    const approval = buildOperationAlertNotificationArchiveDeleteApprovals(events)[0] ?? null;
+    return approval?.status === 'PENDING' ? approval : null;
+  }
+
+  private async recordOperationAlertNotificationArchiveEvent(input: {
+    tenantId: string;
+    userId: string | null;
+    sourceId: string;
+    eventType: 'DELETE_REQUESTED' | 'APPROVED' | 'REJECTED' | 'DELETE_APPLIED';
+    status: string;
+    severity: string;
+    summary: string;
+    note?: string | null;
+    requestId?: string | null;
+    traceId?: string | null;
+    payload: Record<string, unknown>;
+  }) {
+    const eventTypeMap = {
+      DELETE_REQUESTED: 'platform.security.approval_operation_alert_notification.archive.delete_requested',
+      APPROVED: 'platform.security.approval_operation_alert_notification.archive.delete_approved',
+      REJECTED: 'platform.security.approval_operation_alert_notification.archive.delete_rejected',
+      DELETE_APPLIED: 'platform.security.approval_operation_alert_notification.archive.delete_applied',
+    } satisfies Record<typeof input.eventType, string>;
+
+    return this.prisma.platformEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        userId: input.userId,
+        actorType: input.userId ? 'USER' : 'SYSTEM',
+        resourceType: 'SECURITY_OPERATION_ALERT_NOTIFICATION_ARCHIVE',
+        resourceId: input.sourceId,
+        requestId: input.requestId ?? null,
+        traceId: input.traceId ?? null,
+        eventSource: 'security_center',
+        eventType: eventTypeMap[input.eventType],
+        status: input.status,
+        severity: input.severity,
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary: input.summary,
+        payloadJson: {
+          ...input.payload,
+          event_type: input.eventType,
+          note: input.note ?? null,
+        },
+        occurredAt: new Date(),
+        sourceSystem: 'security_center',
+        sourceId: input.sourceId,
+        dedupeKey: null,
+      },
+    });
+  }
+
+  async retryOperationAlertNotification(
+    currentUser: AuthenticatedUser,
+    notificationEventId: string,
+  ): Promise<SecurityOperationAlertNotificationResult> {
+    const event = await this.prisma.platformEvent.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: notificationEventId,
+        eventSource: 'security_center',
+        eventType: 'platform.security.approval_operation_alert.notification_sent',
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Security operation alert notification not found');
+    }
+
+    const notification = mapSecurityOperationAlertNotificationEvent(event);
+    if (!isRetryableSecurityOperationNotification(notification.status)) {
+      throw new NotFoundException('Only failed or partial security operation alert notifications can be retried');
+    }
+
+    return this.deliverOperationAlertNotification(
+      currentUser,
+      notification.alert_id,
+      {
+        channels: notification.channels.length ? notification.channels : ['IN_APP', 'WEBHOOK'],
+        note: `重试投递 ${notification.notification_event_id}`,
+      },
+      {
+        retriedFromEventId: notification.notification_event_id,
+        retryCount: notification.retry_count + 1,
+      },
+    );
+  }
+
+  async listCurrentOperationAlerts(currentUser: AuthenticatedUser): Promise<SecurityCenterOperationalAlert[]> {
+    const overview = await this.getOverview(currentUser);
+    return overview.approval_operations.operational_alerts;
+  }
+
+  async updateNotificationTaskRecoverySuggestion(
+    currentUser: AuthenticatedUser,
+    suggestionId: string,
+    input: {
+      action: SecurityOperationAlertNotificationTaskRecoveryAction;
+      note?: string | null;
+    },
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryActionResult> {
+    const overview = await this.getOverview(currentUser);
+    const suggestion = overview.approval_operations.notification_task_recovery_suggestions.find(
+      (item) => item.id === suggestionId,
+    );
+
+    if (!suggestion) {
+      throw new NotFoundException('Notification task recovery suggestion not found');
+    }
+
+    const occurredAt = new Date();
+    const status = notificationTaskRecoveryStatusFromAction(input.action);
+    await this.prisma.platformEvent.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        userId: isSystemActor(currentUser) ? null : currentUser.id,
+        actorType: isSystemActor(currentUser) ? 'SYSTEM' : 'USER',
+        resourceType: 'security_operation_alert_notification_task_recovery_suggestion',
+        resourceId: suggestion.id,
+        requestId: currentUser.requestId,
+        traceId: currentUser.traceId,
+        eventSource: 'security_center',
+        eventType: notificationTaskRecoveryEventType(input.action),
+        status: 'SUCCESS',
+        severity: input.action === 'RESOLVE' ? 'INFO' : 'WARN',
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary: notificationTaskRecoveryLifecycleMessage(input.action, suggestion.title),
+        payloadJson: {
+          suggestion_id: suggestion.id,
+          title: suggestion.title,
+          severity: suggestion.severity,
+          reason_code: suggestion.reason_code,
+          failure_source: suggestion.failure_source,
+          sla_dead_letter_failed_count: suggestion.sla_dead_letter_failed_count,
+          recovery_archive_delete_failed_count: suggestion.recovery_archive_delete_failed_count,
+          action: input.action,
+          status,
+          note: input.note ?? null,
+          evidence: suggestion.evidence,
+          occurred_at: occurredAt.toISOString(),
+        },
+        occurredAt,
+        sourceSystem: 'security_center',
+        sourceId: `notification-task-recovery:${suggestion.id}:${input.action}:${occurredAt.toISOString()}`,
+        dedupeKey: null,
+      },
+    });
+
+    return {
+      suggestion_id: suggestion.id,
+      failure_source: suggestion.failure_source,
+      status,
+      last_action: input.action,
+      last_note: input.note ?? null,
+      updated_at: occurredAt.toISOString(),
+    };
+  }
+
+  async listNotificationTaskRecoveryAudits(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditOverview> {
+    const items = await this.loadFilteredNotificationTaskRecoveryAuditItems(currentUser.tenantId, query);
+
+    return {
+      generated_at: new Date().toISOString(),
+      summary: buildNotificationTaskRecoveryAuditSummary(items),
+      items,
+    };
+  }
+
+  async exportNotificationTaskRecoveryAudits(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto,
+  ): Promise<string> {
+    const items = await this.loadFilteredNotificationTaskRecoveryAuditItems(currentUser.tenantId, query);
+    return buildNotificationTaskRecoveryAuditCsv(items);
+  }
+
+  async createNotificationTaskRecoveryAuditArchive(
+    currentUser: AuthenticatedUser,
+    query: ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto,
+  ): Promise<CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult> {
+    const csv = await this.exportNotificationTaskRecoveryAudits(currentUser, query);
+    const createdAt = new Date();
+    const archiveKey = `${NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_PREFIX}/${createdAt.toISOString().replace(/[:.]/g, '-')}.csv`;
+    const item = await this.storageService.putTenantObject({
+      tenantId: currentUser.tenantId,
+      key: archiveKey,
+      body: `\uFEFF${csv}`,
+      contentType: 'text/csv; charset=utf-8',
+        metadata: {
+          archive_type: 'security_notification_task_recovery_audit',
+          created_by: currentUser.id,
+          action: query.action ?? '',
+          status: query.status ?? '',
+          reason_code: query.reason_code ?? '',
+          failure_source: query.failure_source ?? '',
+          keyword: query.keyword ?? '',
+        },
+    });
+
+    return {
+      item: mapNotificationTaskRecoveryAuditArchive(item),
+    };
+  }
+
+  async listNotificationTaskRecoveryAuditArchives(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveListResult> {
+    const items = (await this.storageService.listTenantObjects({
+      tenantId: currentUser.tenantId,
+      prefix: NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_PREFIX,
+      limit: 100,
+    })).map(mapNotificationTaskRecoveryAuditArchive);
+
+    return {
+      items,
+      total: items.length,
+      summary: {
+        archive_count: items.length,
+        total_size_bytes: items.reduce((sum, item) => sum + item.size_bytes, 0),
+      },
+    };
+  }
+
+  async getNotificationTaskRecoveryAuditArchiveDownloadUrl(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<StorageDownloadUrlResult> {
+    const key = notificationTaskRecoveryAuditArchiveKeyFromId(archiveId);
+    return this.storageService.getTenantObjectDownloadUrl(
+      currentUser.tenantId,
+      key,
+      NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    );
+  }
+
+  async deleteNotificationTaskRecoveryAuditArchive(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    const key = notificationTaskRecoveryAuditArchiveKeyFromId(archiveId);
+    const sourceId = notificationTaskRecoveryAuditArchiveSourceIdFromKey(key);
+    const existing = await this.findPendingNotificationTaskRecoveryAuditArchiveDeleteApproval(
+      currentUser.tenantId,
+      sourceId,
+    );
+
+    if (existing) {
+      return {
+        success: true,
+        approval_id: existing.id,
+      };
+    }
+
+    const archive = mapNotificationTaskRecoveryAuditArchive({
+      key,
+      relative_key: key,
+      file_name: key.split('/').at(-1) ?? key,
+      folder: NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_PREFIX,
+      size_bytes: 0,
+      etag: null,
+      last_modified: null,
+    });
+    const event = await this.recordNotificationTaskRecoveryAuditArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId,
+      eventType: 'DELETE_REQUESTED',
+      status: 'WARNING',
+      severity: 'WARN',
+      summary: '通知任务自愈闭环审计归档删除待审批',
+      note: '删除归档属于高危审计操作，已进入审批队列。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_id: archiveId,
+        archive_key: key,
+        archive_file_name: archive.file_name,
+        archive_size_bytes: archive.size_bytes,
+      },
+    });
+
+    return {
+      success: true,
+      approval_id: event.id,
+    };
+  }
+
+  async getNotificationTaskRecoveryAuditArchiveApprovalOverview(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview> {
+    const items = await this.listNotificationTaskRecoveryAuditArchiveApprovals(currentUser);
+
+    return {
+      pending_count: items.filter((item) => item.status === 'PENDING').length,
+      approved_count: items.filter((item) => item.status === 'APPROVED').length,
+      rejected_count: items.filter((item) => item.status === 'REJECTED').length,
+      applied_count: items.filter((item) => item.status === 'APPLIED').length,
+    };
+  }
+
+  async listNotificationTaskRecoveryAuditArchiveApprovals(
+    currentUser: AuthenticatedUser,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem[]> {
+    const events = await this.loadNotificationTaskRecoveryAuditArchiveDeleteEvents(currentUser.tenantId);
+    return buildNotificationTaskRecoveryAuditArchiveDeleteApprovals(events);
+  }
+
+  async getNotificationTaskRecoveryAuditArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail> {
+    const events = await this.loadNotificationTaskRecoveryAuditArchiveDeleteEvents(currentUser.tenantId);
+    const item = buildNotificationTaskRecoveryAuditArchiveDeleteApprovals(events).find(
+      (approval) => approval.id === approvalId,
+    );
+
+    if (!item) {
+      throw new NotFoundException('通知任务自愈闭环审计归档删除审批不存在。');
+    }
+
+    return {
+      ...item,
+      audit_timeline: events
+        .filter((event) => event.source_id === item.archive_id)
+        .sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at)),
+    };
+  }
+
+  async approveNotificationTaskRecoveryAuditArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    input: { decision_note?: string | null },
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail> {
+    const detail = await this.getNotificationTaskRecoveryAuditArchiveApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的通知任务自愈闭环审计归档删除申请可以批准。');
+    }
+
+    await this.recordNotificationTaskRecoveryAuditArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'APPROVED',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      summary: '通知任务自愈闭环审计归档删除已批准',
+      note: nullableText(input.decision_note),
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    await this.storageService.deleteTenantObject(currentUser.tenantId, detail.archive_key);
+
+    await this.recordNotificationTaskRecoveryAuditArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'DELETE_APPLIED',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      summary: '通知任务自愈闭环审计归档删除已生效',
+      note: '归档文件已从对象存储删除。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    return this.getNotificationTaskRecoveryAuditArchiveApproval(currentUser, approvalId);
+  }
+
+  async rejectNotificationTaskRecoveryAuditArchiveApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    input: { decision_note?: string | null },
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail> {
+    const detail = await this.getNotificationTaskRecoveryAuditArchiveApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的通知任务自愈闭环审计归档删除申请可以拒绝。');
+    }
+
+    await this.recordNotificationTaskRecoveryAuditArchiveEvent({
+      tenantId: currentUser.tenantId,
+      userId: currentUser.id,
+      sourceId: detail.archive_id,
+      eventType: 'REJECTED',
+      status: 'WARNING',
+      severity: 'WARN',
+      summary: '通知任务自愈闭环审计归档删除已拒绝',
+      note: nullableText(input.decision_note) ?? '归档删除申请已拒绝。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      payload: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+        archive_size_bytes: detail.archive_size_bytes,
+      },
+    });
+
+    return this.getNotificationTaskRecoveryAuditArchiveApproval(currentUser, approvalId);
+  }
+
+  private async loadFilteredNotificationTaskRecoveryAuditItems(
+    tenantId: string,
+    query: ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto,
+  ) {
+    const keyword = query.keyword?.trim().toLowerCase();
+    const events = await this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        resourceType: 'security_operation_alert_notification_task_recovery_suggestion',
+        eventType: {
+          in: [
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged',
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.ignored',
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.resolved',
+          ],
+        },
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 1000,
+    });
+
+    return events
+      .map(mapNotificationTaskRecoveryAuditEvent)
+      .filter((item) => !query.action || item.action === query.action)
+      .filter((item) => !query.status || item.status === query.status)
+      .filter((item) => !query.reason_code || item.reason_code === query.reason_code)
+      .filter((item) => !query.failure_source || item.failure_source === query.failure_source)
+      .filter((item) => {
+        if (!keyword) return true;
+        return [
+          item.event_id,
+          item.suggestion_id,
+          item.title,
+          item.reason_code,
+          item.failure_source,
+          notificationTaskRecoveryFailureSourceLabel(item.failure_source),
+          item.action,
+          item.status,
+          item.note,
+          item.evidence,
+          item.request_id,
+          item.trace_id,
+        ].some((value) => value?.toLowerCase().includes(keyword));
+      });
+  }
+
+  private async loadNotificationTaskRecoveryAuditArchiveDeleteEvents(
+    tenantId: string,
+  ): Promise<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem[]> {
+    const events = await this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        eventType: {
+          in: [
+            'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_requested',
+            'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_approved',
+            'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_rejected',
+            'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_applied',
+          ],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 500,
+    });
+
+    return events.map(mapNotificationTaskRecoveryAuditArchiveApprovalEvent);
+  }
+
+  private async findPendingNotificationTaskRecoveryAuditArchiveDeleteApproval(tenantId: string, sourceId: string) {
+    const events = (await this.loadNotificationTaskRecoveryAuditArchiveDeleteEvents(tenantId)).filter(
+      (event) => event.source_id === sourceId,
+    );
+    const approval = buildNotificationTaskRecoveryAuditArchiveDeleteApprovals(events)[0] ?? null;
+    return approval?.status === 'PENDING' ? approval : null;
+  }
+
+  private async recordNotificationTaskRecoveryAuditArchiveEvent(input: {
+    tenantId: string;
+    userId: string | null;
+    sourceId: string;
+    eventType: 'DELETE_REQUESTED' | 'APPROVED' | 'REJECTED' | 'DELETE_APPLIED';
+    status: string;
+    severity: string;
+    summary: string;
+    note?: string | null;
+    requestId?: string | null;
+    traceId?: string | null;
+    payload: Record<string, unknown>;
+  }) {
+    const eventTypeMap = {
+      DELETE_REQUESTED: 'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_requested',
+      APPROVED: 'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_approved',
+      REJECTED: 'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_rejected',
+      DELETE_APPLIED: 'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_applied',
+    } satisfies Record<typeof input.eventType, string>;
+
+    return this.prisma.platformEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        userId: input.userId,
+        actorType: input.userId ? 'USER' : 'SYSTEM',
+        resourceType: 'SECURITY_OPERATION_ALERT_NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE',
+        resourceId: input.sourceId,
+        requestId: input.requestId ?? null,
+        traceId: input.traceId ?? null,
+        eventSource: 'security_center',
+        eventType: eventTypeMap[input.eventType],
+        status: input.status,
+        severity: input.severity,
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary: input.summary,
+        payloadJson: {
+          ...input.payload,
+          event_type: input.eventType,
+          note: input.note ?? null,
+        },
+        occurredAt: new Date(),
+        sourceSystem: 'security_center',
+        sourceId: input.sourceId,
+        dedupeKey: null,
+      },
+    });
+  }
+
+  async getEvent(currentUser: AuthenticatedUser, eventId: string): Promise<SecurityCenterEventDetail> {
+    const event = await this.findSecurityEvent(currentUser.tenantId, eventId);
+
+    if (!event) {
+      throw new NotFoundException('Security event not found');
+    }
+
+    return event;
+  }
+
+  private async loadExternalWebhookUrl(tenantId: string) {
+    const setting = await this.prisma.systemSetting.findFirst({
+      where: {
+        tenantId,
+        key: 'external_webhook_url',
+        status: 'ACTIVE',
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+    const value = typeof setting?.value === 'string' ? setting.value.trim() : '';
+    return value || null;
+  }
+
+  private async loadNotificationTaskPolicySnapshot(tenantId: string): Promise<NotificationTaskPolicySnapshot> {
+    const settings = await this.prisma.systemSetting.findMany({
+      where: {
+        tenantId,
+        category: 'NOTIFICATION',
+        deletedAt: null,
+        status: 'ACTIVE',
+        key: {
+          in: ['alert_notification_auto_notify_enabled', 'alert_notification_auto_retry_enabled'],
+        },
+      },
+      select: {
+        key: true,
+        value: true,
+      },
+    });
+    const values = new Map(settings.map((setting) => [setting.key, setting.value]));
+
+    return {
+      auto_notify_enabled: booleanSetting(values.get('alert_notification_auto_notify_enabled'), true),
+      auto_retry_enabled: booleanSetting(values.get('alert_notification_auto_retry_enabled'), true),
+    };
+  }
+
+  private async deliverOperationAlertNotification(
+    currentUser: AuthenticatedUser,
+    alertId: string,
+    input: {
+      channels?: SecurityOperationAlertNotificationChannel[];
+      note?: string | null;
+    },
+    options: {
+      retriedFromEventId?: string | null;
+      retryCount?: number;
+    },
+  ): Promise<SecurityOperationAlertNotificationResult> {
+    const overview = await this.getOverview(currentUser);
+    const alert = overview.approval_operations.operational_alerts.find((item) => item.id === alertId);
+
+    if (!alert) {
+      throw new NotFoundException('Security operation alert not found');
+    }
+
+    const channels = normalizeSecurityOperationAlertChannels(input.channels);
+    const deliveredAt = new Date();
+    const targets = securityOperationAlertNotificationTargets(alert);
+    const alertCategory = securityOperationAlertCategory(alert);
+    const webhookUrl = channels.includes('WEBHOOK') ? await this.loadExternalWebhookUrl(currentUser.tenantId) : null;
+    const webhookResult = webhookUrl
+      ? await deliverSecurityOperationAlertWebhook(webhookUrl, alert, input.note ?? null, targets, alertCategory)
+      : null;
+    const webhookSkipped = channels.includes('WEBHOOK') && !webhookUrl;
+    const status = securityOperationNotificationStatus(channels, webhookResult, webhookSkipped);
+    const message = securityOperationNotificationMessage(status, channels, webhookSkipped);
+    const deliveryEvent = await this.prisma.platformEvent.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        userId: isSystemActor(currentUser) ? null : currentUser.id,
+        actorType: isSystemActor(currentUser) ? 'SYSTEM' : 'USER',
+        resourceType: 'security_operation_alert',
+        resourceId: alert.id,
+        requestId: currentUser.requestId,
+        traceId: currentUser.traceId,
+        eventSource: 'security_center',
+        eventType: 'platform.security.approval_operation_alert.notification_sent',
+        status: status === 'FAILED' ? 'FAILED' : status === 'SKIPPED' ? 'SKIPPED' : 'SUCCESS',
+        severity: status === 'FAILED' ? 'WARN' : 'INFO',
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary: message,
+        payloadJson: {
+          alert_id: alert.id,
+          title: alert.title,
+          severity: alert.severity,
+          metric: alert.metric,
+          href: alert.href,
+          status,
+          channels,
+          targets,
+          alert_category: alertCategory,
+          note: input.note ?? null,
+          webhook_status: webhookResult?.status ?? null,
+          webhook_error: webhookResult?.error ?? null,
+          retry_count: options.retryCount ?? 0,
+          retried_from_event_id: options.retriedFromEventId ?? null,
+          delivered_at: deliveredAt.toISOString(),
+        },
+        occurredAt: deliveredAt,
+        sourceSystem: 'security_center',
+        sourceId: `approval-operation-alert-notify:${alert.id}:${deliveredAt.toISOString()}`,
+        dedupeKey: null,
+      },
+    });
+
+    return {
+      alert_id: alert.id,
+      status,
+      channels,
+      targets,
+      delivery_event_id: deliveryEvent.id,
+      webhook_status: webhookResult?.status ?? null,
+      message,
+      delivered_at: deliveredAt.toISOString(),
     };
   }
 
@@ -282,7 +1548,17 @@ export class SecurityCenterService {
   }
 
   private async loadApprovalStats(tenantId: string) {
-    const [pending, approved, rejected, runtimePending, testPending] = await this.prisma.$transaction([
+    const [
+      toolPending,
+      toolApproved,
+      toolRejected,
+      runtimePending,
+      testPending,
+      notificationPending,
+      notificationApproved,
+      notificationRejected,
+      notificationHighImpactPending,
+    ] = await this.prisma.$transaction([
       this.prisma.toolApprovalRequest.count({
         where: {
           tenantId,
@@ -315,14 +1591,59 @@ export class SecurityCenterService {
           triggerSource: 'TEST',
         },
       }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'APPROVED',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'REJECTED',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+          impactLevel: 'HIGH',
+        },
+      }),
     ]);
+    const pending = toolPending + notificationPending;
+    const approved = toolApproved + notificationApproved;
+    const rejected = toolRejected + notificationRejected;
 
     return {
       pending,
       approved,
       rejected,
+      toolPending,
       runtimePending,
       testPending,
+      notificationPending,
+      notificationApproved,
+      notificationRejected,
+      notificationHighImpactPending,
     };
   }
 
@@ -386,6 +1707,445 @@ export class SecurityCenterService {
       configChanges,
       successRate: ratioPercent(total - failed, total),
     };
+  }
+
+  private async loadApprovalOperations(tenantId: string, since: Date): Promise<SecurityCenterOverview['approval_operations']> {
+    const [
+      toolPending,
+      toolApproved,
+      toolRejected,
+      runtimePending,
+      notificationPending,
+      notificationHighImpactPending,
+      approvalAuditEvents,
+      archiveDeleteEvents,
+      operationAlertNotificationArchiveDeleteEvents,
+      slaDeadLetterArchiveDeleteEvents,
+      notificationTaskRecoveryAuditArchiveDeleteEvents,
+      notificationTaskEvents,
+      notificationDeliveryEvents,
+      archiveStorageStats,
+      lifecycleEvents,
+      notificationTaskRecoveryEvents,
+      externalWebhookUrl,
+      notificationTaskPolicy,
+      toolPendingOldest,
+      runtimePendingOldest,
+      notificationPendingOldest,
+      notificationHighImpactPendingOldest,
+    ] = await Promise.all([
+      this.prisma.toolApprovalRequest.count({
+        where: {
+          tenantId,
+          status: 'PENDING',
+        },
+      }),
+      this.prisma.toolApprovalRequest.count({
+        where: {
+          tenantId,
+          status: 'APPROVED',
+        },
+      }),
+      this.prisma.toolApprovalRequest.count({
+        where: {
+          tenantId,
+          status: 'REJECTED',
+        },
+      }),
+      this.prisma.toolApprovalRequest.count({
+        where: {
+          tenantId,
+          status: 'PENDING',
+          triggerSource: 'RUNTIME',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.count({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+          impactLevel: 'HIGH',
+        },
+      }),
+      this.prisma.approvalAuditEvent.findMany({
+        where: {
+          tenantId,
+          occurredAt: {
+            gte: since,
+          },
+        },
+        select: {
+          eventStatus: true,
+          traceId: true,
+          occurredAt: true,
+        },
+        take: 1000,
+      }),
+      this.prisma.approvalAuditEvent.findMany({
+        where: {
+          tenantId,
+          sourceType: 'APPROVAL_AUDIT_ARCHIVE',
+          eventType: {
+            in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
+          },
+        },
+        select: {
+          sourceId: true,
+          eventType: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: {
+            in: [
+              'platform.security.approval_operation_alert_notification.archive.delete_requested',
+              'platform.security.approval_operation_alert_notification.archive.delete_approved',
+              'platform.security.approval_operation_alert_notification.archive.delete_rejected',
+              'platform.security.approval_operation_alert_notification.archive.delete_applied',
+            ],
+          },
+        },
+        select: {
+          sourceId: true,
+          eventType: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: {
+            in: [
+              'platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_requested',
+              'platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_approved',
+              'platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_rejected',
+              'platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_applied',
+            ],
+          },
+        },
+        select: {
+          sourceId: true,
+          eventType: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: {
+            in: [
+              'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_requested',
+              'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_approved',
+              'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_rejected',
+              'platform.security.approval_operation_alert_notification_task.recovery_audit_archive.delete_applied',
+            ],
+          },
+        },
+        select: {
+          sourceId: true,
+          eventType: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          resourceType: 'security_operation_alert_notification_task',
+          eventSource: 'security_center',
+          eventType: {
+            in: [
+              'platform.security.approval_operation_alert_notification_task.manual_auto_notify',
+              'platform.security.approval_operation_alert_notification_task.auto_notify_finished',
+              'platform.security.approval_operation_alert_notification_task.manual_auto_retry',
+              'platform.security.approval_operation_alert_notification_task.auto_retry_finished',
+            ],
+          },
+          occurredAt: {
+            gte: since,
+          },
+        },
+        select: {
+          eventType: true,
+          payloadJson: true,
+          occurredAt: true,
+          requestId: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: 'platform.security.approval_operation_alert.notification_sent',
+          occurredAt: {
+            gte: since,
+          },
+        },
+        select: {
+          payloadJson: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.loadArchiveStorageStats(tenantId),
+      this.loadOperationAlertLifecycleEvents(tenantId),
+      this.loadNotificationTaskRecoveryLifecycleEvents(tenantId),
+      this.loadExternalWebhookUrl(tenantId),
+      this.loadNotificationTaskPolicySnapshot(tenantId),
+      this.prisma.toolApprovalRequest.findFirst({
+        where: {
+          tenantId,
+          status: 'PENDING',
+        },
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.toolApprovalRequest.findFirst({
+        where: {
+          tenantId,
+          status: 'PENDING',
+          triggerSource: 'RUNTIME',
+        },
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.findFirst({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+        },
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.systemSettingSnapshot.findFirst({
+        where: {
+          tenantId,
+          settingKey: {
+            in: [...NOTIFICATION_POLICY_SETTING_KEYS],
+          },
+          approvalStatus: 'PENDING',
+          impactLevel: 'HIGH',
+        },
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+    ]);
+    const archiveDeleteStats = summarizeArchiveDeleteEvents(archiveDeleteEvents);
+    const operationAlertNotificationArchiveDeleteStats = summarizeOperationAlertNotificationArchiveDeleteEvents(
+      operationAlertNotificationArchiveDeleteEvents,
+    );
+    const slaDeadLetterArchiveDeleteStats = summarizeSlaDeadLetterArchiveDeleteEvents(slaDeadLetterArchiveDeleteEvents);
+    const notificationTaskRecoveryAuditArchiveDeleteStats = summarizeNotificationTaskRecoveryAuditArchiveDeleteEvents(
+      notificationTaskRecoveryAuditArchiveDeleteEvents,
+    );
+    const notificationTaskStats = summarizeNotificationTaskEvents(notificationTaskEvents);
+    const notificationDeliveryStats = summarizeNotificationDeliveryEvents(notificationDeliveryEvents);
+    const notificationTaskRecoveryLifecycleMap = buildNotificationTaskRecoveryLifecycleMap(notificationTaskRecoveryEvents);
+    const archiveDeletePendingOldest = oldestPendingArchiveDeleteAt(archiveDeleteEvents);
+    const operationAlertNotificationArchiveDeletePendingOldest = oldestPendingOperationAlertNotificationArchiveDeleteAt(
+      operationAlertNotificationArchiveDeleteEvents,
+    );
+    const slaDeadLetterArchiveDeletePendingOldest = oldestPendingSlaDeadLetterArchiveDeleteAt(slaDeadLetterArchiveDeleteEvents);
+    const notificationTaskRecoveryAuditArchiveDeletePendingOldest =
+      oldestPendingNotificationTaskRecoveryAuditArchiveDeleteAt(notificationTaskRecoveryAuditArchiveDeleteEvents);
+    const auditRiskOldest = oldestApprovalAuditRiskAt(approvalAuditEvents);
+    const auditTraceGapOldest = oldestApprovalAuditTraceGapAt(approvalAuditEvents);
+    const approvalAuditOldest = oldestApprovalAuditAt(approvalAuditEvents);
+
+    const operations: ApprovalOperationStats = {
+      tool_pending: toolPending,
+      tool_approved: toolApproved,
+      tool_rejected: toolRejected,
+      runtime_pending: runtimePending,
+      notification_pending: notificationPending,
+      notification_high_impact_pending: notificationHighImpactPending,
+      archive_delete_pending: archiveDeleteStats.pending,
+      archive_delete_approved: archiveDeleteStats.approved,
+      archive_delete_rejected: archiveDeleteStats.rejected,
+      archive_delete_applied: archiveDeleteStats.applied,
+      operation_alert_notification_archive_delete_pending:
+        operationAlertNotificationArchiveDeleteStats.pending,
+      operation_alert_notification_archive_delete_approved:
+        operationAlertNotificationArchiveDeleteStats.approved,
+      operation_alert_notification_archive_delete_rejected:
+        operationAlertNotificationArchiveDeleteStats.rejected,
+      operation_alert_notification_archive_delete_applied:
+        operationAlertNotificationArchiveDeleteStats.applied,
+      sla_dead_letter_archive_delete_pending: slaDeadLetterArchiveDeleteStats.pending,
+      sla_dead_letter_archive_delete_approved: slaDeadLetterArchiveDeleteStats.approved,
+      sla_dead_letter_archive_delete_rejected: slaDeadLetterArchiveDeleteStats.rejected,
+      sla_dead_letter_archive_delete_applied: slaDeadLetterArchiveDeleteStats.applied,
+      notification_task_recovery_audit_archive_delete_pending:
+        notificationTaskRecoveryAuditArchiveDeleteStats.pending,
+      notification_task_recovery_audit_archive_delete_approved:
+        notificationTaskRecoveryAuditArchiveDeleteStats.approved,
+      notification_task_recovery_audit_archive_delete_rejected:
+        notificationTaskRecoveryAuditArchiveDeleteStats.rejected,
+      notification_task_recovery_audit_archive_delete_applied:
+        notificationTaskRecoveryAuditArchiveDeleteStats.applied,
+      notification_task_runs_24h: notificationTaskStats.total,
+      notification_task_failed_24h: notificationTaskStats.failed,
+      notification_task_skipped_24h: notificationTaskStats.skipped,
+      notification_task_failure_rate_24h: notificationTaskStats.failureRate,
+      notification_task_consecutive_failures: notificationTaskStats.consecutiveFailures,
+      notification_task_sla_dead_letter_failed_24h: notificationTaskStats.slaDeadLetterFailed,
+      notification_task_recovery_archive_delete_failed_24h: notificationTaskStats.recoveryArchiveDeleteFailed,
+      notification_task_recovery_suggestions: buildNotificationTaskRecoverySuggestions({
+        deliveryStats: notificationDeliveryStats,
+        lifecycleMap: notificationTaskRecoveryLifecycleMap,
+        policy: notificationTaskPolicy,
+        stats: notificationTaskStats,
+        webhookConfigured: Boolean(externalWebhookUrl),
+      }),
+      audit_events_24h: approvalAuditEvents.length,
+      audit_failed_24h: approvalAuditEvents.filter((event) => event.eventStatus === 'FAILED').length,
+      audit_warning_24h: approvalAuditEvents.filter((event) => event.eventStatus === 'WARNING').length,
+      audit_trace_count_24h: approvalAuditEvents.filter((event) => event.traceId).length,
+      archive_count: archiveStorageStats.count,
+      archive_total_size_bytes: archiveStorageStats.size,
+      archive_storage_status: archiveStorageStats.status,
+      tool_pending_oldest_at: toolPendingOldest?.createdAt ?? null,
+      runtime_pending_oldest_at: runtimePendingOldest?.createdAt ?? null,
+      notification_pending_oldest_at: notificationPendingOldest?.createdAt ?? null,
+      notification_high_impact_pending_oldest_at: notificationHighImpactPendingOldest?.createdAt ?? null,
+      archive_delete_pending_oldest_at: archiveDeletePendingOldest,
+      operation_alert_notification_archive_delete_pending_oldest_at:
+        operationAlertNotificationArchiveDeletePendingOldest,
+      sla_dead_letter_archive_delete_pending_oldest_at: slaDeadLetterArchiveDeletePendingOldest,
+      notification_task_recovery_audit_archive_delete_pending_oldest_at:
+        notificationTaskRecoveryAuditArchiveDeletePendingOldest,
+      notification_task_failure_oldest_at: notificationTaskStats.oldestFailureAt,
+      audit_risk_oldest_at: auditRiskOldest,
+      audit_trace_gap_oldest_at: auditTraceGapOldest,
+      approval_audit_oldest_at: approvalAuditOldest,
+      archive_storage_checked_at: new Date(),
+    };
+
+    return {
+      ...operations,
+      operational_alerts: buildApprovalOperationAlerts(operations, lifecycleEvents),
+    };
+  }
+
+  private async loadOperationAlertLifecycleEvents(tenantId: string) {
+    return this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        resourceType: 'security_operation_alert',
+        eventType: {
+          in: [
+            'platform.security.approval_operation_alert.acknowledged',
+            'platform.security.approval_operation_alert.escalated',
+            'platform.security.approval_operation_alert.closed',
+          ],
+        },
+      },
+      orderBy: {
+        occurredAt: 'asc',
+      },
+      take: 1000,
+    });
+  }
+
+  private async loadNotificationTaskRecoveryLifecycleEvents(tenantId: string) {
+    return this.prisma.platformEvent.findMany({
+      where: {
+        tenantId,
+        eventSource: 'security_center',
+        resourceType: 'security_operation_alert_notification_task_recovery_suggestion',
+        eventType: {
+          in: [
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged',
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.ignored',
+            'platform.security.approval_operation_alert_notification_task.recovery_suggestion.resolved',
+          ],
+        },
+      },
+      orderBy: {
+        occurredAt: 'asc',
+      },
+      take: 1000,
+    });
+  }
+
+  private async loadArchiveStorageStats(tenantId: string) {
+    try {
+      const items = await this.storageService.listTenantObjects({
+        tenantId,
+        prefix: 'audit-archives/approval-audits',
+        limit: 1000,
+      });
+
+      return {
+        count: items.length,
+        size: items.reduce((sum, item) => sum + item.size_bytes, 0),
+        status: 'CONNECTED' as const,
+      };
+    } catch {
+      return {
+        count: 0,
+        size: 0,
+        status: 'UNKNOWN' as const,
+      };
+    }
   }
 
   private async loadMonitorStats(tenantId: string, since: Date) {
@@ -562,6 +2322,10 @@ export class SecurityCenterService {
   }
 
   private async loadRecentDenials(tenantId: string, since: Date): Promise<SecurityCenterDenialItem[]> {
+    return (await this.loadSecurityEvents(tenantId, since)).slice(0, 8).map(stripSecurityCenterDenial);
+  }
+
+  private async loadSecurityEvents(tenantId: string, since: Date): Promise<SecurityCenterEventDetail[]> {
     const [operationLogs, policyEvaluations] = await this.prisma.$transaction([
       this.prisma.operationLog.findMany({
         where: {
@@ -575,10 +2339,13 @@ export class SecurityCenterService {
             gte: since,
           },
         },
+        include: {
+          user: true,
+        },
         orderBy: {
           createdAt: 'desc',
         },
-        take: 8,
+        take: 300,
       }),
       this.prisma.securityPolicyEvaluation.findMany({
         where: {
@@ -590,11 +2357,12 @@ export class SecurityCenterService {
         },
         include: {
           matchedPolicy: true,
+          operator: true,
         },
         orderBy: {
           createdAt: 'desc',
         },
-        take: 8,
+        take: 300,
       }),
     ]);
 
@@ -603,7 +2371,52 @@ export class SecurityCenterService {
 
     return [...operationDenials, ...policyDenials]
       .sort((left, right) => Date.parse(right.occurred_at) - Date.parse(left.occurred_at))
-      .slice(0, 8);
+      .slice(0, 600);
+  }
+
+  private async findSecurityEvent(tenantId: string, eventId: string): Promise<SecurityCenterEventDetail | null> {
+    const [sourceType, recordId] = eventId.split(':', 2);
+
+    if (!sourceType || !recordId) {
+      return null;
+    }
+
+    if (sourceType === 'operation') {
+      const operation = await this.prisma.operationLog.findFirst({
+        where: {
+          tenantId,
+          id: recordId,
+          module: 'security',
+          action: 'deny',
+          statusCode: {
+            gte: 400,
+          },
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      return operation ? mapOperationDenial(operation) : null;
+    }
+
+    if (sourceType === 'policy') {
+      const evaluation = await this.prisma.securityPolicyEvaluation.findFirst({
+        where: {
+          tenantId,
+          id: recordId,
+          decision: 'DENY',
+        },
+        include: {
+          matchedPolicy: true,
+          operator: true,
+        },
+      });
+
+      return evaluation ? mapPolicyDenial(evaluation) : null;
+    }
+
+    return null;
   }
 
   private async loadRecentAuditFailures(tenantId: string, since: Date): Promise<AuditFailureItem[]> {
@@ -864,12 +2677,20 @@ function buildModules(input: {
     moduleSummary({
       key: 'approvals',
       title: '高危审批',
-      description: '处理高风险工具调用和运行时审批请求。',
+      description: '处理高风险工具调用、运行时请求和通知策略变更审批。',
       href: '/approvals',
       permission: PERMISSION_CODES.securityApprovalView,
       status: input.approvalStats.pending > 0 ? 'degraded' : 'healthy',
-      primary: metric('待审批', input.approvalStats.pending, `${input.approvalStats.runtimePending} 个运行时`),
-      secondary: metric('已拒绝', input.approvalStats.rejected, `${input.approvalStats.approved} 个已通过`),
+      primary: metric(
+        '待审批',
+        input.approvalStats.pending,
+        `${input.approvalStats.runtimePending} 个运行时 / ${input.approvalStats.notificationPending} 个策略`,
+      ),
+      secondary: metric(
+        '已拒绝',
+        input.approvalStats.rejected,
+        `${input.approvalStats.approved} 个已通过 / ${input.approvalStats.notificationHighImpactPending} 个高影响`,
+      ),
       action: '处理审批',
     }),
     moduleSummary({
@@ -897,17 +2718,1064 @@ function buildModules(input: {
   ];
 }
 
+function summarizeArchiveDeleteEvents(
+  events: Array<{ sourceId: string; eventType: string; occurredAt: Date }>,
+) {
+  const groups = new Map<string, Array<{ eventType: string; occurredAt: Date }>>();
+  for (const event of events) {
+    groups.set(event.sourceId, [...(groups.get(event.sourceId) ?? []), event]);
+  }
+
+  const summary = {
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    applied: 0,
+  };
+
+  for (const groupEvents of groups.values()) {
+    const latest = [...groupEvents].sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime())[0];
+    if (!latest) continue;
+    if (latest.eventType === 'DELETE_APPLIED') {
+      summary.applied += 1;
+    } else if (latest.eventType === 'REJECTED') {
+      summary.rejected += 1;
+    } else if (latest.eventType === 'APPROVED') {
+      summary.approved += 1;
+    } else {
+      summary.pending += 1;
+    }
+  }
+
+  return summary;
+}
+
+function summarizeSlaDeadLetterArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return summarizeArchiveDeleteEvents(normalizeSlaDeadLetterArchiveDeleteEvents(events));
+}
+
+function summarizeOperationAlertNotificationArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return summarizeArchiveDeleteEvents(normalizeOperationAlertNotificationArchiveDeleteEvents(events));
+}
+
+function summarizeNotificationTaskRecoveryAuditArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return summarizeArchiveDeleteEvents(normalizeNotificationTaskRecoveryAuditArchiveDeleteEvents(events));
+}
+
+function oldestPendingArchiveDeleteAt(events: Array<{ sourceId: string; eventType: string; occurredAt: Date }>) {
+  const groups = new Map<string, Array<{ eventType: string; occurredAt: Date }>>();
+  for (const event of events) {
+    groups.set(event.sourceId, [...(groups.get(event.sourceId) ?? []), event]);
+  }
+
+  const pendingDates: Date[] = [];
+  for (const groupEvents of groups.values()) {
+    const sorted = [...groupEvents].sort((left, right) => left.occurredAt.getTime() - right.occurredAt.getTime());
+    const latest = sorted.at(-1);
+    if (!latest || latest.eventType !== 'DELETE_REQUESTED') continue;
+    pendingDates.push(sorted[0]?.occurredAt ?? latest.occurredAt);
+  }
+
+  return oldestDateOrNull(pendingDates);
+}
+
+function oldestPendingSlaDeadLetterArchiveDeleteAt(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return oldestPendingArchiveDeleteAt(normalizeSlaDeadLetterArchiveDeleteEvents(events));
+}
+
+function oldestPendingOperationAlertNotificationArchiveDeleteAt(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return oldestPendingArchiveDeleteAt(normalizeOperationAlertNotificationArchiveDeleteEvents(events));
+}
+
+function oldestPendingNotificationTaskRecoveryAuditArchiveDeleteAt(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return oldestPendingArchiveDeleteAt(normalizeNotificationTaskRecoveryAuditArchiveDeleteEvents(events));
+}
+
+function normalizeSlaDeadLetterArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return events
+    .map((event) => ({
+      sourceId: event.sourceId ?? '',
+      eventType: slaDeadLetterArchiveDeleteEventType(event.eventType),
+      occurredAt: event.occurredAt,
+    }))
+    .filter((event) => event.sourceId && event.eventType);
+}
+
+function slaDeadLetterArchiveDeleteEventType(eventType: string) {
+  if (eventType.endsWith('.delete_requested')) return 'DELETE_REQUESTED';
+  if (eventType.endsWith('.delete_approved')) return 'APPROVED';
+  if (eventType.endsWith('.delete_rejected')) return 'REJECTED';
+  if (eventType.endsWith('.delete_applied')) return 'DELETE_APPLIED';
+  return '';
+}
+
+function normalizeOperationAlertNotificationArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return events
+    .map((event) => ({
+      sourceId: event.sourceId ?? '',
+      eventType: operationAlertNotificationArchiveDeleteEventType(event.eventType),
+      occurredAt: event.occurredAt,
+    }))
+    .filter((event) => event.sourceId && event.eventType);
+}
+
+function operationAlertNotificationArchiveDeleteEventType(eventType: string) {
+  if (eventType.endsWith('.delete_requested')) return 'DELETE_REQUESTED';
+  if (eventType.endsWith('.delete_approved')) return 'APPROVED';
+  if (eventType.endsWith('.delete_rejected')) return 'REJECTED';
+  if (eventType.endsWith('.delete_applied')) return 'DELETE_APPLIED';
+  return '';
+}
+
+function normalizeNotificationTaskRecoveryAuditArchiveDeleteEvents(
+  events: Array<{ sourceId: string | null; eventType: string; occurredAt: Date }>,
+) {
+  return events
+    .map((event) => ({
+      sourceId: event.sourceId ?? '',
+      eventType: notificationTaskRecoveryAuditArchiveDeleteEventType(event.eventType),
+      occurredAt: event.occurredAt,
+    }))
+    .filter((event) => event.sourceId && event.eventType);
+}
+
+function notificationTaskRecoveryAuditArchiveDeleteEventType(eventType: string) {
+  if (eventType.endsWith('.delete_requested')) return 'DELETE_REQUESTED';
+  if (eventType.endsWith('.delete_approved')) return 'APPROVED';
+  if (eventType.endsWith('.delete_rejected')) return 'REJECTED';
+  if (eventType.endsWith('.delete_applied')) return 'DELETE_APPLIED';
+  return '';
+}
+
+function summarizeNotificationTaskEvents(
+  events: Array<{ eventType: string; payloadJson: Prisma.JsonValue; occurredAt: Date; requestId: string | null }>,
+) {
+  const items = events
+    .filter((event) => !isManualNotificationTaskFinishedDuplicate(event))
+    .map((event) => {
+      const payload = normalizeJsonObjectOutput(event.payloadJson);
+      const status = notificationTaskStatus(payload?.status);
+
+      return {
+        status,
+        occurredAt: event.occurredAt,
+        slaDeadLetterNotifyCount: numericPayloadField(payload?.sla_dead_letter_notify_count),
+        recoveryArchiveDeleteNotifyCount: numericPayloadField(payload?.recovery_archive_delete_notify_count),
+      };
+    });
+  const total = items.length;
+  const failedItems = items.filter((item) => item.status === 'FAILED');
+  const skippedItems = items.filter((item) => item.status === 'SKIPPED');
+  const riskyCount = failedItems.length + skippedItems.length;
+
+  return {
+    total,
+    failed: failedItems.length,
+    skipped: skippedItems.length,
+    slaDeadLetterFailed: [...failedItems, ...skippedItems].reduce(
+      (sum, item) => sum + item.slaDeadLetterNotifyCount,
+      0,
+    ),
+    recoveryArchiveDeleteFailed: [...failedItems, ...skippedItems].reduce(
+      (sum, item) => sum + item.recoveryArchiveDeleteNotifyCount,
+      0,
+    ),
+    failureRate: total > 0 ? Math.round((riskyCount / total) * 100) : 0,
+    consecutiveFailures: countNotificationTaskConsecutiveFailures(items),
+    oldestFailureAt: oldestDateOrNull([...failedItems, ...skippedItems].map((item) => item.occurredAt)),
+  };
+}
+
+function summarizeNotificationDeliveryEvents(events: Array<{ payloadJson: Prisma.JsonValue; occurredAt: Date }>): NotificationDeliveryStats {
+  const items = events.map((event) => {
+    const payload = normalizeJsonObjectOutput(event.payloadJson);
+    const status = normalizeSecurityOperationNotificationStatus(payload?.status);
+    const webhookStatus = typeof payload?.webhook_status === 'number' ? payload.webhook_status : null;
+    const webhookError = typeof payload?.webhook_error === 'string' && payload.webhook_error.trim() ? payload.webhook_error : null;
+    const webhookFailed = Boolean(webhookError) || (typeof webhookStatus === 'number' && webhookStatus >= 400);
+
+    return {
+      status,
+      webhookFailed,
+      webhookError,
+      occurredAt: event.occurredAt,
+    };
+  });
+  const sortedWebhookFailures = items
+    .filter((item) => item.webhookFailed)
+    .sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime());
+
+  return {
+    total: items.length,
+    failed: items.filter((item) => item.status === 'FAILED').length,
+    partial: items.filter((item) => item.status === 'PARTIAL').length,
+    skipped: items.filter((item) => item.status === 'SKIPPED').length,
+    webhookFailed: sortedWebhookFailures.length,
+    latestWebhookError: sortedWebhookFailures[0]?.webhookError ?? null,
+  };
+}
+
+function buildNotificationTaskRecoverySuggestions(input: {
+  stats: NotificationTaskStats;
+  deliveryStats: NotificationDeliveryStats;
+  policy: NotificationTaskPolicySnapshot;
+  webhookConfigured: boolean;
+  lifecycleMap: Map<string, NotificationTaskRecoveryLifecycle>;
+}): SecurityOperationAlertNotificationTaskRecoverySuggestion[] {
+  const suggestions: SecurityOperationAlertNotificationTaskRecoverySuggestion[] = [];
+  const hasTaskRisk = input.stats.failed > 0 || input.stats.skipped > 0 || input.stats.failureRate >= 30;
+  const hasDeliveryRisk = input.deliveryStats.failed > 0 || input.deliveryStats.partial > 0 || input.deliveryStats.skipped > 0;
+  const failureSourceEvidence = notificationTaskFailureSourceEvidence(input.stats);
+
+  if (!input.webhookConfigured && (hasTaskRisk || hasDeliveryRisk || input.stats.total > 0)) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-webhook-not-configured',
+      title: '配置外部 Webhook 地址',
+      description: '通知任务已经运行，但外部 Webhook 未配置，站内记录之外的告警无法触达外部系统。',
+      severity: hasTaskRisk ? 'HIGH' : 'MEDIUM',
+      reason_code: 'WEBHOOK_NOT_CONFIGURED',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-webhook-not-configured') ?? null),
+      primary_action_label: '配置外部集成',
+      primary_action_href: '/settings?category=INTEGRATION',
+      secondary_action_label: '查看任务历史',
+      secondary_action_href: '/security',
+      evidence: `近 24 小时任务 ${input.stats.total} 次，失败 ${input.stats.failed} 次，跳过 ${input.stats.skipped} 次。${failureSourceEvidence}`,
+    });
+  }
+
+  if (input.deliveryStats.webhookFailed > 0) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-webhook-delivery-failed',
+      title: '核对 Webhook 投递响应',
+      description: '外部 Webhook 最近出现非 2xx 响应或网络异常，需要检查地址、鉴权、超时和接收端日志。',
+      severity: input.deliveryStats.webhookFailed >= 3 ? 'HIGH' : 'MEDIUM',
+      reason_code: 'WEBHOOK_DELIVERY_FAILED',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-webhook-delivery-failed') ?? null),
+      primary_action_label: '查看投递审计',
+      primary_action_href: '/security',
+      secondary_action_label: '查看运行监控',
+      secondary_action_href: '/monitor',
+      evidence: input.deliveryStats.latestWebhookError
+        ? `Webhook 异常 ${input.deliveryStats.webhookFailed} 次，最近错误：${input.deliveryStats.latestWebhookError}`
+        : `Webhook 异常 ${input.deliveryStats.webhookFailed} 次。`,
+    });
+  }
+
+  if (!input.policy.auto_notify_enabled) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-auto-notify-disabled',
+      title: '开启首发自动通知策略',
+      description: '首发自动通知关闭后，新产生的运营告警不会自动首发投递。',
+      severity: hasTaskRisk ? 'HIGH' : 'MEDIUM',
+      reason_code: 'AUTO_NOTIFY_DISABLED',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-auto-notify-disabled') ?? null),
+      primary_action_label: '打开通知策略',
+      primary_action_href: '/settings?category=NOTIFICATION',
+      secondary_action_label: '查看策略审批',
+      secondary_action_href: '/approvals?queue=notification-policy&status=PENDING',
+      evidence: '系统设置 alert_notification_auto_notify_enabled 当前为关闭。',
+    });
+  }
+
+  if (!input.policy.auto_retry_enabled) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-auto-retry-disabled',
+      title: '开启失败自动重试策略',
+      description: '自动重试关闭后，失败或部分成功的投递需要人工重试，容易形成告警触达缺口。',
+      severity: input.deliveryStats.webhookFailed > 0 || input.stats.failed > 0 ? 'HIGH' : 'MEDIUM',
+      reason_code: 'AUTO_RETRY_DISABLED',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-auto-retry-disabled') ?? null),
+      primary_action_label: '打开通知策略',
+      primary_action_href: '/settings?category=NOTIFICATION',
+      secondary_action_label: '查看投递审计',
+      secondary_action_href: '/security',
+      evidence: '系统设置 alert_notification_auto_retry_enabled 当前为关闭。',
+    });
+  }
+
+  if (input.stats.consecutiveFailures >= 2) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-consecutive-failures',
+      title: '排查连续失败任务链路',
+      description: '通知任务连续失败或跳过，建议优先核对最近任务事件、Webhook 配置和调度状态。',
+      severity: input.stats.consecutiveFailures >= 3 ? 'HIGH' : 'MEDIUM',
+      reason_code: 'CONSECUTIVE_FAILURES',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-consecutive-failures') ?? null),
+      primary_action_label: '查看任务历史',
+      primary_action_href: '/security',
+      secondary_action_label: '打开审计中心',
+      secondary_action_href: '/audit',
+      evidence: `当前连续失败或跳过 ${input.stats.consecutiveFailures} 次。${failureSourceEvidence}`,
+    });
+  }
+
+  if (input.stats.total >= 3 && input.stats.failureRate >= 30) {
+    const failureSourceSummary = notificationTaskRecoveryFailureSourceSummary(input.stats);
+    suggestions.push({
+      id: 'notification-task-high-failure-rate',
+      title: '降低通知任务失败率',
+      description: '最近 24 小时通知任务失败率偏高，需要结合任务历史和投递审计确认主要失败来源。',
+      severity: input.stats.failureRate >= 50 || input.stats.failed >= 3 ? 'HIGH' : 'MEDIUM',
+      reason_code: 'HIGH_FAILURE_RATE',
+      failure_source: failureSourceSummary.failureSource,
+      sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
+      recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
+      ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-high-failure-rate') ?? null),
+      primary_action_label: '查看任务历史',
+      primary_action_href: '/security',
+      secondary_action_label: '查看运行监控',
+      secondary_action_href: '/monitor',
+      evidence: `近 24 小时 ${input.stats.total} 次任务，失败/跳过占比 ${input.stats.failureRate}%。${failureSourceEvidence}`,
+    });
+  }
+
+  return suggestions.sort(compareRecoverySuggestionSeverity).slice(0, 6);
+}
+
+function notificationTaskFailureSourceEvidence(stats: NotificationTaskStats) {
+  const parts = [
+    stats.slaDeadLetterFailed > 0 ? `SLA 死信归档删除覆盖 ${stats.slaDeadLetterFailed} 条` : null,
+    stats.recoveryArchiveDeleteFailed > 0 ? `自愈归档删除覆盖 ${stats.recoveryArchiveDeleteFailed} 条` : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return parts.length > 0 ? ` 失败来源：${parts.join('，')}。` : '';
+}
+
+function notificationTaskRecoveryFailureSourceSummary(
+  stats: NotificationTaskStats,
+): NotificationTaskRecoveryFailureSourceSummary {
+  return {
+    failureSource: notificationTaskRecoveryFailureSource(stats),
+    slaDeadLetterFailedCount: stats.slaDeadLetterFailed,
+    recoveryArchiveDeleteFailedCount: stats.recoveryArchiveDeleteFailed,
+  };
+}
+
+function notificationTaskRecoveryFailureSource(
+  stats: Pick<NotificationTaskStats, 'slaDeadLetterFailed' | 'recoveryArchiveDeleteFailed'>,
+): SecurityOperationAlertNotificationTaskRecoveryFailureSource {
+  if (stats.slaDeadLetterFailed > 0 && stats.recoveryArchiveDeleteFailed > 0) return 'MIXED';
+  if (stats.slaDeadLetterFailed > 0) return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  if (stats.recoveryArchiveDeleteFailed > 0) return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+  return 'UNKNOWN';
+}
+
+function buildNotificationTaskRecoveryLifecycleMap(
+  events: Array<{ resourceId: string | null; eventType: string; payloadJson: Prisma.JsonValue; occurredAt: Date }>,
+) {
+  const map = new Map<string, NotificationTaskRecoveryLifecycle>();
+
+  for (const event of events) {
+    if (!event.resourceId) continue;
+    const action = notificationTaskRecoveryActionFromEventType(event.eventType);
+    if (!action) continue;
+    const payload = normalizeJsonObjectOutput(event.payloadJson);
+    map.set(event.resourceId, {
+      action,
+      note: typeof payload?.note === 'string' ? payload.note : null,
+      occurredAt: event.occurredAt,
+    });
+  }
+
+  return map;
+}
+
+function notificationTaskRecoveryLifecycleFields(
+  lifecycle: NotificationTaskRecoveryLifecycle | null,
+): Pick<
+  SecurityOperationAlertNotificationTaskRecoverySuggestion,
+  'last_action' | 'last_note' | 'status' | 'updated_at'
+> {
+  if (!lifecycle) {
+    return {
+      status: 'OPEN',
+      last_action: null,
+      last_note: null,
+      updated_at: null,
+    };
+  }
+
+  return {
+    status: notificationTaskRecoveryStatusFromAction(lifecycle.action),
+    last_action: lifecycle.action,
+    last_note: lifecycle.note,
+    updated_at: lifecycle.occurredAt.toISOString(),
+  };
+}
+
+function notificationTaskRecoveryActionFromEventType(
+  eventType: string,
+): SecurityOperationAlertNotificationTaskRecoveryAction | null {
+  if (eventType === 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged') {
+    return 'ACKNOWLEDGE';
+  }
+  if (eventType === 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.ignored') {
+    return 'IGNORE';
+  }
+  if (eventType === 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.resolved') {
+    return 'RESOLVE';
+  }
+  return null;
+}
+
+function notificationTaskRecoveryEventType(action: SecurityOperationAlertNotificationTaskRecoveryAction) {
+  if (action === 'ACKNOWLEDGE') {
+    return 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged';
+  }
+  if (action === 'IGNORE') {
+    return 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.ignored';
+  }
+  return 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.resolved';
+}
+
+function notificationTaskRecoveryStatusFromAction(
+  action: SecurityOperationAlertNotificationTaskRecoveryAction,
+): SecurityOperationAlertNotificationTaskRecoveryStatus {
+  if (action === 'ACKNOWLEDGE') return 'ACKNOWLEDGED';
+  if (action === 'IGNORE') return 'IGNORED';
+  return 'RESOLVED';
+}
+
+function notificationTaskRecoveryLifecycleMessage(
+  action: SecurityOperationAlertNotificationTaskRecoveryAction,
+  title: string,
+) {
+  if (action === 'ACKNOWLEDGE') return `已确认通知任务自愈建议：${title}`;
+  if (action === 'IGNORE') return `已忽略通知任务自愈建议：${title}`;
+  return `已标记通知任务自愈建议已处理：${title}`;
+}
+
+function mapNotificationTaskRecoveryAuditEvent(
+  event: Prisma.PlatformEventGetPayload<object>,
+): SecurityOperationAlertNotificationTaskRecoveryAuditItem {
+  const payload = normalizeJsonObjectOutput(event.payloadJson);
+  const action = normalizeNotificationTaskRecoveryAction(payload?.action, event.eventType);
+  const status = normalizeNotificationTaskRecoveryStatus(payload?.status, action);
+
+  return {
+    event_id: event.id,
+    suggestion_id: typeof payload?.suggestion_id === 'string' ? payload.suggestion_id : event.resourceId ?? '',
+    title: typeof payload?.title === 'string' ? payload.title : event.summary ?? '通知任务自愈建议',
+    severity: normalizeSecurityRiskLevel(payload?.severity),
+    reason_code: normalizeNotificationTaskRecoveryReason(payload?.reason_code),
+    failure_source: normalizeNotificationTaskRecoveryFailureSource(payload?.failure_source, payload),
+    sla_dead_letter_failed_count: numericPayloadField(payload?.sla_dead_letter_failed_count),
+    recovery_archive_delete_failed_count: numericPayloadField(payload?.recovery_archive_delete_failed_count),
+    action,
+    status,
+    note: typeof payload?.note === 'string' ? payload.note : null,
+    evidence: typeof payload?.evidence === 'string' ? payload.evidence : null,
+    request_id: event.requestId,
+    trace_id: event.traceId,
+    occurred_at: event.occurredAt.toISOString(),
+  };
+}
+
+function buildNotificationTaskRecoveryAuditSummary(items: SecurityOperationAlertNotificationTaskRecoveryAuditItem[]) {
+  return {
+    total_count: items.length,
+    acknowledged_count: items.filter((item) => item.action === 'ACKNOWLEDGE').length,
+    ignored_count: items.filter((item) => item.action === 'IGNORE').length,
+    resolved_count: items.filter((item) => item.action === 'RESOLVE').length,
+    sla_dead_letter_source_count: items.filter((item) => item.failure_source === 'SLA_DEAD_LETTER_ARCHIVE_DELETE').length,
+    recovery_archive_delete_source_count: items.filter(
+      (item) => item.failure_source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
+    ).length,
+    mixed_source_count: items.filter((item) => item.failure_source === 'MIXED').length,
+    unknown_source_count: items.filter((item) => item.failure_source === 'UNKNOWN').length,
+    latest_action_at: items[0]?.occurred_at ?? null,
+  };
+}
+
+function buildNotificationTaskRecoveryAuditCsv(items: SecurityOperationAlertNotificationTaskRecoveryAuditItem[]) {
+  const rows = [
+    [
+      '事件ID',
+      '建议ID',
+      '建议标题',
+      '原因',
+      '失败来源',
+      'SLA 死信失败数',
+      '自愈归档失败数',
+      '风险等级',
+      '动作',
+      '状态',
+      '备注',
+      '证据',
+      'Request ID',
+      'Trace ID',
+      '处理时间',
+    ],
+    ...items.map((item) => [
+      item.event_id,
+      item.suggestion_id,
+      item.title,
+      notificationTaskRecoveryReasonLabel(item.reason_code),
+      notificationTaskRecoveryFailureSourceLabel(item.failure_source),
+      String(item.sla_dead_letter_failed_count),
+      String(item.recovery_archive_delete_failed_count),
+      securityRiskLevelLabel(item.severity),
+      notificationTaskRecoveryActionLabel(item.action),
+      notificationTaskRecoveryStatusLabel(item.status),
+      item.note ?? '',
+      item.evidence ?? '',
+      item.request_id ?? '',
+      item.trace_id ?? '',
+      item.occurred_at,
+    ]),
+  ];
+
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function notificationTaskRecoveryActionLabel(action: SecurityOperationAlertNotificationTaskRecoveryAction) {
+  if (action === 'ACKNOWLEDGE') return '确认';
+  if (action === 'IGNORE') return '忽略';
+  return '标记已处理';
+}
+
+function notificationTaskRecoveryStatusLabel(status: SecurityOperationAlertNotificationTaskRecoveryStatus) {
+  if (status === 'OPEN') return '待处理';
+  if (status === 'ACKNOWLEDGED') return '已确认';
+  if (status === 'IGNORED') return '已忽略';
+  return '已处理';
+}
+
+function notificationTaskRecoveryReasonLabel(
+  reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'],
+) {
+  if (reason === 'WEBHOOK_NOT_CONFIGURED') return 'Webhook 未配置';
+  if (reason === 'WEBHOOK_DELIVERY_FAILED') return 'Webhook 投递失败';
+  if (reason === 'AUTO_NOTIFY_DISABLED') return '自动通知关闭';
+  if (reason === 'AUTO_RETRY_DISABLED') return '自动重试关闭';
+  if (reason === 'CONSECUTIVE_FAILURES') return '连续失败';
+  return '失败率偏高';
+}
+
+function notificationTaskRecoveryFailureSourceLabel(
+  source: SecurityOperationAlertNotificationTaskRecoveryFailureSource,
+) {
+  if (source === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档删除';
+  if (source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
+  if (source === 'MIXED') return '混合来源';
+  return '未知来源';
+}
+
+function securityRiskLevelLabel(level: SecurityCenterRiskLevel) {
+  if (level === 'HIGH') return '高风险';
+  if (level === 'MEDIUM') return '中风险';
+  return '低风险';
+}
+
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function mapNotificationTaskRecoveryAuditArchive(item: {
+  key: string;
+  relative_key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+}): SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem {
+  return {
+    id: Buffer.from(item.key, 'utf8').toString('base64url'),
+    key: item.key,
+    file_name: item.file_name,
+    folder: item.folder,
+    size_bytes: item.size_bytes,
+    etag: item.etag,
+    last_modified: item.last_modified,
+    download_expires_in: NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+  };
+}
+
+function mapOperationAlertNotificationArchive(item: {
+  key: string;
+  relative_key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+}): SecurityOperationAlertNotificationArchiveItem {
+  return {
+    id: Buffer.from(item.key, 'utf8').toString('base64url'),
+    key: item.key,
+    file_name: item.file_name,
+    folder: item.folder,
+    size_bytes: item.size_bytes,
+    etag: item.etag,
+    last_modified: item.last_modified,
+    download_expires_in: OPERATION_ALERT_NOTIFICATION_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+  };
+}
+
+function operationAlertNotificationArchiveKeyFromId(archiveId: string) {
+  const key = Buffer.from(archiveId, 'base64url').toString('utf8');
+  if (!key.startsWith(`${OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX}/`)) {
+    throw new BadRequestException('无效的运营告警通知审计归档 ID。');
+  }
+  return key;
+}
+
+function operationAlertNotificationArchiveSourceIdFromKey(key: string) {
+  return uuidFromText(`security-operation-alert-notification-archive:${key}`);
+}
+
+function buildOperationAlertNotificationArchiveDeleteApprovals(
+  events: SecurityOperationAlertNotificationArchiveApprovalTimelineItem[],
+): SecurityOperationAlertNotificationArchiveApprovalItem[] {
+  const groups = new Map<string, SecurityOperationAlertNotificationArchiveApprovalTimelineItem[]>();
+
+  for (const event of events) {
+    groups.set(event.source_id, [...(groups.get(event.source_id) ?? []), event]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([sourceId, groupEvents]) => {
+      const sorted = [...groupEvents].sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at));
+      const request = sorted.find((event) => event.event_type === 'DELETE_REQUESTED');
+      if (!request) return null;
+      const reversed = [...sorted].reverse();
+      const applied = reversed.find((event) => event.event_type === 'DELETE_APPLIED') ?? null;
+      const approved = reversed.find((event) => event.event_type === 'APPROVED') ?? null;
+      const rejected = reversed.find((event) => event.event_type === 'REJECTED') ?? null;
+      const latestDecision = applied ?? rejected ?? approved;
+
+      return {
+        id: request.event_id,
+        archive_id: sourceId,
+        archive_key: request.archive_key,
+        archive_file_name: request.archive_file_name,
+        archive_size_bytes: request.archive_size_bytes,
+        status: operationAlertNotificationArchiveApprovalStatus({ applied, approved, rejected }),
+        reason: request.note,
+        requested_by: request.actor,
+        reviewed_by: latestDecision?.actor ?? null,
+        requested_at: request.occurred_at,
+        reviewed_at: latestDecision?.occurred_at ?? null,
+      };
+    })
+    .filter((item): item is SecurityOperationAlertNotificationArchiveApprovalItem => Boolean(item))
+    .sort((left, right) => Date.parse(right.requested_at) - Date.parse(left.requested_at));
+}
+
+function operationAlertNotificationArchiveApprovalStatus(input: {
+  applied: SecurityOperationAlertNotificationArchiveApprovalTimelineItem | null;
+  approved: SecurityOperationAlertNotificationArchiveApprovalTimelineItem | null;
+  rejected: SecurityOperationAlertNotificationArchiveApprovalTimelineItem | null;
+}): SecurityOperationAlertNotificationArchiveApprovalItem['status'] {
+  if (input.applied) return 'APPLIED';
+  if (input.rejected) return 'REJECTED';
+  if (input.approved) return 'APPROVED';
+  return 'PENDING';
+}
+
+function mapOperationAlertNotificationArchiveApprovalEvent(
+  event: Prisma.PlatformEventGetPayload<{
+    include: {
+      user: {
+        select: {
+          id: true;
+          name: true;
+          email: true;
+        };
+      };
+    };
+  }>,
+): SecurityOperationAlertNotificationArchiveApprovalTimelineItem {
+  const payload = normalizeJsonObjectOutput(event.payloadJson);
+  const archiveKey = typeof payload?.archive_key === 'string' ? payload.archive_key : '';
+
+  return {
+    event_id: event.id,
+    source_id: event.sourceId ?? event.resourceId ?? '',
+    event_type: normalizeOperationAlertNotificationArchiveApprovalEventType(payload?.event_type, event.eventType),
+    status: event.status,
+    title: event.summary ?? '运营告警通知审计归档操作',
+    note: typeof payload?.note === 'string' ? payload.note : null,
+    actor: event.user
+      ? {
+          id: event.user.id,
+          name: event.user.name,
+          email: event.user.email,
+        }
+      : null,
+    request_id: event.requestId,
+    trace_id: event.traceId,
+    occurred_at: event.occurredAt.toISOString(),
+    archive_key: archiveKey,
+    archive_file_name:
+      typeof payload?.archive_file_name === 'string'
+        ? payload.archive_file_name
+        : archiveKey.split('/').at(-1) ?? '归档文件',
+    archive_size_bytes: typeof payload?.archive_size_bytes === 'number' ? payload.archive_size_bytes : 0,
+  };
+}
+
+function normalizeOperationAlertNotificationArchiveApprovalEventType(value: unknown, eventType: string) {
+  if (value === 'DELETE_REQUESTED' || value === 'APPROVED' || value === 'REJECTED' || value === 'DELETE_APPLIED') {
+    return value;
+  }
+  if (eventType.endsWith('delete_requested')) return 'DELETE_REQUESTED';
+  if (eventType.endsWith('delete_approved')) return 'APPROVED';
+  if (eventType.endsWith('delete_rejected')) return 'REJECTED';
+  return 'DELETE_APPLIED';
+}
+
+function notificationTaskRecoveryAuditArchiveKeyFromId(archiveId: string) {
+  const key = Buffer.from(archiveId, 'base64url').toString('utf8');
+  if (!key.startsWith(`${NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_PREFIX}/`)) {
+    throw new BadRequestException('无效的通知任务自愈闭环审计归档 ID。');
+  }
+  return key;
+}
+
+function notificationTaskRecoveryAuditArchiveSourceIdFromKey(key: string) {
+  return uuidFromText(`security-notification-task-recovery-audit-archive:${key}`);
+}
+
+function buildNotificationTaskRecoveryAuditArchiveDeleteApprovals(
+  events: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem[],
+): SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem[] {
+  const groups = new Map<string, SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem[]>();
+
+  for (const event of events) {
+    groups.set(event.source_id, [...(groups.get(event.source_id) ?? []), event]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([sourceId, groupEvents]) => {
+      const sorted = [...groupEvents].sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at));
+      const request = sorted.find((event) => event.event_type === 'DELETE_REQUESTED');
+      if (!request) return null;
+      const reversed = [...sorted].reverse();
+      const applied = reversed.find((event) => event.event_type === 'DELETE_APPLIED') ?? null;
+      const approved = reversed.find((event) => event.event_type === 'APPROVED') ?? null;
+      const rejected = reversed.find((event) => event.event_type === 'REJECTED') ?? null;
+      const latestDecision = applied ?? rejected ?? approved;
+
+      return {
+        id: request.event_id,
+        archive_id: sourceId,
+        archive_key: request.archive_key,
+        archive_file_name: request.archive_file_name,
+        archive_size_bytes: request.archive_size_bytes,
+        status: notificationTaskRecoveryAuditArchiveApprovalStatus({ applied, approved, rejected }),
+        reason: request.note,
+        requested_by: request.actor,
+        reviewed_by: latestDecision?.actor ?? null,
+        requested_at: request.occurred_at,
+        reviewed_at: latestDecision?.occurred_at ?? null,
+      };
+    })
+    .filter((item): item is SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem => Boolean(item))
+    .sort((left, right) => Date.parse(right.requested_at) - Date.parse(left.requested_at));
+}
+
+function notificationTaskRecoveryAuditArchiveApprovalStatus(input: {
+  applied: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem | null;
+  approved: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem | null;
+  rejected: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem | null;
+}): SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem['status'] {
+  if (input.applied) return 'APPLIED';
+  if (input.rejected) return 'REJECTED';
+  if (input.approved) return 'APPROVED';
+  return 'PENDING';
+}
+
+function mapNotificationTaskRecoveryAuditArchiveApprovalEvent(
+  event: Prisma.PlatformEventGetPayload<{
+    include: {
+      user: {
+        select: {
+          id: true;
+          name: true;
+          email: true;
+        };
+      };
+    };
+  }>,
+): SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalTimelineItem {
+  const payload = normalizeJsonObjectOutput(event.payloadJson);
+  const archiveKey = typeof payload?.archive_key === 'string' ? payload.archive_key : '';
+
+  return {
+    event_id: event.id,
+    source_id: event.sourceId ?? event.resourceId ?? '',
+    event_type: normalizeNotificationTaskRecoveryAuditArchiveApprovalEventType(payload?.event_type, event.eventType),
+    status: event.status,
+    title: event.summary ?? '通知任务自愈闭环审计归档操作',
+    note: typeof payload?.note === 'string' ? payload.note : null,
+    actor: event.user
+      ? {
+          id: event.user.id,
+          name: event.user.name,
+          email: event.user.email,
+        }
+      : null,
+    request_id: event.requestId,
+    trace_id: event.traceId,
+    occurred_at: event.occurredAt.toISOString(),
+    archive_key: archiveKey,
+    archive_file_name:
+      typeof payload?.archive_file_name === 'string'
+        ? payload.archive_file_name
+        : archiveKey.split('/').at(-1) ?? '归档文件',
+    archive_size_bytes: typeof payload?.archive_size_bytes === 'number' ? payload.archive_size_bytes : 0,
+  };
+}
+
+function normalizeNotificationTaskRecoveryAuditArchiveApprovalEventType(value: unknown, eventType: string) {
+  if (value === 'DELETE_REQUESTED' || value === 'APPROVED' || value === 'REJECTED' || value === 'DELETE_APPLIED') {
+    return value;
+  }
+  if (eventType.endsWith('delete_requested')) return 'DELETE_REQUESTED';
+  if (eventType.endsWith('delete_approved')) return 'APPROVED';
+  if (eventType.endsWith('delete_rejected')) return 'REJECTED';
+  return 'DELETE_APPLIED';
+}
+
+function nullableText(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function uuidFromText(value: string) {
+  const hash = createHash('sha256').update(value).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
+function normalizeNotificationTaskRecoveryAction(
+  value: unknown,
+  eventType: string,
+): SecurityOperationAlertNotificationTaskRecoveryAction {
+  if (value === 'ACKNOWLEDGE' || value === 'IGNORE' || value === 'RESOLVE') return value;
+  return notificationTaskRecoveryActionFromEventType(eventType) ?? 'ACKNOWLEDGE';
+}
+
+function normalizeNotificationTaskRecoveryStatus(
+  value: unknown,
+  action: SecurityOperationAlertNotificationTaskRecoveryAction,
+): SecurityOperationAlertNotificationTaskRecoveryStatus {
+  if (value === 'ACKNOWLEDGED' || value === 'IGNORED' || value === 'RESOLVED') return value;
+  return notificationTaskRecoveryStatusFromAction(action);
+}
+
+function normalizeNotificationTaskRecoveryReason(
+  value: unknown,
+): SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] {
+  if (
+    value === 'WEBHOOK_NOT_CONFIGURED' ||
+    value === 'WEBHOOK_DELIVERY_FAILED' ||
+    value === 'AUTO_NOTIFY_DISABLED' ||
+    value === 'AUTO_RETRY_DISABLED' ||
+    value === 'CONSECUTIVE_FAILURES' ||
+    value === 'HIGH_FAILURE_RATE'
+  ) {
+    return value;
+  }
+  return 'HIGH_FAILURE_RATE';
+}
+
+function normalizeNotificationTaskRecoveryFailureSource(
+  value: unknown,
+  payload?: Record<string, unknown> | null,
+): SecurityOperationAlertNotificationTaskRecoveryFailureSource {
+  if (
+    value === 'SLA_DEAD_LETTER_ARCHIVE_DELETE' ||
+    value === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' ||
+    value === 'MIXED' ||
+    value === 'UNKNOWN'
+  ) {
+    return value;
+  }
+
+  return notificationTaskRecoveryFailureSource({
+    slaDeadLetterFailed: numericPayloadField(payload?.sla_dead_letter_failed_count),
+    recoveryArchiveDeleteFailed: numericPayloadField(payload?.recovery_archive_delete_failed_count),
+  });
+}
+
+function normalizeSecurityRiskLevel(value: unknown): SecurityCenterRiskLevel {
+  if (value === 'LOW' || value === 'MEDIUM' || value === 'HIGH') return value;
+  return 'MEDIUM';
+}
+
+function compareRecoverySuggestionSeverity(
+  left: SecurityOperationAlertNotificationTaskRecoverySuggestion,
+  right: SecurityOperationAlertNotificationTaskRecoverySuggestion,
+) {
+  return recoverySeverityRank(right.severity) - recoverySeverityRank(left.severity);
+}
+
+function recoverySeverityRank(severity: SecurityOperationAlertNotificationTaskRecoverySuggestion['severity']) {
+  if (severity === 'HIGH') return 3;
+  if (severity === 'MEDIUM') return 2;
+  return 1;
+}
+
+function isManualNotificationTaskFinishedDuplicate(event: { eventType: string; requestId: string | null }) {
+  return event.eventType.endsWith('_finished') && Boolean(event.requestId?.includes('_manual_'));
+}
+
+function notificationTaskStatus(value: unknown): 'SUCCESS' | 'FAILED' | 'SKIPPED' {
+  if (value === 'SUCCESS' || value === 'FAILED' || value === 'SKIPPED') return value;
+  return 'SKIPPED';
+}
+
+function numericPayloadField(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function booleanSetting(value: unknown, fallback: boolean) {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function countNotificationTaskConsecutiveFailures(items: Array<{ status: 'SUCCESS' | 'FAILED' | 'SKIPPED'; occurredAt: Date }>) {
+  let count = 0;
+  const sorted = [...items].sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime());
+  for (const item of sorted) {
+    if (item.status === 'SUCCESS') break;
+    count += 1;
+  }
+
+  return count;
+}
+
+function oldestApprovalAuditRiskAt(events: Array<{ eventStatus: string; occurredAt: Date }>) {
+  return oldestDateOrNull(
+    events
+      .filter((event) => event.eventStatus === 'FAILED' || event.eventStatus === 'WARNING')
+      .map((event) => event.occurredAt),
+  );
+}
+
+function oldestApprovalAuditTraceGapAt(events: Array<{ traceId: string | null; occurredAt: Date }>) {
+  return oldestDateOrNull(events.filter((event) => !event.traceId).map((event) => event.occurredAt));
+}
+
+function oldestApprovalAuditAt(events: Array<{ occurredAt: Date }>) {
+  return oldestDateOrNull(events.map((event) => event.occurredAt));
+}
+
+function oldestDateOrNull(values: Array<Date | null | undefined>) {
+  const dates = values.filter((value): value is Date => value instanceof Date);
+  if (dates.length === 0) return null;
+  return dates.sort((left, right) => left.getTime() - right.getTime())[0] ?? null;
+}
+
+function oldestDate(values: Array<Date | null | undefined>) {
+  return oldestDateOrNull(values) ?? new Date();
+}
+
 function buildRiskSignals(
   metrics: SecurityCenterOverview['metrics'],
   posture: SecurityCenterOverview['posture'],
+  approvalOperations: SecurityCenterOverview['approval_operations'],
 ): SecurityCenterRiskSignal[] {
   const risks: SecurityCenterRiskSignal[] = [];
+
+  if (approvalOperations.notification_task_recovery_audit_archive_delete_pending > 0) {
+    risks.push({
+      id: 'notification-task-recovery-audit-archive-delete-pending-risk',
+      title: '通知任务自愈归档删除待审批',
+      description: '通知任务自愈闭环审计归档删除申请尚未审批，建议确认删除原因、审计留存要求和 Trace 链路。',
+      severity:
+        approvalOperations.notification_task_recovery_audit_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.notification_task_recovery_audit_archive_delete_pending} 个删除申请`,
+    });
+  }
+
+  if (approvalOperations.operation_alert_notification_archive_delete_pending > 0) {
+    risks.push({
+      id: 'operation-alert-notification-archive-delete-pending-risk',
+      title: '通知审计归档删除待审批',
+      description: '来源型运营告警通知审计归档删除申请尚未审批，建议确认删除原因、审计留存要求和 Trace 链路。',
+      severity:
+        approvalOperations.operation_alert_notification_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.operation_alert_notification_archive_delete_pending} 个删除申请`,
+    });
+  }
+
+  if (
+    approvalOperations.operation_alert_notification_archive_delete_rejected > 0 &&
+    approvalOperations.operation_alert_notification_archive_delete_rejected >=
+      approvalOperations.operation_alert_notification_archive_delete_applied
+  ) {
+    risks.push({
+      id: 'operation-alert-notification-archive-delete-rejected-risk',
+      title: '通知审计归档删除拒绝偏多',
+      description: '通知投递审计归档删除被拒绝数量不低于已生效数量，需要复核申请理由和归档留存策略。',
+      severity:
+        approvalOperations.operation_alert_notification_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.operation_alert_notification_archive_delete_rejected} 个拒绝`,
+    });
+  }
+
+  if (
+    approvalOperations.notification_task_recovery_audit_archive_delete_rejected > 0 &&
+    approvalOperations.notification_task_recovery_audit_archive_delete_rejected >=
+      approvalOperations.notification_task_recovery_audit_archive_delete_applied
+  ) {
+    risks.push({
+      id: 'notification-task-recovery-audit-archive-delete-rejected-risk',
+      title: '通知任务自愈归档删除拒绝偏多',
+      description: '自愈闭环审计归档删除被拒绝数量不低于已生效数量，需要复核申请理由和归档留存策略。',
+      severity:
+        approvalOperations.notification_task_recovery_audit_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.notification_task_recovery_audit_archive_delete_rejected} 个拒绝`,
+    });
+  }
 
   if (metrics.pending_approvals > 0) {
     risks.push({
       id: 'pending-approvals',
       title: '存在待处理高危审批',
-      description: '高风险工具调用正在等待人工决策，建议优先处理。',
+      description: '高风险工具调用或高影响通知策略变更正在等待人工决策，建议优先处理。',
       severity: metrics.pending_approvals >= 3 ? 'HIGH' : 'MEDIUM',
       href: '/approvals?status=PENDING',
       metric: `${metrics.pending_approvals} 个待审批`,
@@ -994,6 +3862,662 @@ function buildRiskSignals(
   return risks.slice(0, 6);
 }
 
+function buildApprovalOperationAlerts(
+  operations: ApprovalOperationStats,
+  lifecycleEvents: Array<{ resourceId: string | null; eventType: string; payloadJson: Prisma.JsonValue; occurredAt: Date }>,
+): SecurityCenterOperationalAlert[] {
+  const alerts: Array<Omit<SecurityCenterOperationalAlert, 'last_action' | 'last_note' | 'status' | 'updated_at'>> = [];
+  const pendingTotal =
+    operations.tool_pending +
+    operations.notification_pending +
+    operations.archive_delete_pending +
+    operations.operation_alert_notification_archive_delete_pending +
+    operations.sla_dead_letter_archive_delete_pending +
+    operations.notification_task_recovery_audit_archive_delete_pending;
+  const auditRiskTotal = operations.audit_failed_24h + operations.audit_warning_24h;
+  const lifecycleMap = buildSecurityOperationLifecycleMap(lifecycleEvents);
+
+  if (pendingTotal >= 5) {
+    alerts.push({
+      id: 'approval-operation-backlog',
+      title: '审批待办出现积压',
+      description: '工具审批、通知策略审批或归档删除审批已经形成积压，建议安全管理员集中处理。',
+      severity: pendingTotal >= 10 ? 'HIGH' : 'MEDIUM',
+      href: '/approvals?status=PENDING',
+      metric: `${pendingTotal} 个待办`,
+      action_label: '处理审批',
+      triggered_at: oldestDate([
+        operations.tool_pending_oldest_at,
+        operations.notification_pending_oldest_at,
+        operations.archive_delete_pending_oldest_at,
+        operations.operation_alert_notification_archive_delete_pending_oldest_at,
+        operations.sla_dead_letter_archive_delete_pending_oldest_at,
+        operations.notification_task_recovery_audit_archive_delete_pending_oldest_at,
+      ]).toISOString(),
+    });
+  }
+
+  if (operations.runtime_pending >= 3) {
+    alerts.push({
+      id: 'runtime-tool-approval-backlog',
+      title: '运行时工具审批积压',
+      description: 'Agent 运行链路正在等待工具审批，可能影响用户会话响应和自动化任务推进。',
+      severity: operations.runtime_pending >= 6 ? 'HIGH' : 'MEDIUM',
+      href: '/approvals?queue=tool&status=PENDING',
+      metric: `${operations.runtime_pending} 个运行时请求`,
+      action_label: '查看运行时审批',
+      triggered_at: (operations.runtime_pending_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.notification_high_impact_pending > 0) {
+    alerts.push({
+      id: 'high-impact-notification-policy-pending',
+      title: '高影响通知策略待审批',
+      description: '告警通知自动重试策略存在高影响变更，批准前应确认投递频率、退避和最大重试次数。',
+      severity: operations.notification_high_impact_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/approvals?queue=notification-policy&status=PENDING',
+      metric: `${operations.notification_high_impact_pending} 个高影响`,
+      action_label: '审核策略变更',
+      triggered_at: (operations.notification_high_impact_pending_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.archive_delete_pending > 0) {
+    alerts.push({
+      id: 'archive-delete-pending',
+      title: '归档删除等待审批',
+      description: '审批审计归档删除属于高危操作，请确认删除原因、申请人和审计留存要求。',
+      severity: operations.archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/approvals?queue=archive-delete&status=PENDING',
+      metric: `${operations.archive_delete_pending} 个删除申请`,
+      action_label: '处理归档删除',
+      triggered_at: (operations.archive_delete_pending_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.operation_alert_notification_archive_delete_pending > 0) {
+    alerts.push({
+      id: 'operation-alert-notification-archive-delete-pending',
+      title: '通知审计归档删除等待审批',
+      description: '来源型运营告警通知审计归档删除申请尚未审批，请确认删除原因、投递审计留存要求和链路证据。',
+      severity: operations.operation_alert_notification_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.operation_alert_notification_archive_delete_pending} 个删除申请`,
+      action_label: '查看通知归档审批',
+      triggered_at: (
+        operations.operation_alert_notification_archive_delete_pending_oldest_at ??
+        operations.archive_storage_checked_at
+      ).toISOString(),
+    });
+  }
+
+  if (
+    operations.operation_alert_notification_archive_delete_rejected > 0 &&
+    operations.operation_alert_notification_archive_delete_rejected >=
+      operations.operation_alert_notification_archive_delete_applied
+  ) {
+    alerts.push({
+      id: 'operation-alert-notification-archive-delete-rejected-risk',
+      title: '通知审计归档删除拒绝偏多',
+      description: '来源型运营告警通知审计归档删除被拒绝数量不低于已生效数量，需要复核删除申请理由和审计留存策略。',
+      severity: operations.operation_alert_notification_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.operation_alert_notification_archive_delete_rejected} 个拒绝`,
+      action_label: '复核归档删除',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  }
+
+  if (operations.sla_dead_letter_archive_delete_pending > 0) {
+    alerts.push({
+      id: 'sla-dead-letter-archive-delete-pending',
+      title: 'SLA 死信归档删除等待审批',
+      description: 'SLA 死信处置审计归档删除申请正在等待审批，请核对文件、申请人、审批意见和 Trace 链路。',
+      severity: operations.sla_dead_letter_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.sla_dead_letter_archive_delete_pending} 个删除申请`,
+      action_label: '查看归档删除审批',
+      triggered_at: (
+        operations.sla_dead_letter_archive_delete_pending_oldest_at ??
+        operations.archive_storage_checked_at
+      ).toISOString(),
+    });
+  }
+
+  if (
+    operations.sla_dead_letter_archive_delete_rejected > 0 &&
+    operations.sla_dead_letter_archive_delete_rejected >= operations.sla_dead_letter_archive_delete_applied
+  ) {
+    alerts.push({
+      id: 'sla-dead-letter-archive-delete-rejected-risk',
+      title: 'SLA 死信归档删除拒绝偏多',
+      description: 'SLA 死信审计归档删除被拒绝数量不低于已生效数量，建议复核删除申请原因和归档留存策略。',
+      severity: operations.sla_dead_letter_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.sla_dead_letter_archive_delete_rejected} 个拒绝`,
+      action_label: '复核删除审批',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  }
+
+  if (operations.notification_task_recovery_audit_archive_delete_pending > 0) {
+    alerts.push({
+      id: 'notification-task-recovery-audit-archive-delete-pending',
+      title: '通知任务自愈归档删除等待审批',
+      description: '通知任务自愈闭环审计归档删除申请正在等待审批，请核对申请原因、归档文件和 Trace 链路。',
+      severity: operations.notification_task_recovery_audit_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.notification_task_recovery_audit_archive_delete_pending} 个删除申请`,
+      action_label: '查看自愈归档审批',
+      triggered_at: (
+        operations.notification_task_recovery_audit_archive_delete_pending_oldest_at ??
+        operations.archive_storage_checked_at
+      ).toISOString(),
+    });
+  }
+
+  if (
+    operations.notification_task_recovery_audit_archive_delete_rejected > 0 &&
+    operations.notification_task_recovery_audit_archive_delete_rejected >=
+      operations.notification_task_recovery_audit_archive_delete_applied
+  ) {
+    alerts.push({
+      id: 'notification-task-recovery-audit-archive-delete-rejected-risk',
+      title: '通知任务自愈归档删除拒绝偏多',
+      description: '自愈闭环审计归档删除被拒绝数量不低于已生效数量，建议复核删除申请原因和审计留存策略。',
+      severity: operations.notification_task_recovery_audit_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.notification_task_recovery_audit_archive_delete_rejected} 个拒绝`,
+      action_label: '复核自愈归档审批',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  }
+
+  if (
+    operations.notification_task_runs_24h >= 3 &&
+    (operations.notification_task_failed_24h > 0 || operations.notification_task_failure_rate_24h >= 30)
+  ) {
+    if (
+      operations.notification_task_sla_dead_letter_failed_24h > 0 &&
+      operations.notification_task_recovery_archive_delete_failed_24h > 0
+    ) {
+      const sourceFailureTotal =
+        operations.notification_task_sla_dead_letter_failed_24h +
+        operations.notification_task_recovery_archive_delete_failed_24h;
+      alerts.push({
+        id: 'operation-alert-notification-task-mixed-failure-source',
+        title: '通知任务双来源失败',
+        description: 'SLA 死信归档删除和自愈归档删除通知任务同时出现失败或跳过，需要优先排查 Webhook、调度和通知策略。',
+        severity:
+          sourceFailureTotal >= 3 ||
+          operations.notification_task_failure_rate_24h >= 50 ||
+          operations.notification_task_consecutive_failures >= 3
+            ? 'HIGH'
+            : 'MEDIUM',
+        href: '/security',
+        metric: `SLA ${operations.notification_task_sla_dead_letter_failed_24h} / 自愈 ${operations.notification_task_recovery_archive_delete_failed_24h}`,
+        action_label: '排查双来源失败',
+        triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      });
+    } else if (operations.notification_task_sla_dead_letter_failed_24h > 0) {
+      alerts.push({
+        id: 'operation-alert-notification-task-sla-dead-letter-failure-source',
+        title: 'SLA 死信通知来源失败',
+        description: 'SLA 死信归档删除审批告警自动通知出现失败或跳过，可能影响超时处置和死信审计删除审批触达。',
+        severity:
+          operations.notification_task_sla_dead_letter_failed_24h >= 3 ||
+          operations.notification_task_failure_rate_24h >= 50 ||
+          operations.notification_task_consecutive_failures >= 3
+            ? 'HIGH'
+            : 'MEDIUM',
+        href: '/security',
+        metric: `${operations.notification_task_sla_dead_letter_failed_24h} 条 SLA 来源失败`,
+        action_label: '排查 SLA 来源',
+        triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      });
+    } else if (operations.notification_task_recovery_archive_delete_failed_24h > 0) {
+      alerts.push({
+        id: 'operation-alert-notification-task-recovery-archive-failure-source',
+        title: '自愈归档通知来源失败',
+        description: '通知任务自愈闭环审计归档删除审批告警自动通知出现失败或跳过，可能影响归档删除审批触达和审计留存治理。',
+        severity:
+          operations.notification_task_recovery_archive_delete_failed_24h >= 3 ||
+          operations.notification_task_failure_rate_24h >= 50 ||
+          operations.notification_task_consecutive_failures >= 3
+            ? 'HIGH'
+            : 'MEDIUM',
+        href: '/security',
+        metric: `${operations.notification_task_recovery_archive_delete_failed_24h} 条自愈来源失败`,
+        action_label: '排查自愈来源',
+        triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      });
+    }
+
+    alerts.push({
+      id: 'operation-alert-notification-task-failure-risk',
+      title: '通知任务失败率偏高',
+      description: '审批与归档告警通知任务最近 24 小时出现失败或跳过，可能影响 SLA 死信归档删除审批告警触达。',
+      severity:
+        operations.notification_task_failure_rate_24h >= 50 || operations.notification_task_failed_24h >= 3
+          ? 'HIGH'
+          : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.notification_task_failed_24h} 失败 / ${operations.notification_task_skipped_24h} 跳过 / ${operations.notification_task_failure_rate_24h}%`,
+      action_label: '查看任务历史',
+      triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.notification_task_consecutive_failures >= 2) {
+    alerts.push({
+      id: 'operation-alert-notification-task-consecutive-failure',
+      title: '通知任务连续失败',
+      description: '自动通知或自动重试任务连续失败或跳过，建议检查 Webhook 配置、系统设置和任务执行事件。',
+      severity: operations.notification_task_consecutive_failures >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.notification_task_consecutive_failures} 次连续失败`,
+      action_label: '排查任务链路',
+      triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (auditRiskTotal > 0) {
+    alerts.push({
+      id: 'approval-audit-event-risk',
+      title: '审批审计存在失败或告警',
+      description: '最近 24 小时审批审计链路出现失败或告警事件，需要核对审批操作和归档链路。',
+      severity: operations.audit_failed_24h > 0 ? 'HIGH' : 'MEDIUM',
+      href: '/approval-audits?status=FAILED',
+      metric: `${operations.audit_failed_24h} 失败 / ${operations.audit_warning_24h} 告警`,
+      action_label: '查看审批审计',
+      triggered_at: (operations.audit_risk_oldest_at ?? operations.approval_audit_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.audit_events_24h > 0 && operations.audit_trace_count_24h < operations.audit_events_24h) {
+    const missingTraceCount = operations.audit_events_24h - operations.audit_trace_count_24h;
+    alerts.push({
+      id: 'approval-audit-trace-gap',
+      title: '审批审计 Trace 覆盖不足',
+      description: '部分审批审计事件缺少 Trace ID，排障时可能无法串起操作日志、审批链路和归档记录。',
+      severity: missingTraceCount >= 5 ? 'HIGH' : 'MEDIUM',
+      href: '/approval-audits?traceOnly=false',
+      metric: `${missingTraceCount} 条缺少 Trace`,
+      action_label: '检查审计链路',
+      triggered_at: (operations.audit_trace_gap_oldest_at ?? operations.approval_audit_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.archive_storage_status === 'UNKNOWN' || operations.archive_storage_status === 'UNAVAILABLE') {
+    alerts.push({
+      id: 'approval-archive-storage-unavailable',
+      title: '归档存储暂不可用',
+      description: '安全中心无法读取审批审计归档前缀，归档数量和容量可能不是实时值。',
+      severity: 'HIGH',
+      href: '/approval-audits',
+      metric: operations.archive_storage_status,
+      action_label: '检查归档中心',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  } else if (operations.archive_storage_status === 'DEGRADED') {
+    alerts.push({
+      id: 'approval-archive-storage-degraded',
+      title: '归档存储处于降级状态',
+      description: '审批审计归档仍可展示，但建议检查对象存储连接、桶策略和租户前缀权限。',
+      severity: 'MEDIUM',
+      href: '/approval-audits',
+      metric: 'DEGRADED',
+      action_label: '检查归档中心',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  }
+
+  if (operations.audit_events_24h > 0 && operations.archive_count === 0) {
+    alerts.push({
+      id: 'approval-audit-archive-empty',
+      title: '审批审计尚未形成归档',
+      description: '已有审批审计事件但没有归档文件，建议生成 CSV 归档用于审计留存。',
+      severity: 'MEDIUM',
+      href: '/approval-audits',
+      metric: '0 个归档',
+      action_label: '生成归档',
+      triggered_at: (operations.approval_audit_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  return alerts.slice(0, 6).map((alert) => ({
+    ...alert,
+    ...securityOperationLifecycleFields(lifecycleMap.get(alert.id) ?? null),
+  }));
+}
+
+function securityOperationAlertNotificationTargets(alert: SecurityCenterOperationalAlert) {
+  if (isNotificationTaskFailureAlert(alert.id)) {
+    return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
+  }
+  if (isNotificationTaskRecoveryAuditArchiveDeleteAlert(alert.id)) {
+    return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
+  }
+  if (isSlaDeadLetterArchiveDeleteAlert(alert.id)) {
+    return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
+  }
+  if (alert.severity === 'HIGH') return ['租户管理员', '安全管理员', '审计员'];
+  if (alert.id.includes('archive')) return ['安全管理员', '审计员'];
+  return ['安全管理员'];
+}
+
+function isSlaDeadLetterArchiveDeleteAlert(alertId: string) {
+  return (
+    alertId === 'sla-dead-letter-archive-delete-pending' ||
+    alertId === 'sla-dead-letter-archive-delete-rejected-risk'
+  );
+}
+
+function isNotificationTaskRecoveryAuditArchiveDeleteAlert(alertId: string) {
+  return (
+    alertId === 'notification-task-recovery-audit-archive-delete-pending' ||
+    alertId === 'notification-task-recovery-audit-archive-delete-rejected-risk'
+  );
+}
+
+function isNotificationTaskFailureAlert(alertId: string) {
+  return (
+    alertId === 'operation-alert-notification-task-failure-risk' ||
+    alertId === 'operation-alert-notification-task-consecutive-failure' ||
+    isNotificationTaskFailureSourceAlert(alertId)
+  );
+}
+
+function isNotificationTaskFailureSourceAlert(alertId: string) {
+  return (
+    alertId === 'operation-alert-notification-task-sla-dead-letter-failure-source' ||
+    alertId === 'operation-alert-notification-task-recovery-archive-failure-source' ||
+    alertId === 'operation-alert-notification-task-mixed-failure-source'
+  );
+}
+
+function securityOperationAlertCategory(alert: SecurityCenterOperationalAlert) {
+  if (alert.id === 'operation-alert-notification-task-sla-dead-letter-failure-source') {
+    return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  }
+  if (alert.id === 'operation-alert-notification-task-recovery-archive-failure-source') {
+    return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+  }
+  if (alert.id === 'operation-alert-notification-task-mixed-failure-source') return 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE';
+  if (isNotificationTaskFailureAlert(alert.id)) return 'NOTIFICATION_TASK';
+  if (isNotificationTaskRecoveryAuditArchiveDeleteAlert(alert.id)) {
+    return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+  }
+  if (isSlaDeadLetterArchiveDeleteAlert(alert.id)) return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  if (alert.id.includes('archive')) return 'ARCHIVE_OPERATION';
+  if (alert.id.includes('notification')) return 'NOTIFICATION_POLICY';
+  if (alert.id.includes('runtime')) return 'RUNTIME_APPROVAL';
+  return 'SECURITY_OPERATION';
+}
+
+function buildSecurityOperationLifecycleMap(
+  events: Array<{ resourceId: string | null; eventType: string; payloadJson: Prisma.JsonValue; occurredAt: Date }>,
+) {
+  const map = new Map<string, { action: SecurityOperationAlertAction; note: string | null; occurredAt: Date }>();
+
+  for (const event of events) {
+    if (!event.resourceId) continue;
+    const action = securityOperationActionFromEventType(event.eventType);
+    if (!action) continue;
+    const payload = normalizeJsonObjectOutput(event.payloadJson);
+    map.set(event.resourceId, {
+      action,
+      note: typeof payload?.note === 'string' ? payload.note : null,
+      occurredAt: event.occurredAt,
+    });
+  }
+
+  return map;
+}
+
+function securityOperationLifecycleFields(
+  lifecycle: { action: SecurityOperationAlertAction; note: string | null; occurredAt: Date } | null,
+): Pick<SecurityCenterOperationalAlert, 'last_action' | 'last_note' | 'status' | 'updated_at'> {
+  if (!lifecycle) {
+    return {
+      status: 'OPEN',
+      last_action: null,
+      last_note: null,
+      updated_at: null,
+    };
+  }
+
+  return {
+    status: securityOperationStatusFromAction(lifecycle.action),
+    last_action: lifecycle.action,
+    last_note: lifecycle.note,
+    updated_at: lifecycle.occurredAt.toISOString(),
+  };
+}
+
+function securityOperationActionFromEventType(eventType: string): SecurityOperationAlertAction | null {
+  if (eventType === 'platform.security.approval_operation_alert.acknowledged') return 'ACKNOWLEDGE';
+  if (eventType === 'platform.security.approval_operation_alert.escalated') return 'ESCALATE';
+  if (eventType === 'platform.security.approval_operation_alert.closed') return 'CLOSE';
+  return null;
+}
+
+function securityOperationAlertEventType(action: SecurityOperationAlertAction) {
+  if (action === 'ACKNOWLEDGE') return 'platform.security.approval_operation_alert.acknowledged';
+  if (action === 'ESCALATE') return 'platform.security.approval_operation_alert.escalated';
+  return 'platform.security.approval_operation_alert.closed';
+}
+
+function securityOperationStatusFromAction(action: SecurityOperationAlertAction): SecurityOperationAlertStatus {
+  if (action === 'ACKNOWLEDGE') return 'ACKNOWLEDGED';
+  if (action === 'ESCALATE') return 'ESCALATED';
+  return 'CLOSED';
+}
+
+function securityOperationLifecycleMessage(action: SecurityOperationAlertAction, title: string) {
+  if (action === 'ACKNOWLEDGE') return `已确认审批与归档告警：${title}`;
+  if (action === 'ESCALATE') return `已升级审批与归档告警：${title}`;
+  return `已关闭审批与归档告警：${title}`;
+}
+
+function normalizeSecurityOperationAlertChannels(
+  channels: SecurityOperationAlertNotificationChannel[] | undefined,
+) {
+  const allowed: SecurityOperationAlertNotificationChannel[] = ['IN_APP', 'WEBHOOK'];
+  const requested = channels?.length ? channels : allowed;
+  const normalized = requested.filter((channel): channel is SecurityOperationAlertNotificationChannel =>
+    allowed.includes(channel),
+  );
+
+  return Array.from(new Set(normalized));
+}
+
+async function deliverSecurityOperationAlertWebhook(
+  webhookUrl: string,
+  alert: SecurityCenterOperationalAlert,
+  note: string | null,
+  targets: string[],
+  category: string,
+): Promise<{ status: number | null; ok: boolean; error: string | null }> {
+  const body = JSON.stringify({
+    event: 'platform.security.approval_operation_alert.notification',
+    category,
+    alert_id: alert.id,
+    severity: alert.severity,
+    title: alert.title,
+    description: alert.description,
+    metric: alert.metric,
+    href: alert.href,
+    action_label: alert.action_label,
+    targets,
+    note,
+    created_at: new Date().toISOString(),
+  });
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'AIAGET-Security-Alerts/1.0',
+      },
+      body,
+      signal: AbortSignal.timeout(SECURITY_OPERATION_ALERT_WEBHOOK_TIMEOUT_MS),
+    });
+    const text = await safeSecurityOperationAlertResponseText(response);
+
+    return {
+      status: response.status,
+      ok: response.ok,
+      error: response.ok ? null : text ?? `Webhook returned HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      status: null,
+      ok: false,
+      error: error instanceof Error ? error.message : 'Webhook notification failed',
+    };
+  }
+}
+
+async function safeSecurityOperationAlertResponseText(response: Response) {
+  try {
+    const text = await response.text();
+    return text.slice(0, 1200);
+  } catch {
+    return null;
+  }
+}
+
+function securityOperationNotificationStatus(
+  channels: SecurityOperationAlertNotificationChannel[],
+  webhookResult: { ok: boolean } | null,
+  webhookSkipped: boolean,
+): SecurityOperationAlertNotificationStatus {
+  if (channels.length === 0) return 'SKIPPED';
+
+  const inAppSent = channels.includes('IN_APP');
+  const webhookRequested = channels.includes('WEBHOOK');
+
+  if (!webhookRequested) return inAppSent ? 'SENT' : 'SKIPPED';
+  if (webhookResult?.ok) return 'SENT';
+  if (webhookSkipped) return inAppSent ? 'PARTIAL' : 'SKIPPED';
+
+  return inAppSent ? 'PARTIAL' : 'FAILED';
+}
+
+function securityOperationNotificationMessage(
+  status: SecurityOperationAlertNotificationStatus,
+  channels: SecurityOperationAlertNotificationChannel[],
+  webhookSkipped: boolean,
+) {
+  if (status === 'SENT') return '审批与归档告警通知已投递。';
+  if (status === 'PARTIAL') {
+    return webhookSkipped ? '站内通知已记录，外部 Webhook 未配置。' : '站内通知已记录，外部 Webhook 投递失败。';
+  }
+  if (status === 'SKIPPED') return '审批与归档告警通知已跳过，未配置可用投递渠道。';
+
+  return channels.includes('WEBHOOK') ? '外部 Webhook 告警通知投递失败。' : '审批与归档告警通知投递失败。';
+}
+
+function mapSecurityOperationAlertNotificationEvent(
+  event: SecurityOperationNotificationEventRecord,
+): SecurityOperationAlertNotificationItem {
+  const payload = normalizeJsonObjectOutput(event.payloadJson);
+  const status = normalizeSecurityOperationNotificationStatus(payload?.status);
+  const channels = normalizeSecurityOperationAlertChannels(
+    Array.isArray(payload?.channels) ? payload.channels : undefined,
+  );
+  const targets = Array.isArray(payload?.targets)
+    ? payload.targets.filter((item): item is string => typeof item === 'string')
+    : [];
+
+  return {
+    alert_id: typeof payload?.alert_id === 'string' ? payload.alert_id : event.resourceId ?? '',
+    notification_event_id: event.id,
+    alert_category: typeof payload?.alert_category === 'string' ? payload.alert_category : null,
+    status,
+    channels,
+    targets,
+    delivery_event_id: event.id,
+    webhook_status: typeof payload?.webhook_status === 'number' ? payload.webhook_status : null,
+    webhook_error: typeof payload?.webhook_error === 'string' ? payload.webhook_error : null,
+    message: event.summary ?? securityOperationNotificationMessage(status, channels, false),
+    retry_count: typeof payload?.retry_count === 'number' ? payload.retry_count : 0,
+    retried_from_event_id: typeof payload?.retried_from_event_id === 'string' ? payload.retried_from_event_id : null,
+    request_id: event.requestId,
+    trace_id: event.traceId,
+    delivered_at: typeof payload?.delivered_at === 'string' ? payload.delivered_at : event.occurredAt.toISOString(),
+    created_at: event.createdAt.toISOString(),
+  };
+}
+
+function buildSecurityOperationAlertNotificationSummary(items: SecurityOperationAlertNotificationItem[]) {
+  return {
+    total_count: items.length,
+    sent_count: items.filter((item) => item.status === 'SENT').length,
+    partial_count: items.filter((item) => item.status === 'PARTIAL').length,
+    skipped_count: items.filter((item) => item.status === 'SKIPPED').length,
+    failed_count: items.filter((item) => item.status === 'FAILED').length,
+    retryable_count: items.filter((item) => isRetryableSecurityOperationNotification(item.status)).length,
+  };
+}
+
+function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAlertNotificationItem[]) {
+  const rows = [
+    [
+      '通知事件ID',
+      '告警ID',
+      '来源分类',
+      '状态',
+      '渠道',
+      '目标',
+      'Webhook 状态',
+      'Webhook 错误',
+      '重试次数',
+      '来源事件ID',
+      'Request ID',
+      'Trace ID',
+      '消息',
+      '投递时间',
+      '创建时间',
+    ],
+    ...items.map((item) => [
+      item.notification_event_id,
+      item.alert_id,
+      item.alert_category ?? '',
+      item.status,
+      item.channels.join('、'),
+      item.targets.join('、'),
+      item.webhook_status === null ? '' : String(item.webhook_status),
+      item.webhook_error ?? '',
+      String(item.retry_count),
+      item.retried_from_event_id ?? '',
+      item.request_id ?? '',
+      item.trace_id ?? '',
+      item.message,
+      item.delivered_at,
+      item.created_at,
+    ]),
+  ];
+
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function isSystemActor(currentUser: AuthenticatedUser) {
+  return currentUser.id.startsWith('system-');
+}
+
+function normalizeSecurityOperationNotificationStatus(value: unknown): SecurityOperationAlertNotificationStatus {
+  if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') return value;
+  return 'SKIPPED';
+}
+
+function isRetryableSecurityOperationNotification(status: SecurityOperationAlertNotificationStatus) {
+  return status === 'FAILED' || status === 'PARTIAL';
+}
+
 function moduleSummary(input: {
   key: SecurityCenterModuleSummary['key'];
   title: string;
@@ -1052,12 +4576,14 @@ function mapEvaluation(item: EvaluationRecord): SecurityPolicyEvaluationItem {
   };
 }
 
-function mapOperationDenial(item: Prisma.OperationLogGetPayload<object>): SecurityCenterDenialItem {
+function mapOperationDenial(item: OperationSecurityEventRecord): SecurityCenterEventDetail {
   const summary = normalizeJsonObjectOutput(item.requestSummary);
+  const source = normalizeDenialSource(summary?.guard_source);
+  const traceId = stringValue(summary?.trace_id);
 
   return {
     id: `operation:${item.id}`,
-    source: normalizeDenialSource(summary?.guard_source),
+    source,
     title: `${denialSourceLabel(summary?.guard_source)} 拒绝`,
     reason: item.errorMessage ?? '安全访问被拒绝',
     resource_type: stringValue(summary?.resource_type),
@@ -1068,20 +4594,42 @@ function mapOperationDenial(item: Prisma.OperationLogGetPayload<object>): Securi
     method: item.method,
     status_code: item.statusCode,
     request_id: item.requestId,
-    trace_id: stringValue(summary?.trace_id),
+    trace_id: traceId,
     occurred_at: item.createdAt.toISOString(),
+    severity: securityEventSeverity(item.statusCode, source),
+    has_trace: Boolean(traceId),
+    source_record_type: 'operation_log',
+    source_record_id: item.id,
+    subject: normalizeJsonObjectOutput(summary?.subject),
+    resource: normalizeJsonObjectOutput(summary?.resource),
+    context: normalizeJsonObjectOutput(summary?.context),
+    request_summary: summary,
+    matched_policy: summary?.matched_code
+      ? {
+          id: null,
+          code: stringValue(summary.matched_code),
+          name: null,
+        }
+      : null,
+    operator: item.user
+      ? {
+          id: item.user.id,
+          name: item.user.name,
+          email: item.user.email,
+        }
+      : null,
+    ip: item.ip,
+    user_agent: item.userAgent,
+    error_message: item.errorMessage,
   };
 }
 
 function mapPolicyDenial(
-  item: Prisma.SecurityPolicyEvaluationGetPayload<{
-    include: {
-      matchedPolicy: true;
-    };
-  }>,
-): SecurityCenterDenialItem {
+  item: PolicySecurityEventRecord,
+): SecurityCenterEventDetail {
   const resource = normalizeJsonObjectOutput(item.resource);
   const context = normalizeJsonObjectOutput(item.context);
+  const traceId = item.traceId;
 
   return {
     id: `policy:${item.id}`,
@@ -1096,9 +4644,66 @@ function mapPolicyDenial(
     method: stringValue(context?.method) ?? 'EVALUATE',
     status_code: 403,
     request_id: item.requestId,
-    trace_id: item.traceId,
+    trace_id: traceId,
     occurred_at: item.createdAt.toISOString(),
+    severity: 'MEDIUM',
+    has_trace: Boolean(traceId),
+    source_record_type: 'security_policy_evaluation',
+    source_record_id: item.id,
+    subject: normalizeJsonObjectOutput(item.subject),
+    resource,
+    context,
+    request_summary: null,
+    matched_policy: item.matchedPolicyId || item.matchedPolicyCode || item.matchedPolicy
+      ? {
+          id: item.matchedPolicyId,
+          code: item.matchedPolicyCode ?? item.matchedPolicy?.code ?? null,
+          name: item.matchedPolicy?.name ?? null,
+        }
+      : null,
+    operator: item.operator
+      ? {
+          id: item.operator.id,
+          name: item.operator.name,
+          email: item.operator.email,
+        }
+      : null,
+    ip: stringValue(context?.ip),
+    user_agent: stringValue(context?.user_agent),
+    error_message: item.reason,
   };
+}
+
+function stripEventDetail(event: SecurityCenterEventDetail): SecurityCenterEventListItem {
+  return {
+    id: event.id,
+    source: event.source,
+    title: event.title,
+    reason: event.reason,
+    resource_type: event.resource_type,
+    resource_id: event.resource_id,
+    action: event.action,
+    matched_code: event.matched_code,
+    path: event.path,
+    method: event.method,
+    status_code: event.status_code,
+    request_id: event.request_id,
+    trace_id: event.trace_id,
+    occurred_at: event.occurred_at,
+    severity: event.severity,
+    has_trace: event.has_trace,
+    source_record_type: event.source_record_type,
+    source_record_id: event.source_record_id,
+  };
+}
+
+function stripSecurityCenterDenial(event: SecurityCenterEventDetail): SecurityCenterDenialItem {
+  const { severity, has_trace, source_record_type, source_record_id, ...denial } = stripEventDetail(event);
+  void severity;
+  void has_trace;
+  void source_record_type;
+  void source_record_id;
+  return denial;
 }
 
 function normalizeDenialSource(value: unknown): SecurityCenterDenialItem['source'] {
@@ -1123,12 +4728,51 @@ function stringValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function normalizeEventSource(value: string | undefined): SecurityCenterEventSource | null {
+  if (value === 'DATA_SCOPE' || value === 'RESOURCE_ACL' || value === 'SECURITY_POLICY' || value === 'OPERATION') {
+    return value;
+  }
+  return null;
+}
+
+function normalizeEventWindow(value: string | undefined): SecurityCenterEventWindow {
+  if (value === '1h' || value === '7d' || value === '30d') return value;
+  return '24h';
+}
+
+function eventWindowStart(window: SecurityCenterEventWindow) {
+  const now = new Date();
+  if (window === '1h') {
+    now.setHours(now.getHours() - 1);
+    return now;
+  }
+  if (window === '7d') {
+    now.setDate(now.getDate() - 7);
+    return now;
+  }
+  if (window === '30d') {
+    now.setDate(now.getDate() - 30);
+    return now;
+  }
+  now.setHours(now.getHours() - 24);
+  return now;
+}
+
+function securityEventSeverity(
+  statusCode: number,
+  source: SecurityCenterEventSource,
+): SecurityCenterRiskLevel {
+  if (statusCode >= 500) return 'HIGH';
+  if (source === 'SECURITY_POLICY' || source === 'RESOURCE_ACL') return 'MEDIUM';
+  return 'LOW';
+}
+
 function normalizeDecision(value: string): SecurityPolicyDecision {
   if (value === 'ALLOW' || value === 'DENY' || value === 'NO_MATCH') return value;
   return 'NO_MATCH';
 }
 
-function normalizeJsonObjectOutput(value: Prisma.JsonValue | null) {
+function normalizeJsonObjectOutput(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }

@@ -1,0 +1,40 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-14 渠道发布流水线与发布批次
+- Route: `/channels`
+- Feature goal: 将渠道发布审批、灰度、全量、回滚整合成可追踪的发布批次和流水线步骤，便于运营复盘和审计。
+- Target users and permissions:
+  - 租户管理员：查看和管理全部渠道发布批次。
+  - 渠道管理员：需要 `channel:publish:view` 查看，`channel:publish:manage` 新建批次，`channel:publish:deploy` 标记全量，`channel:publish:disable` 终止发布。
+  - 审计员：查看批次事件和最近发布链路。
+- Existing route and layout:
+  - 复用 `apps/web/src/app/(console)/channels/page.tsx`。
+  - 主实现文件为 `apps/web/src/components/channels/channel-content.tsx`。
+  - 页面已有渠道清单、渠道详情、投递中心、投递策略、发布审批与灰度发布、灰度执行闭环、后台任务。
+- APIs/services:
+  - `getChannelReleasePipeline(channelId)` -> `GET /channels/:channelId/release-pipeline`
+  - `startChannelReleaseBatch(channelId, input)` -> `POST /channels/:channelId/release-pipeline/start`
+  - `markChannelReleaseFull(channelId, input)` -> `POST /channels/:channelId/release-pipeline/mark-full`
+  - `abortChannelReleaseBatch(channelId, input)` -> `POST /channels/:channelId/release-pipeline/abort`
+- Data entities and fields:
+  - `ChannelReleasePipeline`: `current_batch`, `steps`, `recent_batches`, `recent_events`, `updated_at`
+  - `ChannelReleaseBatch`: `batch_id`, `title`, `status`, `target_rollout_percentage`, `started_by`, `started_at`, `completed_at`, `aborted_at`, `rollback_at`, `note`
+  - `ChannelReleasePipelineStep`: `key`, `name`, `status`, `description`, `occurred_at`, `event_type`
+- Status/enums:
+  - 批次状态：`IDLE`, `PENDING_APPROVAL`, `APPROVED`, `GRAY`, `FULL`, `ROLLED_BACK`, `ABORTED`
+  - 步骤状态：`WAITING`, `CURRENT`, `DONE`, `FAILED`, `SKIPPED`
+- Existing components/design system:
+  - `Card`, `Button`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - Icons from `lucide-react`
+  - Tailwind CSS with dashboard/Bento layout, subtle borders, soft shadow, backdrop blur.
+- Required states and actions:
+  - 新建发布批次
+  - 标记全量发布
+  - 终止发布批次
+  - 查看批次步骤、最近批次和事件
+  - loading、empty、error、disabled、permission read-only
+- Constraints:
+  - 不新增路由；在现有 `/channels` 页面追加面板。
+  - 不新增数据库表；批次状态保存于 `agent_publish_channel.config.release_pipeline`，事件保存于 `platform_events`。
+  - UI 文案使用中文。

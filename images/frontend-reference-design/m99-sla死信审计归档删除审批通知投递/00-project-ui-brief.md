@@ -1,0 +1,27 @@
+# Project UI Brief
+
+- Page: M99 SLA死信审计归档删除审批通知投递
+- Route: /security
+- Feature goal: SLA死信归档删除运营告警通知目标与投递审计
+- Target users: 安全管理员、租户管理员、审计员
+- Parent layout: 安全中心 `/security` 审批与归档运营告警、投递审计区域
+- APIs/services:
+  - `POST /api/v1/security-center/operation-alerts/:alertId/notify`
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `POST /api/v1/security-center/operation-alert-notifications/:notificationEventId/retry`
+- Alert ids:
+  - `sla-dead-letter-archive-delete-pending`
+  - `sla-dead-letter-archive-delete-rejected-risk`
+- Data fields:
+  - `notification_event_id`、`alert_id`、`status`、`channels`、`targets`、`webhook_status`、`webhook_error`、`message`、`delivered_at`
+- Existing components/design system:
+  - `OperationAlertCard`
+  - `OperationAlertNotificationAuditCard`
+  - `OperationAlertNotificationAuditRow`
+  - `StatusBadge`、`Button`、`EmptyState`
+- Required states:
+  - notifying
+  - partial delivery
+  - retryable delivery
+  - skipped webhook
+  - SLA 死信归档删除通知标识

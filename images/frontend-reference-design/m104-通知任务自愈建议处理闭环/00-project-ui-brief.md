@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Page: M104 通知任务自愈建议处理闭环
+- Route: `/security`
+- Feature goal: 在 M103 自愈建议基础上，为每条建议提供“确认、忽略、标记已处理”的运营动作，并把动作写入 `platform_event` 形成审计闭环。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`。
+- APIs/services:
+  - `GET /security-center/overview`
+  - `POST /security-center/operation-alert-notification-task-recovery-suggestions/:suggestionId/actions`
+  - frontend service: `updateSecurityOperationAlertNotificationTaskRecoverySuggestion`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion`
+  - `SecurityOperationAlertNotificationTaskRecoveryActionInput`
+  - `SecurityOperationAlertNotificationTaskRecoveryActionResult`
+  - action: `ACKNOWLEDGE` / `IGNORE` / `RESOLVE`
+  - status: `OPEN` / `ACKNOWLEDGED` / `IGNORED` / `RESOLVED`
+  - `last_action`、`last_note`、`updated_at`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`StatusBadge`、`EmptyState`
+  - Existing page file: `apps/web/src/components/security/security-policy-content.tsx`
+  - Existing API client file: `apps/web/src/lib/api-client.ts`
+- Required states:
+  - loading/pending action: 当前建议动作按钮禁用，文案显示处理中
+  - success: 卡片本地显示最新动作状态，并刷新 overview
+  - empty: 无建议时保持 M103 健康空状态
+  - error: 复用安全中心 `actionError`
+  - permission: 复用安全中心访问权限，不新增权限码
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，不执行迁移
+  - 不自动修改系统设置或中间件
+  - 不启动容器，不安装依赖
+  - 处理动作只记录运营闭环事件，不改变建议生成规则

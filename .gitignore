@@ -5,6 +5,7 @@ dist
 build
 coverage
 .turbo
+tmp/
 .env
 .env.*
 !.env.example

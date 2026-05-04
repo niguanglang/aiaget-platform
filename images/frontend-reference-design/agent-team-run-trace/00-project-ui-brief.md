@@ -1,0 +1,59 @@
+# Project UI Brief
+
+- Page: Agent Team Run Trace
+- Route: /agent-teams
+- Feature goal: 团队运行轨迹增强，展示成员步骤、RAG/工具/模型指标、接力记录和平台事件用量入口
+- Product/module: 企业 AI Agent 平台 / Agent 协作中心
+- Target users/roles: 租户管理员、Agent 管理员、团队运行人员、审计/监控人员
+- Permissions:
+  - `agent:team:view`: 查看团队列表、团队详情和运行轨迹
+  - `agent:team:manage`: 新建、编辑、归档团队，维护团队成员
+  - `agent:team:run`: 启动团队任务、创建接力、记录反馈
+- Route and shell:
+  - Next.js App Router: `apps/web/src/app/(console)/agent-teams/page.tsx`
+  - Console layout: `apps/web/src/app/(console)/layout.tsx`
+  - Main component: `apps/web/src/components/agent-teams/agent-teams-content.tsx`
+- APIs/services:
+  - `getAgentTeamOverview()`
+  - `listAgentTeams({ page, page_size, keyword, status, mode, owner_id })`
+  - `getAgentTeam(teamId)`
+  - `listAgents({ status: "PUBLISHED" })`
+  - `listUsers({ status: "ACTIVE" })`
+  - `createAgentTeam(input)`
+  - `updateAgentTeam(teamId, input)`
+  - `deleteAgentTeam(teamId)`
+  - `createAgentTeamMember(teamId, input)`
+  - `updateAgentTeamMember(teamId, memberId, input)`
+  - `deleteAgentTeamMember(teamId, memberId)`
+  - `startAgentTeamRun(teamId, { objective })`
+  - `createAgentTeamHandoff(runId, input)`
+  - `createAgentTeamFeedback(runId, input)`
+- Entities/fields:
+  - `AgentTeamDetail`: `name`, `code`, `description`, `status`, `mode`, `max_rounds`, `timeout_seconds`, `handoff_policy`, `owner`, `members`, `runs`, `steps`, `handoffs`, `feedback`
+  - `AgentTeamRunSummary`: `objective`, `status`, `request_id`, `trace_id`, `total_steps`, `completed_steps`, `failed_steps`, `total_tokens`, `total_cost`, `latency_ms`, `error_message`, `started_at`, `ended_at`, `created_at`, `created_by`
+  - `AgentTeamStepItem`: `step_type`, `title`, `status`, `input_summary`, `output_summary`, `trace_id`, `span_id`, `parent_span_id`, `duration_ms`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_total`, `error_message`, `started_at`, `ended_at`, `agent_name`, `agent_code`
+  - `AgentTeamHandoffItem`: `from_agent_name`, `to_agent_name`, `reason`, `status`, `decision_note`, `decided_by`, `decided_at`, `created_at`
+  - `AgentTeamFeedbackItem`: `rating`, `comment`, `created_at`, `created_by`
+- Status/enums:
+  - Team: `DRAFT`, `ACTIVE`, `DISABLED`, `ARCHIVED`
+  - Mode: `SEQUENTIAL`, `PARALLEL`, `SUPERVISOR`
+  - Handoff policy: `AUTO`, `MANUAL`, `APPROVAL_REQUIRED`
+  - Run: `QUEUED`, `RUNNING`, `WAITING_HUMAN`, `SUCCESS`, `FAILED`, `CANCELLED`
+  - Step: `PLAN`, `AGENT_RUN`, `HANDOFF`, `VERIFY`, `SUMMARY`; status `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`, `SKIPPED`
+- Existing components/design system:
+  - Tailwind CSS, Chinese UI copy, shadcn-style local components
+  - `Button`, `MetricCard`, `StatusBadge`, `Card`, `EmptyState`
+  - Existing table/card/detail/modal patterns in `agent-teams-content.tsx` and `monitor-content.tsx`
+  - Lucide icons for icon buttons and compact actions
+- Required states:
+  - Loading: list/detail/option queries loading
+  - Empty: no teams, no members, no runs, no steps, no handoffs, no feedback
+  - Error: query load failure and mutation `ApiClientError`
+  - Validation: disabled run/save buttons when required inputs are empty
+  - Disabled/permission: manage/run actions disabled without permissions
+  - Success: React Query invalidation refreshes latest detail
+- Implementation constraints:
+  - Do not invent unsupported API fields.
+  - Keep all visible text in Chinese.
+  - Do not start middleware or containers.
+  - Reuse `/monitor?keyword=<trace_id>` style deep link for Trace instead of adding a new backend endpoint in this UI milestone.

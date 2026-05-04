@@ -11,7 +11,7 @@ This milestone does not add a PostgreSQL table or field.
 ```text
 QDRANT_ENABLED=true
 QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=redacted-local-secret
+QDRANT_API_KEY=<set-via-env>
 QDRANT_COLLECTION_PREFIX=aiaget_knowledge_segments
 ```
 

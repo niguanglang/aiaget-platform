@@ -345,6 +345,7 @@ async function main() {
   await seedMenus(tenant.id, admin.id);
   await seedRoleDataScopes(tenant.id, admin.id);
   await seedSystemSettings(tenant.id, admin.id);
+  await seedBillingCommercialization(tenant.id, admin.id);
 
   const menuRecords = await prisma.menu.findMany({
     where: {
@@ -596,7 +597,11 @@ async function main() {
     });
   }
 
-  await seedResourceAcls(tenant.id, admin.id, adminRole.id, seededAgent.id);
+  const seededAgentTeam = await seedAgentTeam(tenant.id, admin.id, seededAgent.id);
+  const seededChannel = await seedPublishChannels(tenant.id, admin.id, seededAgent.id);
+  const seededPlugin = await seedPlugins(tenant.id, admin.id);
+
+  await seedResourceAcls(tenant.id, admin.id, adminRole.id, seededAgent.id, seededAgentTeam.id, seededChannel.id, seededPlugin.id);
 
   console.log(
     `Seeded tenant "${defaultTenantCode}" with default admin "${defaultAdminEmail}". Password: "${defaultAdminPassword}"`,
@@ -621,25 +626,36 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'dashboard', name: '工作台', type: 'MENU', path: '/dashboard', component: 'dashboard/page', icon: 'Gauge', permissionCode: PERMISSION_CODES.dashboardOverviewView, sortOrder: 10 },
   { code: 'agent_center', name: 'Agent 中心', type: 'DIRECTORY', icon: 'Bot', sortOrder: 20 },
   { code: 'agents', parentCode: 'agent_center', name: 'Agent 管理', type: 'MENU', path: '/agents', component: 'agents/page', icon: 'Bot', permissionCode: PERMISSION_CODES.agentAgentView, sortOrder: 10 },
+  { code: 'agent_teams', parentCode: 'agent_center', name: 'Agent 协作', type: 'MENU', path: '/agent-teams', component: 'agent-teams/page', icon: 'GitBranch', permissionCode: PERMISSION_CODES.agentTeamView, sortOrder: 20 },
+  { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 30 },
   { code: 'prompts', name: '提示词中心', type: 'MENU', path: '/prompts', component: 'prompts/page', icon: 'FileText', permissionCode: PERMISSION_CODES.promptTemplateView, sortOrder: 30 },
   { code: 'models', name: '模型中心', type: 'MENU', path: '/models', component: 'models/page', icon: 'KeyRound', permissionCode: PERMISSION_CODES.modelConfigView, sortOrder: 40 },
   { code: 'knowledge', name: '知识库中心', type: 'MENU', path: '/knowledge', component: 'knowledge/page', icon: 'Database', permissionCode: PERMISSION_CODES.knowledgeBaseView, sortOrder: 50 },
   { code: 'storage', name: '文件存储', type: 'MENU', path: '/storage', component: 'storage/page', icon: 'HardDrive', permissionCode: PERMISSION_CODES.storageObjectView, sortOrder: 55 },
+  { code: 'plugins', name: '插件生态', type: 'MENU', path: '/plugins', component: 'plugins/page', icon: 'Boxes', permissionCode: PERMISSION_CODES.pluginCenterView, sortOrder: 57 },
   { code: 'tools', name: '工具中心', type: 'MENU', path: '/tools', component: 'tools/page', icon: 'Wrench', permissionCode: PERMISSION_CODES.toolDefinitionView, sortOrder: 60 },
   { code: 'conversations', name: '会话中心', type: 'MENU', path: '/conversations', component: 'conversations/page', icon: 'MessageSquareText', permissionCode: PERMISSION_CODES.conversationHistoryView, sortOrder: 70 },
   { code: 'monitor', name: '监控中心', type: 'MENU', path: '/monitor', component: 'monitor/page', icon: 'Activity', permissionCode: PERMISSION_CODES.monitorLogView, sortOrder: 80 },
   { code: 'billing', name: '成本与额度', type: 'MENU', path: '/billing', component: 'billing/page', icon: 'Coins', permissionCode: PERMISSION_CODES.monitorLogView, sortOrder: 85 },
+  { code: 'api_keys', name: 'API Key', type: 'MENU', path: '/api-keys', component: 'api-keys/page', icon: 'KeySquare', permissionCode: PERMISSION_CODES.systemApiKeyView, sortOrder: 87 },
+  { code: 'api_reference', name: '接口文档', type: 'MENU', path: '/api-reference', component: 'api-reference/page', icon: 'BookOpen', permissionCode: PERMISSION_CODES.systemApiKeyView, sortOrder: 88 },
   { code: 'security_center', name: '安全中心', type: 'DIRECTORY', icon: 'ShieldCheck', sortOrder: 90 },
   { code: 'security_policies', parentCode: 'security_center', name: '安全策略', type: 'MENU', path: '/security', component: 'security/page', icon: 'ShieldCheck', permissionCode: PERMISSION_CODES.securityRuleView, sortOrder: 10 },
   { code: 'approvals', parentCode: 'security_center', name: '高危工具审批', type: 'MENU', path: '/approvals', component: 'approvals/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.securityApprovalView, sortOrder: 20 },
   { code: 'audit', parentCode: 'security_center', name: '审计日志', type: 'MENU', path: '/audit', component: 'audit/page', icon: 'ScrollText', permissionCode: PERMISSION_CODES.securityAuditView, sortOrder: 30 },
   { code: 'system_management', name: '系统管理', type: 'DIRECTORY', icon: 'Settings', sortOrder: 100 },
   { code: 'settings', parentCode: 'system_management', name: '系统设置', type: 'MENU', path: '/settings', component: 'settings/page', icon: 'Settings', permissionCode: PERMISSION_CODES.systemSettingsView, sortOrder: 10 },
-  { code: 'departments', parentCode: 'system_management', name: '部门管理', type: 'MENU', path: '/departments', component: 'departments/page', icon: 'Network', permissionCode: PERMISSION_CODES.systemDepartmentView, sortOrder: 20 },
-  { code: 'roles', parentCode: 'system_management', name: '角色管理', type: 'MENU', path: '/roles', component: 'roles/page', icon: 'ShieldCheck', permissionCode: PERMISSION_CODES.systemRoleView, sortOrder: 30 },
-  { code: 'data_scopes', parentCode: 'system_management', name: '数据权限', type: 'MENU', path: '/data-scopes', component: 'data-scopes/page', icon: 'SlidersHorizontal', permissionCode: PERMISSION_CODES.systemDataScopeView, sortOrder: 40 },
-  { code: 'resource_acls', parentCode: 'system_management', name: '资源授权', type: 'MENU', path: '/resource-acls', component: 'resource-acls/page', icon: 'KeyRound', permissionCode: PERMISSION_CODES.systemResourceAclView, sortOrder: 50 },
-  { code: 'menus', parentCode: 'system_management', name: '菜单管理', type: 'MENU', path: '/menus', component: 'menus/page', icon: 'ListTree', permissionCode: PERMISSION_CODES.systemMenuView, sortOrder: 60 },
+  { code: 'tenants', parentCode: 'system_management', name: '租户管理', type: 'MENU', path: '/tenants', component: 'tenants/page', icon: 'Network', permissionCode: PERMISSION_CODES.systemTenantView, sortOrder: 20 },
+  { code: 'users', parentCode: 'system_management', name: '用户管理', type: 'MENU', path: '/users', component: 'users/page', icon: 'UsersRound', permissionCode: PERMISSION_CODES.systemUserView, sortOrder: 30 },
+  { code: 'departments', parentCode: 'system_management', name: '部门管理', type: 'MENU', path: '/departments', component: 'departments/page', icon: 'Network', permissionCode: PERMISSION_CODES.systemDepartmentView, sortOrder: 40 },
+  { code: 'roles', parentCode: 'system_management', name: '角色管理', type: 'MENU', path: '/roles', component: 'roles/page', icon: 'ShieldCheck', permissionCode: PERMISSION_CODES.systemRoleView, sortOrder: 50 },
+  { code: 'data_scopes', parentCode: 'system_management', name: '数据权限', type: 'MENU', path: '/data-scopes', component: 'data-scopes/page', icon: 'SlidersHorizontal', permissionCode: PERMISSION_CODES.systemDataScopeView, sortOrder: 60 },
+  { code: 'resource_acls', parentCode: 'system_management', name: '资源授权', type: 'MENU', path: '/resource-acls', component: 'resource-acls/page', icon: 'KeyRound', permissionCode: PERMISSION_CODES.systemResourceAclView, sortOrder: 70 },
+  { code: 'menus', parentCode: 'system_management', name: '菜单管理', type: 'MENU', path: '/menus', component: 'menus/page', icon: 'ListTree', permissionCode: PERMISSION_CODES.systemMenuView, sortOrder: 80 },
+  { code: 'tenant_update', parentCode: 'tenants', name: '编辑租户', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemTenantManage, sortOrder: 10, visible: false },
+  { code: 'user_create', parentCode: 'users', name: '新建用户', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemUserManage, sortOrder: 10, visible: false },
+  { code: 'user_update', parentCode: 'users', name: '编辑用户', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemUserManage, sortOrder: 20, visible: false },
+  { code: 'user_delete', parentCode: 'users', name: '删除用户', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemUserManage, sortOrder: 30, visible: false },
   { code: 'department_create', parentCode: 'departments', name: '新建部门', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemDepartmentManage, sortOrder: 10, visible: false },
   { code: 'department_update', parentCode: 'departments', name: '编辑部门', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemDepartmentManage, sortOrder: 20, visible: false },
   { code: 'department_delete', parentCode: 'departments', name: '删除部门', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemDepartmentManage, sortOrder: 30, visible: false },
@@ -653,10 +669,19 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'resource_acl_update', parentCode: 'resource_acls', name: '编辑资源授权', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemResourceAclManage, sortOrder: 20, visible: false },
   { code: 'resource_acl_delete', parentCode: 'resource_acls', name: '删除资源授权', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemResourceAclManage, sortOrder: 30, visible: false },
   { code: 'resource_acl_check', parentCode: 'resource_acls', name: '模拟资源授权', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemResourceAclView, sortOrder: 40, visible: false },
+  { code: 'agent_team_create', parentCode: 'agent_teams', name: '新建 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 10, visible: false },
+  { code: 'agent_team_update', parentCode: 'agent_teams', name: '编辑 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 20, visible: false },
+  { code: 'agent_team_run', parentCode: 'agent_teams', name: '启动 Agent 协作任务', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamRun, sortOrder: 30, visible: false },
+  { code: 'channel_create', parentCode: 'channels', name: '新建发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishManage, sortOrder: 10, visible: false },
+  { code: 'channel_update', parentCode: 'channels', name: '编辑发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishManage, sortOrder: 20, visible: false },
+  { code: 'channel_enable', parentCode: 'channels', name: '启用发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishDeploy, sortOrder: 30, visible: false },
+  { code: 'channel_disable', parentCode: 'channels', name: '停用发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishDisable, sortOrder: 40, visible: false },
   { code: 'menu_create', parentCode: 'menus', name: '新建菜单', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemMenuManage, sortOrder: 10, visible: false },
   { code: 'menu_update', parentCode: 'menus', name: '编辑菜单', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemMenuManage, sortOrder: 20, visible: false },
   { code: 'menu_delete', parentCode: 'menus', name: '删除菜单', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemMenuManage, sortOrder: 30, visible: false },
   { code: 'menu_role_bind', parentCode: 'menus', name: '角色菜单授权', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemMenuManage, sortOrder: 40, visible: false },
+  { code: 'api_key_create', parentCode: 'api_keys', name: '创建 API Key', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemApiKeyManage, sortOrder: 10, visible: false },
+  { code: 'api_key_delete', parentCode: 'api_keys', name: '删除 API Key', type: 'BUTTON', permissionCode: PERMISSION_CODES.systemApiKeyManage, sortOrder: 20, visible: false },
 ];
 
 async function seedMenus(tenantId: string, operatorId: string) {
@@ -710,6 +735,9 @@ async function seedMenus(tenantId: string, operatorId: string) {
 
 const dataScopeResourceTypes = [
   'AGENT',
+  'AGENT_TEAM',
+  'CHANNEL',
+  'PLUGIN',
   'KNOWLEDGE_BASE',
   'DOCUMENT',
   'TOOL',
@@ -770,7 +798,474 @@ function defaultDataScopeValue() {
   };
 }
 
-async function seedResourceAcls(tenantId: string, operatorId: string, adminRoleId: string, agentId: string) {
+async function seedAgentTeam(tenantId: string, operatorId: string, agentId: string) {
+  const team = await prisma.agentTeam.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'ops_collaboration_team',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      name: '运维协作团队',
+      code: 'ops_collaboration_team',
+      description: '用于演示多 Agent 协作、成员职责、运行轨迹和人工接力的默认团队。',
+      status: 'ACTIVE',
+      mode: 'SEQUENTIAL',
+      maxRounds: 3,
+      timeoutSeconds: 300,
+      handoffPolicy: 'AUTO',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      name: '运维协作团队',
+      description: '用于演示多 Agent 协作、成员职责、运行轨迹和人工接力的默认团队。',
+      status: 'ACTIVE',
+      mode: 'SEQUENTIAL',
+      maxRounds: 3,
+      timeoutSeconds: 300,
+      handoffPolicy: 'AUTO',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  await prisma.agentTeamMember.upsert({
+    where: {
+      tenantId_teamId_agentId: {
+        tenantId,
+        teamId: team.id,
+        agentId,
+      },
+    },
+    create: {
+      tenantId,
+      teamId: team.id,
+      agentId,
+      role: '执行专家',
+      responsibility: '负责执行运维排障、调用授权工具并产出最终处理建议。',
+      executionOrder: 1,
+      required: true,
+      status: 'ACTIVE',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      role: '执行专家',
+      responsibility: '负责执行运维排障、调用授权工具并产出最终处理建议。',
+      executionOrder: 1,
+      required: true,
+      status: 'ACTIVE',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  return team;
+}
+
+async function seedPlugins(tenantId: string, operatorId: string) {
+  const now = new Date();
+  const permissionPreview = [
+    PERMISSION_CODES.pluginCenterView,
+    PERMISSION_CODES.monitorLogView,
+    PERMISSION_CODES.securityAuditView,
+  ];
+  const manifestJson = {
+    schema_version: '1.0',
+    entry: 'control-api:platform-events',
+    capabilities: ['event_projection', 'usage_rollup', 'menu_injection', 'audit_preview'],
+    hooks: ['platform.event.created', 'platform.usage.rollup'],
+  };
+  const configJson = {
+    event_projection: true,
+    usage_rollup: true,
+    audit_sample_rate: 1,
+  };
+
+  const plugin = await prisma.plugin.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'observability_bridge',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      code: 'observability_bridge',
+      name: '可观测性桥接插件',
+      provider: 'AIAget 官方插件',
+      description: '把平台事件、用量聚合、审计记录和监控入口串联起来的默认插件，用于演示插件生态闭环。',
+      sourceType: 'MARKET',
+      latestVersion: '1.0.0',
+      riskLevel: 'LOW',
+      manifestJson,
+      configJson,
+      permissionPreview,
+      status: 'ACTIVE',
+      runtimeStatus: 'RUNNING',
+      menuCount: 1,
+      hookCount: 2,
+      auditCount: 1,
+      installedAt: now,
+      enabledAt: now,
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      name: '可观测性桥接插件',
+      provider: 'AIAget 官方插件',
+      description: '把平台事件、用量聚合、审计记录和监控入口串联起来的默认插件，用于演示插件生态闭环。',
+      sourceType: 'MARKET',
+      latestVersion: '1.0.0',
+      riskLevel: 'LOW',
+      manifestJson,
+      configJson,
+      permissionPreview,
+      status: 'ACTIVE',
+      runtimeStatus: 'RUNNING',
+      menuCount: 1,
+      hookCount: 2,
+      auditCount: 1,
+      installedAt: now,
+      enabledAt: now,
+      disabledAt: null,
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  await prisma.pluginVersion.upsert({
+    where: {
+      tenantId_pluginId_version: {
+        tenantId,
+        pluginId: plugin.id,
+        version: '1.0.0',
+      },
+    },
+    create: {
+      tenantId,
+      pluginId: plugin.id,
+      version: '1.0.0',
+      status: 'PUBLISHED',
+      manifestJson,
+      changeNote: '默认可观测性桥接插件初始版本，提供事件投影、用量聚合和审计入口演示。',
+      publishedAt: now,
+      createdBy: operatorId,
+    },
+    update: {
+      status: 'PUBLISHED',
+      manifestJson,
+      changeNote: '默认可观测性桥接插件初始版本，提供事件投影、用量聚合和审计入口演示。',
+      publishedAt: now,
+      createdBy: operatorId,
+    },
+  });
+
+  await prisma.pluginInstallation.upsert({
+    where: {
+      tenantId_pluginId: {
+        tenantId,
+        pluginId: plugin.id,
+      },
+    },
+    create: {
+      tenantId,
+      pluginId: plugin.id,
+      ownerId: operatorId,
+      installedVersion: '1.0.0',
+      latestVersion: '1.0.0',
+      status: 'ACTIVE',
+      runtimeStatus: 'RUNNING',
+      sourceType: 'MARKET',
+      riskLevel: 'LOW',
+      configJson,
+      manifestJson,
+      permissionPreview,
+      installedAt: now,
+      enabledAt: now,
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      installedVersion: '1.0.0',
+      latestVersion: '1.0.0',
+      status: 'ACTIVE',
+      runtimeStatus: 'RUNNING',
+      sourceType: 'MARKET',
+      riskLevel: 'LOW',
+      configJson,
+      manifestJson,
+      permissionPreview,
+      installedAt: now,
+      enabledAt: now,
+      disabledAt: null,
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  for (const hook of [
+    {
+      code: 'platform_event_capture',
+      name: '平台事件捕获',
+      hookType: 'EVENT',
+      target: 'platform.event.created',
+      method: 'ASYNC',
+      configJson: {
+        event_types: ['agent.run.completed', 'tool.call.completed', 'plugin.installed'],
+        delivery: 'internal',
+      },
+    },
+    {
+      code: 'usage_rollup_sync',
+      name: '用量聚合同步',
+      hookType: 'USAGE',
+      target: 'platform.usage.rollup',
+      method: 'SCHEDULED',
+      configJson: {
+        period: 'daily',
+        metric_types: ['TOKEN', 'COST', 'CALL'],
+      },
+    },
+  ]) {
+    await prisma.pluginHook.upsert({
+      where: {
+        tenantId_pluginId_code: {
+          tenantId,
+          pluginId: plugin.id,
+          code: hook.code,
+        },
+      },
+      create: {
+        tenantId,
+        pluginId: plugin.id,
+        code: hook.code,
+        name: hook.name,
+        hookType: hook.hookType,
+        target: hook.target,
+        method: hook.method,
+        status: 'ACTIVE',
+        configJson: hook.configJson,
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+      update: {
+        name: hook.name,
+        hookType: hook.hookType,
+        target: hook.target,
+        method: hook.method,
+        status: 'ACTIVE',
+        configJson: hook.configJson,
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+  }
+
+  const monitorMenu = await prisma.menu.findUnique({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'monitor',
+      },
+    },
+  });
+  if (monitorMenu) {
+    await prisma.pluginMenuBinding.upsert({
+      where: {
+        tenantId_pluginId_menuId: {
+          tenantId,
+          pluginId: plugin.id,
+          menuId: monitorMenu.id,
+        },
+      },
+      create: {
+        tenantId,
+        pluginId: plugin.id,
+        menuId: monitorMenu.id,
+        enabled: true,
+        visible: true,
+        sortOrder: 80,
+        status: 'ACTIVE',
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+      update: {
+        enabled: true,
+        visible: true,
+        sortOrder: 80,
+        status: 'ACTIVE',
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+  }
+
+  const seedAuditLog = await prisma.pluginAuditLog.findFirst({
+    where: {
+      tenantId,
+      pluginId: plugin.id,
+      action: 'SEED',
+    },
+  });
+  const seedAuditPayload = {
+    version: '1.0.0',
+    hooks: 2,
+    menu_bindings: monitorMenu ? 1 : 0,
+  };
+  if (seedAuditLog) {
+    await prisma.pluginAuditLog.update({
+      where: {
+        id: seedAuditLog.id,
+      },
+      data: {
+        title: '默认插件初始化',
+        summary: '已初始化可观测性桥接插件，用于插件市场、菜单注入、Hook 和审计链路演示。',
+        status: 'SUCCESS',
+        riskLevel: 'LOW',
+        payloadJson: seedAuditPayload,
+        createdBy: operatorId,
+      },
+    });
+  } else {
+    await prisma.pluginAuditLog.create({
+      data: {
+        tenantId,
+        pluginId: plugin.id,
+        action: 'SEED',
+        title: '默认插件初始化',
+        summary: '已初始化可观测性桥接插件，用于插件市场、菜单注入、Hook 和审计链路演示。',
+        status: 'SUCCESS',
+        riskLevel: 'LOW',
+        payloadJson: seedAuditPayload,
+        createdBy: operatorId,
+      },
+    });
+  }
+
+  return plugin;
+}
+
+async function seedPublishChannels(tenantId: string, operatorId: string, agentId: string) {
+  const now = new Date();
+  const defaultChannels = [
+    {
+      channel: 'WEB_WIDGET',
+      name: '官网 Web 组件',
+      description: '面向企业门户的 Web Widget 发布入口，用于演示 Agent 在线服务。',
+      endpointUrl: 'https://console.example.com/widget/ops-copilot',
+      callbackUrl: null,
+      status: 'ACTIVE',
+      healthStatus: 'HEALTHY',
+      healthMessage: '默认 Web 组件渠道已启用。',
+      config: {
+        theme: 'light',
+        welcome_message: '你好，我是运维助手。',
+        allow_file_upload: false,
+      },
+    },
+    {
+      channel: 'OPEN_API',
+      name: '开放 API',
+      description: '通过外部 API Key 调用 Agent 的标准开放接口渠道。',
+      endpointUrl: '/api/v1/external/agents/{agentId}/chat',
+      callbackUrl: null,
+      status: 'ACTIVE',
+      healthStatus: 'HEALTHY',
+      healthMessage: '开放 API 渠道已启用。',
+      config: {
+        stream_enabled: true,
+        require_api_key: true,
+        rate_limit_per_minute: 60,
+      },
+    },
+    {
+      channel: 'FEISHU',
+      name: '飞书机器人',
+      description: '飞书应用机器人发布占位配置，等待企业应用凭证接入。',
+      endpointUrl: null,
+      callbackUrl: 'https://console.example.com/channels/feishu/callback',
+      status: 'DRAFT',
+      healthStatus: 'UNKNOWN',
+      healthMessage: '待补充飞书应用凭证后启用。',
+      config: {
+        app_id: '',
+        event_subscriptions: ['im.message.receive_v1'],
+      },
+    },
+  ] as const;
+
+  let firstChannel: { id: string } | null = null;
+  for (const item of defaultChannels) {
+    const channel = await prisma.agentPublishChannel.upsert({
+      where: {
+        tenantId_agentId_channel: {
+          tenantId,
+          agentId,
+          channel: item.channel,
+        },
+      },
+      create: {
+        tenantId,
+        agentId,
+        channel: item.channel,
+        name: item.name,
+        description: item.description,
+        status: item.status,
+        endpointUrl: item.endpointUrl,
+        callbackUrl: item.callbackUrl,
+        config: item.config,
+        lastPublishedAt: item.status === 'ACTIVE' ? now : null,
+        lastCheckedAt: item.status === 'ACTIVE' ? now : null,
+        healthStatus: item.healthStatus,
+        healthMessage: item.healthMessage,
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+      update: {
+        name: item.name,
+        description: item.description,
+        status: item.status,
+        endpointUrl: item.endpointUrl,
+        callbackUrl: item.callbackUrl,
+        config: item.config,
+        lastPublishedAt: item.status === 'ACTIVE' ? now : null,
+        lastCheckedAt: item.status === 'ACTIVE' ? now : null,
+        healthStatus: item.healthStatus,
+        healthMessage: item.healthMessage,
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+    firstChannel ??= channel;
+  }
+
+  return firstChannel ?? prisma.agentPublishChannel.findFirstOrThrow({
+    where: {
+      tenantId,
+      agentId,
+      deletedAt: null,
+    },
+  });
+}
+
+async function seedResourceAcls(
+  tenantId: string,
+  operatorId: string,
+  adminRoleId: string,
+  agentId: string,
+  agentTeamId: string,
+  channelId: string,
+  pluginId: string,
+) {
   const defaultAcls = [
     {
       resourceType: 'AGENT',
@@ -788,6 +1283,59 @@ async function seedResourceAcls(tenantId: string, operatorId: string, adminRoleI
       permissionCode: PERMISSION_CODES.agentAgentManage,
       effect: 'ALLOW',
     },
+    {
+      resourceType: 'AGENT_TEAM',
+      resourceId: agentTeamId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode: PERMISSION_CODES.agentTeamView,
+      effect: 'ALLOW',
+    },
+    {
+      resourceType: 'AGENT_TEAM',
+      resourceId: agentTeamId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode: PERMISSION_CODES.agentTeamManage,
+      effect: 'ALLOW',
+    },
+    {
+      resourceType: 'AGENT_TEAM',
+      resourceId: agentTeamId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode: PERMISSION_CODES.agentTeamRun,
+      effect: 'ALLOW',
+    },
+    ...[
+      PERMISSION_CODES.channelPublishView,
+      PERMISSION_CODES.channelPublishManage,
+      PERMISSION_CODES.channelPublishDeploy,
+      PERMISSION_CODES.channelPublishDisable,
+    ].map((permissionCode) => ({
+      resourceType: 'CHANNEL',
+      resourceId: channelId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
+    ...[
+      PERMISSION_CODES.pluginCenterView,
+      PERMISSION_CODES.pluginCenterManage,
+      PERMISSION_CODES.pluginCenterInstall,
+      PERMISSION_CODES.pluginCenterEnable,
+      PERMISSION_CODES.pluginCenterDisable,
+      PERMISSION_CODES.pluginCenterUpgrade,
+      PERMISSION_CODES.pluginCenterAudit,
+    ].map((permissionCode) => ({
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
   ] as const;
 
   for (const acl of defaultAcls) {
@@ -865,6 +1413,365 @@ async function seedSystemSettings(tenantId: string, operatorId: string) {
       },
     });
   }
+}
+
+async function seedBillingCommercialization(tenantId: string, operatorId: string) {
+  const period = currentBillingPeriod();
+
+  for (const plan of defaultBillingPlans) {
+    await prisma.billingPlan.upsert({
+      where: {
+        tenantId_code: {
+          tenantId,
+          code: plan.code,
+        },
+      },
+      create: {
+        tenantId,
+        code: plan.code,
+        name: plan.name,
+        tier: plan.tier,
+        description: plan.description,
+        monthlyBasePrice: plan.monthlyBasePrice,
+        yearlyBasePrice: plan.yearlyBasePrice,
+        currency: plan.currency,
+        includedMonthlyCost: plan.includedMonthlyCost,
+        includedMonthlyTokens: plan.includedMonthlyTokens,
+        includedMonthlyCalls: plan.includedMonthlyCalls,
+        includedStorageGb: plan.includedStorageGb,
+        overageUnitPrice: plan.overageUnitPrice,
+        featureLimits: plan.featureLimits,
+        status: 'ACTIVE',
+        sortOrder: plan.sortOrder,
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+      update: {
+        name: plan.name,
+        tier: plan.tier,
+        description: plan.description,
+        monthlyBasePrice: plan.monthlyBasePrice,
+        yearlyBasePrice: plan.yearlyBasePrice,
+        currency: plan.currency,
+        includedMonthlyCost: plan.includedMonthlyCost,
+        includedMonthlyTokens: plan.includedMonthlyTokens,
+        includedMonthlyCalls: plan.includedMonthlyCalls,
+        includedStorageGb: plan.includedStorageGb,
+        overageUnitPrice: plan.overageUnitPrice,
+        featureLimits: plan.featureLimits,
+        status: 'ACTIVE',
+        sortOrder: plan.sortOrder,
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+  }
+
+  const businessPlan = await prisma.billingPlan.findUniqueOrThrow({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'business',
+      },
+    },
+  });
+
+  let subscription = await prisma.tenantSubscription.findFirst({
+    where: {
+      tenantId,
+      deletedAt: null,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  });
+
+  if (subscription) {
+    subscription = await prisma.tenantSubscription.update({
+      where: {
+        id: subscription.id,
+      },
+      data: {
+        planId: businessPlan.id,
+        status: 'ACTIVE',
+        billingCycle: 'MONTHLY',
+        currency: businessPlan.currency,
+        basePrice: businessPlan.monthlyBasePrice,
+        includedMonthlyCost: businessPlan.includedMonthlyCost,
+        includedMonthlyTokens: businessPlan.includedMonthlyTokens,
+        includedMonthlyCalls: businessPlan.includedMonthlyCalls,
+        currentPeriodStart: period.start,
+        currentPeriodEnd: period.end,
+        autoRenew: true,
+        metadata: { source: 'seed', milestone: 'M63-3' },
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+  } else {
+    subscription = await prisma.tenantSubscription.create({
+      data: {
+        tenantId,
+        planId: businessPlan.id,
+        status: 'ACTIVE',
+        billingCycle: 'MONTHLY',
+        currency: businessPlan.currency,
+        basePrice: businessPlan.monthlyBasePrice,
+        includedMonthlyCost: businessPlan.includedMonthlyCost,
+        includedMonthlyTokens: businessPlan.includedMonthlyTokens,
+        includedMonthlyCalls: businessPlan.includedMonthlyCalls,
+        startedAt: period.start,
+        currentPeriodStart: period.start,
+        currentPeriodEnd: period.end,
+        autoRenew: true,
+        metadata: { source: 'seed', milestone: 'M63-3' },
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+    });
+  }
+
+  const lastPeriodStart = new Date(period.start);
+  lastPeriodStart.setMonth(lastPeriodStart.getMonth() - 1);
+  const lastPeriodEnd = new Date(period.start);
+  lastPeriodEnd.setMilliseconds(lastPeriodEnd.getMilliseconds() - 1);
+
+  for (const invoice of [
+    {
+      invoiceNo: `INV-${period.start.getFullYear()}${String(period.start.getMonth() + 1).padStart(2, '0')}-AIA`,
+      status: 'OPEN',
+      subtotalAmount: 699,
+      discountAmount: 0,
+      taxAmount: 0,
+      totalAmount: 699,
+      paidAmount: 0,
+      periodStart: period.start,
+      periodEnd: period.end,
+      dueAt: addDays(period.end, 7),
+      paidAt: null,
+      lineItems: [
+        { name: '企业版订阅', amount: 699, quantity: 1, unit: 'month' },
+        { name: '当前周期超额用量', amount: 0, quantity: 0, unit: 'usage' },
+      ],
+    },
+    {
+      invoiceNo: `INV-${lastPeriodStart.getFullYear()}${String(lastPeriodStart.getMonth() + 1).padStart(2, '0')}-AIA`,
+      status: 'PAID',
+      subtotalAmount: 699,
+      discountAmount: 0,
+      taxAmount: 0,
+      totalAmount: 699,
+      paidAmount: 699,
+      periodStart: lastPeriodStart,
+      periodEnd: lastPeriodEnd,
+      dueAt: addDays(lastPeriodEnd, 7),
+      paidAt: addDays(lastPeriodEnd, 3),
+      lineItems: [
+        { name: '企业版订阅', amount: 699, quantity: 1, unit: 'month' },
+        { name: '上周期超额用量', amount: 0, quantity: 0, unit: 'usage' },
+      ],
+    },
+  ]) {
+    await prisma.billingInvoice.upsert({
+      where: {
+        tenantId_invoiceNo: {
+          tenantId,
+          invoiceNo: invoice.invoiceNo,
+        },
+      },
+      create: {
+        tenantId,
+        subscriptionId: subscription.id,
+        invoiceNo: invoice.invoiceNo,
+        status: invoice.status,
+        currency: businessPlan.currency,
+        subtotalAmount: invoice.subtotalAmount,
+        discountAmount: invoice.discountAmount,
+        taxAmount: invoice.taxAmount,
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.paidAmount,
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+        dueAt: invoice.dueAt,
+        paidAt: invoice.paidAt,
+        lineItems: invoice.lineItems,
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+      update: {
+        subscriptionId: subscription.id,
+        status: invoice.status,
+        currency: businessPlan.currency,
+        subtotalAmount: invoice.subtotalAmount,
+        discountAmount: invoice.discountAmount,
+        taxAmount: invoice.taxAmount,
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.paidAmount,
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+        dueAt: invoice.dueAt,
+        paidAt: invoice.paidAt,
+        lineItems: invoice.lineItems,
+        deletedAt: null,
+        updatedBy: operatorId,
+      },
+    });
+  }
+
+  for (const policy of defaultBillingQuotaPolicies) {
+    const existing = await prisma.billingQuotaPolicy.findFirst({
+      where: {
+        tenantId,
+        subjectType: policy.subjectType,
+        subjectId: null,
+        metricType: policy.metricType,
+        period: policy.period,
+        deletedAt: null,
+      },
+    });
+
+    if (existing) {
+      await prisma.billingQuotaPolicy.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          name: policy.name,
+          limitValue: policy.limitValue,
+          warnThreshold: policy.warnThreshold,
+          hardThreshold: policy.hardThreshold,
+          action: policy.action,
+          status: 'ACTIVE',
+          lastEvaluatedAt: new Date(),
+          metadata: { source: 'seed', milestone: 'M63-3' },
+          updatedBy: operatorId,
+        },
+      });
+      continue;
+    }
+
+    await prisma.billingQuotaPolicy.create({
+      data: {
+        tenantId,
+        name: policy.name,
+        subjectType: policy.subjectType,
+        subjectId: null,
+        metricType: policy.metricType,
+        period: policy.period,
+        limitValue: policy.limitValue,
+        warnThreshold: policy.warnThreshold,
+        hardThreshold: policy.hardThreshold,
+        action: policy.action,
+        status: 'ACTIVE',
+        lastEvaluatedAt: new Date(),
+        metadata: { source: 'seed', milestone: 'M63-3' },
+        createdBy: operatorId,
+        updatedBy: operatorId,
+      },
+    });
+  }
+}
+
+const defaultBillingPlans = [
+  {
+    code: 'team',
+    name: '团队版',
+    tier: 'TEAM',
+    description: '适合小团队试点，包含基础 Agent、模型调用和知识库额度。',
+    monthlyBasePrice: 199,
+    yearlyBasePrice: 1990,
+    currency: 'USD',
+    includedMonthlyCost: 80,
+    includedMonthlyTokens: 2_000_000,
+    includedMonthlyCalls: 20_000,
+    includedStorageGb: 100,
+    overageUnitPrice: 0.00002,
+    featureLimits: { agents: 30, api_keys: 20, agent_teams: 5, plugins: 5 },
+    sortOrder: 10,
+  },
+  {
+    code: 'business',
+    name: '企业版',
+    tier: 'BUSINESS',
+    description: '适合企业内部运营，包含更高额度、多 Agent 协作和插件生态治理。',
+    monthlyBasePrice: 699,
+    yearlyBasePrice: 6990,
+    currency: 'USD',
+    includedMonthlyCost: 350,
+    includedMonthlyTokens: 10_000_000,
+    includedMonthlyCalls: 120_000,
+    includedStorageGb: 500,
+    overageUnitPrice: 0.000015,
+    featureLimits: { agents: 200, api_keys: 100, agent_teams: 30, plugins: 30 },
+    sortOrder: 20,
+  },
+  {
+    code: 'enterprise',
+    name: '旗舰版',
+    tier: 'ENTERPRISE',
+    description: '适合私有化和集团级部署，支持高级安全、全渠道发布和专属容量。',
+    monthlyBasePrice: 1999,
+    yearlyBasePrice: 19990,
+    currency: 'USD',
+    includedMonthlyCost: 1200,
+    includedMonthlyTokens: 50_000_000,
+    includedMonthlyCalls: 500_000,
+    includedStorageGb: 2048,
+    overageUnitPrice: 0.00001,
+    featureLimits: { agents: 1000, api_keys: 500, agent_teams: 200, plugins: 200 },
+    sortOrder: 30,
+  },
+] as const;
+
+const defaultBillingQuotaPolicies = [
+  {
+    name: '租户月度成本额度',
+    subjectType: 'TENANT',
+    metricType: 'COST',
+    period: 'MONTH',
+    limitValue: 500,
+    warnThreshold: 80,
+    hardThreshold: 100,
+    action: 'WARN',
+  },
+  {
+    name: '租户月度词元额度',
+    subjectType: 'TENANT',
+    metricType: 'TOKEN',
+    period: 'MONTH',
+    limitValue: 10_000_000,
+    warnThreshold: 80,
+    hardThreshold: 100,
+    action: 'THROTTLE',
+  },
+  {
+    name: '租户月度调用额度',
+    subjectType: 'TENANT',
+    metricType: 'API_CALL',
+    period: 'MONTH',
+    limitValue: 120_000,
+    warnThreshold: 80,
+    hardThreshold: 100,
+    action: 'BLOCK',
+  },
+] as const;
+
+function currentBillingPeriod() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  end.setMilliseconds(end.getMilliseconds() - 1);
+
+  return { start, end };
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 interface DefaultDepartmentDefinition {

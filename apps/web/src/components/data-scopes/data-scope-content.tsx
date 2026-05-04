@@ -54,13 +54,6 @@ import {
 import { cn } from '@/lib/utils';
 
 const scopeTypes: DataScopeType[] = ['ALL', 'TENANT', 'DEPT', 'DEPT_AND_CHILD', 'SELF', 'CUSTOM'];
-const defaultScopeValue: RoleDataScopeValue = {
-  department_ids: [],
-  user_ids: [],
-  resource_ids: [],
-  include_children: false,
-};
-
 export function DataScopeContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();

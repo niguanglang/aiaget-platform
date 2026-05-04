@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-04T04:15:31.706826+00:00",
+  "page": "m105-通知任务自愈闭环审计检索",
+  "route": "/security",
+  "feature": "通知任务自愈建议处理事件筛选、搜索、审计联动",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

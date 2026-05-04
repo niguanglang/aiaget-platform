@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M73 Notification Policy Settings
+- Route: /settings
+- Feature goal: 通知策略配置中心
+- Target users/roles: 租户管理员、监控运营、安全管理员；编辑需要 `system:settings:manage`。
+- APIs/services:
+  - `listSystemSettings({ category: 'NOTIFICATION' })`
+  - `updateSystemSetting(id, { value, status })`
+  - `resetSystemSetting(id)`
+  - `getPlatformUsageAlertNotificationTaskOverview()`
+- Entities/fields/statuses:
+  - SystemSetting category: `NOTIFICATION`
+  - Keys: `alert_notification_auto_retry_enabled`, `alert_notification_retry_interval_ms`, `alert_notification_retry_batch_size`, `alert_notification_max_retry_count`, `alert_notification_retry_backoff_seconds`, `alert_notification_lookback_hours`
+  - Value types: `BOOLEAN`, `NUMBER`
+  - Status: `ACTIVE`, `DISABLED`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, current settings `SystemSettingCard`.
+- Required states: loading, editable/read-only, validation error, save success, reset confirm, disabled setting.
+- Constraints:
+  - Do not add tables or migrations; reuse `system_setting`.
+  - Do not start containers or install middleware.
+  - UI text must be Chinese.
+  - Settings page remains dense and operational, not a marketing page.

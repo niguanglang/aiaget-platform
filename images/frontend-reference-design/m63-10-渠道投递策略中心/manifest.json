@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T02:22:45.648055+00:00",
+  "page": "M63-10 渠道投递策略中心",
+  "route": "/channels",
+  "feature": "配置主动回复投递的重试、告警、手动重试和保留策略",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

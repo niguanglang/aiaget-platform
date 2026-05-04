@@ -1,0 +1,37 @@
+# Project UI Brief
+
+- Page: m83-审批与归档运营告警闭环
+- Route: /security
+- Feature goal: 把审批积压、归档存储异常、审批审计失败告警推导成安全中心可处理运营告警
+- Target users: 安全管理员、审计员、租户管理员
+- Permission: 复用安全中心访问权限，前端只展示总览数据和跳转入口
+- Existing API:
+  - `GET /api/v1/security-center/overview`
+  - frontend service `getSecurityCenterOverview()`
+- Existing types:
+  - `SecurityCenterOverview`
+  - `SecurityCenterRiskSignal`
+  - `SecurityCenterOverview.approval_operations`
+- M83 backend strategy:
+  - 不新增表，不新增路由，不执行迁移。
+  - 从 M82 `approval_operations` 实时推导运营告警。
+  - 告警字段包含 id、title、description、severity、href、metric、action_label。
+  - 告警范围：审批积压、运行时工具审批积压、高影响策略审批、归档删除审批、审批审计失败/告警、Trace 覆盖不足、归档存储异常、归档为空。
+- Frontend UI:
+  - 增强 `/security` 里的 `ApprovalArchiveOperationsCard`。
+  - 在指标和快捷入口之间新增“运营告警闭环”区域。
+  - 有告警时展示分级卡片、指标、处理按钮。
+  - 无告警时展示平稳状态。
+- Existing components/design system:
+  - Next.js App Router + React + TypeScript
+  - Tailwind CSS
+  - shadcn-like `Card`、`Button`、`StatusBadge`、`EmptyState`
+  - lucide-react icons
+  - TanStack Query
+  - Motion
+- Required states: loading、overview unavailable、empty alert、degraded alert、high risk alert、disabled-by-data absence
+- Constraints:
+  - 所有页面文字使用中文。
+  - 不启动容器。
+  - 不安装中间件。
+  - 不执行数据库迁移。

@@ -1,0 +1,43 @@
+# Project UI Brief
+
+- Page: M79 审计中心联动与导出
+- Route: /audit /approval-audits
+- Feature goal: 审批审计导出、审计中心联动、风险入口闭环
+- Target users: 安全管理员、审计员、租户管理员
+- Permissions:
+  - `/audit` uses `security:audit:view`
+  - `/approval-audits` uses `security:approval:view`
+- Existing frontend stack: Next.js App Router, React, TypeScript, Tailwind CSS, shadcn-like local `Button`, `Card`, `MetricCard`, `StatusBadge`, `EmptyState`, TanStack Query, Motion.
+- Existing page shell: console layout with left navigation from `moduleSpecs` and `consoleNavigation`; pages render under `apps/web/src/app/(console)/...`.
+- Existing audit APIs:
+  - `getAuditOverview({ window })`
+  - `listAuditEvents({ page, page_size, window, source_type, status, keyword })`
+  - `getAuditEvent(eventId)`
+- Existing approval audit APIs:
+  - `getApprovalAuditOverview({ window })`
+  - `listApprovalAuditEvents({ page, page_size, window, keyword, source_type, event_type, event_status, trace_only })`
+  - `getApprovalAuditEvent(eventId)`
+- New M79 API contract:
+  - add `GET /api/v1/tool-approvals/audit-events/export`
+  - frontend `exportApprovalAuditEvents(params)` returns a CSV blob
+  - no new database tables
+- Data entities:
+  - `AuditOverview`, `AuditEventListItem`, `AuditEventDetail`
+  - `ApprovalAuditOverview`, `ApprovalAuditEventItem`
+  - approval audit source types: `TOOL_APPROVAL`, `NOTIFICATION_POLICY`
+  - approval audit event types: `REQUEST_CREATED`, `SUBMITTED`, `APPROVED`, `REJECTED`, `APPLIED`, `EXECUTION_FAILED`
+  - approval audit event statuses: `INFO`, `SUCCESS`, `WARNING`, `FAILED`
+- Required actions:
+  - Audit center shows approval audit linkage card and approval audit recent risk samples.
+  - Approval audit center exports current filtered result to CSV.
+  - Approval audit detail still links to approval detail and Trace.
+- Required states:
+  - loading overview/events/detail
+  - empty list
+  - error list/detail
+  - disabled export while loading or empty
+  - export success/failure text
+- Constraints:
+  - UI text must be Chinese.
+  - Keep enterprise SaaS dashboard style, dense but clean.
+  - Do not start services, install middleware, or run migrations.

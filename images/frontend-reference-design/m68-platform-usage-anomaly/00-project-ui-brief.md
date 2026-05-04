@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M68 Platform Usage Anomaly
+- Route: /monitor
+- Feature goal: 统一用量异常检测与告警闭环
+- Target users/roles: 监控、审计、成本运营人员；后端接口使用 `monitor:log:view` 权限。
+- APIs/services:
+  - `getPlatformUsageOverview({ window })`
+  - `listPlatformUsageTrends({ window, period, metric_type, resource_type })`
+  - `listPlatformUsageLedger({ window, ...filters })`
+  - `detectPlatformUsageAnomalies({ window })`
+- Entities/fields/statuses:
+  - `PlatformUsageAnomalyItem`: anomaly_type, severity, metric_type, resource_type, current_value, baseline_value, ratio, threshold, message, detected_at
+  - `PlatformUsageAnomalyOverview`: generated_at, window, summary, items
+  - `PlatformUsageRollupItem`: event_count, quantity_total, amount_total, cost_total, error_count, success_count, retry_count
+  - Window: `24h`, `7d`, `30d`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, shared `StatusBadge`, `EmptyState`, React Query, lucide icons, `motion/react`.
+- Required states: loading, empty, error, disabled while detecting, success notice after detection, failure notice after detection.
+- Constraints:
+  - Reuse the existing `/monitor` page and `PlatformEventUsagePanel`; do not add a route.
+  - Do not add database tables; anomaly signals are computed from existing Rollup rows.
+  - Detection can write summary events into `platform_event` for audit and monitor search.
+  - UI text must be Chinese.

@@ -6,6 +6,13 @@ import {
   hasPermission,
   type AgentListItem,
   type DepartmentTreeItem,
+  type NotificationPolicyAuditOverview,
+  type NotificationPolicyChangePreview,
+  type NotificationPolicyImpactLevel,
+  type NotificationPolicySnapshotOverview,
+  type SystemSettingSnapshotAction,
+  type SystemSettingSnapshotApprovalStatus,
+  type SystemSettingSnapshotItem,
   type SystemSettingCategory,
   type SystemSettingItem,
   type SystemSettingStatus,
@@ -16,6 +23,7 @@ import {
   type UserStatus,
 } from '@aiaget/shared-types';
 import { Copy, Edit, KeyRound, Plus, RefreshCw, Save, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -34,13 +42,17 @@ import {
   deleteUser,
   getDepartmentTree,
   getExternalAgentChatEndpoint,
+  getNotificationPolicyAudit,
   getSystemSettingsOverview,
   getTenant,
+  listNotificationPolicySnapshots,
   listSystemSettings,
   listAgents,
   listRoles,
   listTenantApiKeys,
   listUsers,
+  previewNotificationPolicySettingChange,
+  rollbackNotificationPolicySnapshot,
   resetSystemSetting,
   updateSystemSetting,
   updateTenant,
@@ -65,6 +77,7 @@ const settingCategoryLabels: Record<SystemSettingCategory, string> = {
   SECURITY: '安全',
   RUNTIME: '运行时',
   OBSERVABILITY: '观测',
+  NOTIFICATION: '通知策略',
   RETENTION: '数据保留',
   INTEGRATION: '外部集成',
 };
@@ -133,8 +146,10 @@ function userStatusLabel(status: UserStatus) {
 
 export function SettingsContent() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const { currentUser } = useAuth();
   const tenantId = currentUser?.tenant.id ?? '';
+  const initialSettingCategory = normalizeSettingCategory(searchParams.get('category'));
 
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<string>('');
@@ -148,13 +163,17 @@ export function SettingsContent() {
   const [tenantFormError, setTenantFormError] = useState<string | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
-  const [settingCategory, setSettingCategory] = useState<SystemSettingCategory | ''>('');
+  const [settingCategory, setSettingCategory] = useState<SystemSettingCategory | ''>(initialSettingCategory);
   const [settingStatus, setSettingStatus] = useState<string>('');
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({});
   const [settingStatuses, setSettingStatuses] = useState<Record<string, 'ACTIVE' | 'DISABLED'>>({});
   const [settingErrors, setSettingErrors] = useState<Record<string, string>>({});
   const [settingSuccessId, setSettingSuccessId] = useState<string | null>(null);
+  const [notificationPolicyApprovalSubmittedIds, setNotificationPolicyApprovalSubmittedIds] = useState<Record<string, boolean>>({});
   const [resetSettingTarget, setResetSettingTarget] = useState<SystemSettingItem | null>(null);
+  const [notificationPolicyPreviews, setNotificationPolicyPreviews] = useState<Record<string, NotificationPolicyChangePreview | null>>({});
+  const [notificationPolicyPreviewErrors, setNotificationPolicyPreviewErrors] = useState<Record<string, string>>({});
+  const [rollbackSnapshotTarget, setRollbackSnapshotTarget] = useState<SystemSettingSnapshotItem | null>(null);
   const canManageApiKeys = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
       hasPermission(currentUser?.user.permissions ?? [], 'system:api_key:manage'),
@@ -206,6 +225,16 @@ export function SettingsContent() {
         category: settingCategory,
         status: settingStatus,
       }),
+  });
+  const notificationPolicyAuditQuery = useQuery({
+    enabled: settingCategory === 'NOTIFICATION',
+    queryKey: ['notification-policy-audit'],
+    queryFn: getNotificationPolicyAudit,
+  });
+  const notificationPolicySnapshotsQuery = useQuery({
+    enabled: settingCategory === 'NOTIFICATION',
+    queryKey: ['notification-policy-snapshots'],
+    queryFn: listNotificationPolicySnapshots,
   });
 
   const tenant = tenantQuery.data ?? currentUser?.tenant ?? null;
@@ -347,13 +376,23 @@ export function SettingsContent() {
         value,
         status,
       }),
-    onSuccess: async (setting) => {
+    onSuccess: async (setting, variables) => {
+      const approvalSubmitted =
+        variables.setting.category === 'NOTIFICATION' &&
+        (!isSameSettingValue(setting.value, variables.value) || setting.status !== variables.status);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['system-settings'] }),
         queryClient.invalidateQueries({ queryKey: ['system-settings-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-audit'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-snapshots'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approval-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
       ]);
       setSettingErrors((current) => ({ ...current, [setting.id]: '' }));
       setSettingSuccessId(setting.id);
+      setNotificationPolicyApprovalSubmittedIds((current) => ({ ...current, [setting.id]: approvalSubmitted }));
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
     },
     onError: (error: ApiClientError, variables) => {
       setSettingSuccessId(null);
@@ -361,22 +400,81 @@ export function SettingsContent() {
     },
   });
 
+  const previewNotificationPolicyMutation = useMutation({
+    mutationFn: ({ setting, value, status }: { setting: SystemSettingItem; value: unknown; status: 'ACTIVE' | 'DISABLED' }) =>
+      previewNotificationPolicySettingChange(setting.id, {
+        value,
+        status,
+      }),
+    onSuccess: (preview, variables) => {
+      setNotificationPolicyPreviews((current) => ({ ...current, [variables.setting.id]: preview }));
+      setNotificationPolicyPreviewErrors((current) => ({ ...current, [variables.setting.id]: '' }));
+    },
+    onError: (error: ApiClientError, variables) => {
+      setNotificationPolicyPreviews((current) => ({ ...current, [variables.setting.id]: null }));
+      setNotificationPolicyPreviewErrors((current) => ({ ...current, [variables.setting.id]: error.message }));
+    },
+  });
+
   const resetSettingMutation = useMutation({
     mutationFn: resetSystemSetting,
     onSuccess: async (setting) => {
+      const target = resetSettingTarget;
+      const approvalSubmitted =
+        target?.category === 'NOTIFICATION' &&
+        (!isSameSettingValue(setting.value, target.default_value) || setting.status !== 'ACTIVE');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['system-settings'] }),
         queryClient.invalidateQueries({ queryKey: ['system-settings-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-audit'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-snapshots'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approval-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
       ]);
       setSettingDrafts((current) => ({ ...current, [setting.id]: formatSettingDraftValue(setting) }));
       setSettingStatuses((current) => ({ ...current, [setting.id]: setting.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE' }));
       setSettingErrors((current) => ({ ...current, [setting.id]: '' }));
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
       setSettingSuccessId(setting.id);
+      setNotificationPolicyApprovalSubmittedIds((current) => ({ ...current, [setting.id]: approvalSubmitted }));
       setResetSettingTarget(null);
     },
     onError: (error: ApiClientError) => {
       if (!resetSettingTarget) return;
       setSettingErrors((current) => ({ ...current, [resetSettingTarget.id]: error.message }));
+    },
+  });
+
+  const rollbackNotificationPolicyMutation = useMutation({
+    mutationFn: (snapshot: SystemSettingSnapshotItem) =>
+      rollbackNotificationPolicySnapshot(snapshot.id, {
+        note: '设置中心手动回滚通知策略快照',
+      }),
+    onSuccess: async (setting) => {
+      const target = rollbackSnapshotTarget;
+      const approvalSubmitted =
+        Boolean(target) &&
+        (!isSameSettingValue(setting.value, target?.previous_value) || setting.status !== target?.previous_status);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['system-settings'] }),
+        queryClient.invalidateQueries({ queryKey: ['system-settings-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-audit'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-snapshots'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approval-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['notification-policy-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
+      ]);
+      setSettingDrafts((current) => ({ ...current, [setting.id]: formatSettingDraftValue(setting) }));
+      setSettingStatuses((current) => ({ ...current, [setting.id]: setting.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE' }));
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
+      setSettingSuccessId(setting.id);
+      setNotificationPolicyApprovalSubmittedIds((current) => ({ ...current, [setting.id]: approvalSubmitted }));
+      setRollbackSnapshotTarget(null);
+    },
+    onError: (error: ApiClientError) => {
+      if (!rollbackSnapshotTarget) return;
+      setSettingErrors((current) => ({ ...current, [rollbackSnapshotTarget.setting_id]: error.message }));
     },
   });
 
@@ -475,6 +573,38 @@ export function SettingsContent() {
     });
   }
 
+  function previewNotificationPolicySetting(setting: SystemSettingItem) {
+    const parsed = parseSettingDraftValue(setting, settingDrafts[setting.id] ?? formatSettingDraftValue(setting));
+    if (!parsed.ok) {
+      setSettingSuccessId(null);
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
+      setNotificationPolicyPreviewErrors((current) => ({ ...current, [setting.id]: parsed.message }));
+      return;
+    }
+
+    previewNotificationPolicyMutation.mutate({
+      setting,
+      value: parsed.value,
+      status: settingStatuses[setting.id] ?? (setting.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE'),
+    });
+  }
+
+  function updateSettingDraft(setting: SystemSettingItem, value: string) {
+    setSettingDrafts((current) => ({ ...current, [setting.id]: value }));
+    if (setting.category === 'NOTIFICATION') {
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
+      setNotificationPolicyPreviewErrors((current) => ({ ...current, [setting.id]: '' }));
+    }
+  }
+
+  function updateSettingStatus(setting: SystemSettingItem, value: 'ACTIVE' | 'DISABLED') {
+    setSettingStatuses((current) => ({ ...current, [setting.id]: value }));
+    if (setting.category === 'NOTIFICATION') {
+      setNotificationPolicyPreviews((current) => ({ ...current, [setting.id]: null }));
+      setNotificationPolicyPreviewErrors((current) => ({ ...current, [setting.id]: '' }));
+    }
+  }
+
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -569,13 +699,21 @@ export function SettingsContent() {
                   error={settingErrors[setting.id]}
                   isPending={updateSettingMutation.isPending && updateSettingMutation.variables?.setting.id === setting.id}
                   key={setting.id}
+                  preview={notificationPolicyPreviews[setting.id]}
+                  previewError={notificationPolicyPreviewErrors[setting.id]}
+                  previewLoading={
+                    previewNotificationPolicyMutation.isPending &&
+                    previewNotificationPolicyMutation.variables?.setting.id === setting.id
+                  }
                   setting={setting}
                   statusValue={settingStatuses[setting.id] ?? (setting.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE')}
                   success={settingSuccessId === setting.id}
-                  onDraftChange={(value) => setSettingDrafts((current) => ({ ...current, [setting.id]: value }))}
+                  approvalSubmitted={Boolean(notificationPolicyApprovalSubmittedIds[setting.id])}
+                  onDraftChange={(value) => updateSettingDraft(setting, value)}
+                  onPreview={() => previewNotificationPolicySetting(setting)}
                   onReset={() => setResetSettingTarget(setting)}
                   onSave={() => submitSetting(setting)}
-                  onStatusChange={(value) => setSettingStatuses((current) => ({ ...current, [setting.id]: value }))}
+                  onStatusChange={(value) => updateSettingStatus(setting, value)}
                 />
               ))}
             </div>
@@ -585,13 +723,40 @@ export function SettingsContent() {
         <Card className="h-fit p-5">
           <h2 className="text-sm font-semibold">配置治理</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            系统参数变更受 `system:settings:manage` 控制。敏感值默认脱敏展示，恢复默认会写入当前用户作为更新人。
+            {settingCategory === 'NOTIFICATION'
+              ? '通知策略会影响监控中心的告警通知自动重试任务。修改扫描间隔、退避时间和最大重试次数后，后台任务会按租户配置执行。'
+              : '系统参数变更受 `system:settings:manage` 控制。敏感值默认脱敏展示，恢复默认会写入当前用户作为更新人。'}
           </p>
           <div className="mt-4 grid gap-3 text-sm">
             <DetailRow label="权限状态" value={canManageSettings ? '当前用户可管理系统参数' : '当前用户仅可查看系统参数'} />
             <DetailRow label="最近更新" value={settingsOverview?.last_updated_at ? formatDateTime(settingsOverview.last_updated_at) : '暂无'} />
             <DetailRow label="分类数量" value={`${settingsOverview?.category_count ?? 0} 类`} />
+            {settingCategory === 'NOTIFICATION' ? (
+              <>
+                <DetailRow label="联动模块" value="监控中心 / 告警通知自动重试" />
+                <DetailRow label="配置来源" value="租户级 system_setting" />
+              </>
+            ) : null}
           </div>
+          {settingCategory === 'NOTIFICATION' ? (
+            <>
+              <NotificationPolicyAuditPanel
+                audit={notificationPolicyAuditQuery.data}
+                isError={notificationPolicyAuditQuery.isError}
+                isLoading={notificationPolicyAuditQuery.isLoading}
+              />
+              <NotificationPolicySnapshotPanel
+                canManage={canManageSettings}
+                isError={notificationPolicySnapshotsQuery.isError}
+                isLoading={notificationPolicySnapshotsQuery.isLoading}
+                pendingSnapshotId={
+                  rollbackNotificationPolicyMutation.isPending ? rollbackNotificationPolicyMutation.variables?.id : null
+                }
+                snapshots={notificationPolicySnapshotsQuery.data}
+                onRollback={setRollbackSnapshotTarget}
+              />
+            </>
+          ) : null}
         </Card>
       </section>
 
@@ -706,7 +871,7 @@ export function SettingsContent() {
               <Field label="流式权限">
                 <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm font-normal">
                   <input disabled={!canManageApiKeys} type="checkbox" {...apiKeyForm.register('allow_stream')} />
-                  允许流式扩展
+                  允许外部 SSE
                 </label>
               </Field>
             </div>
@@ -1007,6 +1172,17 @@ export function SettingsContent() {
           onConfirm={() => resetSettingMutation.mutate(resetSettingTarget.id)}
         />
       ) : null}
+
+      {rollbackSnapshotTarget ? (
+        <ConfirmDialog
+          body={`这会把 ${rollbackSnapshotTarget.setting_name} 回滚到 v${rollbackSnapshotTarget.version} 变更前的值，并生成一条新的回滚快照。`}
+          confirmLabel="确认回滚"
+          pending={rollbackNotificationPolicyMutation.isPending}
+          title="回滚通知策略？"
+          onCancel={() => setRollbackSnapshotTarget(null)}
+          onConfirm={() => rollbackNotificationPolicyMutation.mutate(rollbackSnapshotTarget)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -1041,6 +1217,12 @@ function defaultSettingCategorySummaries() {
     active: 0,
     changed: 0,
   }));
+}
+
+function normalizeSettingCategory(value: string | null): SystemSettingCategory | '' {
+  if (!value) return '';
+  const categories = Object.keys(settingCategoryLabels) as SystemSettingCategory[];
+  return categories.includes(value as SystemSettingCategory) ? (value as SystemSettingCategory) : '';
 }
 
 function formatSettingDraftValue(setting: SystemSettingItem) {
@@ -1128,10 +1310,15 @@ function SystemSettingCard({
   draftValue,
   error,
   isPending,
+  preview,
+  previewError,
+  previewLoading,
   setting,
   statusValue,
   success,
+  approvalSubmitted,
   onDraftChange,
+  onPreview,
   onReset,
   onSave,
   onStatusChange,
@@ -1140,10 +1327,15 @@ function SystemSettingCard({
   draftValue: string;
   error?: string;
   isPending: boolean;
+  preview?: NotificationPolicyChangePreview | null;
+  previewError?: string;
+  previewLoading?: boolean;
   setting: SystemSettingItem;
   statusValue: 'ACTIVE' | 'DISABLED';
   success: boolean;
+  approvalSubmitted: boolean;
   onDraftChange: (value: string) => void;
+  onPreview?: () => void;
   onReset: () => void;
   onSave: () => void;
   onStatusChange: (value: 'ACTIVE' | 'DISABLED') => void;
@@ -1194,8 +1386,32 @@ function SystemSettingCard({
           </Button>
           <span className="text-xs text-muted-foreground">{setting.updated_by?.name ?? '系统'}</span>
         </div>
+        {setting.category === 'NOTIFICATION' ? (
+          <div className="grid gap-2 rounded-md border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-medium">变更影响预览</div>
+              <Button disabled={!changed || Boolean(previewLoading)} onClick={onPreview} size="sm" type="button" variant="outline">
+                {previewLoading ? '预览中' : '预览影响'}
+              </Button>
+            </div>
+            {preview ? <NotificationPolicyPreview preview={preview} /> : (
+              <p className="text-xs leading-5 text-muted-foreground">
+                保存前可预览对自动重试任务、失败投递积压和最近配置变更的影响。
+              </p>
+            )}
+            {previewError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {previewError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">{error}</div> : null}
-        {success ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">参数已保存。</div> : null}
+        {success ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            {approvalSubmitted ? '高影响通知策略已提交安全审批，审批通过后生效。' : '参数已保存。'}
+          </div>
+        ) : null}
         {!canManage ? <div className="text-xs text-muted-foreground">当前账号没有系统参数管理权限。</div> : null}
       </div>
     </div>
@@ -1259,12 +1475,241 @@ function renderSettingInput(
   );
 }
 
+function NotificationPolicyPreview({ preview }: { preview: NotificationPolicyChangePreview }) {
+  return (
+    <div className="grid gap-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge tone={notificationPolicyImpactTone(preview.impact_level)}>
+          {notificationPolicyImpactLabel(preview.impact_level)}
+        </StatusBadge>
+        <span className="text-muted-foreground">
+          变更项：{preview.changed_fields.length > 0 ? preview.changed_fields.join('、') : '无'}
+        </span>
+      </div>
+      <p className="leading-5 text-muted-foreground">{preview.impact_summary}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <DetailRow label="待自动通知" value={`${preview.task_snapshot.pending_auto_notify_count} 条`} />
+        <DetailRow label="已首发覆盖" value={`${preview.task_snapshot.auto_notified_count} 条`} />
+        <DetailRow label="待自动重试" value={`${preview.task_snapshot.pending_auto_retry_count} 条`} />
+        <DetailRow label="失败/部分成功" value={`${preview.task_snapshot.failed_notification_count}/${preview.task_snapshot.partial_notification_count} 条`} />
+        <DetailRow label="已重试" value={`${preview.task_snapshot.retried_notification_count} 条`} />
+        <DetailRow label="近 7 天变更" value={`${preview.recent_change_count} 次`} />
+      </div>
+      {preview.warnings.length > 0 ? (
+        <div className="grid gap-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+          {preview.warnings.slice(0, 3).map((warning) => (
+            <div key={warning}>{warning}</div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NotificationPolicyAuditPanel({
+  audit,
+  isError,
+  isLoading,
+}: {
+  audit?: NotificationPolicyAuditOverview;
+  isError: boolean;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="mt-5 border-t pt-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">通知策略审计</h3>
+        {audit ? <StatusBadge tone="planned">近 7 天</StatusBadge> : null}
+      </div>
+      {isError ? (
+        <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          通知策略审计加载失败。
+        </div>
+      ) : isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">正在加载审计记录...</p>
+      ) : !audit || audit.recent_changes.length === 0 ? (
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">近 7 天暂无通知策略变更记录。</p>
+      ) : (
+        <div className="mt-3 grid gap-3">
+          <div className="grid grid-cols-3 gap-2">
+            <DetailRow label="变更次数" value={`${audit.summary.change_count}`} />
+            <DetailRow label="成功" value={`${audit.summary.success_count}`} />
+            <DetailRow label="失败" value={`${audit.summary.failed_count}`} />
+          </div>
+          <div className="grid gap-2">
+            {audit.recent_changes.slice(0, 5).map((item) => (
+              <div className="rounded-md border bg-background px-3 py-2 text-xs" key={item.id}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{notificationPolicySettingLabel(item.setting_key)}</span>
+                  <StatusBadge tone={item.status_code >= 400 ? 'unavailable' : 'healthy'}>{item.status_code}</StatusBadge>
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  {item.user_name ?? item.user_email ?? '系统'} · {formatDateTime(item.occurred_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotificationPolicySnapshotPanel({
+  canManage,
+  isError,
+  isLoading,
+  pendingSnapshotId,
+  snapshots,
+  onRollback,
+}: {
+  canManage: boolean;
+  isError: boolean;
+  isLoading: boolean;
+  pendingSnapshotId?: string | null;
+  snapshots?: NotificationPolicySnapshotOverview;
+  onRollback: (snapshot: SystemSettingSnapshotItem) => void;
+}) {
+  return (
+    <div className="mt-5 border-t pt-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">版本快照</h3>
+        {snapshots ? <StatusBadge tone="planned">审批预留</StatusBadge> : null}
+      </div>
+      {isError ? (
+        <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          版本快照加载失败。
+        </div>
+      ) : isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">正在加载版本快照...</p>
+      ) : !snapshots || snapshots.recent_snapshots.length === 0 ? (
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">暂无通知策略版本快照，保存或恢复默认后会自动生成。</p>
+      ) : (
+        <div className="mt-3 grid gap-3">
+          <div className="grid grid-cols-3 gap-2">
+            <DetailRow label="快照数" value={`${snapshots.summary.snapshot_count}`} />
+            <DetailRow label="回滚数" value={`${snapshots.summary.rollback_count}`} />
+            <DetailRow label="审批预留" value={`${snapshots.summary.approval_reserved_count}`} />
+          </div>
+          <div className="grid gap-2">
+            {snapshots.recent_snapshots.slice(0, 6).map((snapshot) => (
+              <div className="grid gap-2 rounded-md border bg-background px-3 py-3 text-xs" key={snapshot.id}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="mock">v{snapshot.version}</StatusBadge>
+                  <StatusBadge tone={snapshotActionTone(snapshot.action)}>{snapshotActionLabel(snapshot.action)}</StatusBadge>
+                  <StatusBadge tone={snapshotApprovalTone(snapshot.approval_status)}>
+                    {snapshotApprovalLabel(snapshot.approval_status)}
+                  </StatusBadge>
+                </div>
+                <div className="font-medium">{snapshot.setting_name}</div>
+                <div className="font-mono text-[11px] text-muted-foreground">{snapshot.setting_key}</div>
+                <div className="grid gap-1 rounded-md bg-muted/30 p-2 text-muted-foreground">
+                  <div>状态：{settingStatusLabels[snapshot.previous_status]} → {settingStatusLabels[snapshot.next_status]}</div>
+                  <div className="break-all">值：{formatSnapshotValue(snapshot.previous_value)} → {formatSnapshotValue(snapshot.next_value)}</div>
+                </div>
+                <div className="text-muted-foreground">
+                  {snapshot.created_by?.name ?? '系统'} · {formatDateTime(snapshot.created_at)}
+                </div>
+                {snapshot.impact_summary ? <p className="leading-5 text-muted-foreground">{snapshot.impact_summary}</p> : null}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">已回滚 {snapshot.rollback_count} 次</span>
+                  <Button
+                    disabled={!canManage || pendingSnapshotId === snapshot.id}
+                    onClick={() => onRollback(snapshot)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {pendingSnapshotId === snapshot.id ? '回滚中' : '回滚'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {!canManage ? <p className="text-xs text-muted-foreground">当前账号没有系统参数管理权限，不能执行回滚。</p> : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatSettingDisplayValue(value: unknown, valueType: SystemSettingValueType, secret: boolean) {
   if (secret && value) return '已脱敏';
   if (valueType === 'JSON') return JSON.stringify(value);
   if (value === true) return '开启';
   if (value === false) return '关闭';
   if (value === null || value === undefined || value === '') return '空';
+  return String(value);
+}
+
+function notificationPolicyImpactTone(level: NotificationPolicyImpactLevel) {
+  if (level === 'HIGH') return 'unavailable';
+  if (level === 'MEDIUM') return 'degraded';
+  return 'healthy';
+}
+
+function notificationPolicyImpactLabel(level: NotificationPolicyImpactLevel) {
+  if (level === 'HIGH') return '高影响';
+  if (level === 'MEDIUM') return '中影响';
+  return '低影响';
+}
+
+function notificationPolicySettingLabel(key: string | null) {
+  const labels: Record<string, string> = {
+    alert_notification_auto_notify_enabled: '告警首发自动通知',
+    alert_notification_auto_notify_interval_ms: '首发通知扫描间隔',
+    alert_notification_auto_notify_batch_size: '单批通知数量',
+    alert_notification_auto_retry_enabled: '告警通知自动重试',
+    alert_notification_retry_interval_ms: '自动重试扫描间隔',
+    alert_notification_retry_batch_size: '单批重试数量',
+    alert_notification_max_retry_count: '最大重试次数',
+    alert_notification_retry_backoff_seconds: '重试退避秒数',
+    alert_notification_lookback_hours: '重试回看小时数',
+    operation_alert_sla_enabled: '审批归档告警 SLA',
+    operation_alert_sla_scan_interval_ms: 'SLA 扫描间隔',
+    operation_alert_sla_due_minutes: 'SLA 到期分钟数',
+    operation_alert_sla_warning_minutes: 'SLA 预警分钟数',
+    operation_alert_sla_auto_escalate_enabled: 'SLA 超时自动升级',
+    operation_alert_sla_lookback_hours: 'SLA 回看小时数',
+    operation_alert_sla_subscription_policy: 'SLA 超时订阅策略',
+  };
+
+  return key ? labels[key] ?? key : '未知策略';
+}
+
+function snapshotActionTone(action: SystemSettingSnapshotAction) {
+  if (action === 'ROLLBACK') return 'degraded';
+  if (action === 'RESET') return 'mock';
+  return 'planned';
+}
+
+function snapshotActionLabel(action: SystemSettingSnapshotAction) {
+  if (action === 'ROLLBACK') return '回滚';
+  if (action === 'RESET') return '恢复默认';
+  return '更新';
+}
+
+function snapshotApprovalTone(status: SystemSettingSnapshotApprovalStatus) {
+  if (status === 'PENDING') return 'degraded';
+  if (status === 'REJECTED') return 'unavailable';
+  if (status === 'APPROVED') return 'healthy';
+  if (status === 'RESERVED') return 'mock';
+  return 'planned';
+}
+
+function snapshotApprovalLabel(status: SystemSettingSnapshotApprovalStatus) {
+  if (status === 'PENDING') return '待审批';
+  if (status === 'APPROVED') return '已通过';
+  if (status === 'REJECTED') return '已拒绝';
+  if (status === 'RESERVED') return '审批预留';
+  return '无需审批';
+}
+
+function formatSnapshotValue(value: unknown) {
+  if (value === true) return '开启';
+  if (value === false) return '关闭';
+  if (value === null || value === undefined || value === '') return '空';
+  if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 

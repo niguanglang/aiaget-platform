@@ -93,6 +93,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - Runtime health: `http://localhost:8000/runtime/health`
 - Runtime docs: `http://localhost:8000/runtime/docs`
 
+## Documentation
+
+- Product milestones: [docs/product](./docs/product/README.md)
+- API notes: [docs/api](./docs/api/README.md)
+- External API SDK: [docs/api/external-api-sdk.md](./docs/api/external-api-sdk.md)
+- Architecture notes: [docs/architecture](./docs/architecture/README.md)
+
 Runtime execution mode is controlled by `AGENT_RUNTIME_EXECUTION_MODE`:
 
 ```text

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { RESOURCE_ACL_KEY, type ResourceAclRequirement } from '../decorators/resource-acl.decorator';
+import { ResourceAccessService } from '../services/resource-access.service';
 import { SecurityEventService } from '../services/security-event.service';
 import type { RequestWithContext } from '../types/request-context';
 
@@ -12,6 +13,7 @@ export class ResourceAclGuard implements CanActivate {
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ResourceAccessService) private readonly resourceAccess: ResourceAccessService,
     @Inject(SecurityEventService) private readonly securityEvents: SecurityEventService,
   ) {}
 
@@ -45,7 +47,7 @@ export class ResourceAclGuard implements CanActivate {
       return true;
     }
 
-    const subjectKeys = buildSubjectKeys(user);
+    const subjectKeys = await this.resourceAccess.buildResourceAclSubjectKeys(user);
     const resource = {
       id: resourceId,
       type: requirement.resourceType.toLowerCase(),
@@ -71,7 +73,7 @@ export class ResourceAclGuard implements CanActivate {
       },
     };
     const matched = acls.filter(
-      (acl) => subjectKeys.has(subjectKey(acl.subjectType, acl.subjectId)) && conditionsMatch(acl.conditions, conditionInput),
+      (acl) => subjectKeys.has(resourceAclSubjectKey(acl.subjectType, acl.subjectId)) && conditionsMatch(acl.conditions, conditionInput),
     );
     const denyMatch = matched.find((acl) => acl.effect === 'DENY');
     if (denyMatch) {
@@ -118,23 +120,7 @@ function resolveRequestParam(request: RequestWithContext, paramName: string) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
-function buildSubjectKeys(user: NonNullable<RequestWithContext['user']>) {
-  const output = new Set<string>();
-  output.add(subjectKey('USER', user.id));
-  output.add(subjectKey('TENANT', user.tenantId));
-
-  for (const roleId of user.roleIds ?? []) {
-    output.add(subjectKey('ROLE', roleId));
-  }
-
-  if (user.departmentId) {
-    output.add(subjectKey('DEPARTMENT', user.departmentId));
-  }
-
-  return output;
-}
-
-function subjectKey(subjectType: string, subjectId: string) {
+function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
 }
 

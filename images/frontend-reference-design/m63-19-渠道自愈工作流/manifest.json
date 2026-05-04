@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T05:37:56.299362+00:00",
+  "page": "M63-19 渠道自愈工作流",
+  "route": "/channels",
+  "feature": "渠道发布失败自愈接入 Runtime workflow / Temporal fallback 边界，并在渠道详情页展示 workflow 模式、执行后端和最近运行链路",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

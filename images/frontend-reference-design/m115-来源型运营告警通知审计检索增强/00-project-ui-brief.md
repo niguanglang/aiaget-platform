@@ -1,0 +1,39 @@
+# Project UI Brief
+
+- Page: M115 来源型运营告警通知审计检索增强
+- Route: `/security`
+- Feature goal: 支持来源型运营告警通知投递按来源筛选、关键词检索、CSV 导出和归档留存。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心 `security:rule:view`。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知投递审计。
+- APIs/services:
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `GET /api/v1/security-center/operation-alert-notifications/export`
+  - `POST /api/v1/security-center/operation-alert-notifications/archives`
+  - `GET /api/v1/security-center/operation-alert-notifications/archives`
+  - `GET /api/v1/security-center/operation-alert-notifications/archives/:archiveId/download-url`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationOverview.summary`
+  - `SecurityOperationAlertNotificationItem.alert_category`
+  - `SecurityOperationAlertNotificationItem.alert_id/message/request_id/trace_id`
+  - `SecurityOperationAlertNotificationArchiveItem`
+- Filters:
+  - `status`
+  - `alert_category`
+  - `keyword`
+- Existing components/design system:
+  - `OperationAlertNotificationAuditCard`
+  - `StatusBadge`、`MetricCard`、`Button`、`Input`、`EmptyState`
+  - `api-client.ts` request helpers
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - loading audit list
+  - empty filtered list
+  - export success/error
+  - archive create success/error
+  - archive list empty
+  - retry pending disabled state
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 归档复用现有对象存储能力，不创建新的中间件。

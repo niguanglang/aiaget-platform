@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { ServiceHealthCard } from '@/components/dashboard/service-health-card';
 import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
+import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
 import {
   formatDateTime,
   formatLatency,
@@ -177,6 +178,10 @@ export function MonitorContent() {
           const event = events.find((item) => item.trace_id === traceId);
           setSelectedEventId(event?.event_id ?? null);
         }}
+      />
+
+      <PlatformEventUsagePanel
+        windowValue={windowValue}
       />
 
       <section className="grid gap-4 lg:grid-cols-2">

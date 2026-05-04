@@ -1,0 +1,28 @@
+# Project UI Brief
+
+- Project/module: Enterprise Agent Platform
+- Page: shared-event-usage-base
+- Route: /monitor
+- Feature goal: 统一平台事件、用量事件、关系链路和 rollup 聚合，作为监控、审计、成本与安全中心共用的数据底座
+- Target users/roles: 平台管理员、租户管理员、审计员、成本管理员、安全管理员
+- APIs/services:
+  - `GET /platform-events`
+  - `GET /platform-events/:eventId`
+  - `GET /platform-events/:eventId/relations`
+  - `GET /platform-usage/overview`
+  - `GET /platform-usage/trends`
+  - `GET /platform-usage/ledger`
+- Entities/fields/statuses:
+  - `platform_event`: tenant_id, department_id, user_id, actor_type, resource_type, resource_id, agent_id, team_id, plugin_id, channel_id, conversation_id, run_id, task_id, request_id, trace_id, parent_trace_id, event_source, event_type, status, severity, security_level, billable, summary, payload_json, occurred_at, source_system, source_id, dedupe_key
+  - `platform_usage_event`: subject_type, subject_id, resource_type, resource_id, metric_type, unit, quantity, unit_price, amount, currency, billable, cost_source, trace_id, request_id, event_id, source_system, source_id
+  - `platform_event_relation`: relation_type, parent_event_id, child_event_id, source_event_id, target_event_id, relation_source, relation_key, metadata
+  - `platform_usage_rollup`: period_type, period_start, period_end, event_count, quantity_total, amount_total, cost_total, error_count, success_count, retry_count
+- Existing components/design system: Next.js App Router, React Query, Tailwind CSS, lucide-react, Card, MetricCard, StatusBadge, EmptyState, Button, table-based admin layouts
+- Required states: loading, empty, error, validation, disabled, success, permission-denied
+- M64 收口增强:
+  - 在 `PlatformEventUsagePanel` 内提供统一筛选条。
+  - 支持按窗口、事件来源、事件类型、资源类型、指标类型、Trace ID、Request ID、关键字筛选。
+  - 支持选择平台事件并直接加载 `PlatformEventDetail`。
+  - 事件详情展示 payload、关联关系和关联用量账本。
+  - 用量账本按选中的事件、Trace 或 Request 联动筛选。
+  - 仍复用监控中心和成本中心承载，不新增一级菜单。

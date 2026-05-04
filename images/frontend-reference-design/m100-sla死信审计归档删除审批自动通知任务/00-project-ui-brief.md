@@ -1,0 +1,35 @@
+# Project UI Brief
+
+- Page: M100 SLA 死信审计归档删除审批自动通知任务
+- Route: `/security`
+- Feature goal: 在安全中心的“审批与归档运营”区域中，把 M98 产生的 SLA 死信归档删除审批运营告警接入自动首发通知任务，并与 M87 已有失败自动重试任务并排展示，形成“告警生成 -> 自动通知 -> 失败重试 -> 审计追踪”的闭环。
+- Target users and permissions: 安全管理员、审计员、租户管理员；页面和接口复用 `security:rule:view` 权限。
+- APIs/services:
+  - `GET /security-center/operation-alert-notification-tasks/overview`
+  - `POST /security-center/operation-alert-notification-tasks/run-auto-notify`
+  - `POST /security-center/operation-alert-notification-tasks/run-auto-retry`
+  - Frontend client: `getSecurityOperationAlertNotificationTaskOverview`、`runSecurityOperationAlertNotificationAutoNotify`、`runSecurityOperationAlertNotificationAutoRetry`
+- Entities/fields/statuses:
+  - `SecurityOperationAlertNotificationTaskOverview`
+  - `policy.auto_notify_enabled`、`auto_notify_interval_ms`、`auto_notify_batch_size`
+  - `summary.pending_auto_notify_count`、`auto_notified_count`、`oldest_auto_notify_at`
+  - `last_auto_notify_result`、`last_auto_retry_result`
+  - `SecurityOperationAlertNotificationTaskRunResult.task`: `AUTO_NOTIFY` / `AUTO_RETRY`
+  - `status`: `SUCCESS` / `FAILED` / `SKIPPED`
+  - SLA 死信归档删除告警 ID：`sla-dead-letter-archive-delete-pending`、`sla-dead-letter-archive-delete-rejected-risk`
+- Existing components/design system:
+  - Next.js App Router + React + TypeScript
+  - Tailwind CSS，现有 `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - 安全中心主组件：`apps/web/src/components/security/security-policy-content.tsx`
+  - 后端控制面：NestJS `SecurityCenterController` + `SecurityOperationAlertNotificationTaskService`
+- Required states:
+  - loading: 任务概览加载中
+  - empty: 无待自动通知/无待自动重试
+  - error: 操作错误复用安全中心 `actionError`
+  - disabled: 请求执行中、任务运行中时按钮禁用
+  - success: 最近执行结果显示成功/跳过/失败
+  - permission-denied: 后端守卫统一处理，前端不新增绕过逻辑
+- Design constraints:
+  - 中文界面文字
+  - 保持安全中心已有 Bento/Dashboard 密度，不创建新的独立页面
+  - 自动通知是首发扫描，自动重试只处理失败/部分成功投递，两者视觉上要明确区分

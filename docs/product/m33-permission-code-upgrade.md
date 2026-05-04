@@ -54,7 +54,7 @@ security:approval:handle
 - `pnpm --filter @aiaget/control-api typecheck`
 - `pnpm --filter @aiaget/control-api prisma:validate`
 - `pnpm --filter @aiaget/web typecheck`
-- 已对远程 PostgreSQL `127.0.0.1:5432/aiaget_platform` 执行迁移、注释脚本和种子数据。
+- 已对项目配置的 PostgreSQL 数据库执行迁移、注释脚本和种子数据。
 - 登录后验证 `GET /api/v1/auth/me` 返回新编码权限和兼容旧编码。
 - 登录后验证菜单权限编码已返回 `module:resource:action` 格式。
 - 登录后验证 `GET /api/v1/departments/overview` 返回 200。

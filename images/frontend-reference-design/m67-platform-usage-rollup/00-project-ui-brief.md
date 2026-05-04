@@ -1,0 +1,26 @@
+# Project UI Brief
+
+- Page: M67 Platform Usage Rollup
+- Route: /monitor
+- Feature goal: 统一用量 Rollup 聚合任务运维入口
+- Target users/roles: 监控、审计、成本运营人员；后端接口使用 `monitor:log:view` 权限。
+- APIs/services:
+  - `getPlatformUsageOverview({ window })`
+  - `listPlatformUsageTrends({ window, period, metric_type, resource_type })`
+  - `listPlatformUsageLedger({ window, ...filters })`
+  - `listPlatformEvents({ window, ...filters })`
+  - `getPlatformEvent(eventId)`
+  - `rebuildPlatformUsageRollups({ window })`
+- Entities/fields/statuses:
+  - `PlatformEventUsageOverview.summary`: event_count, usage_count, relation_count, rollup_count, trace_count, error_count
+  - `PlatformUsageRollupItem`: metric_type, period_type, period_start, event_count, quantity_total, amount_total, cost_total, error_count
+  - `PlatformUsageTrendPoint`: bucket, metric_type, event_count, cost_total
+  - `PlatformUsageLedgerItem`: metric_type, resource_type, resource_id, quantity, unit, amount, occurred_at
+  - Window: `24h`, `7d`, `30d`; period: `hour` or `day`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, shared `MetricCard`, `StatusBadge`, `EmptyState`, React Query, lucide icons, `motion/react`.
+- Required states: loading, empty, error, disabled while rebuilding, success notice after rebuild, failure notice after rebuild.
+- Constraints:
+  - Reuse the existing `/monitor` page and `PlatformEventUsagePanel`; do not add a route.
+  - Keep compact billing usage view uncrowded; show the rebuild action only in the full monitor panel.
+  - UI text must be Chinese.
+  - Reference images are optional design inputs; the real contract is the current TypeScript API and shared types.

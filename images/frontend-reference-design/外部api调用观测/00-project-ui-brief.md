@@ -1,0 +1,47 @@
+# Project UI Brief
+
+- Page: 外部 API 调用观测
+- Route: /api-keys
+- Feature goal: 在 API Key 管理中心展示外部 Agent 调用日志、额度消耗、安全拒绝和 Trace 跳转
+- Parent layout: `(console)` route under `ConsoleShell`
+- Target users:
+  - 租户管理员
+  - API Key 管理员
+  - 运维人员
+  - 审计人员
+- Permission:
+  - Read: `system:api_key:view`
+  - Manage remains existing `system:api_key:manage`
+- Existing API contracts:
+  - `GET /api/v1/api-keys`
+  - `POST /api/v1/api-keys`
+  - `DELETE /api/v1/api-keys/{id}`
+  - New read-only M57 endpoint: `GET /api/v1/api-keys/external-observability?window=24h|7d`
+- Data sources:
+  - `api_key.used_count_today`, `last_used_at`, quota fields
+  - `operation_log` where path contains `/external/agents/` and `/chat`
+  - `conversation_run` joined with `conversation` and `agent`
+  - security denial events stored in `operation_log` with `module=security`
+- UI regions:
+  - External invocation summary metrics
+  - Recent external request list
+  - API Key quota/watch list
+  - Security denial list
+  - Trace/monitor/audit quick links
+- Existing components/design system:
+  - Tailwind CSS
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - TanStack Query
+  - lucide icons
+  - motion reveal
+- Required states:
+  - loading skeleton
+  - empty state
+  - backend error message
+  - copy/refresh actions
+  - read-only behavior
+- Constraints:
+  - Do not add middleware or containers
+  - Do not add new persistence tables in this milestone
+  - Do not expose full API Key secret
+  - All visible copy in Chinese

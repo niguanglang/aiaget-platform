@@ -1,0 +1,29 @@
+# Project UI Brief
+
+- Page: m87-审批与归档告警自动重试任务
+- Route: /security
+- Feature goal: 审批与归档告警通知失败投递自动扫描重试
+- Target users: 安全管理员、审计员、租户管理员
+- Existing APIs:
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `POST /api/v1/security-center/operation-alert-notifications/:notificationEventId/retry`
+- New APIs:
+  - `GET /api/v1/security-center/operation-alert-notification-tasks/overview`
+  - `POST /api/v1/security-center/operation-alert-notification-tasks/run-auto-retry`
+- Existing storage:
+  - `platform_event`
+  - `system_setting` notification policy keys
+- Type model:
+  - 复用任务结果结构，新增 SecurityOperationAlertNotificationTaskOverview / RunResult。
+- UI:
+  - 在 `/security` 的审批与归档运营卡片中新增“通知自动重试任务”。
+  - 展示待自动重试、失败投递、部分成功、已重试。
+  - 展示策略：单批数量、最大重试、退避时间、回看窗口。
+  - 支持“立即扫描重试”。
+- Required states: loading、empty、running、last result、error。
+- Constraints:
+  - 中文 UI。
+  - 不新增数据库表。
+  - 不执行数据库迁移。
+  - 不启动容器。
+  - 不安装中间件。

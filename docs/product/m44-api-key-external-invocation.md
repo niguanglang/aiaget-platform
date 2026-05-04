@@ -38,7 +38,7 @@ x-api-key: ak_xxx
 5. 校验内存分钟限流和数据库日额度。
 6. 将 API Key 创建人还原成真实用户身份。
 7. 校验 `system:api_key:invoke`、`conversation:chat:manage`、`agent:agent:use`。
-8. 校验 Agent 数据权限与 Resource ACL。
+8. 校验 Agent 数据权限与 Resource ACL，资源授权主体支持父部门授权对子部门用户继承。
 9. 复用 `ConversationsService.create()` 进入现有 Runtime 执行链路。
 10. 调用成功后更新 `last_used_at`、`used_count_today`、`quota_reset_date`。
 

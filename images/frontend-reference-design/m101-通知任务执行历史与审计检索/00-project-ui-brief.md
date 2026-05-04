@@ -1,0 +1,43 @@
+# Project UI Brief
+
+- Page: M101 通知任务执行历史与审计检索
+- Route: `/security`
+- Feature goal: 在 M100/M87 通知任务中心下方展示自动通知和自动重试任务执行历史，让安全管理员可以按任务类型、执行状态、关键字检索任务事件，并一键跳转审计中心查询 request_id / trace_id。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view` 权限。
+- APIs/services:
+  - `GET /security-center/operation-alert-notification-tasks/runs`
+  - Frontend client: `listSecurityOperationAlertNotificationTaskRuns`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRunItem`
+  - `event_id`、`event_type`、`task`、`status`、`trigger_type`
+  - `scanned_count`、`notified_count`、`retried_count`、`success_count`、`failed_count`、`skipped_count`
+  - `started_at`、`finished_at`、`duration_ms`
+  - `request_id`、`trace_id`、`error_message`、`summary`
+  - `SecurityOperationAlertNotificationTaskRunOverview.summary`
+- Status values/enums:
+  - task: `AUTO_NOTIFY` / `AUTO_RETRY`
+  - status: `SUCCESS` / `FAILED` / `SKIPPED`
+  - trigger_type: `MANUAL` / `SCHEDULED`
+- User actions:
+  - 按任务类型筛选
+  - 按执行状态筛选
+  - 输入关键字搜索
+  - 刷新历史
+  - 跳转审计中心 request_id
+  - 跳转监控中心 trace_id
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`Input`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Existing security page component: `apps/web/src/components/security/security-policy-content.tsx`
+  - Existing API client: `apps/web/src/lib/api-client.ts`
+- Required states:
+  - loading: 历史加载中
+  - empty: 当前筛选无任务执行记录
+  - error: 复用页面 `actionError`
+  - disabled: 刷新中按钮禁用
+  - success: 表格展示执行记录
+  - permission-denied: 后端守卫统一处理
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，直接投影 `platform_event`
+  - 不启动容器、不执行迁移、不安装中间件

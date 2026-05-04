@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig/base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist",
+    "rootDir": "..",
+    "baseUrl": ".",
+    "paths": {
+      "@aiaget/shared-types": ["../shared-types/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

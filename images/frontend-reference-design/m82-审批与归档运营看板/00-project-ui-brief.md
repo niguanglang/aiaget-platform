@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: M82 审批与归档运营看板
+- Route: /security
+- Feature goal: 聚合工具审批、通知策略审批、归档删除审批、审批审计事件与归档容量的运营视图
+- Target users: 安全管理员、审计员、租户管理员
+- Permission: `security:rule:view`
+- Existing frontend stack: Next.js App Router, React, TypeScript, Tailwind CSS, local shadcn-like components, TanStack Query, Motion.
+- Existing page:
+  - `/security`
+  - `SecurityPolicyContent`
+  - `SecurityCenterOverviewPanel`
+- Existing backend:
+  - `GET /api/v1/security-center/overview`
+  - `SecurityCenterService.getOverview`
+- M82 backend strategy:
+  - Extend `SecurityCenterOverview` with `approval_operations`.
+  - Count tool approvals, notification policy approvals, archive delete approvals, approval audit events and archive object stats.
+  - No DB migration.
+  - Use `approval_audit_event` for archive delete approval derivation.
+  - Use MinIO object prefix through `StorageService` for archive count/size.
+- Data fields:
+  - tool_pending/tool_approved/tool_rejected
+  - notification_pending/notification_approved/notification_rejected/high_impact_pending
+  - archive_delete_pending/archive_delete_approved/archive_delete_rejected/archive_delete_applied
+  - audit_events_24h/audit_failed_24h/audit_warning_24h/audit_trace_count_24h
+  - archive_count/archive_total_size_bytes
+- Frontend UI:
+  - Add Bento card `审批与归档运营`
+  - Show metrics, status badges and quick links to `/approvals`, `/approval-audits`, `/audit`
+  - Show recent risk summary using existing overview data
+- Required states: loading, unavailable overview, normal/degraded/high-risk status.
+- Constraints:
+  - Chinese UI text only.
+  - Do not start containers.
+  - Do not run migrations.

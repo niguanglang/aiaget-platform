@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: Agent Team Human Resume
+- Route: /agent-teams
+- Feature goal: 团队运行人工介入审批和恢复执行
+- Target users: 租户管理员、安全管理员、Agent 协作任务负责人、具备 `agent:team:run` 或 `security:approval:handle` 的运维人员。
+- Parent layout: 现有控制台布局，页面文件位于 `apps/web/src/app/(console)/agent-teams/page.tsx`，主体组件为 `apps/web/src/components/agent-teams/agent-teams-content.tsx`。
+- APIs/services:
+  - `GET /api/v1/agent-teams`
+  - `GET /api/v1/agent-teams/:id`
+  - `POST /api/v1/agent-teams/:id/runs`
+  - `POST /api/v1/agent-teams/runs/:runId/handoff`
+  - 新增 `POST /api/v1/agent-teams/handoffs/:handoffId/approve`
+  - 新增 `POST /api/v1/agent-teams/handoffs/:handoffId/reject`
+- Data contracts:
+  - `AgentTeamRunSummary.status`: `QUEUED | RUNNING | WAITING_HUMAN | SUCCESS | FAILED | CANCELLED`
+  - `AgentTeamHandoffItem.status`: `PENDING | APPROVED | REJECTED | AUTO`
+  - `AgentTeamHandoffItem.reason / decision_note / decided_by / decided_at / created_at`
+  - `AgentTeamDetail.handoffs`
+- Existing components/design system:
+  - `Card`, `Button`, `EmptyState`, `MetricCard`, `StatusBadge`
+  - Tailwind utility layout, compact enterprise dashboard cards, lucide-react icons
+  - Existing run trace workspace, run summary panel, signal panel, action panel, handoff list
+- Required states:
+  - No run selected
+  - Run is not waiting for human
+  - Run is `WAITING_HUMAN` but has no pending handoff
+  - Pending handoff can be approved/rejected
+  - Permission disabled state
+  - Mutation pending state
+  - Error surfaced through existing `formError`
+- Constraints:
+  - 所有可见文案必须是中文。
+  - 不改变现有页面路由和主体布局。
+  - 人工审批入口必须贴近运行轨迹和接力记录，避免新增独立复杂页面。
+  - 视觉延续现有 Bento/Dashboard 产品风格，轻边框、克制阴影、清晰层级。

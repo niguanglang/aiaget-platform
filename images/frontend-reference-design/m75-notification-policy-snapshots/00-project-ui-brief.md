@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M75 Notification Policy Snapshots
+- Route: /settings
+- Feature goal: 通知策略版本快照与回滚审批预留
+- Target users/roles: 租户管理员、监控运营、安全管理员；查看需要 `system:settings:view`，回滚需要 `system:settings:manage`。
+- APIs/services:
+  - `listNotificationPolicySnapshots()`
+  - `rollbackNotificationPolicySnapshot(snapshotId)`
+  - `updateSystemSetting(id, { value, status })`
+  - `resetSystemSetting(id)`
+  - `getNotificationPolicyAudit()`
+- Entities/fields/statuses:
+  - `SystemSettingSnapshotItem`: setting_id, setting_key, setting_name, version, action, previous_value, next_value, previous_status, next_status, approval_status, created_by, created_at, rollback_count
+  - `NotificationPolicySnapshotOverview`: summary, recent_snapshots
+  - Snapshot actions: UPDATE / RESET / ROLLBACK
+  - Approval statuses: NOT_REQUIRED / RESERVED / PENDING / APPROVED / REJECTED
+- Existing components/design system: Next.js App Router, React Query, Tailwind CSS, shadcn-style `Card` / `Button`, `StatusBadge`, `EmptyState`, existing `SettingsContent` and `ConfirmDialog` patterns.
+- Required states: snapshots loading, empty, error, rollback pending, permission denied, rollback success, stale selected snapshot.
+- Constraints:
+  - UI text must be Chinese.
+  - Keep the existing three-column settings page.
+  - Do not create a separate route.
+  - Approval is only a reserved field in M75; do not expose a fake approval workflow.
+  - New table/migration files are allowed, but do not execute migrations without explicit approval.

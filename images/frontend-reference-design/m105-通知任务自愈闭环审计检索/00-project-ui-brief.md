@@ -1,0 +1,29 @@
+# Project UI Brief
+
+- Page: M105 通知任务自愈闭环审计检索
+- Route: `/security`
+- Feature goal: 将 M104 的通知任务自愈建议处理事件做成可筛选、可搜索、可联动审计和 Trace 的列表。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`。
+- APIs/services:
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits`
+  - frontend service: `listSecurityOperationAlertNotificationTaskRecoveryAudits`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditItem`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditOverview`
+  - filters: `action`、`status`、`reason_code`、`keyword`
+  - item fields: `event_id`、`suggestion_id`、`title`、`reason_code`、`severity`、`action`、`status`、`note`、`request_id`、`trace_id`、`occurred_at`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`Input`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Existing page file: `apps/web/src/components/security/security-policy-content.tsx`
+  - Existing API client file: `apps/web/src/lib/api-client.ts`
+- Required states:
+  - loading: 正在加载闭环审计
+  - empty: 当前筛选条件没有闭环记录
+  - filters: action/status/reason/keyword
+  - links: audit by request_id, monitor by trace_id
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，不执行迁移
+  - 不启动容器，不安装依赖
+  - 只读取 M104 写入的 `platform_event`

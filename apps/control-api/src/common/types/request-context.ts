@@ -16,10 +16,18 @@ export interface AuthenticatedUser {
 }
 
 export interface RequestWithContext extends Request {
+  rawBody?: string;
   requestId?: string;
   traceId?: string;
   spanId?: string;
   parentSpanId?: string | null;
   traceparent?: string;
+  apiKeyId?: string;
+  apiKeyPrefix?: string;
+  externalAgentId?: string;
+  externalChannelId?: string;
+  externalConversationId?: string;
+  externalRunId?: string;
+  externalTraceId?: string;
   user?: AuthenticatedUser;
 }

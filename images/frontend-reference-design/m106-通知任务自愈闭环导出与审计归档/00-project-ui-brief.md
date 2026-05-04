@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Page: M106 通知任务自愈闭环导出与审计归档
+- Route: `/security`
+- Feature goal: 基于 M105 的筛选结果支持 CSV 导出，并将导出结果保存为对象存储归档供后续下载。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`。
+- APIs/services:
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/export`
+  - `POST /security-center/operation-alert-notification-task-recovery-suggestions/audits/archives`
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/archives`
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/archives/:archiveId/download-url`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveListResult`
+  - `CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult`
+  - `StorageDownloadUrlResult`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Existing export helper patterns in `apps/web/src/lib/api-client.ts`
+  - Existing archive panel pattern in `apps/web/src/components/security/security-policy-content.tsx`
+- Required states:
+  - exporting: CSV 导出中
+  - archive creating: 归档生成中
+  - archive loading: 归档列表加载中
+  - archive downloading: 下载链接生成中
+  - empty: 暂无归档
+  - success/error message
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，不执行迁移
+  - 不启动容器，不安装依赖
+  - 复用对象存储，不创建新中间件
+  - M106 不做删除审批，删除留给后续模块

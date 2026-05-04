@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: M112 自愈归档删除自动通知失败聚合增强
+- Route: `/security`
+- Feature goal: 区分 SLA 死信归档删除通知失败与通知任务自愈归档删除通知失败，并把分类失败来源展示到通知任务失败聚合与自愈建议证据中。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心权限和后端 JWT/租户隔离。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知任务失败聚合 / 通知任务自愈建议。
+- APIs/services:
+  - `GET /api/v1/security-center/overview`
+  - `SecurityCenterOverview.approval_operations`
+  - `approval_operations.notification_task_recovery_suggestions[]`
+- Data entities and fields:
+  - `SecurityCenterOverview.approval_operations`
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion`
+  - new fields: `notification_task_sla_dead_letter_failed_24h`、`notification_task_recovery_archive_delete_failed_24h`
+- Status values:
+  - task status: `SUCCESS`、`FAILED`、`SKIPPED`
+  - suggestion status: `OPEN`、`ACKNOWLEDGED`、`IGNORED`、`RESOLVED`
+- Existing components/design system:
+  - `ApprovalArchiveOperationsCard`
+  - `NotificationTaskRecoverySuggestionsCard`
+  - `OperationMetricTile`、`StatusBadge`、`EmptyState`
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - overview loading
+  - no task risk
+  - task failure risk
+  - SLA-only failure
+  - self-healing archive failure
+  - both categories failing
+  - no recovery suggestions
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 分类失败统计从现有 `platform_event.payloadJson` 的 M111 字段聚合，旧事件缺失字段时按 0 兼容。

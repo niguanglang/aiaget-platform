@@ -41,7 +41,7 @@
 - `pnpm --filter @aiaget/web typecheck`
 - `pnpm --filter @aiaget/control-api typecheck`
 - `pnpm --filter @aiaget/control-api prisma:validate`
-- 已对远程 PostgreSQL `127.0.0.1:5432/aiaget_platform` 执行迁移、注释脚本和种子数据。
+- 已对项目配置的 PostgreSQL 数据库执行迁移、注释脚本和种子数据。
 - 本地验证 `GET http://localhost:3001/api/v1/health` 返回 healthy。
 - 本地验证 `GET http://localhost:3000/departments` 返回 200。
 - 登录后验证部门概览和组织树接口返回 200，默认种子数据包含 4 个部门节点。

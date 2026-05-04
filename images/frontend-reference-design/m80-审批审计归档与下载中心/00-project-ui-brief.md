@@ -1,0 +1,41 @@
+# Project UI Brief
+
+- Page: M80 审批审计归档与下载中心
+- Route: /approval-audits
+- Feature goal: 审批审计 CSV 归档到 MinIO、下载链接、删除归档和审计中心留痕
+- Target users: 安全管理员、审计员、租户管理员
+- Permissions:
+  - approval audit view/export/archive: `security:approval:view`
+  - delete archive uses same approval governance in M80, later can split to `security:approval:handle`
+- Existing frontend stack: Next.js App Router, React, TypeScript, Tailwind CSS, local shadcn-like `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, TanStack Query, Motion.
+- Existing route and page:
+  - `/approval-audits`
+  - `apps/web/src/components/approval-audits/approval-audit-content.tsx`
+- Existing backend:
+  - `GET /api/v1/tool-approvals/audit-events/overview`
+  - `GET /api/v1/tool-approvals/audit-events`
+  - `GET /api/v1/tool-approvals/audit-events/:eventId`
+  - `GET /api/v1/tool-approvals/audit-events/export`
+- New M80 backend:
+  - `POST /api/v1/tool-approvals/audit-events/archives`
+  - `GET /api/v1/tool-approvals/audit-events/archives`
+  - `GET /api/v1/tool-approvals/audit-events/archives/:archiveId/download-url`
+  - `DELETE /api/v1/tool-approvals/audit-events/archives/:archiveId`
+- Existing storage service:
+  - MinIO/S3 client in `StorageService`
+  - object prefix is tenant scoped: `tenants/{tenantId}/...`
+  - can list, upload, delete and create signed download URL
+- New archive strategy:
+  - No new DB table.
+  - Archive CSV files are stored under tenant prefix folder `audit-archives/approval-audits/`.
+  - Archive list is derived from object storage prefix.
+  - Archive metadata is encoded in object key and object metadata where possible.
+- Required frontend:
+  - button `生成归档`
+  - archive list panel: 文件名、大小、更新时间、筛选摘要、操作
+  - actions: 下载、删除、刷新
+  - states: loading, empty, error, disabled, success
+- Constraints:
+  - UI text must be Chinese.
+  - Do not run migrations.
+  - Do not start containers or install middleware.

@@ -411,6 +411,82 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'AGENT_TEAM': {
+        const items = await this.prisma.agentTeam.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains ? { OR: [{ name: contains }, { code: contains }, { description: contains }] } : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'AGENT_TEAM',
+          name: item.name,
+          code: item.code,
+          description: item.description,
+          status: item.status,
+        }));
+      }
+      case 'CHANNEL': {
+        const items = await this.prisma.agentPublishChannel.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { channel: contains },
+                    { description: contains },
+                    { endpointUrl: contains },
+                    { callbackUrl: contains },
+                  ],
+                }
+              : {}),
+          },
+          include: {
+            agent: true,
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CHANNEL',
+          name: item.name ?? `${item.agent.name} - ${item.channel}`,
+          code: item.channel,
+          description: item.description ?? item.agent.name,
+          status: item.status,
+        }));
+      }
+      case 'PLUGIN': {
+        const items = await this.prisma.plugin.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains ? { OR: [{ name: contains }, { code: contains }, { provider: contains }, { description: contains }] } : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'PLUGIN',
+          name: item.name,
+          code: item.code,
+          description: item.description ?? item.provider,
+          status: item.status,
+        }));
+      }
       case 'KNOWLEDGE_BASE': {
         const items = await this.prisma.knowledgeBase.findMany({
           where: {
@@ -588,6 +664,48 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: item.description,
+          status: item.status,
+        }));
+      }
+      case 'AGENT_TEAM': {
+        const items = await this.prisma.agentTeam.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'AGENT_TEAM',
+          name: item.name,
+          code: item.code,
+          description: item.description,
+          status: item.status,
+        }));
+      }
+      case 'CHANNEL': {
+        const items = await this.prisma.agentPublishChannel.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+          include: {
+            agent: true,
+          },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CHANNEL',
+          name: item.name ?? `${item.agent.name} - ${item.channel}`,
+          code: item.channel,
+          description: item.description ?? item.agent.name,
+          status: item.status,
+        }));
+      }
+      case 'PLUGIN': {
+        const items = await this.prisma.plugin.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'PLUGIN',
+          name: item.name,
+          code: item.code,
+          description: item.description ?? item.provider,
           status: item.status,
         }));
       }

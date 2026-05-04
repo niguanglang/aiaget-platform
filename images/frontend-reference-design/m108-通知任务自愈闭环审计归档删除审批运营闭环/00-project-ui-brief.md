@@ -1,0 +1,40 @@
+# Project UI Brief
+
+- Page: M108 通知任务自愈闭环审计归档删除审批运营闭环
+- Route: `/security`
+- Feature goal: 把 M107 自愈闭环审计归档删除审批接入安全中心运营统计、风险信号和告警闭环，让安全管理员在安全中心直接看到待审、拒绝、批准、生效和运营告警。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心访问权限，后端继续由 JWT、租户隔离和安全中心接口权限兜底。
+- APIs/services:
+  - `GET /security-center/overview`
+  - `SecurityCenterOverview.approval_operations.operational_alerts[]`
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_audit_archive_delete_pending`
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_audit_archive_delete_approved`
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_audit_archive_delete_rejected`
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_audit_archive_delete_applied`
+  - 复用 M107 的归档删除审批列表、审批详情、批准、拒绝接口作为下钻入口。
+- Data entities and fields:
+  - `SecurityCenterOverview`
+  - `SecurityCenterOperationalAlert`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview`
+  - fields: `pending/approved/rejected/applied`、`operational_alerts.id`、`title`、`description`、`severity`、`metric`、`status`、`triggered_at`
+- Status values:
+  - 运营告警：`OPEN`、`ACKNOWLEDGED`、`ESCALATED`、`CLOSED`
+  - 删除审批：`PENDING`、`APPROVED`、`REJECTED`、`APPLIED`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `/security` page shell and `SecurityPolicyContent`
+  - Existing `Card`、`Button`、`StatusBadge`、`EmptyState`、`OperationMetricTile`、`OperationAlertCard`
+  - Reuse `ApprovalArchiveOperationsCard` layout, M98 SLA 死信归档删除审批运营区块, M102 通知任务失败聚合区块。
+- Required states:
+  - overview loading：显示“正在汇总审批与归档运营数据...”。
+  - overview empty：安全中心 overview 为空时不渲染运营卡片。
+  - no alerts：展示“审批与归档运营平稳”。
+  - pending backlog：显示待审数量和告警卡片。
+  - rejected risk：拒绝数量不低于已生效数量时显示运营风险。
+  - archive storage degraded：保留已有归档存储降级提示。
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 运营统计必须来自 M107 已写入的 `platform_event`，不直接访问对象存储删除状态以外的新中间件。
+  - 参考图只作为 UI 结构参考，真实字段以 shared types 和后端聚合结果为准。

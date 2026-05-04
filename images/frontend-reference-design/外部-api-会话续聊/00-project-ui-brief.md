@@ -1,0 +1,39 @@
+# Project UI Brief
+
+- Page: 外部 API 会话续聊
+- Route: /api-reference
+- Feature goal: 开放接口文档中心补齐外部会话续聊接口说明
+- Parent layout: `(console)` route under `ConsoleShell`
+- Target users:
+  - 外部系统接入研发
+  - 租户管理员
+  - API Key 管理员
+  - 运维与审计人员
+- Permission:
+  - 页面可见：`system:api_key:view`
+- API contracts:
+  - `POST /api/v1/external/agents/{agentId}/chat`
+  - `POST /api/v1/external/agents/{agentId}/chat/stream`
+  - `POST /api/v1/external/agents/{agentId}/conversations/{conversationId}/messages`
+  - `POST /api/v1/external/agents/{agentId}/conversations/{conversationId}/messages/stream`
+- Core fields:
+  - `agentId`
+  - `conversationId`
+  - `message`
+  - `title` for create-only calls
+  - `conversation_id`
+  - `run_id`
+  - `trace_id`
+- Existing components/design system:
+  - Tailwind CSS
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`
+  - code cards and schema tables in `/api-reference`
+- Required states:
+  - static documentation
+  - copy success
+  - create vs continue endpoint comparison
+  - stream/non-stream distinction
+  - security/permission notes
+- Constraints:
+  - Do not add middleware or containers
+  - All visible copy in Chinese

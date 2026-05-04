@@ -1,0 +1,31 @@
+# Project UI Brief
+
+- Page: M63-21 渠道发布复盘报告
+- Route: `/channels`
+- Feature goal: 汇总渠道发布批次、审批、灰度、自动推进、自愈、巡检事件和用量指标，生成可审计中文复盘报告。
+- Target users: 渠道管理员、安全管理员、审计员、租户管理员。
+- Permissions: `channel:publish:view`
+- API/services:
+  - Web: `getChannelReleaseReport(channelId)`
+  - Control API: `GET /channels/:channelId/release-report`
+- Data entities:
+  - `ChannelReleaseReport`
+  - Summary: `conclusion`, `incident_level`, `health_status`, `publish_status`, `rollback_available`, `approval_status`, `rollout_status`, `current_batch_title`, `last_automation_decision`, `last_self_healing_decision`
+  - Metrics: label/value/helper/severity
+  - Risks: title/severity/description/recommendation
+  - Timeline: occurred_at/event_type/title/status/severity/summary/trace_id
+  - Markdown report body
+- Existing components/design system:
+  - Existing `/channels` page
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, `InfoRow`, `pre`
+- Required states:
+  - Loading skeleton
+  - Empty report
+  - Error banner
+  - No channel selected
+  - Read-only report display
+- Constraints:
+  - Chinese UI text.
+  - No new table or schema.
+  - No container or middleware action.
+  - Report is generated from existing PostgreSQL event/usage/config data.

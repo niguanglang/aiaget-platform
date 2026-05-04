@@ -1,0 +1,45 @@
+# Project UI Brief
+
+- Page: M116 来源型运营告警通知归档删除审批化
+- Route: `/security`
+- Feature goal: 把 M115 生成的来源型运营告警通知审计归档删除升级为审批后生效，形成申请、审批、拒绝、生效和时间线审计闭环。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心 `security:rule:view`。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知投递审计 -> 通知归档与删除审批。
+- APIs/services:
+  - `DELETE /api/v1/security-center/operation-alert-notifications/archives/:archiveId`
+  - `GET /api/v1/security-center/operation-alert-notifications/archive-approvals/overview`
+  - `GET /api/v1/security-center/operation-alert-notifications/archive-approvals`
+  - `GET /api/v1/security-center/operation-alert-notifications/archive-approvals/:approvalId`
+  - `POST /api/v1/security-center/operation-alert-notifications/archive-approvals/:approvalId/approve`
+  - `POST /api/v1/security-center/operation-alert-notifications/archive-approvals/:approvalId/reject`
+- Existing APIs kept from M115:
+  - `GET /api/v1/security-center/operation-alert-notifications/archives`
+  - `GET /api/v1/security-center/operation-alert-notifications/archives/:archiveId/download-url`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationArchiveItem`
+  - `SecurityOperationAlertNotificationArchiveApprovalOverview`
+  - `SecurityOperationAlertNotificationArchiveApprovalItem`
+  - `SecurityOperationAlertNotificationArchiveApprovalDetail.audit_timeline`
+- Status values:
+  - `PENDING`
+  - `APPROVED`
+  - `REJECTED`
+  - `APPLIED`
+- Existing components/design system:
+  - `OperationAlertNotificationAuditCard`
+  - `StatusBadge`、`MetricCard`、`Button`、`Input`、`EmptyState`
+  - existing archive approval panels for SLA dead letter and notification task recovery audit
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - archive list loading and empty
+  - delete request pending disabled state
+  - approval list loading, empty and filtered-empty
+  - approval detail loading and empty
+  - approve/reject disabled while pending
+  - success/error messages for delete request, approve, reject and object deletion
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 删除只在审批通过后调用对象存储删除。
+  - 审批状态从 `platform_event` 聚合，保留后续迁移到工作流的边界。

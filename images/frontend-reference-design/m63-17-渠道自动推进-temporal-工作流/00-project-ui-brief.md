@@ -1,0 +1,33 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-17 渠道自动推进 Temporal 工作流
+- Route: `/channels`
+- Feature goal: 将 M63-16 渠道自动推进执行器接入 Runtime workflow / Temporal fallback 边界，支持 `local`、`temporal_first`、`temporal` 三种模式。
+- Target users and permissions:
+  - 租户管理员、发布负责人：查看 workflow 模式、执行后端和最近运行。
+  - 渠道管理员：保存执行策略。
+  - 审计员：查看 workflow 派发和执行事件。
+- Existing route and layout:
+  - 复用 `/channels` 页面和 `ReleaseAutomationPanel`。
+  - 不新增独立页面；在 M63-16 面板内显示 workflow 模式、后端、workflow ID。
+- APIs/services:
+  - 前端仍使用 `GET /channels/:channelId/release-automation`、`POST /channels/:channelId/release-automation/run`
+  - Control API 新增 Runtime 内部回调：`POST /runtime/internal/channel-release-automation/run`
+  - Runtime 新增 workflow endpoint：`POST /runtime/workflows/channel-release-automation/start`
+- Data entities:
+  - `ChannelReleaseAutomationOverview.workflow_mode`
+  - `ChannelReleaseAutomationOverview.workflow_backend`
+  - `ChannelReleaseAutomationRunResult.workflow_id`
+  - `ChannelReleaseAutomationRunResult.workflow_backend`
+- Existing components/design system:
+  - `ReleaseAutomationPanel`, `MetricCard`, `InfoRow`, `DetailRow`, `StatusBadge`, Tailwind CSS。
+- Required states/actions:
+  - 查看 workflow 模式：本地执行、Temporal 优先、强制 Temporal
+  - 查看执行后端：本地、本地兜底、Temporal
+  - 查看 workflow ID
+  - Runtime 不可用时 temporal_first 回退本地，temporal 模式记录失败
+- Constraints:
+  - 不启动 Temporal 容器。
+  - 不新增数据库表；workflow 元数据写入渠道 config 最近运行结果。
+  - Temporal 未启用时 Runtime 返回 LOCAL_FALLBACK。

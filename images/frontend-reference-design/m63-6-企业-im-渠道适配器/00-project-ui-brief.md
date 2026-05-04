@@ -1,0 +1,31 @@
+# Project UI Brief
+
+- Page: M63-6 企业 IM 渠道适配器
+- Route: /channels
+- Feature goal: 在全渠道发布中心展示企业微信、钉钉、飞书和自定义 Webhook 的统一回调地址与接入状态
+- Users/permissions: 租户管理员或具备 `channel:publish:view` 的用户可查看；`channel:publish:manage` 可编辑；`channel:publish:deploy` 可启用；`channel:publish:disable` 可停用。
+- APIs/services:
+  - `GET /channels/overview` -> `getPublishChannelOverview`
+  - `POST /channels` -> `upsertPublishChannel`
+  - `PATCH /channels/:channelId` -> `updatePublishChannel`
+  - `POST /channels/:channelId/enable|disable|check`
+  - `POST /external/channels/:channelId/callback` -> 企业 IM / Webhook 入站回调
+  - `GET /external/channels/:channelId/callback` -> URL 校验 / challenge
+  - 前端新增 `getExternalChannelCallbackEndpoint(channelId)`
+- Entities/fields/statuses:
+  - `PublishChannelListItem`: `id`, `agent_id`, `agent`, `channel`, `name`, `description`, `status`, `endpoint_url`, `callback_url`, `secret_masked`, `config`, `health_status`, `health_message`, `request_count_24h`, `success_rate_24h`, `last_request_at`
+  - `PublishChannelType`: `WEB_WIDGET`, `OPEN_API`, `WECHAT_WORK`, `DINGTALK`, `FEISHU`, `SLACK`, `CUSTOM_WEBHOOK`
+  - `PublishChannelStatus`: `DRAFT`, `ACTIVE`, `DISABLED`, `ERROR`, `ARCHIVED`
+  - `PublishChannelHealthStatus`: `UNKNOWN`, `HEALTHY`, `DEGRADED`, `UNAVAILABLE`
+- Existing components/design system:
+  - Next.js App Router, React, TypeScript, Tailwind CSS
+  - shadcn-like local primitives: `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`
+  - `motion/react` for restrained page/list reveal
+  - Existing route component: `apps/web/src/components/channels/channel-content.tsx`
+- Required states:
+  - loading skeletons, empty state, error banner, permission-denied state, disabled action buttons, save validation, success notice
+  - Callback adapter should show whether the current channel type supports inbound callbacks and whether the channel is enabled.
+- Constraints:
+  - 页面显示文字使用中文。
+  - 不新增页面，不改导航；只增强 `/channels` 现有详情区域。
+  - 不新增中间件/container；真实企业 IM 复杂验签先保留可插拔边界，自定义 Webhook 支持 `x-aiaget-signature` HMAC。

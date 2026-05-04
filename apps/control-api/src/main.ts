@@ -3,10 +3,11 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { json, urlencoded } from 'express';
+import { json, text, urlencoded } from 'express';
 
 import { AppModule } from './app.module';
 import { requireEnv } from './common/env';
+import type { RequestWithContext } from './common/types/request-context';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,8 +17,9 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  app.use(json({ limit: '30mb' }));
-  app.use(urlencoded({ extended: true, limit: '30mb' }));
+  app.use(json({ limit: '30mb', verify: preserveRawBody }));
+  app.use(urlencoded({ extended: true, limit: '30mb', verify: preserveRawBody }));
+  app.use(text({ limit: '30mb', type: ['application/xml', 'text/xml', 'text/plain'], verify: preserveRawBody }));
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     credentials: true,
@@ -55,3 +57,7 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+function preserveRawBody(req: unknown, _res: unknown, buffer: Buffer) {
+  (req as RequestWithContext).rawBody = buffer.toString('utf8');
+}

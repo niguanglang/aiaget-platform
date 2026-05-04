@@ -1,0 +1,47 @@
+# Project UI Brief
+
+- Page: Agent 协作中心
+- Route: `/agent-teams`
+- Feature goal: 多 Agent 团队编排、成员协作、运行轨迹和人工接管。
+- Target users: 租户管理员、Agent 管理员、安全管理员、审计员。
+- Permissions:
+  - `agent:team:view`
+  - `agent:team:manage`
+  - `agent:team:run`
+- APIs/services:
+  - `GET /api/v1/agent-teams`
+  - `POST /api/v1/agent-teams`
+  - `GET /api/v1/agent-teams/:id`
+  - `PATCH /api/v1/agent-teams/:id`
+  - `DELETE /api/v1/agent-teams/:id`
+  - `POST /api/v1/agent-teams/:id/members`
+  - `PATCH /api/v1/agent-teams/:id/members/:memberId`
+  - `DELETE /api/v1/agent-teams/:id/members/:memberId`
+  - `POST /api/v1/agent-teams/:id/runs`
+  - `POST /api/v1/agent-teams/runs/:runId/handoff`
+  - `POST /api/v1/agent-teams/runs/:runId/feedback`
+- Entities:
+  - `agent_team`: name, code, description, status, mode, owner, max_rounds, timeout_seconds, handoff_policy, created_at, updated_at
+  - `agent_team_member`: agent, role, responsibility, execution_order, required, status
+  - `agent_team_run`: objective, status, trace_id, request_id, total_steps, completed_steps, failed_steps, total_tokens, total_cost, latency_ms, started_at, ended_at
+  - `agent_team_step`: step_type, title, status, agent, input_summary, output_summary, trace_id, duration_ms, cost_total
+  - `agent_team_handoff`: from_agent, to_agent, reason, status, decided_by, created_at
+  - `agent_team_feedback`: rating, comment, created_by, created_at
+- Status values:
+  - Team: `DRAFT`, `ACTIVE`, `DISABLED`, `ARCHIVED`
+  - Run: `QUEUED`, `RUNNING`, `WAITING_HUMAN`, `SUCCESS`, `FAILED`, `CANCELLED`
+  - Step: `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`, `SKIPPED`
+  - Handoff: `PENDING`, `APPROVED`, `REJECTED`, `AUTO`
+- Existing frontend stack/design system:
+  - Next.js app router under `apps/web/src/app/(console)`
+  - React Query data loading
+  - Tailwind CSS
+  - shadcn-style local components: `Button`, `MetricCard`, `StatusBadge`
+  - lucide-react icons
+  - existing card/table/filter/detail patterns from `AgentsContent`, `ConversationsContent`, `MonitorContent`
+- Required states:
+  - loading, empty, error, validation, disabled, success, permission-denied
+- Layout direction:
+  - Dashboard layout with KPI cards, filters, team table, selected team detail panel, member cards, run timeline.
+  - Keep Chinese visible text.
+  - Minimal enterprise SaaS style with subtle borders, soft shadow, clean spacing, and restrained motion.

@@ -1,0 +1,25 @@
+# Project UI Brief
+
+- Page: M93 SLA死信审计导出与联动
+- Route: /security
+- Feature goal: SLA 死信处置审计 CSV 导出、审计中心与 Trace 联动
+- Target users/permissions: 安全管理员、租户管理员、审计员；沿用 `security:rule:view`。
+- APIs/services:
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/export`
+  - 前端 `listSecurityOperationAlertSlaDeadLetterAudits`
+  - 前端 `exportSecurityOperationAlertSlaDeadLetterAudits`
+- Entities/fields/statuses:
+  - 审计项：事件 ID、通知事件 ID、告警 ID、标题、动作、处置状态、备注、投递事件 ID、操作人、请求 ID、Trace ID、发生时间
+  - 筛选：`keyword`、`action`、`disposition_status`、`page`、`page_size`
+  - 动作：`CLAIM`、`REQUEUE`、`CLOSE`
+  - 状态：`OPEN`、`CLAIMED`、`REQUEUED`、`CLOSED`
+- Existing components/design system:
+  - Next.js App Router；React Query；Tailwind CSS；安全中心 `/security`
+  - `Card`、`Button`、`Input`、`StatusBadge`、`EmptyState`
+  - `Link` 跳转到 `/audit?keyword=<request_id>`、`/monitor?keyword=<trace_id>`
+- Required states:
+  - loading、empty、exporting、export success、export error、disabled when empty/loading、filter reset
+- Constraints:
+  - 不新增表，不跑迁移，不启动容器。
+  - UI 文案中文。

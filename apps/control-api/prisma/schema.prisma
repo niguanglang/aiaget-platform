@@ -27,11 +27,18 @@ model Tenant {
   resourceAcls ResourceAcl[]
   apiKeys       ApiKey[]
   systemSettings SystemSetting[]
+  systemSettingSnapshots SystemSettingSnapshot[]
   loginLogs     LoginLog[]
   operationLogs OperationLog[]
   refreshTokens RefreshToken[]
   agentCategories AgentCategory[]
   agents Agent[]
+  agentTeams AgentTeam[]
+  agentTeamMembers AgentTeamMember[]
+  agentTeamRuns AgentTeamRun[]
+  agentTeamSteps AgentTeamStep[]
+  agentTeamHandoffs AgentTeamHandoff[]
+  agentTeamFeedback AgentTeamFeedback[]
   agentVersions AgentVersion[]
   agentModelBindings AgentModelBinding[]
   agentPromptBindings AgentPromptBinding[]
@@ -56,12 +63,29 @@ model Tenant {
   tools Tool[]
   toolCallLogs ToolCallLog[]
   toolApprovalRequests ToolApprovalRequest[]
+  approvalAuditEvents ApprovalAuditEvent[]
   conversations Conversation[]
   conversationMessages ConversationMessage[]
   conversationRuns ConversationRun[]
   conversationFeedback ConversationFeedback[]
   securityPolicies SecurityPolicy[]
   securityPolicyEvaluations SecurityPolicyEvaluation[]
+  webhookDeliveries WebhookDelivery[]
+  channelSenderDeliveries ChannelSenderDelivery[]
+  platformEvents PlatformEvent[]
+  platformEventRelations PlatformEventRelation[]
+  platformUsageEvents PlatformUsageEvent[]
+  platformUsageRollups PlatformUsageRollup[]
+  billingPlans BillingPlan[]
+  tenantSubscriptions TenantSubscription[]
+  billingInvoices BillingInvoice[]
+  billingQuotaPolicies BillingQuotaPolicy[]
+  plugins Plugin[]
+  pluginVersions PluginVersion[]
+  pluginInstallations PluginInstallation[]
+  pluginHooks PluginHook[]
+  pluginMenuBindings PluginMenuBinding[]
+  pluginAuditLogs PluginAuditLog[]
 
   @@index([status])
   @@index([createdAt])
@@ -92,6 +116,11 @@ model User {
   operationLogs OperationLog[]
   refreshTokens RefreshToken[]
   ownedAgents Agent[] @relation("AgentOwner")
+  ownedAgentTeams AgentTeam[] @relation("AgentTeamOwner")
+  ownedPlugins Plugin[] @relation("PluginOwner")
+  operatedAgentTeamRuns AgentTeamRun[] @relation("AgentTeamRunOperator")
+  decidedAgentTeamHandoffs AgentTeamHandoff[] @relation("AgentTeamHandoffDecider")
+  createdAgentTeamFeedback AgentTeamFeedback[] @relation("AgentTeamFeedbackAuthor")
   createdAgentVersions AgentVersion[] @relation("AgentVersionCreator")
   agentAuditLogs AgentAuditLog[] @relation("AgentAuditOperator")
   ownedPromptTemplates PromptTemplate[] @relation("PromptTemplateOwner")
@@ -103,6 +132,7 @@ model User {
   toolCallLogs ToolCallLog[] @relation("ToolCallOperator")
   requestedToolApprovals ToolApprovalRequest[] @relation("ToolApprovalRequester")
   reviewedToolApprovals ToolApprovalRequest[] @relation("ToolApprovalReviewer")
+  approvalAuditEvents ApprovalAuditEvent[] @relation("ApprovalAuditActor")
   conversations Conversation[] @relation("ConversationUser")
   conversationMessages ConversationMessage[] @relation("ConversationMessageAuthor")
   conversationRuns ConversationRun[] @relation("ConversationRunOperator")
@@ -111,6 +141,14 @@ model User {
   updatedSecurityPolicies SecurityPolicy[] @relation("SecurityPolicyUpdater")
   securityPolicyEvaluations SecurityPolicyEvaluation[] @relation("SecurityPolicyEvaluationOperator")
   updatedSystemSettings SystemSetting[] @relation("SystemSettingUpdater")
+  createdSystemSettingSnapshots SystemSettingSnapshot[] @relation("SystemSettingSnapshotCreator")
+  platformEvents PlatformEvent[] @relation("PlatformEventUser")
+  platformUsageEvents PlatformUsageEvent[] @relation("PlatformUsageEventUser")
+  pluginInstallations PluginInstallation[] @relation("PluginInstallationOwner")
+  pluginVersionsCreated PluginVersion[] @relation("PluginVersionCreator")
+  pluginHooksCreated PluginHook[] @relation("PluginHookCreator")
+  pluginMenuBindingsCreated PluginMenuBinding[] @relation("PluginMenuBindingCreator")
+  pluginAuditLogs PluginAuditLog[] @relation("PluginAuditOperator")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -275,6 +313,7 @@ model Menu {
   parent         Menu?     @relation("MenuTree", fields: [parentId], references: [id])
   children       Menu[]    @relation("MenuTree")
   roleMenus      RoleMenu[]
+  pluginMenuBindings PluginMenuBinding[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -391,6 +430,13 @@ model ApiKey {
   usedCountToday Int @default(0) @map("used_count_today")
   quotaResetDate DateTime? @map("quota_reset_date") @db.Date
   allowStream Boolean @default(true) @map("allow_stream")
+  webhookEnabled Boolean @default(false) @map("webhook_enabled")
+  webhookUrl String? @map("webhook_url") @db.VarChar(1000)
+  webhookEvents Json? @map("webhook_events")
+  webhookSecretEncrypted String? @map("webhook_secret_encrypted") @db.Text
+  webhookLastStatus String? @map("webhook_last_status") @db.VarChar(30)
+  webhookLastError String? @map("webhook_last_error") @db.Text
+  webhookLastSentAt DateTime? @map("webhook_last_sent_at")
   expiresAt  DateTime? @map("expires_at")
   lastUsedAt DateTime? @map("last_used_at")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -399,15 +445,54 @@ model ApiKey {
   createdBy  String?   @map("created_by") @db.Uuid
   updatedBy  String?   @map("updated_by") @db.Uuid
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  webhookDeliveries WebhookDelivery[]
 
   @@index([tenantId])
   @@index([status])
   @@index([rateLimitPerMinute])
   @@index([quotaResetDate])
+  @@index([webhookEnabled])
+  @@index([webhookLastSentAt])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("api_key")
+}
+
+model WebhookDelivery {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  apiKeyId       String   @map("api_key_id") @db.Uuid
+  event          String   @db.VarChar(80)
+  deliveryId     String   @unique @map("delivery_id") @db.VarChar(120)
+  parentDeliveryId String? @map("parent_delivery_id") @db.Uuid
+  targetUrl      String   @map("target_url") @db.VarChar(1000)
+  payload        Json
+  requestHeaders Json?    @map("request_headers")
+  responseStatus Int?     @map("response_status")
+  responseBody   String?  @map("response_body") @db.Text
+  latencyMs      Int?     @map("latency_ms")
+  status         String   @db.VarChar(30)
+  errorMessage   String?  @map("error_message") @db.Text
+  retryCount     Int      @default(0) @map("retry_count")
+  deliveredAt    DateTime? @map("delivered_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  apiKey         ApiKey   @relation(fields: [apiKeyId], references: [id])
+  parentDelivery WebhookDelivery? @relation("WebhookDeliveryRetryChain", fields: [parentDeliveryId], references: [id])
+  retries        WebhookDelivery[] @relation("WebhookDeliveryRetryChain")
+
+  @@index([tenantId])
+  @@index([apiKeyId])
+  @@index([event])
+  @@index([deliveryId])
+  @@index([parentDeliveryId])
+  @@index([status])
+  @@index([responseStatus])
+  @@index([createdAt])
+  @@index([deliveredAt])
+  @@map("webhook_delivery")
 }
 
 model SystemSetting {
@@ -432,6 +517,7 @@ model SystemSetting {
   updatedBy    String?   @map("updated_by") @db.Uuid
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
   updater      User?     @relation("SystemSettingUpdater", fields: [updatedBy], references: [id])
+  snapshots    SystemSettingSnapshot[]
 
   @@unique([tenantId, key])
   @@index([tenantId])
@@ -446,6 +532,69 @@ model SystemSetting {
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("system_setting")
+}
+
+model SystemSettingSnapshot {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  settingId              String    @map("setting_id") @db.Uuid
+  settingKey             String    @map("setting_key") @db.VarChar(120)
+  settingName            String    @map("setting_name") @db.VarChar(160)
+  version                Int
+  action                 String    @db.VarChar(40)
+  previousValue          Json      @default("{}") @map("previous_value")
+  nextValue              Json      @default("{}") @map("next_value")
+  previousStatus         String    @map("previous_status") @db.VarChar(30)
+  nextStatus             String    @map("next_status") @db.VarChar(30)
+  approvalStatus         String    @default("NOT_REQUIRED") @map("approval_status") @db.VarChar(40)
+  approvalRequestId      String?   @map("approval_request_id") @db.VarChar(120)
+  rollbackFromSnapshotId String?   @map("rollback_from_snapshot_id") @db.Uuid
+  rollbackCount          Int       @default(0) @map("rollback_count")
+  impactLevel            String?   @map("impact_level") @db.VarChar(30)
+  impactSummary          String?   @map("impact_summary") @db.Text
+  createdBy              String?   @map("created_by") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at")
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id])
+  setting                SystemSetting @relation(fields: [settingId], references: [id])
+  creator                User?     @relation("SystemSettingSnapshotCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, settingId, version])
+  @@index([tenantId])
+  @@index([settingId])
+  @@index([settingKey])
+  @@index([action])
+  @@index([approvalStatus])
+  @@index([rollbackFromSnapshotId])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("system_setting_snapshot")
+}
+
+model ApprovalAuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  sourceType  String   @map("source_type") @db.VarChar(60)
+  sourceId    String   @map("source_id") @db.Uuid
+  eventType   String   @map("event_type") @db.VarChar(60)
+  eventStatus String   @default("INFO") @map("event_status") @db.VarChar(30)
+  title       String   @db.VarChar(180)
+  note        String?  @db.Text
+  requestId   String?  @map("request_id") @db.VarChar(120)
+  traceId     String?  @map("trace_id") @db.VarChar(120)
+  metadata    Json?
+  actorId     String?  @map("actor_id") @db.Uuid
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  actor       User?    @relation("ApprovalAuditActor", fields: [actorId], references: [id])
+
+  @@index([tenantId])
+  @@index([sourceType])
+  @@index([sourceId])
+  @@index([eventType])
+  @@index([eventStatus])
+  @@index([actorId])
+  @@index([occurredAt])
+  @@map("approval_audit_event")
 }
 
 model LoginLog {
@@ -570,9 +719,14 @@ model Agent {
   toolBindings     AgentToolBinding[]
   toolApprovalRequests ToolApprovalRequest[]
   publishChannels  AgentPublishChannel[]
+  channelSenderDeliveries ChannelSenderDelivery[]
   auditLogs        AgentAuditLog[]
   conversations    Conversation[]
   conversationRuns ConversationRun[]
+  teamMemberships  AgentTeamMember[]
+  teamSteps        AgentTeamStep[]
+  handoffSources   AgentTeamHandoff[] @relation("AgentTeamHandoffFromAgent")
+  handoffTargets   AgentTeamHandoff[] @relation("AgentTeamHandoffToAgent")
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -704,27 +858,90 @@ model AgentToolBinding {
 }
 
 model AgentPublishChannel {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  agentId     String    @map("agent_id") @db.Uuid
-  channel     String    @db.VarChar(80)
-  status      String    @default("ACTIVE") @db.VarChar(30)
-  config      Json?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-  createdBy   String?   @map("created_by") @db.Uuid
-  updatedBy   String?   @map("updated_by") @db.Uuid
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  agent       Agent     @relation(fields: [agentId], references: [id])
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  agentId         String    @map("agent_id") @db.Uuid
+  channel         String    @db.VarChar(80)
+  name            String?   @db.VarChar(160)
+  description     String?   @db.Text
+  status          String    @default("ACTIVE") @db.VarChar(30)
+  endpointUrl     String?   @map("endpoint_url") @db.VarChar(1000)
+  callbackUrl     String?   @map("callback_url") @db.VarChar(1000)
+  secretEncrypted String?   @map("secret_encrypted") @db.Text
+  secretMasked    String?   @map("secret_masked") @db.VarChar(120)
+  config          Json?
+  lastPublishedAt DateTime? @map("last_published_at")
+  lastCheckedAt   DateTime? @map("last_checked_at")
+  healthStatus    String    @default("UNKNOWN") @map("health_status") @db.VarChar(30)
+  healthMessage   String?   @map("health_message") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  agent           Agent     @relation(fields: [agentId], references: [id])
+  senderDeliveries ChannelSenderDelivery[]
 
   @@unique([tenantId, agentId, channel])
   @@index([tenantId, agentId])
+  @@index([channel])
   @@index([status])
+  @@index([lastPublishedAt])
+  @@index([lastCheckedAt])
+  @@index([healthStatus])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("agent_publish_channel")
+}
+
+model ChannelSenderDelivery {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  channelId              String   @map("channel_id") @db.Uuid
+  agentId                String   @map("agent_id") @db.Uuid
+  deliveryId             String   @unique @map("delivery_id") @db.VarChar(120)
+  parentDeliveryId       String?  @map("parent_delivery_id") @db.Uuid
+  provider               String   @db.VarChar(40)
+  target                 String?  @db.VarChar(1000)
+  requestUrl             String?  @map("request_url") @db.VarChar(1000)
+  status                 String   @default("PENDING") @db.VarChar(30)
+  responseStatus         Int?     @map("response_status")
+  responseBody           String?  @map("response_body") @db.Text
+  requestBody            Json?    @map("request_body")
+  requestHeaders         Json?    @map("request_headers")
+  errorMessage           String?  @map("error_message") @db.Text
+  retryCount             Int      @default(0) @map("retry_count")
+  latencyMs              Int?     @map("latency_ms")
+  conversationId         String?  @map("conversation_id") @db.VarChar(120)
+  runId                  String?  @map("run_id") @db.VarChar(120)
+  traceId                String?  @map("trace_id") @db.VarChar(120)
+  externalConversationId String?  @map("external_conversation_id") @db.VarChar(180)
+  externalMessageId      String?  @map("external_message_id") @db.VarChar(180)
+  deliveredAt            DateTime? @map("delivered_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id])
+  channel                AgentPublishChannel @relation(fields: [channelId], references: [id])
+  agent                  Agent    @relation(fields: [agentId], references: [id])
+  parentDelivery         ChannelSenderDelivery? @relation("ChannelSenderDeliveryRetryChain", fields: [parentDeliveryId], references: [id])
+  retries                ChannelSenderDelivery[] @relation("ChannelSenderDeliveryRetryChain")
+
+  @@index([tenantId])
+  @@index([channelId])
+  @@index([agentId])
+  @@index([deliveryId])
+  @@index([parentDeliveryId])
+  @@index([provider])
+  @@index([status])
+  @@index([responseStatus])
+  @@index([conversationId])
+  @@index([runId])
+  @@index([traceId])
+  @@index([createdAt])
+  @@index([deliveredAt])
+  @@map("channel_sender_delivery")
 }
 
 model AgentAuditLog {
@@ -745,6 +962,228 @@ model AgentAuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("agent_audit_log")
+}
+
+model AgentTeam {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  ownerId        String?   @map("owner_id") @db.Uuid
+  name           String    @db.VarChar(160)
+  code           String    @db.VarChar(100)
+  description    String?   @db.Text
+  status         String    @default("DRAFT") @db.VarChar(30)
+  mode           String    @default("SEQUENTIAL") @db.VarChar(30)
+  maxRounds      Int       @default(3) @map("max_rounds")
+  timeoutSeconds Int       @default(300) @map("timeout_seconds")
+  handoffPolicy  String    @default("AUTO") @map("handoff_policy") @db.VarChar(30)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  owner          User?     @relation("AgentTeamOwner", fields: [ownerId], references: [id])
+  members        AgentTeamMember[]
+  runs           AgentTeamRun[]
+  steps          AgentTeamStep[]
+  handoffs       AgentTeamHandoff[]
+  feedback       AgentTeamFeedback[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_team")
+}
+
+model AgentTeamMember {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  agentId        String    @map("agent_id") @db.Uuid
+  role           String    @db.VarChar(80)
+  responsibility String?   @db.Text
+  executionOrder Int       @default(0) @map("execution_order")
+  required       Boolean   @default(true)
+  status         String    @default("ACTIVE") @db.VarChar(30)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  team           AgentTeam @relation(fields: [teamId], references: [id])
+  agent          Agent     @relation(fields: [agentId], references: [id])
+  steps          AgentTeamStep[]
+  handoffSources AgentTeamHandoff[] @relation("AgentTeamHandoffFromMember")
+  handoffTargets AgentTeamHandoff[] @relation("AgentTeamHandoffToMember")
+
+  @@unique([tenantId, teamId, agentId])
+  @@index([tenantId])
+  @@index([teamId])
+  @@index([agentId])
+  @@index([role])
+  @@index([executionOrder])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_team_member")
+}
+
+model AgentTeamRun {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  objective      String    @db.Text
+  status         String    @default("QUEUED") @db.VarChar(30)
+  requestId      String?   @map("request_id") @db.VarChar(120)
+  traceId        String?   @map("trace_id") @db.VarChar(120)
+  totalSteps     Int       @default(0) @map("total_steps")
+  completedSteps Int       @default(0) @map("completed_steps")
+  failedSteps    Int       @default(0) @map("failed_steps")
+  totalTokens    Int       @default(0) @map("total_tokens")
+  totalCost      Decimal   @default(0) @map("total_cost") @db.Decimal(12, 6)
+  latencyMs      Int       @default(0) @map("latency_ms")
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime? @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  team           AgentTeam @relation(fields: [teamId], references: [id])
+  operator       User?     @relation("AgentTeamRunOperator", fields: [createdBy], references: [id])
+  steps          AgentTeamStep[]
+  handoffs       AgentTeamHandoff[]
+  feedback       AgentTeamFeedback[]
+
+  @@index([tenantId])
+  @@index([teamId])
+  @@index([status])
+  @@index([requestId])
+  @@index([traceId])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_team_run")
+}
+
+model AgentTeamStep {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  runId          String    @map("run_id") @db.Uuid
+  memberId       String?   @map("member_id") @db.Uuid
+  agentId        String?   @map("agent_id") @db.Uuid
+  stepType       String    @map("step_type") @db.VarChar(60)
+  title          String    @db.VarChar(220)
+  status         String    @default("PENDING") @db.VarChar(30)
+  inputSummary   String?   @map("input_summary") @db.Text
+  outputSummary  String?   @map("output_summary") @db.Text
+  traceId        String?   @map("trace_id") @db.VarChar(120)
+  spanId         String?   @map("span_id") @db.VarChar(80)
+  parentSpanId   String?   @map("parent_span_id") @db.VarChar(80)
+  durationMs     Int       @default(0) @map("duration_ms")
+  promptTokens   Int       @default(0) @map("prompt_tokens")
+  completionTokens Int     @default(0) @map("completion_tokens")
+  totalTokens    Int       @default(0) @map("total_tokens")
+  costTotal      Decimal   @default(0) @map("cost_total") @db.Decimal(12, 6)
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime? @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  team           AgentTeam @relation(fields: [teamId], references: [id])
+  run            AgentTeamRun @relation(fields: [runId], references: [id])
+  member         AgentTeamMember? @relation(fields: [memberId], references: [id])
+  agent          Agent?    @relation(fields: [agentId], references: [id])
+
+  @@index([tenantId])
+  @@index([teamId])
+  @@index([runId])
+  @@index([memberId])
+  @@index([agentId])
+  @@index([stepType])
+  @@index([status])
+  @@index([traceId])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([createdAt])
+  @@map("agent_team_step")
+}
+
+model AgentTeamHandoff {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  runId          String    @map("run_id") @db.Uuid
+  fromMemberId   String?   @map("from_member_id") @db.Uuid
+  toMemberId     String?   @map("to_member_id") @db.Uuid
+  fromAgentId    String?   @map("from_agent_id") @db.Uuid
+  toAgentId      String?   @map("to_agent_id") @db.Uuid
+  reason         String    @db.Text
+  status         String    @default("PENDING") @db.VarChar(30)
+  decisionNote   String?   @map("decision_note") @db.Text
+  decidedBy      String?   @map("decided_by") @db.Uuid
+  decidedAt      DateTime? @map("decided_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  team           AgentTeam @relation(fields: [teamId], references: [id])
+  run            AgentTeamRun @relation(fields: [runId], references: [id])
+  fromMember     AgentTeamMember? @relation("AgentTeamHandoffFromMember", fields: [fromMemberId], references: [id])
+  toMember       AgentTeamMember? @relation("AgentTeamHandoffToMember", fields: [toMemberId], references: [id])
+  fromAgent      Agent?    @relation("AgentTeamHandoffFromAgent", fields: [fromAgentId], references: [id])
+  toAgent        Agent?    @relation("AgentTeamHandoffToAgent", fields: [toAgentId], references: [id])
+  decider        User?     @relation("AgentTeamHandoffDecider", fields: [decidedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([teamId])
+  @@index([runId])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@index([fromAgentId])
+  @@index([toAgentId])
+  @@index([status])
+  @@index([decidedBy])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_team_handoff")
+}
+
+model AgentTeamFeedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  runId     String   @map("run_id") @db.Uuid
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  team      AgentTeam @relation(fields: [teamId], references: [id])
+  run       AgentTeamRun @relation(fields: [runId], references: [id])
+  author    User?    @relation("AgentTeamFeedbackAuthor", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([teamId])
+  @@index([runId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("agent_team_feedback")
 }
 
 model ModelProvider {
@@ -905,6 +1344,519 @@ model ModelCallLog {
   @@index([status])
   @@index([createdAt])
   @@map("model_call_log")
+}
+
+model PlatformEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  departmentId   String?  @map("department_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  actorType      String   @default("USER") @map("actor_type") @db.VarChar(40)
+  resourceType   String   @map("resource_type") @db.VarChar(80)
+  resourceId     String?  @map("resource_id") @db.VarChar(120)
+  agentId        String?  @map("agent_id") @db.VarChar(120)
+  teamId         String?  @map("team_id") @db.VarChar(120)
+  pluginId       String?  @map("plugin_id") @db.VarChar(120)
+  channelId      String?  @map("channel_id") @db.VarChar(120)
+  conversationId String?  @map("conversation_id") @db.VarChar(120)
+  runId          String?  @map("run_id") @db.VarChar(120)
+  taskId         String?  @map("task_id") @db.VarChar(120)
+  requestId      String?  @map("request_id") @db.VarChar(120)
+  traceId        String?  @map("trace_id") @db.VarChar(120)
+  parentTraceId  String?  @map("parent_trace_id") @db.VarChar(120)
+  eventSource    String   @map("event_source") @db.VarChar(80)
+  eventType      String   @map("event_type") @db.VarChar(120)
+  status         String   @db.VarChar(40)
+  severity       String   @default("INFO") @db.VarChar(30)
+  securityLevel  String   @default("INTERNAL") @map("security_level") @db.VarChar(40)
+  billable       Boolean  @default(false)
+  summary        String?  @db.Text
+  payloadJson    Json?    @map("payload_json")
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  sourceSystem   String?  @map("source_system") @db.VarChar(80)
+  sourceId       String?  @map("source_id") @db.VarChar(120)
+  dedupeKey      String?  @map("dedupe_key") @db.VarChar(180)
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  user           User?    @relation("PlatformEventUser", fields: [userId], references: [id])
+  usageEvents    PlatformUsageEvent[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([agentId])
+  @@index([teamId])
+  @@index([conversationId])
+  @@index([runId])
+  @@index([requestId])
+  @@index([traceId])
+  @@index([eventSource])
+  @@index([eventType])
+  @@index([status])
+  @@index([severity])
+  @@index([occurredAt])
+  @@index([sourceSystem, sourceId])
+  @@index([dedupeKey])
+  @@map("platform_event")
+}
+
+model PlatformUsageEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  departmentId String?  @map("department_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  subjectType  String   @map("subject_type") @db.VarChar(60)
+  subjectId    String?  @map("subject_id") @db.VarChar(120)
+  resourceType String   @map("resource_type") @db.VarChar(80)
+  resourceId   String?  @map("resource_id") @db.VarChar(120)
+  metricType   String   @map("metric_type") @db.VarChar(80)
+  unit         String   @db.VarChar(40)
+  quantity     Decimal  @default(0) @db.Decimal(18, 6)
+  unitPrice    Decimal  @default(0) @map("unit_price") @db.Decimal(18, 6)
+  amount       Decimal  @default(0) @db.Decimal(18, 6)
+  currency     String   @default("USD") @db.VarChar(12)
+  billable     Boolean  @default(false)
+  costSource   String?  @map("cost_source") @db.VarChar(80)
+  traceId      String?  @map("trace_id") @db.VarChar(120)
+  requestId    String?  @map("request_id") @db.VarChar(120)
+  eventId      String?  @map("event_id") @db.Uuid
+  sourceSystem String?  @map("source_system") @db.VarChar(80)
+  sourceId     String?  @map("source_id") @db.VarChar(120)
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  user         User?    @relation("PlatformUsageEventUser", fields: [userId], references: [id])
+  event        PlatformEvent? @relation(fields: [eventId], references: [id])
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([userId])
+  @@index([subjectType, subjectId])
+  @@index([resourceType, resourceId])
+  @@index([metricType])
+  @@index([billable])
+  @@index([traceId])
+  @@index([requestId])
+  @@index([eventId])
+  @@index([sourceSystem, sourceId])
+  @@index([occurredAt])
+  @@map("platform_usage_event")
+}
+
+model PlatformEventRelation {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  relationType   String   @map("relation_type") @db.VarChar(80)
+  parentEventId  String?  @map("parent_event_id") @db.Uuid
+  childEventId   String?  @map("child_event_id") @db.Uuid
+  sourceEventId  String?  @map("source_event_id") @db.Uuid
+  targetEventId  String?  @map("target_event_id") @db.Uuid
+  relationSource String?  @map("relation_source") @db.VarChar(80)
+  relationKey    String?  @map("relation_key") @db.VarChar(180)
+  metadata       Json?    @map("metadata")
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([relationType])
+  @@index([parentEventId])
+  @@index([childEventId])
+  @@index([sourceEventId])
+  @@index([targetEventId])
+  @@index([relationSource, relationKey])
+  @@index([occurredAt])
+  @@map("platform_event_relation")
+}
+
+model PlatformUsageRollup {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  departmentId  String?  @map("department_id") @db.Uuid
+  subjectType   String   @map("subject_type") @db.VarChar(60)
+  subjectId     String?  @map("subject_id") @db.VarChar(120)
+  resourceType  String   @map("resource_type") @db.VarChar(80)
+  resourceId    String?  @map("resource_id") @db.VarChar(120)
+  metricType    String   @map("metric_type") @db.VarChar(80)
+  periodType    String   @map("period_type") @db.VarChar(20)
+  periodStart   DateTime @map("period_start")
+  periodEnd     DateTime @map("period_end")
+  eventCount    Int      @default(0) @map("event_count")
+  quantityTotal Decimal  @default(0) @map("quantity_total") @db.Decimal(18, 6)
+  amountTotal   Decimal  @default(0) @map("amount_total") @db.Decimal(18, 6)
+  costTotal     Decimal  @default(0) @map("cost_total") @db.Decimal(18, 6)
+  errorCount    Int      @default(0) @map("error_count")
+  successCount  Int      @default(0) @map("success_count")
+  retryCount    Int      @default(0) @map("retry_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([subjectType, subjectId])
+  @@index([resourceType, resourceId])
+  @@index([metricType])
+  @@index([periodType, periodStart, periodEnd])
+  @@index([createdAt])
+  @@unique([tenantId, subjectType, subjectId, resourceType, resourceId, metricType, periodType, periodStart])
+  @@map("platform_usage_rollup")
+}
+
+model BillingPlan {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  code                  String   @db.VarChar(100)
+  name                  String   @db.VarChar(160)
+  tier                  String   @default("TEAM") @db.VarChar(30)
+  description           String?  @db.Text
+  monthlyBasePrice      Decimal  @default(0) @map("monthly_base_price") @db.Decimal(12, 2)
+  yearlyBasePrice       Decimal  @default(0) @map("yearly_base_price") @db.Decimal(12, 2)
+  currency              String   @default("USD") @db.VarChar(12)
+  includedMonthlyCost   Decimal  @default(0) @map("included_monthly_cost") @db.Decimal(12, 2)
+  includedMonthlyTokens Int      @default(0) @map("included_monthly_tokens")
+  includedMonthlyCalls  Int      @default(0) @map("included_monthly_calls")
+  includedStorageGb     Decimal  @default(0) @map("included_storage_gb") @db.Decimal(12, 2)
+  overageUnitPrice      Decimal  @default(0) @map("overage_unit_price") @db.Decimal(12, 6)
+  featureLimits         Json?    @map("feature_limits")
+  status                String   @default("ACTIVE") @db.VarChar(30)
+  sortOrder             Int      @default(0) @map("sort_order")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+  createdBy             String?  @map("created_by") @db.Uuid
+  updatedBy             String?  @map("updated_by") @db.Uuid
+  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+  subscriptions         TenantSubscription[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tier])
+  @@index([status])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("billing_plan")
+}
+
+model TenantSubscription {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  planId               String   @map("plan_id") @db.Uuid
+  status               String   @default("ACTIVE") @db.VarChar(30)
+  billingCycle         String   @default("MONTHLY") @map("billing_cycle") @db.VarChar(30)
+  currency             String   @default("USD") @db.VarChar(12)
+  basePrice            Decimal  @default(0) @map("base_price") @db.Decimal(12, 2)
+  includedMonthlyCost  Decimal  @default(0) @map("included_monthly_cost") @db.Decimal(12, 2)
+  includedMonthlyTokens Int     @default(0) @map("included_monthly_tokens")
+  includedMonthlyCalls Int      @default(0) @map("included_monthly_calls")
+  startedAt            DateTime @default(now()) @map("started_at")
+  currentPeriodStart   DateTime @map("current_period_start")
+  currentPeriodEnd     DateTime @map("current_period_end")
+  trialEndsAt          DateTime? @map("trial_ends_at")
+  canceledAt           DateTime? @map("canceled_at")
+  autoRenew            Boolean  @default(true) @map("auto_renew")
+  metadata             Json?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+  createdBy            String?  @map("created_by") @db.Uuid
+  updatedBy            String?  @map("updated_by") @db.Uuid
+  tenant               Tenant   @relation(fields: [tenantId], references: [id])
+  plan                 BillingPlan @relation(fields: [planId], references: [id])
+  invoices             BillingInvoice[]
+
+  @@index([tenantId])
+  @@index([planId])
+  @@index([status])
+  @@index([billingCycle])
+  @@index([currentPeriodStart, currentPeriodEnd])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("tenant_subscription")
+}
+
+model BillingInvoice {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  subscriptionId   String?  @map("subscription_id") @db.Uuid
+  invoiceNo        String   @map("invoice_no") @db.VarChar(80)
+  status           String   @default("OPEN") @db.VarChar(30)
+  currency         String   @default("USD") @db.VarChar(12)
+  subtotalAmount   Decimal  @default(0) @map("subtotal_amount") @db.Decimal(12, 2)
+  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount        Decimal  @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount      Decimal  @default(0) @map("total_amount") @db.Decimal(12, 2)
+  paidAmount       Decimal  @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  periodStart      DateTime @map("period_start")
+  periodEnd        DateTime @map("period_end")
+  dueAt            DateTime? @map("due_at")
+  paidAt           DateTime? @map("paid_at")
+  lineItems        Json?    @map("line_items")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+  createdBy        String?  @map("created_by") @db.Uuid
+  updatedBy        String?  @map("updated_by") @db.Uuid
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  subscription     TenantSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([tenantId, invoiceNo])
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@index([dueAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("billing_invoice")
+}
+
+model BillingQuotaPolicy {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  name            String   @db.VarChar(160)
+  subjectType     String   @map("subject_type") @db.VarChar(60)
+  subjectId       String?  @map("subject_id") @db.VarChar(120)
+  metricType      String   @map("metric_type") @db.VarChar(80)
+  period          String   @default("MONTH") @db.VarChar(30)
+  limitValue      Decimal  @map("limit_value") @db.Decimal(18, 6)
+  warnThreshold   Decimal  @default(80) @map("warn_threshold") @db.Decimal(5, 2)
+  hardThreshold   Decimal  @default(100) @map("hard_threshold") @db.Decimal(5, 2)
+  action          String   @default("WARN") @db.VarChar(30)
+  status          String   @default("ACTIVE") @db.VarChar(30)
+  lastEvaluatedAt DateTime? @map("last_evaluated_at")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+  createdBy       String?  @map("created_by") @db.Uuid
+  updatedBy       String?  @map("updated_by") @db.Uuid
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([subjectType, subjectId])
+  @@index([metricType])
+  @@index([period])
+  @@index([action])
+  @@index([status])
+  @@index([lastEvaluatedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("billing_quota_policy")
+}
+
+model Plugin {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  ownerId       String?  @map("owner_id") @db.Uuid
+  code          String   @db.VarChar(120)
+  name          String   @db.VarChar(180)
+  provider      String   @db.VarChar(180)
+  description   String?  @db.Text
+  sourceType    String   @default("MARKET") @map("source_type") @db.VarChar(30)
+  latestVersion String   @default("1.0.0") @map("latest_version") @db.VarChar(60)
+  riskLevel     String   @default("LOW") @map("risk_level") @db.VarChar(30)
+  manifestJson  Json?    @map("manifest_json")
+  configJson    Json?    @map("config_json")
+  permissionPreview Json? @map("permission_preview")
+  status        String   @default("ACTIVE") @db.VarChar(30)
+  runtimeStatus String   @default("STOPPED") @map("runtime_status") @db.VarChar(30)
+  menuCount     Int      @default(0) @map("menu_count")
+  hookCount     Int      @default(0) @map("hook_count")
+  auditCount    Int      @default(0) @map("audit_count")
+  installedAt   DateTime? @map("installed_at")
+  lastUpgradedAt DateTime? @map("last_upgraded_at")
+  enabledAt     DateTime? @map("enabled_at")
+  disabledAt    DateTime? @map("disabled_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdBy     String?  @map("created_by") @db.Uuid
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  owner         User?    @relation("PluginOwner", fields: [ownerId], references: [id])
+  versions      PluginVersion[]
+  installations PluginInstallation[]
+  hooks         PluginHook[]
+  menuBindings  PluginMenuBinding[]
+  auditLogs     PluginAuditLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([sourceType])
+  @@index([status])
+  @@index([runtimeStatus])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("plugin")
+}
+
+model PluginVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  pluginId    String   @map("plugin_id") @db.Uuid
+  version     String   @db.VarChar(60)
+  status      String   @default("PUBLISHED") @db.VarChar(30)
+  manifestJson Json?   @map("manifest_json")
+  changeNote  String?  @map("change_note") @db.Text
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  plugin      Plugin   @relation(fields: [pluginId], references: [id])
+  creator     User?    @relation("PluginVersionCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, pluginId, version])
+  @@index([tenantId])
+  @@index([pluginId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("plugin_version")
+}
+
+model PluginInstallation {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  pluginId       String   @map("plugin_id") @db.Uuid
+  ownerId        String?  @map("owner_id") @db.Uuid
+  installedVersion String @map("installed_version") @db.VarChar(60)
+  latestVersion   String  @map("latest_version") @db.VarChar(60)
+  status         String   @default("INSTALLED") @db.VarChar(30)
+  runtimeStatus  String   @default("STOPPED") @map("runtime_status") @db.VarChar(30)
+  sourceType     String   @default("MARKET") @map("source_type") @db.VarChar(30)
+  riskLevel      String   @default("LOW") @map("risk_level") @db.VarChar(30)
+  configJson     Json?    @map("config_json")
+  manifestJson   Json?    @map("manifest_json")
+  permissionPreview Json? @map("permission_preview")
+  installedAt    DateTime? @map("installed_at")
+  lastUpgradedAt  DateTime? @map("last_upgraded_at")
+  enabledAt      DateTime? @map("enabled_at")
+  disabledAt     DateTime? @map("disabled_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  createdBy      String?  @map("created_by") @db.Uuid
+  updatedBy      String?  @map("updated_by") @db.Uuid
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  plugin         Plugin   @relation(fields: [pluginId], references: [id])
+  owner          User?    @relation("PluginInstallationOwner", fields: [ownerId], references: [id])
+
+  @@unique([tenantId, pluginId])
+  @@index([tenantId])
+  @@index([pluginId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([runtimeStatus])
+  @@index([riskLevel])
+  @@index([installedAt])
+  @@index([lastUpgradedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("plugin_installation")
+}
+
+model PluginHook {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  pluginId      String   @map("plugin_id") @db.Uuid
+  code          String   @db.VarChar(120)
+  name          String   @db.VarChar(180)
+  hookType      String   @map("hook_type") @db.VarChar(80)
+  target        String   @db.VarChar(180)
+  method        String   @db.VarChar(80)
+  status        String   @default("ACTIVE") @db.VarChar(30)
+  configJson    Json?    @map("config_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdBy     String?  @map("created_by") @db.Uuid
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  plugin        Plugin   @relation(fields: [pluginId], references: [id])
+  creator       User?    @relation("PluginHookCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, pluginId, code])
+  @@index([tenantId])
+  @@index([pluginId])
+  @@index([status])
+  @@index([hookType])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("plugin_hook")
+}
+
+model PluginMenuBinding {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  pluginId    String   @map("plugin_id") @db.Uuid
+  menuId      String   @map("menu_id") @db.Uuid
+  enabled     Boolean  @default(true)
+  visible     Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      String   @default("ACTIVE") @db.VarChar(30)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  plugin      Plugin   @relation(fields: [pluginId], references: [id])
+  menu        Menu     @relation(fields: [menuId], references: [id])
+  creator     User?    @relation("PluginMenuBindingCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, pluginId, menuId])
+  @@index([tenantId])
+  @@index([pluginId])
+  @@index([menuId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("plugin_menu_binding")
+}
+
+model PluginAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  pluginId   String   @map("plugin_id") @db.Uuid
+  action     String   @db.VarChar(80)
+  title      String   @db.VarChar(220)
+  summary    String?  @db.Text
+  status     String   @db.VarChar(30)
+  riskLevel  String   @default("LOW") @map("risk_level") @db.VarChar(30)
+  requestId  String?  @map("request_id") @db.VarChar(120)
+  traceId    String?  @map("trace_id") @db.VarChar(120)
+  payloadJson Json?   @map("payload_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  createdBy  String?  @map("created_by") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  plugin     Plugin   @relation(fields: [pluginId], references: [id])
+  operator   User?    @relation("PluginAuditOperator", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([pluginId])
+  @@index([action])
+  @@index([status])
+  @@index([riskLevel])
+  @@index([requestId])
+  @@index([traceId])
+  @@index([createdAt])
+  @@map("plugin_audit_log")
 }
 
 model PromptTemplate {

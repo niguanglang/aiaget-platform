@@ -1,0 +1,45 @@
+# Project UI Brief
+
+- Page: API Key 管理中心
+- Route: /api-keys
+- Feature goal: 外部 Agent 调用密钥管理
+- Parent layout: Next.js App Router console layout `apps/web/src/app/(console)/layout.tsx`
+- Target users/permissions:
+  - 查看：`system:api_key:view`
+  - 管理：`system:api_key:manage`
+  - 租户管理员角色 `tenant_admin` 视为可管理
+- API/service functions:
+  - `listTenantApiKeys()` -> `GET /api/v1/api-keys`
+  - `createTenantApiKey(input)` -> `POST /api/v1/api-keys`
+  - `deleteTenantApiKey(keyId)` -> `DELETE /api/v1/api-keys/:id`
+  - `listAgents({ page, page_size, status })` -> 选择允许调用的已发布 Agent
+  - `getExternalAgentChatEndpoint(agentId = '{agentId}')` -> 外部调用地址展示
+- Entities/fields/statuses:
+  - `TenantApiKeyListItem`: `id`, `name`, `masked_key`, `status`, `scopes`, `allowed_agent_ids`, `ip_allowlist`, `rate_limit_per_minute`, `daily_quota`, `used_count_today`, `quota_reset_date`, `allow_stream`, `expires_at`, `last_used_at`, `created_at`
+  - `CreateTenantApiKeyInput`: `name`, `scopes`, `allowed_agent_ids`, `ip_allowlist`, `rate_limit_per_minute`, `daily_quota`, `allow_stream`, `expires_at`
+  - 状态沿用 `TenantStatus`: `ACTIVE`, `DISABLED`, `DELETED`
+  - 外部调用支持请求头：`Authorization: Bearer ak_xxx` 或 `x-api-key: ak_xxx`
+- Existing components/design system:
+  - Tailwind CSS + Next.js + React + TypeScript
+  - `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`, `Input`
+  - React Query for remote data, React Hook Form + Zod for form validation
+  - `motion/react` for restrained page reveal, lucide icons for actions
+- Required states:
+  - loading: metric skeleton and list loading
+  - empty: no API key
+  - error: list/create/delete failure
+  - validation: name, scopes, rate limit, quota
+  - disabled: no manage permission
+  - success: one-time plaintext key display
+  - permission-denied: clear copy explaining view-only mode
+- Actions:
+  - refresh key and agent data
+  - copy external endpoint
+  - copy one-time plaintext key
+  - create API key with scopes, Agent allowlist, IP allowlist, rate limit, daily quota, stream flag and expiry
+  - delete API key with confirmation
+  - filter visible keys by keyword/status/risk locally
+- Constraints:
+  - Page text must be Chinese
+  - Do not create new backend fields or endpoints
+  - Keep the settings page usable; M50 adds an independent center instead of removing the settings card

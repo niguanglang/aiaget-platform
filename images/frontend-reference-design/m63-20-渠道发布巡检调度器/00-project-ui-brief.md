@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M63-20 渠道发布巡检调度器
+- Route: `/channels`
+- Feature goal: 为渠道自动推进和发布自愈增加后台巡检触发器，展示调度状态、候选渠道数量、最近执行和手动巡检入口。
+- Target users: 渠道管理员、Agent 管理员、安全管理员、审计员。
+- Permissions: `channel:publish:view` 查看，`channel:publish:deploy` 手动巡检。
+- API/services:
+  - Web: `getChannelReleaseSchedulerOverview()`
+  - Web: `runChannelReleaseSchedulerOnce()`
+  - Control API: `GET /channels/release-scheduler/overview`
+  - Control API: `POST /channels/release-scheduler/run-once`
+- Entities and fields:
+  - `ChannelReleaseSchedulerOverview`: `generated_at`, `scheduler_enabled`, `running`, `last_tick_at`, `next_tick_after_seconds`, `workflow_modes`, `summary`, `last_run`
+  - `summary`: `total_channels`, `automation_enabled_channel_count`, `self_healing_enabled_channel_count`, `active_batch_channel_count`, `rollback_ready_channel_count`
+  - `ChannelReleaseSchedulerRunResult`: `run_id`, `status`, `started_at`, `finished_at`, `scanned_channel_count`, `automation_candidate_count`, `self_healing_candidate_count`, `dispatched_count`, `success_count`, `failed_count`, `skipped_count`, `results`
+  - `ChannelReleaseSchedulerChannelResult`: `channel_id`, `channel_name`, `task`, `status`, `decision`, `workflow_backend`, `error_message`
+- Status/enums:
+  - Scheduler status: `SUCCESS`, `PARTIAL`, `FAILED`, `SKIPPED`
+  - Task: `AUTOMATION`, `SELF_HEALING`
+  - Workflow mode: `local`, `temporal_first`, `temporal`
+  - Workflow backend: `LOCAL`, `LOCAL_FALLBACK`, `TEMPORAL`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `/channels` dashboard layout
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, `InfoRow`, `DetailRow`
+- Required states:
+  - Loading metric placeholders
+  - Error banner
+  - Empty state when no candidate channels or no last run
+  - Disabled manual run when missing deploy permission or scheduler running
+  - Success notice via existing mutation state
+- Constraints:
+  - UI text must be Chinese.
+  - No standalone page; extend existing channel detail page.
+  - No middleware/container action.
+  - No database schema change.
+  - Scheduler default is disabled unless `CHANNEL_RELEASE_SCHEDULER_ENABLED=true`.

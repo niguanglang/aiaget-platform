@@ -1,0 +1,41 @@
+# Project UI Brief
+
+- Page: M114 自愈闭环失败来源运营告警升级
+- Route: `/security`
+- Feature goal: 把 SLA 死信、自愈归档、混合来源失败升级为可通知、可闭环的运营告警。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心 `security:rule:view`、告警生命周期动作和通知投递权限。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 运营告警闭环 / 通知投递审计。
+- APIs/services:
+  - `GET /api/v1/security-center/overview`
+  - `POST /api/v1/security-center/operation-alerts/:alertId/notify`
+  - `POST /api/v1/security-center/operation-alerts/:alertId/actions`
+  - `GET /api/v1/security-center/operation-alert-notifications`
+  - `POST /api/v1/security-center/operation-alert-notification-tasks/run-auto-notify`
+- Data entities and fields:
+  - `SecurityCenterOverview.approval_operations.notification_task_sla_dead_letter_failed_24h`
+  - `SecurityCenterOverview.approval_operations.notification_task_recovery_archive_delete_failed_24h`
+  - `SecurityCenterOverview.approval_operations.operational_alerts[]`
+  - `SecurityCenterOperationalAlert.id/title/description/metric/action_label/status`
+  - `SecurityOperationAlertNotificationItem.alert_category`
+- New alert ids:
+  - `operation-alert-notification-task-sla-dead-letter-failure-source`
+  - `operation-alert-notification-task-recovery-archive-failure-source`
+  - `operation-alert-notification-task-mixed-failure-source`
+- Existing components/design system:
+  - `ApprovalArchiveOperationsCard`
+  - `OperationAlertCard`
+  - `OperationAlertNotificationAuditCard`
+  - `OperationMetricTile`、`StatusBadge`、`Button`、`EmptyState`
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - no source alert
+  - SLA-only failure source alert
+  - self-healing-only failure source alert
+  - mixed source alert
+  - notification pending/success/failure state
+  - lifecycle acknowledged/escalated/closed state
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 来源告警基于现有 24 小时通知任务失败聚合字段生成。

@@ -17,6 +17,7 @@ type ExternalApiKeyRecord = Prisma.ApiKeyGetPayload<object>;
 export interface ExternalApiPrincipal {
   key: ExternalApiKeyRecord;
   user: AuthenticatedUser;
+  channelId?: string | null;
 }
 
 @Injectable()
@@ -55,22 +56,138 @@ export class ExternalApiKeyService {
       throw new ForbiddenException('API key does not allow streaming');
     }
 
+    const user = await this.resolveKeyUser(key, request);
+    request.user = user;
+    request.apiKeyId = key.id;
+    request.apiKeyPrefix = key.keyPrefix;
+    request.externalAgentId = agentId;
+
     ensureScope(key, options.stream ? EXTERNAL_STREAM_SCOPE : EXTERNAL_CHAT_SCOPE);
     ensureAgentAllowed(key, agentId);
     ensureIpAllowed(key, request);
     this.ensureMinuteLimit(key);
     await this.ensureDailyQuota(key);
 
-    const user = await this.resolveKeyUser(key, request);
-    request.user = user;
-
     await this.ensurePermission(user, 'system:api_key:invoke', request, key, agentId);
     await this.ensurePermission(user, 'conversation:chat:manage', request, key, agentId);
     await this.ensurePermission(user, 'agent:agent:use', request, key, agentId);
     await this.ensureDataScopeAccess(user, agentId, request, key);
-    await this.ensureResourcePermission(user, agentId, 'agent:agent:use', request, key);
+    await this.ensureResourcePermission(user, agentId, 'agent:agent:use', request, key, agentId);
 
     return { key, user };
+  }
+
+  async authenticateChannel(
+    request: RequestWithContext,
+    channelId: string,
+    options: { stream: boolean },
+  ): Promise<ExternalApiPrincipal & { channelId: string; agentId: string }> {
+    const channel = await this.prisma.agentPublishChannel.findFirst({
+      where: {
+        id: channelId,
+        deletedAt: null,
+      },
+      include: {
+        agent: true,
+      },
+    });
+
+    if (!channel || channel.status !== 'ACTIVE' || channel.agent.deletedAt) {
+      throw new ForbiddenException('Publish channel is unavailable');
+    }
+    if (channel.agent.status !== 'PUBLISHED') {
+      throw new ForbiddenException('Publish channel agent is unavailable');
+    }
+
+    const principal = await this.authenticate(request, channel.agentId, options);
+    if (principal.user.tenantId !== channel.tenantId) {
+      throw new ForbiddenException('Publish channel tenant mismatch');
+    }
+
+    await this.ensureChannelDataScopeAccess(principal.user, channel.id, request, principal.key, channel.agentId);
+    await this.ensureResourcePermission(
+      principal.user,
+      channel.id,
+      'channel:publish:view',
+      request,
+      principal.key,
+      channel.agentId,
+      'CHANNEL',
+    );
+
+    request.externalChannelId = channel.id;
+
+    return {
+      ...principal,
+      channelId: channel.id,
+      agentId: channel.agentId,
+    };
+  }
+
+  async authenticateChannelConversation(
+    request: RequestWithContext,
+    channelId: string,
+    conversationId: string,
+    options: { stream: boolean },
+  ): Promise<ExternalApiPrincipal & { channelId: string; agentId: string }> {
+    const principal = await this.authenticateChannel(request, channelId, options);
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        tenantId: principal.user.tenantId,
+        id: conversationId,
+        agentId: principal.agentId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conversation) {
+      throw new ForbiddenException('External channel conversation is unavailable');
+    }
+
+    await this.ensureConversationDataScopeAccess(principal.user, conversationId, request, principal.key, principal.agentId);
+    await this.ensureResourcePermission(
+      principal.user,
+      conversationId,
+      'conversation:chat:manage',
+      request,
+      principal.key,
+      principal.agentId,
+      'CONVERSATION',
+    );
+
+    return principal;
+  }
+
+  async authenticateConversation(
+    request: RequestWithContext,
+    agentId: string,
+    conversationId: string,
+    options: { stream: boolean },
+  ): Promise<ExternalApiPrincipal> {
+    const principal = await this.authenticate(request, agentId, options);
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        tenantId: principal.user.tenantId,
+        id: conversationId,
+        agentId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conversation) {
+      throw new ForbiddenException('External API conversation is unavailable');
+    }
+
+    await this.ensureConversationDataScopeAccess(principal.user, conversationId, request, principal.key, agentId);
+    await this.ensureResourcePermission(principal.user, conversationId, 'conversation:chat:manage', request, principal.key, agentId, 'CONVERSATION');
+
+    return principal;
   }
 
   async markUsed(keyId: string) {
@@ -249,18 +366,76 @@ export class ExternalApiKeyService {
     throw new ForbiddenException('External API key data scope denied');
   }
 
+  private async ensureConversationDataScopeAccess(
+    user: AuthenticatedUser,
+    conversationId: string,
+    request: RequestWithContext,
+    key: ExternalApiKeyRecord,
+    agentId: string,
+  ) {
+    const dataScope = await this.dataScopeQuery.buildWhere<Record<string, unknown>>(user, 'CONVERSATION');
+    if (!dataScope.where) return;
+
+    const exists = await this.prisma.conversation.count({
+      where: {
+        tenantId: user.tenantId,
+        id: conversationId,
+        deletedAt: null,
+        AND: [dataScope.where],
+      },
+    });
+
+    if (exists > 0) return;
+
+    await this.recordDeny(request, user, key, conversationId, 'conversation:chat:manage', 'External API key conversation data scope denied', {
+      agent_id: agentId,
+      resource_type: 'CONVERSATION',
+    });
+    throw new ForbiddenException('External API key conversation data scope denied');
+  }
+
+  private async ensureChannelDataScopeAccess(
+    user: AuthenticatedUser,
+    channelId: string,
+    request: RequestWithContext,
+    key: ExternalApiKeyRecord,
+    agentId: string,
+  ) {
+    const dataScope = await this.dataScopeQuery.buildWhere<Record<string, unknown>>(user, 'CHANNEL');
+    if (!dataScope.where) return;
+
+    const exists = await this.prisma.agentPublishChannel.count({
+      where: {
+        tenantId: user.tenantId,
+        id: channelId,
+        deletedAt: null,
+        AND: [dataScope.where],
+      },
+    });
+
+    if (exists > 0) return;
+
+    await this.recordDeny(request, user, key, channelId, 'channel:publish:view', 'External channel data scope denied', {
+      agent_id: agentId,
+      resource_type: 'CHANNEL',
+    });
+    throw new ForbiddenException('External channel data scope denied');
+  }
+
   private async ensureResourcePermission(
     user: AuthenticatedUser,
-    agentId: string,
+    resourceId: string,
     permissionCode: string,
     request: RequestWithContext,
     key: ExternalApiKeyRecord,
+    agentId: string,
+    resourceType: 'AGENT' | 'CHANNEL' | 'CONVERSATION' = 'AGENT',
   ) {
     const acls = await this.prisma.resourceAcl.findMany({
       where: {
         tenantId: user.tenantId,
-        resourceType: 'AGENT',
-        resourceId: agentId,
+        resourceType,
+        resourceId,
         permissionCode,
         status: 'ACTIVE',
         deletedAt: null,
@@ -269,14 +444,16 @@ export class ExternalApiKeyService {
 
     if (acls.length === 0) return;
 
-    const subjectKeys = buildSubjectKeys(user);
-    const resourceInfo = await this.resourceAccess.getResourceAccessInfo(user.tenantId, 'AGENT', agentId);
-    const matched = acls.filter((acl) => subjectKeys.has(subjectKey(acl.subjectType, acl.subjectId)));
+    const subjectKeys = await this.resourceAccess.buildResourceAclSubjectKeys(user);
+    const resourceInfo = await this.resourceAccess.getResourceAccessInfo(user.tenantId, resourceType, resourceId);
+    const matched = acls.filter((acl) => subjectKeys.has(resourceAclSubjectKey(acl.subjectType, acl.subjectId)));
 
     if (matched.some((acl) => acl.effect === 'DENY')) {
-      await this.recordDeny(request, user, key, agentId, permissionCode, 'External API key resource ACL denied', {
+      await this.recordDeny(request, user, key, resourceId, permissionCode, 'External API key resource ACL denied', {
         user_ids: resourceInfo?.userIds ?? [],
         department_ids: resourceInfo?.departmentIds ?? [],
+        agent_id: agentId,
+        resource_type: resourceType,
       });
       throw new ForbiddenException('External API key resource ACL denied');
     }
@@ -284,9 +461,11 @@ export class ExternalApiKeyService {
     if (user.roles.includes('tenant_admin')) return;
     if (matched.some((acl) => acl.effect === 'ALLOW')) return;
 
-    await this.recordDeny(request, user, key, agentId, permissionCode, 'External API key resource ACL denied', {
+    await this.recordDeny(request, user, key, resourceId, permissionCode, 'External API key resource ACL denied', {
       user_ids: resourceInfo?.userIds ?? [],
       department_ids: resourceInfo?.departmentIds ?? [],
+      agent_id: agentId,
+      resource_type: resourceType,
     });
     throw new ForbiddenException('External API key resource ACL denied');
   }
@@ -295,16 +474,17 @@ export class ExternalApiKeyService {
     request: RequestWithContext,
     user: AuthenticatedUser,
     key: ExternalApiKeyRecord,
-    agentId: string,
+    resourceId: string,
     action: string,
     reason: string,
     resourceExtra: Record<string, unknown> = {},
   ) {
+    const resourceType = typeof resourceExtra.resource_type === 'string' ? resourceExtra.resource_type : 'AGENT';
     request.user = user;
     await this.securityEvents.recordDeny(request, {
       source: 'RESOURCE_ACL',
-      resourceType: 'AGENT',
-      resourceId: agentId,
+      resourceType,
+      resourceId,
       action,
       reason,
       subject: {
@@ -318,9 +498,9 @@ export class ExternalApiKeyService {
         api_key_prefix: key.keyPrefix,
       },
       resource: {
-        id: agentId,
-        type: 'agent',
-        resource_type: 'AGENT',
+        id: resourceId,
+        type: resourceType.toLowerCase(),
+        resource_type: resourceType,
         ...resourceExtra,
       },
       context: {
@@ -378,23 +558,7 @@ function parseStringArray(value: Prisma.JsonValue | null) {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
-function buildSubjectKeys(user: AuthenticatedUser) {
-  const output = new Set<string>();
-  output.add(subjectKey('USER', user.id));
-  output.add(subjectKey('TENANT', user.tenantId));
-
-  for (const roleId of user.roleIds ?? []) {
-    output.add(subjectKey('ROLE', roleId));
-  }
-
-  if (user.departmentId) {
-    output.add(subjectKey('DEPARTMENT', user.departmentId));
-  }
-
-  return output;
-}
-
-function subjectKey(subjectType: string, subjectId: string) {
+function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
 }
 

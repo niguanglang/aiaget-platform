@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-03T15:20:42.796850+00:00",
+  "page": "M82 审批与归档运营看板",
+  "route": "/security",
+  "feature": "聚合工具审批、通知策略审批、归档删除审批、审批审计事件与归档容量的运营视图",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

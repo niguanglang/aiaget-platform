@@ -1,0 +1,37 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-16 渠道自动推进执行器
+- Route: `/channels`
+- Feature goal: 基于 M63-15 观测门禁结论和 M63-14 发布批次，手动触发一次发布自动推进，并为后续 Temporal 定时执行预留策略边界。
+- Target users and permissions:
+  - 租户管理员：查看、配置、执行。
+  - 渠道管理员：需要 `channel:publish:view` 查看，`channel:publish:manage` 保存执行策略。
+  - 发布负责人：需要 `channel:publish:deploy` 执行一次自动推进。
+  - 审计员：查看最近执行事件和运行结果。
+- Existing route and layout:
+  - 复用 `/channels` 页面和 `ChannelContent`。
+  - 放在“渠道发布自动推进与观测门禁”之后，“渠道投递后台任务”之前。
+- APIs/services:
+  - `getChannelReleaseAutomation(channelId)` -> `GET /channels/:channelId/release-automation`
+  - `updateChannelReleaseAutomation(channelId, input)` -> `PUT /channels/:channelId/release-automation`
+  - `runChannelReleaseAutomation(channelId)` -> `POST /channels/:channelId/release-automation/run`
+- Data entities:
+  - `ChannelReleaseAutomationPolicy`: `enabled`, `require_auto_promote_policy`, `min_interval_minutes`, `max_runs_per_day`, `dry_run`, `updated_at`
+  - `ChannelReleaseAutomationRunResult`: `run_id`, `channel_id`, `batch_id`, `mode`, `decision`, `promoted`, `dry_run`, `reason`, `gate_decision`, `started_at`, `finished_at`, `error_message`
+  - `ChannelReleaseAutomationOverview`: `policy`, `gate`, `current_batch`, `running`, `last_run`, `today_run_count`, `next_allowed_at`, `recent_events`
+- Status/enums:
+  - decision: `PROMOTED`, `SKIPPED`, `BLOCKED`, `DISABLED`, `FAILED`
+  - mode: `MANUAL`, `SCHEDULED`
+- Existing components/design system:
+  - `Card`, `Button`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`, `PolicyToggle`, `NumberField`, `InfoRow`, `DetailRow`, Tailwind CSS。
+- Required states/actions:
+  - 查看执行器状态、门禁结论、今日执行次数、最近结果
+  - 保存执行策略
+  - 手动执行一次自动推进
+  - 查看最近执行事件
+  - loading、empty、error、disabled、read-only
+- Constraints:
+  - 不新增数据库表；策略和最近运行结果保存于渠道 `config`。
+  - 本模块不创建容器、不运行迁移。
+  - 执行前必须重新读取门禁结论，避免使用过期前端状态。

@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M113 自愈建议处理闭环失败来源分类
+- Route: `/security`
+- Feature goal: 让通知任务自愈建议的确认、忽略、处理审计保留 SLA 死信与自愈归档删除失败来源分类，并支持按来源筛选。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心 `security:rule:view` 和后端 JWT/租户隔离。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知任务自愈建议 / 自愈闭环审计检索。
+- APIs/services:
+  - `GET /api/v1/security-center/overview`
+  - `POST /api/v1/security-center/operation-alert-notification-task-recovery-suggestions/:suggestionId/actions`
+  - `GET /api/v1/security-center/operation-alert-notification-task-recovery-suggestions/audits`
+  - `GET /api/v1/security-center/operation-alert-notification-task-recovery-suggestions/audits/export`
+  - `POST /api/v1/security-center/operation-alert-notification-task-recovery-suggestions/audits/archives`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion.failure_source`
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion.sla_dead_letter_failed_count`
+  - `SecurityOperationAlertNotificationTaskRecoverySuggestion.recovery_archive_delete_failed_count`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditItem.failure_source`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditOverview.summary.*_source_count`
+- Failure source values:
+  - `SLA_DEAD_LETTER_ARCHIVE_DELETE`
+  - `NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE`
+  - `MIXED`
+  - `UNKNOWN`
+- Existing components/design system:
+  - `NotificationTaskRecoverySuggestionsCard`
+  - `OperationAlertNotificationTaskRecoveryAuditCard`
+  - `OperationAlertNotificationTaskRecoveryAuditRow`
+  - `StatusBadge`、`MetricCard`、`Input`、`Button`、`EmptyState`
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - loading audit list
+  - empty audit list
+  - action pending button disabled
+  - export success/error
+  - source-filtered no result
+  - legacy events without source fields rendered as `UNKNOWN`
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 处理动作只写入 `platform_event.payloadJson`，历史旧事件缺少字段时必须兼容。

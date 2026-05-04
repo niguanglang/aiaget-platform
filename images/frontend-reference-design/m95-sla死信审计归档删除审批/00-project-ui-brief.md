@@ -1,0 +1,28 @@
+# Project UI Brief
+
+- Page: M95 SLA死信审计归档删除审批
+- Route: /security
+- Feature goal: SLA 死信审计归档删除申请、审批、拒绝与删除生效闭环
+- Target users/permissions:
+  - 查看/申请：安全管理员、租户管理员、审计员；`security:rule:view`
+  - 审批：安全管理员、租户管理员；沿用页面已有权限能力，后端使用 `security:rule:view`
+- APIs/services:
+  - `DELETE /api/v1/security-center/operation-alert-sla/dead-letter-audits/archives/:archiveId`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/overview`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/archive-approvals`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/:approvalId`
+  - `POST /api/v1/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/:approvalId/approve`
+  - `POST /api/v1/security-center/operation-alert-sla/dead-letter-audits/archive-approvals/:approvalId/reject`
+- Entities/fields/statuses:
+  - 审批项：id、archive_id、archive_key、archive_file_name、archive_size_bytes、status、reason、requested_by、reviewed_by、requested_at、reviewed_at
+  - 状态：`PENDING`、`APPROVED`、`REJECTED`、`APPLIED`
+  - 审计时间线：`SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalTimelineItem`
+- Existing components/design system:
+  - Next.js App Router；React Query；Tailwind CSS；安全中心 `/security`
+  - `Card`、`Button`、`Input`、`MetricCard`、`StatusBadge`、`EmptyState`
+- Required states:
+  - loading、empty、requesting delete、approving、rejecting、success、error、disabled、note input
+- Constraints:
+  - 不新增数据库表，删除审批事件写入 `platform_event`。
+  - 不跑迁移、不启动容器、不安装中间件。
+  - UI 文案中文。

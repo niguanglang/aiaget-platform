@@ -8,8 +8,8 @@ Configured storage:
 
 ```text
 Provider: MinIO
-Endpoint: http://127.0.0.1:9000
-Console: http://127.0.0.1:9001
+Endpoint: configured by `STORAGE_ENDPOINT`
+Console: configured by `STORAGE_CONSOLE_URL`
 Bucket: aiaget-files
 Object prefix: tenants/<tenant_id>/
 ```

@@ -1,0 +1,29 @@
+# Project UI Brief
+
+- Page: PluginCenter
+- Route: /plugins
+- Feature goal: 插件安装、升级、启停、审核、市场和菜单注入的企业插件生态中心
+- Parent layout: `apps/web/src/app/(console)` 控制台布局，左侧动态菜单由 `navigation.ts` / `modules.ts` 和后端菜单权限共同控制。
+- Target users: 租户管理员、平台运维、插件管理员、安全管理员、审计员。
+- Permissions: `plugin:center:view` 查看，`plugin:center:install` 安装，`plugin:center:manage` 配置/Hook/菜单绑定，`plugin:center:enable` 启用，`plugin:center:disable` 停用，`plugin:center:upgrade` 升级，`plugin:center:audit` 审计查看。后端还叠加 `DataScopeGuard`、`ResourceAclGuard`、`SecurityPolicyGuard`。
+- APIs/services:
+  - `GET /plugins/overview` -> `getPluginOverview`
+  - `GET /plugins/market` -> `listPluginMarket`
+  - `GET /plugins/installations` -> `listPluginInstallations`
+  - `GET /plugins/:pluginId` -> `getPluginInstallation`
+  - `POST /plugins/install` -> `installPlugin`
+  - `PATCH /plugins/:pluginId` -> `updatePluginInstallation`
+  - `POST /plugins/:pluginId/enable` -> `enablePlugin`
+  - `POST /plugins/:pluginId/disable` -> `disablePlugin`
+  - `POST /plugins/:pluginId/upgrade` -> `upgradePlugin`
+  - `PATCH /plugins/:pluginId/hooks/:hookId` -> `updatePluginHook`
+  - `PATCH /plugins/:pluginId/menu-bindings/:bindingId` -> `updatePluginMenuBinding`
+- Entities/fields/statuses:
+  - `PluginOverview`: 插件总数、启用数、停用数、待审核数、升级中数、Hook 数、菜单注入数、审计数。
+  - `PluginMarketItem`: `plugin_id`、编码、名称、提供方、描述、最新版本、安装状态、风险、声明权限、菜单/Hook 数。
+  - `PluginInstallationItem`: 安装版本、最新版本、安装状态、运行状态、风险、负责人、安装/启用/停用/升级时间。
+  - `PluginInstallationDetail`: Manifest、配置 JSON、权限预览、菜单绑定、Hook、版本、审计、安全预览。
+  - 状态：`PENDING_REVIEW`、`INSTALLED`、`ACTIVE`、`DISABLED`、`UPGRADING`、`FAILED`、`ARCHIVED`；运行状态：`RUNNING`、`STOPPED`、`UPGRADING`、`BLOCKED`、`ERROR`；风险：`LOW`、`MEDIUM`、`HIGH`、`CRITICAL`。
+- Existing components/design system: Tailwind CSS、shadcn/ui 风格基础组件 `Button`、`Card`、`Input`、`MetricCard`、`StatusBadge`、`EmptyState`；`motion/react` 做克制动效；`@react-three/fiber` 做低对比度空间背景。
+- Required states: loading、empty、error、validation、disabled、success、permission-denied、mutation pending、资源授权/数据范围导致详情不可见。
+- Visual constraints: 中文界面，企业级 SaaS 后台；Bento/Dashboard 信息组织；细边框、轻阴影、backdrop-blur、低噪声网格；3D 只作为氛围，不抢主体；禁止过度渐变、廉价发光、Emoji、大圆堆叠、信息过满。

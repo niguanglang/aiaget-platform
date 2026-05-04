@@ -1,0 +1,33 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-15 渠道发布自动推进与观测门禁
+- Route: `/channels`
+- Feature goal: 基于 M63-13 灰度门控统计和 M63-14 发布批次，评估当前批次是否可推进全量、需要继续观察或建议终止。
+- Target users and permissions:
+  - 租户管理员：查看和管理门禁阈值。
+  - 渠道管理员：需要 `channel:publish:view` 查看，`channel:publish:manage` 保存门禁策略。
+  - 审计员：查看门禁结论和最近评估事件。
+- Existing route and layout:
+  - 复用 `/channels` 页面和 `ChannelContent`。
+  - 放在 M63-14 发布流水线面板之后，M63-11 后台任务之前。
+- APIs/services:
+  - `getChannelReleaseGate(channelId)` -> `GET /channels/:channelId/release-gate`
+  - `updateChannelReleaseGate(channelId, input)` -> `PUT /channels/:channelId/release-gate`
+  - `evaluateChannelReleaseGate(channelId)` -> `POST /channels/:channelId/release-gate/evaluate`
+- Data entities:
+  - `ChannelReleaseGatePolicy`: `enabled`, `min_evaluated_count`, `min_allowed_rate`, `max_blocked_count`, `auto_promote_enabled`, `observation_window_hours`, `updated_at`
+  - `ChannelReleaseGateEvaluation`: `decision`, `reason`, `eligible_for_full_release`, `metrics`, `policy`, `evaluated_at`
+- Status/enums:
+  - decision: `PROMOTE_READY`, `OBSERVE`, `BLOCKED`, `DISABLED`, `NO_BATCH`
+- Existing components/design system:
+  - `Card`, `Button`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`, Tailwind CSS。
+- Required states/actions:
+  - 查看当前门禁结论
+  - 保存策略阈值
+  - 手动评估一次
+  - loading、empty、error、disabled、read-only
+- Constraints:
+  - 不新增数据库表；策略保存于 `config.release_gate_policy`。
+  - 评估事件写入 `platform_events`。
+  - UI 文案使用中文。

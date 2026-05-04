@@ -14,6 +14,15 @@ import type { RequestWithContext } from '../types/request-context';
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const SENSITIVE_KEYS = new Set(['password', 'accessToken', 'refreshToken', 'token', 'secret']);
+const REQUEST_CONTEXT_KEYS = [
+  'apiKeyId',
+  'apiKeyPrefix',
+  'externalAgentId',
+  'externalChannelId',
+  'externalConversationId',
+  'externalRunId',
+  'externalTraceId',
+] as const;
 
 @Injectable()
 export class OperationLogInterceptor implements NestInterceptor {
@@ -80,12 +89,27 @@ export class OperationLogInterceptor implements NestInterceptor {
 function buildRequestSummary(request: RequestWithContext): Prisma.InputJsonObject {
   return {
     ...(sanitizePayload(request.body) ?? {}),
+    ...buildExternalContextSummary(request),
     trace_id: request.traceId ?? null,
     span_id: request.spanId ?? null,
     parent_span_id: request.parentSpanId ?? null,
     traceparent: request.traceparent ?? null,
     request_id: request.requestId ?? null,
   };
+}
+
+function buildExternalContextSummary(request: RequestWithContext): Prisma.InputJsonObject {
+  const rawRequest = request as RequestWithContext & Partial<Record<(typeof REQUEST_CONTEXT_KEYS)[number], unknown>>;
+  const output: Record<string, Prisma.InputJsonValue> = {};
+
+  for (const key of REQUEST_CONTEXT_KEYS) {
+    const value = rawRequest[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      output[toSnakeCase(key)] = value.trim();
+    }
+  }
+
+  return output as Prisma.InputJsonObject;
 }
 
 function sanitizePayload(value: unknown): Prisma.InputJsonObject | undefined {
@@ -107,4 +131,8 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue {
   }
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function toSnakeCase(value: string) {
+  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }

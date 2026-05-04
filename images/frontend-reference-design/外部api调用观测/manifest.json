@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-01T11:03:23.164037+00:00",
+  "page": "外部API调用观测",
+  "route": "/api-keys",
+  "feature": "在 API Key 管理中心展示外部 Agent 调用日志、额度消耗、安全拒绝和 Trace 跳转",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

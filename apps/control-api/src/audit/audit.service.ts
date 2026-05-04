@@ -33,6 +33,7 @@ export class AuditService {
       summary: {
         login_total: events.filter((event) => event.source_type === 'login').length,
         operation_total: events.filter((event) => event.source_type === 'operation').length,
+        approval_audit_total: events.filter((event) => event.source_type === 'approval_audit').length,
         security_event_total: events.filter((event) => event.status !== 'SUCCESS').length,
         config_change_total: events.filter((event) => isConfigChange(event)).length,
         success_rate: ratioPercent(events.filter((event) => event.status === 'SUCCESS').length, events.length),
@@ -87,7 +88,7 @@ export class AuditService {
   }
 
   private async loadEvents(tenantId: string, since: Date): Promise<AuditEventRecord[]> {
-    const [loginLogs, operationLogs] = await this.prisma.$transaction([
+    const [loginLogs, operationLogs, approvalAuditEvents] = await this.prisma.$transaction([
       this.prisma.loginLog.findMany({
         where: {
           tenantId,
@@ -118,11 +119,27 @@ export class AuditService {
         },
         take: 300,
       }),
+      this.prisma.approvalAuditEvent.findMany({
+        where: {
+          tenantId,
+          occurredAt: {
+            gte: since,
+          },
+        },
+        include: {
+          actor: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 300,
+      }),
     ]);
 
     return [
       ...loginLogs.map((log) => mapLoginLog(log)),
       ...operationLogs.map((log) => mapOperationLog(log)),
+      ...approvalAuditEvents.map((event) => mapApprovalAuditEvent(event)),
     ].sort((left, right) => Date.parse(right.occurred_at) - Date.parse(left.occurred_at));
   }
 }
@@ -215,9 +232,51 @@ function mapOperationLog(
   };
 }
 
+function mapApprovalAuditEvent(
+  event: Prisma.ApprovalAuditEventGetPayload<{
+    include: {
+      actor: true;
+    };
+  }>,
+): AuditEventRecord {
+  return {
+    event_id: `approval_audit:${event.id}`,
+    source_type: 'approval_audit',
+    status: approvalAuditStatus(event.eventStatus),
+    user_email: event.actor?.email ?? '系统',
+    module: 'approvals',
+    action: event.eventType.toLowerCase(),
+    title: event.title,
+    summary: event.note ?? `${event.sourceType} / ${event.sourceId}`,
+    request_id: event.traceId ?? event.requestId,
+    occurred_at: event.occurredAt.toISOString(),
+    ip: null,
+    user_agent: null,
+    path: `/tool-approvals/audit-events/${event.id}`,
+    method: 'GET',
+    status_code: event.eventStatus === 'FAILED' ? 500 : 200,
+    request_summary: {
+      source_type: event.sourceType,
+      source_id: event.sourceId,
+      event_type: event.eventType,
+      event_status: event.eventStatus,
+      request_id: event.requestId,
+      trace_id: event.traceId,
+      metadata: event.metadata,
+    },
+    error_message: event.eventStatus === 'FAILED' ? event.note ?? event.title : null,
+  };
+}
+
 function operationStatus(statusCode: number): AuditEventStatus {
   if (statusCode >= 500) return 'FAILED';
   if (statusCode >= 400) return 'DEGRADED';
+  return 'SUCCESS';
+}
+
+function approvalAuditStatus(status: string): AuditEventStatus {
+  if (status === 'FAILED') return 'FAILED';
+  if (status === 'WARNING') return 'DEGRADED';
   return 'SUCCESS';
 }
 

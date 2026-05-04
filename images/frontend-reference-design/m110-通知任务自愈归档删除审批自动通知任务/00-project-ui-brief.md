@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M110 通知任务自愈归档删除审批自动通知任务
+- Route: `/security`
+- Feature goal: 把 M109 自愈归档删除审批通知纳入现有后台自动首发通知任务，让自愈归档删除待审/拒绝风险告警自动进入通知任务中心。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心通知任务权限和后端 JWT/租户隔离。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知任务中心。
+- APIs/services:
+  - `GET /api/v1/security-center/operation-alert-notification-tasks/overview`
+  - `POST /api/v1/security-center/operation-alert-notification-tasks/run-auto-notify`
+  - `POST /api/v1/security-center/operation-alert-notification-tasks/run-auto-retry`
+  - `GET /api/v1/security-center/operation-alert-notification-task-runs`
+- Auto notify alert ids:
+  - `sla-dead-letter-archive-delete-pending`
+  - `sla-dead-letter-archive-delete-rejected-risk`
+  - `notification-task-recovery-audit-archive-delete-pending`
+  - `notification-task-recovery-audit-archive-delete-rejected-risk`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskOverview`
+  - `SecurityOperationAlertNotificationTaskRunResult`
+  - fields: `pending_auto_notify_count`、`auto_notified_count`、`oldest_auto_notify_at`、`pending_auto_retry_count`、`failed_notification_count`、`partial_notification_count`、`last_auto_notify_result`
+- Status values:
+  - task status: `SUCCESS`、`FAILED`、`SKIPPED`
+  - notification status: `SENT`、`PARTIAL`、`SKIPPED`、`FAILED`
+- Existing components/design system:
+  - `OperationAlertNotificationTaskCard`
+  - `OperationAlertNotificationTaskResult`
+  - `MetricCard`、`SummaryTile`、`StatusBadge`、`Button`、`EmptyState`
+  - Next.js + React + TypeScript + Tailwind CSS + shadcn/ui-style primitives
+- Required states:
+  - task overview loading
+  - scheduler enabled/disabled
+  - task running/idle
+  - no pending auto notify
+  - pending auto notify
+  - last auto notify result
+  - auto retry unchanged
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - M110 复用 M100 的自动通知任务，不引入新任务服务或队列。

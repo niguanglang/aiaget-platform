@@ -17,6 +17,9 @@ export const DATA_SCOPE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
 
 export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'AGENT',
+  'AGENT_TEAM',
+  'CHANNEL',
+  'PLUGIN',
   'KNOWLEDGE_BASE',
   'DOCUMENT',
   'TOOL',
@@ -31,6 +34,32 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: 'Agent 数据',
     description: '控制智能体列表、配置、运行入口和 Agent 运行数据的可访问范围。',
     permission_codes: ['agent:agent:view', 'agent:agent:manage', 'agent:agent:use'],
+  },
+  {
+    resource_type: 'AGENT_TEAM',
+    name: 'Agent 协作团队',
+    description: '控制多 Agent 团队、成员、运行、接力和反馈数据的可访问范围。',
+    permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'CHANNEL',
+    name: '发布渠道',
+    description: '控制 Agent 在 Web、开放 API、企业微信、钉钉、飞书等渠道的发布配置和运行数据范围。',
+    permission_codes: ['channel:publish:view', 'channel:publish:manage', 'channel:publish:deploy', 'channel:publish:disable'],
+  },
+  {
+    resource_type: 'PLUGIN',
+    name: '插件数据',
+    description: '控制插件市场、安装、启停、升级、菜单注入和审计数据的可访问范围。',
+    permission_codes: [
+      'plugin:center:view',
+      'plugin:center:manage',
+      'plugin:center:install',
+      'plugin:center:enable',
+      'plugin:center:disable',
+      'plugin:center:upgrade',
+      'plugin:center:audit',
+    ],
   },
   {
     resource_type: 'KNOWLEDGE_BASE',

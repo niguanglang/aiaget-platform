@@ -1,0 +1,21 @@
+# Project UI Brief
+
+- Page: M90 SLA通知自动重试与失败死信
+- Route: /security
+- Feature goal: 审批与归档告警 SLA 通知失败自动重试、死信识别、投递审计和手动扫描
+- Target users/permissions: 安全管理员、租户管理员、审计员；沿用 `security:rule:view` 后端权限，前端仅展示安全中心内的运维操作入口。
+- APIs/services:
+  - `GET /api/v1/security-center/operation-alert-sla/notification-retry/overview`
+  - `POST /api/v1/security-center/operation-alert-sla/notification-retry/run`
+  - `POST /api/v1/security-center/operation-alert-sla/notifications/:notificationEventId/retry`
+  - 前端 `getSecurityOperationAlertSlaNotificationRetryOverview`、`runSecurityOperationAlertSlaNotificationAutoRetry`、`retrySecurityOperationAlertSlaNotification`
+- Entities/fields/statuses:
+  - `SecurityOperationAlertSlaNotificationItem`: `notification_event_id`、`alert_id`、`title`、`status`、`channels`、`targets`、`webhook_status`、`webhook_error`、`retry_count`、`retried_from_event_id`、`dead_lettered`、`dead_letter_reason`、`delivered_at`
+  - `SecurityOperationAlertSlaNotificationRetryOverview`: 调度开关、运行状态、策略、待重试数、失败数、部分成功数、已重试数、死信数、最近死信时间、可重试列表、死信列表、最近执行结果
+  - 状态：`SENT`、`PARTIAL`、`SKIPPED`、`FAILED`；任务状态：`SUCCESS`、`FAILED`、`SKIPPED`
+- Existing components/design system: Next.js App Router console shell；React Query；Tailwind CSS；`Button`、`Card`、`EmptyState`、`MetricCard`、`StatusBadge`；安全中心现有 bento/dashboard 卡片风格。
+- Required states: loading, empty, error, disabled running button, success result, partial/failed delivery warning, dead-letter state.
+- Constraints:
+  - 不新增数据库表，重试和死信继续基于 `platform_event` 派生。
+  - 不启动容器、不安装中间件、不执行迁移。
+  - 页面文案必须中文。

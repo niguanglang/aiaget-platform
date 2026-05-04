@@ -2,13 +2,20 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { Prisma } from '@prisma/client';
 import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type TestToolResult } from '@aiaget/shared-types';
 
+import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { buildTraceparent, createSpanId, type TraceContext } from '../common/tracing/trace-context';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { DataScopeQueryService } from '../common/services/data-scope-query.service';
+import { ResourceAccessService } from '../common/services/resource-access.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToolsService } from '../tools/tools.service';
+import { ChannelsService } from '../channels/channels.service';
+import type { RuntimeChannelReleaseAutomationDto } from './dto/runtime-channel-release-automation.dto';
+import type { RuntimeChannelReleaseSelfHealingDto } from './dto/runtime-channel-release-self-healing.dto';
 import type { RuntimeKnowledgeTaskDto } from './dto/runtime-knowledge-task.dto';
+import type { RuntimeAgentTeamRunDto } from './dto/runtime-agent-team-run.dto';
 import type { RuntimeRetrieveDto } from './dto/runtime-retrieve.dto';
 import type { RuntimeToolCallDto } from './dto/runtime-tool-call.dto';
 
@@ -31,6 +38,10 @@ export class RuntimeExecutionService {
     @Inject(KnowledgeService) private readonly knowledgeService: KnowledgeService,
     @Inject(ToolsService) private readonly toolsService: ToolsService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
+    @Inject(ResourceAccessService) private readonly resourceAccess: ResourceAccessService,
+    @Inject(AgentTeamsService) private readonly agentTeamsService: AgentTeamsService,
+    @Inject(ChannelsService) private readonly channelsService: ChannelsService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
   ) {}
 
   async retrieve(dto: RuntimeRetrieveDto) {
@@ -45,6 +56,36 @@ export class RuntimeExecutionService {
       dto.query,
       toTraceContext(dto) ?? undefined,
     );
+
+    await this.recordRuntimeEvent(user, {
+      resourceType: 'AGENT',
+      resourceId: dto.agent_id,
+      agentId: dto.agent_id,
+      eventType: 'runtime.knowledge.retrieve.finished',
+      status: 'SUCCESS',
+      summary: `Runtime 知识检索完成，召回 ${result.references.length} 条引用。`,
+      payloadJson: {
+        agent_id: dto.agent_id,
+        mode: result.mode,
+        reference_count: result.references.length,
+        latency_ms: result.latency_ms,
+        cost_total: result.cost_total,
+      },
+      sourceSystem: 'runtime_internal',
+      sourceId: dto.agent_id,
+    });
+    await this.recordRuntimeUsage(user, {
+      subjectType: 'AGENT',
+      subjectId: dto.agent_id,
+      resourceType: 'KNOWLEDGE',
+      resourceId: dto.agent_id,
+      metricType: 'knowledge_queries',
+      unit: 'query',
+      quantity: 1,
+      amount: result.cost_total,
+      sourceSystem: 'runtime_internal',
+      sourceId: dto.agent_id,
+    });
 
     return {
       references: result.references.map(mapReferenceSummary),
@@ -88,11 +129,251 @@ export class RuntimeExecutionService {
       requireApproval: binding.requireApproval,
     });
 
+    await this.recordRuntimeEvent(user, {
+      resourceType: 'TOOL',
+      resourceId: tool.id,
+      agentId: dto.agent_id,
+      conversationId: dto.conversation_id ?? null,
+      eventType: result.status === 'SUCCESS' ? 'runtime.tool.call.finished' : 'runtime.tool.call.failed',
+      status: result.status,
+      severity: result.status === 'FAILED' ? 'ERROR' : result.status === 'APPROVAL_REQUIRED' ? 'WARN' : 'INFO',
+      summary: `Runtime 工具适配调用 ${tool.name}：${result.status}`,
+      payloadJson: {
+        agent_id: dto.agent_id,
+        tool_id: tool.id,
+        tool_code: tool.code,
+        status: result.status,
+        approval_request_id: result.approval_request_id ?? null,
+        latency_ms: result.latency_ms,
+        response_status: result.response_status,
+        error_message: result.error_message,
+      },
+      sourceSystem: 'runtime_internal',
+      sourceId: tool.id,
+    });
+
     return mapToolCallSummary(tool.id, tool.name, tool.code, result);
   }
 
   async runKnowledgeTask(dto: RuntimeKnowledgeTaskDto) {
-    return this.knowledgeService.runWorkflowTask(dto.task_id);
+    const result = await this.knowledgeService.runWorkflowTask(dto.task_id);
+    const task = await this.prisma.knowledgeEmbeddingTask.findFirst({
+      where: {
+        id: dto.task_id,
+      },
+      select: {
+        tenantId: true,
+        status: true,
+        documentId: true,
+        knowledgeId: true,
+      },
+    });
+    await this.recordWorkflowEvent({
+      tenantId: task?.tenantId ?? '00000000-0000-0000-0000-000000000000',
+      resourceType: 'KNOWLEDGE_TASK',
+      resourceId: dto.task_id,
+      taskId: dto.task_id,
+      eventType: task?.status === 'FAILED' ? 'workflow.knowledge_task.failed' : 'workflow.knowledge_task.finished',
+      status: task?.status ?? (result.success ? 'COMPLETED' : 'FAILED'),
+      severity: task?.status === 'FAILED' ? 'ERROR' : 'INFO',
+      summary: `知识库后台任务 ${dto.task_id} 执行${task?.status === 'FAILED' ? '失败' : '完成'}。`,
+      payloadJson: {
+        task_id: dto.task_id,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        status: task?.status ?? null,
+        knowledge_base_id: task?.knowledgeId ?? null,
+        document_id: task?.documentId ?? null,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.task_id,
+    });
+    return result;
+  }
+
+  async runAgentTeamRun(dto: RuntimeAgentTeamRunDto) {
+    const result = await this.agentTeamsService.runWorkflowRun(dto.run_id);
+    const run = await this.prisma.agentTeamRun.findFirst({
+      where: {
+        id: dto.run_id,
+      },
+      select: {
+        tenantId: true,
+        teamId: true,
+      },
+    });
+    await this.recordWorkflowEvent({
+      tenantId: run?.tenantId ?? '00000000-0000-0000-0000-000000000000',
+      resourceType: 'AGENT_TEAM',
+      resourceId: run?.teamId ?? dto.run_id,
+      teamId: run?.teamId ?? null,
+      runId: dto.run_id,
+      eventType: result.status === 'FAILED' ? 'workflow.agent_team_run.failed' : 'workflow.agent_team_run.finished',
+      status: result.status,
+      severity: result.status === 'FAILED' ? 'ERROR' : result.status === 'WAITING_HUMAN' ? 'WARN' : 'INFO',
+      summary: `多 Agent 团队运行 ${dto.run_id} 已由 Runtime 工作流回调执行。`,
+      payloadJson: {
+        run_id: dto.run_id,
+        team_id: run?.teamId ?? null,
+        status: result.status,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.run_id,
+    });
+    return result;
+  }
+
+  async runChannelReleaseAutomation(dto: RuntimeChannelReleaseAutomationDto) {
+    const result = await this.channelsService.runWorkflowReleaseAutomation(dto.channel_id, {
+      workflowId: dto.workflow_id ?? null,
+      workflowRunId: dto.run_id ?? null,
+    });
+    const channel = await this.prisma.agentPublishChannel.findFirst({
+      where: {
+        id: dto.channel_id,
+      },
+      select: {
+        tenantId: true,
+      },
+    });
+    const failed = !result || result.decision === 'FAILED' || Boolean(result.error_message);
+    await this.recordWorkflowEvent({
+      tenantId: channel?.tenantId ?? '00000000-0000-0000-0000-000000000000',
+      resourceType: 'CHANNEL',
+      resourceId: dto.channel_id,
+      channelId: dto.channel_id,
+      taskId: dto.workflow_id ?? dto.run_id ?? null,
+      eventType: failed ? 'workflow.channel_release_automation.failed' : 'workflow.channel_release_automation.finished',
+      status: failed ? 'FAILED' : 'SUCCESS',
+      severity: failed ? 'ERROR' : 'INFO',
+      summary: `渠道发布自动推进工作流执行：${result?.decision ?? 'FAILED'}。`,
+      payloadJson: {
+        channel_id: dto.channel_id,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        decision: result?.decision ?? 'FAILED',
+        error_message: result?.error_message ?? null,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.workflow_id ?? dto.run_id ?? dto.channel_id,
+    });
+    return result;
+  }
+
+  async runChannelReleaseSelfHealing(dto: RuntimeChannelReleaseSelfHealingDto) {
+    const result = await this.channelsService.runWorkflowReleaseSelfHealing(dto.channel_id, {
+      workflowId: dto.workflow_id ?? null,
+      workflowRunId: dto.run_id ?? null,
+    });
+    const channel = await this.prisma.agentPublishChannel.findFirst({
+      where: {
+        id: dto.channel_id,
+      },
+      select: {
+        tenantId: true,
+      },
+    });
+    const failed = !result || result.decision === 'FAILED' || Boolean(result.error_message);
+    await this.recordWorkflowEvent({
+      tenantId: channel?.tenantId ?? '00000000-0000-0000-0000-000000000000',
+      resourceType: 'CHANNEL',
+      resourceId: dto.channel_id,
+      channelId: dto.channel_id,
+      taskId: dto.workflow_id ?? dto.run_id ?? null,
+      eventType: failed ? 'workflow.channel_release_self_healing.failed' : 'workflow.channel_release_self_healing.finished',
+      status: failed ? 'FAILED' : 'SUCCESS',
+      severity: failed ? 'ERROR' : 'INFO',
+      summary: `渠道发布自愈工作流执行：${result?.decision ?? 'FAILED'}。`,
+      payloadJson: {
+        channel_id: dto.channel_id,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        decision: result?.decision ?? 'FAILED',
+        error_message: result?.error_message ?? null,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.workflow_id ?? dto.run_id ?? dto.channel_id,
+    });
+    return result;
+  }
+
+  private async recordRuntimeEvent(user: AuthenticatedUser, input: RuntimeProjectionInput) {
+    return this.platformEvents.recordEvent({
+      tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
+      userId: user.id,
+      actorType: 'RUNTIME',
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      agentId: input.agentId ?? null,
+      teamId: input.teamId ?? null,
+      channelId: input.channelId ?? null,
+      conversationId: input.conversationId ?? null,
+      runId: input.runId ?? null,
+      taskId: input.taskId ?? null,
+      requestId: user.requestId ?? null,
+      traceId: user.traceId ?? null,
+      parentTraceId: user.parentSpanId ?? null,
+      eventSource: input.sourceSystem,
+      eventType: input.eventType,
+      status: input.status,
+      severity: input.severity ?? 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: input.summary,
+      payloadJson: input.payloadJson,
+      sourceSystem: input.sourceSystem,
+      sourceId: input.sourceId,
+      dedupeKey: `${input.sourceSystem}:${input.sourceId}:${input.eventType}:${user.traceId ?? user.requestId ?? 'none'}`,
+    });
+  }
+
+  private async recordRuntimeUsage(user: AuthenticatedUser, input: RuntimeUsageProjectionInput) {
+    return this.platformEvents.recordUsage({
+      tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
+      userId: user.id,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      metricType: input.metricType,
+      unit: input.unit,
+      quantity: input.quantity,
+      amount: input.amount ?? 0,
+      currency: 'USD',
+      billable: false,
+      costSource: input.sourceSystem,
+      traceId: user.traceId ?? null,
+      requestId: user.requestId ?? null,
+      sourceSystem: input.sourceSystem,
+      sourceId: input.sourceId,
+    });
+  }
+
+  private async recordWorkflowEvent(input: WorkflowProjectionInput) {
+    return this.platformEvents.recordEvent({
+      tenantId: input.tenantId,
+      actorType: 'RUNTIME',
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      agentId: input.agentId ?? null,
+      teamId: input.teamId ?? null,
+      channelId: input.channelId ?? null,
+      runId: input.runId ?? null,
+      taskId: input.taskId ?? null,
+      eventSource: input.sourceSystem,
+      eventType: input.eventType,
+      status: input.status,
+      severity: input.severity,
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: input.summary,
+      payloadJson: input.payloadJson,
+      sourceSystem: input.sourceSystem,
+      sourceId: input.sourceId,
+      dedupeKey: `${input.sourceSystem}:${input.sourceId}:${input.eventType}`,
+    });
   }
 
   private async resolveRuntimeUser(
@@ -288,8 +569,8 @@ export class RuntimeExecutionService {
       return;
     }
 
-    const subjectKeys = buildSubjectKeys(user);
-    const matched = acls.filter((acl) => subjectKeys.has(subjectKey(acl.subjectType, acl.subjectId)));
+    const subjectKeys = await this.resourceAccess.buildResourceAclSubjectKeys(user);
+    const matched = acls.filter((acl) => subjectKeys.has(resourceAclSubjectKey(acl.subjectType, acl.subjectId)));
     if (matched.some((acl) => acl.effect === 'DENY')) {
       throw new ForbiddenException('Runtime resource ACL denied');
     }
@@ -326,23 +607,56 @@ interface RuntimeTraceInput {
   traceparent?: string | null;
 }
 
-function buildSubjectKeys(user: AuthenticatedUser) {
-  const output = new Set<string>();
-  output.add(subjectKey('USER', user.id));
-  output.add(subjectKey('TENANT', user.tenantId));
-
-  for (const roleId of user.roleIds ?? []) {
-    output.add(subjectKey('ROLE', roleId));
-  }
-
-  if (user.departmentId) {
-    output.add(subjectKey('DEPARTMENT', user.departmentId));
-  }
-
-  return output;
+interface RuntimeProjectionInput {
+  resourceType: string;
+  resourceId: string | null;
+  agentId?: string | null;
+  teamId?: string | null;
+  channelId?: string | null;
+  conversationId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
+  eventType: string;
+  status: string;
+  severity?: string;
+  summary: string;
+  payloadJson: Prisma.InputJsonValue;
+  sourceSystem: string;
+  sourceId: string | null;
 }
 
-function subjectKey(subjectType: string, subjectId: string) {
+interface RuntimeUsageProjectionInput {
+  subjectType: string;
+  subjectId: string | null;
+  resourceType: string;
+  resourceId: string | null;
+  metricType: string;
+  unit: string;
+  quantity: number;
+  amount?: number;
+  sourceSystem: string;
+  sourceId: string | null;
+}
+
+interface WorkflowProjectionInput {
+  tenantId: string;
+  resourceType: string;
+  resourceId: string | null;
+  agentId?: string | null;
+  teamId?: string | null;
+  channelId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
+  eventType: string;
+  status: string;
+  severity: string;
+  summary: string;
+  payloadJson: Prisma.InputJsonValue;
+  sourceSystem: string;
+  sourceId: string | null;
+}
+
+function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
 }
 

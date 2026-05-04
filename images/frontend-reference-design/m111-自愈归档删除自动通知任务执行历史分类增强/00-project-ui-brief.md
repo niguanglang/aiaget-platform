@@ -1,0 +1,37 @@
+# Project UI Brief
+
+- Page: M111 自愈归档删除自动通知任务执行历史分类增强
+- Route: `/security`
+- Feature goal: 任务执行历史区分 SLA 死信归档删除与通知任务自愈归档删除自动通知覆盖数量，让安全管理员知道每次首发通知覆盖了哪类告警。
+- Target users and permissions: 安全管理员、租户管理员、审计员；沿用安全中心通知任务权限和后端 JWT/租户隔离。
+- Parent layout: 安全中心 `/security` -> 审批与归档运营 -> 通知任务中心 -> 任务执行历史与审计检索。
+- APIs/services:
+  - `GET /api/v1/security-center/operation-alert-notification-tasks/overview`
+  - `GET /api/v1/security-center/operation-alert-notification-task-runs`
+  - `POST /api/v1/security-center/operation-alert-notification-tasks/run-auto-notify`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRunResult`
+  - `SecurityOperationAlertNotificationTaskRunItem`
+  - `SecurityOperationAlertNotificationTaskRunOverview.summary`
+  - new fields: `sla_dead_letter_notify_count`、`recovery_archive_delete_notify_count`
+- Status values:
+  - task: `AUTO_NOTIFY`、`AUTO_RETRY`
+  - status: `SUCCESS`、`FAILED`、`SKIPPED`
+  - trigger: `MANUAL`、`SCHEDULED`
+- Existing components/design system:
+  - `OperationAlertNotificationTaskRunHistoryCard`
+  - `OperationAlertNotificationTaskRunRow`
+  - `OperationAlertNotificationTaskResult`
+  - `MetricCard`、`SummaryTile`、`StatusBadge`、`Button`、`EmptyState`
+- Required states:
+  - history loading
+  - no run records
+  - auto notify run with category counts
+  - auto retry run with zero category counts
+  - last result with category counts
+  - filter/search unchanged
+- Constraints:
+  - 中文界面文字。
+  - 不新增数据库表，不执行迁移。
+  - 不启动容器，不安装依赖。
+  - 分类统计来自任务执行时写入的 `platform_event.payloadJson`，历史旧事件缺失字段时按 0 兼容。

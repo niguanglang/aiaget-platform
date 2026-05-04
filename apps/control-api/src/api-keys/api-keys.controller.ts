@@ -1,7 +1,14 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import type { CreateTenantApiKeyResult, TenantApiKeyListItem } from '@aiaget/shared-types';
+import type {
+  CreateTenantApiKeyResult,
+  ExternalApiObservabilityOverview,
+  ListWebhookDeliveriesResult,
+  RetryWebhookDeliveryResult,
+  WebhookDeliveryDetail,
+  TenantApiKeyListItem,
+} from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -25,6 +32,16 @@ export class ApiKeysController {
     return this.apiKeysService.list(currentUser);
   }
 
+  @Get('external-observability')
+  @Permissions('system:api_key:view')
+  @ApiOkResponse({ description: 'Get external API invocation observability overview' })
+  async getExternalObservability(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query('window') window?: string,
+  ): Promise<ExternalApiObservabilityOverview> {
+    return this.apiKeysService.getExternalObservability(currentUser, window);
+  }
+
   @Post()
   @Permissions('system:api_key:manage')
   @ApiOkResponse({ description: 'Create tenant API key and return plaintext once' })
@@ -43,5 +60,35 @@ export class ApiKeysController {
     @Param('id') id: string,
   ): Promise<{ success: boolean }> {
     return this.apiKeysService.remove(currentUser, id);
+  }
+
+  @Get('webhook-deliveries')
+  @Permissions('system:api_key:view')
+  @ApiOkResponse({ description: 'List webhook deliveries for API keys' })
+  async listWebhookDeliveries(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query('api_key_id') apiKeyId?: string,
+  ): Promise<ListWebhookDeliveriesResult> {
+    return this.apiKeysService.listWebhookDeliveries(currentUser, apiKeyId);
+  }
+
+  @Get('webhook-deliveries/:deliveryId')
+  @Permissions('system:api_key:view')
+  @ApiOkResponse({ description: 'Get webhook delivery detail' })
+  async getWebhookDelivery(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('deliveryId') deliveryId: string,
+  ): Promise<WebhookDeliveryDetail> {
+    return this.apiKeysService.getWebhookDelivery(currentUser, deliveryId);
+  }
+
+  @Post('webhook-deliveries/:deliveryId/retry')
+  @Permissions('system:api_key:manage')
+  @ApiOkResponse({ description: 'Retry failed webhook delivery' })
+  async retryWebhookDelivery(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('deliveryId') deliveryId: string,
+  ): Promise<RetryWebhookDeliveryResult> {
+    return this.apiKeysService.retryWebhookDelivery(currentUser, deliveryId);
   }
 }

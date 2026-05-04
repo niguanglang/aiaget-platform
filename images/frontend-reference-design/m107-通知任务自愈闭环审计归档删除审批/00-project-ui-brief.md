@@ -1,0 +1,43 @@
+# Project UI Brief
+
+- Page: M107 通知任务自愈闭环审计归档删除审批
+- Route: `/security`
+- Feature goal: 对 M106 生成的自愈闭环审计归档申请删除、审批、写入审计事件，并在审批通过后删除对象存储文件。
+- Target users and permissions: 安全管理员、审计员、租户管理员；复用 `security:rule:view`，后端继续由 JWT 与权限 Guard 兜底。
+- APIs/services:
+  - `DELETE /security-center/operation-alert-notification-task-recovery-suggestions/audits/archives/:archiveId`
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/overview`
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals`
+  - `GET /security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/:approvalId`
+  - `POST /security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/:approvalId/approve`
+  - `POST /security-center/operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/:approvalId/reject`
+- Data entities and fields:
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail`
+  - `SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview`
+  - fields: `archive_id`, `archive_key`, `archive_file_name`, `archive_size_bytes`, `status`, `reason`, `requested_by`, `reviewed_by`, `requested_at`, `reviewed_at`, `audit_timeline`
+- Status values:
+  - `PENDING` 待审批
+  - `APPROVED` 已批准
+  - `REJECTED` 已拒绝
+  - `APPLIED` 已生效
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - Reuse the SLA dead letter audit archive approval panel patterns in `apps/web/src/components/security/security-policy-content.tsx`
+  - Reuse API client request helpers in `apps/web/src/lib/api-client.ts`
+- Required states:
+  - archive delete submitting
+  - approvals loading
+  - approval detail loading
+  - approval approve/reject submitting
+  - empty archives and empty approvals
+  - success/error message
+  - disabled buttons during pending operations
+- Constraints:
+  - 中文界面文字
+  - 不新增数据库表，不执行迁移
+  - 不启动容器，不安装依赖
+  - 复用对象存储，不创建新中间件
+  - 删除归档必须先写入审批事件，审批通过后才删除对象文件

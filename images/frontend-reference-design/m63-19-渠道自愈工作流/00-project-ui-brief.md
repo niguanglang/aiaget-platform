@@ -1,0 +1,42 @@
+# Project UI Brief
+
+- Page: M63-19 渠道自愈工作流
+- Route: `/channels`
+- Feature goal: 渠道发布失败自愈从手动直连升级为 Runtime workflow / Temporal fallback 执行边界，并在渠道详情页展示 workflow 模式、执行后端和最近运行链路。
+- Target users: 渠道管理员、Agent 管理员、安全管理员、审计员。
+- Permissions: `channel:publish:view` 查看，`channel:publish:manage` 保存策略，`channel:publish:deploy` 执行一次自愈。
+- API/services:
+  - Web: `getChannelReleaseSelfHealing(channelId)`
+  - Web: `updateChannelReleaseSelfHealing(channelId, input)`
+  - Web: `runChannelReleaseSelfHealing(channelId)`
+  - Control API: `GET /channels/:channelId/release-self-healing`
+  - Control API: `PUT /channels/:channelId/release-self-healing`
+  - Control API: `POST /channels/:channelId/release-self-healing/run`
+  - Runtime workflow: `POST /runtime/workflows/channel-release-self-healing/start`
+  - Runtime internal adapter: `POST /api/v1/runtime/internal/channel-release-self-healing/run`
+- Entities and fields:
+  - `ChannelReleaseSelfHealingOverview`: `generated_at`, `channel_id`, `policy`, `evaluation`, `last_run`, `next_allowed_at`, `recent_events`, `workflow_mode`, `workflow_backend`
+  - `ChannelReleaseSelfHealingPolicy`: `enabled`, `dry_run`, `auto_rollback_enabled`, `max_error_requests`, `min_allowed_rate`, `observation_window_hours`, `cooldown_minutes`, `updated_at`
+  - `ChannelReleaseSelfHealingEvaluation`: `decision`, `reason`, `rollback_recommended`, `rollback_available`, `metrics`, `current_batch`, `last_automation_run`, `evaluated_at`
+  - `ChannelReleaseSelfHealingRunResult`: `run_id`, `channel_id`, `batch_id`, `decision`, `rolled_back`, `dry_run`, `reason`, `started_at`, `finished_at`, `error_message`, `workflow_id`, `workflow_backend`
+- Status/enums:
+  - Decision: `HEALTHY`, `OBSERVE`, `ROLLBACK_RECOMMENDED`, `ROLLED_BACK`, `SKIPPED`, `DISABLED`, `FAILED`
+  - Workflow mode: `local`, `temporal_first`, `temporal`
+  - Workflow backend: `LOCAL`, `LOCAL_FALLBACK`, `TEMPORAL`
+- Existing components/design system:
+  - Next.js + React + TypeScript + Tailwind CSS
+  - Existing `/channels` dashboard layout, `Card`, `Button`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - Existing helpers: `releaseWorkflowModeLabel`, `releaseWorkflowBackendLabel`, `formatChannelDateTime`
+- Required states:
+  - Loading skeleton cards
+  - Empty state when no channel selected or no run result
+  - Error banner for query failure
+  - Disabled actions when missing permission, channel, cooldown, or mutation in progress
+  - Success feedback through existing toast mutation handlers
+  - Permission hint for manage/deploy requirements
+- Constraints:
+  - UI text must be Chinese.
+  - Do not introduce a new page; extend existing channel detail self-healing panel.
+  - Do not invent unsupported fields.
+  - Do not start containers or install middleware.
+  - Do not add database schema changes.

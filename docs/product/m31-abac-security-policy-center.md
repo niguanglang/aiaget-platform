@@ -56,4 +56,4 @@
 - `pnpm --filter @aiaget/control-api prisma:validate`
 - `pnpm --filter @aiaget/control-api typecheck`
 - `pnpm --filter @aiaget/web typecheck`
-- 已对远程 PostgreSQL `127.0.0.1:5432/aiaget_platform` 执行迁移、注释脚本和权限种子。
+- 已对项目配置的 PostgreSQL 数据库执行迁移、注释脚本和权限种子。

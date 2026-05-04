@@ -1,0 +1,27 @@
+# Project UI Brief
+
+- Page: M94 SLA死信审计归档下载中心
+- Route: /security
+- Feature goal: SLA 死信处置审计 MinIO 归档、下载链接与归档列表
+- Target users/permissions: 安全管理员、租户管理员、审计员；沿用 `security:rule:view`。
+- APIs/services:
+  - `POST /api/v1/security-center/operation-alert-sla/dead-letter-audits/archives`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/archives`
+  - `GET /api/v1/security-center/operation-alert-sla/dead-letter-audits/archives/:archiveId/download-url`
+  - 前端 `createSecurityOperationAlertSlaDeadLetterAuditArchive`
+  - 前端 `listSecurityOperationAlertSlaDeadLetterAuditArchives`
+  - 前端 `getSecurityOperationAlertSlaDeadLetterAuditArchiveDownloadUrl`
+- Entities/fields/statuses:
+  - 归档项：id、key、file_name、folder、size_bytes、etag、last_modified、download_expires_in
+  - 汇总：archive_count、total_size_bytes
+  - 归档来源筛选：keyword、action、disposition_status
+- Existing components/design system:
+  - Next.js App Router；React Query；Tailwind CSS；安全中心 `/security`
+  - `Card`、`Button`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - 复用审批审计归档面板的信息架构
+- Required states:
+  - loading、empty、creating archive、downloading、success、error、disabled
+- Constraints:
+  - 使用现有 StorageService / MinIO 配置，不启动容器、不安装中间件。
+  - 不新增数据库表，不跑迁移。
+  - UI 文案中文。

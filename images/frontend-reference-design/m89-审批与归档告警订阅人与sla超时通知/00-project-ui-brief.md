@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Page: m89-审批与归档告警订阅人与 SLA 超时通知
+- Route: /security
+- Feature goal: 为审批与归档告警 SLA 超时补齐订阅目标、通知投递和投递审计。
+- Target users: 安全管理员、审计员、租户管理员。
+- Existing APIs:
+  - `GET /api/v1/security-center/operation-alert-sla/overview`
+  - `POST /api/v1/security-center/operation-alert-sla/run-escalation`
+  - `GET /api/v1/security-center/operation-alert-notifications`
+- New APIs:
+  - `GET /api/v1/security-center/operation-alert-sla/notifications/overview`
+  - `POST /api/v1/security-center/operation-alert-sla/notify-overdue`
+- Existing storage:
+  - `platform_event`
+  - `system_setting`
+- Type model:
+  - `SecurityOperationAlertSlaNotificationOverview`
+  - `SecurityOperationAlertSlaNotificationItem`
+  - `SecurityOperationAlertSlaNotificationResult`
+  - `SecurityOperationAlertSlaSubscriptionPolicy`
+- UI:
+  - 在 `/security` 的“告警 SLA 与超时升级”区域内增加订阅目标、通知投递审计和“通知超时项”操作。
+  - 展示订阅策略：默认目标、高风险目标、归档目标、渠道、Webhook 配置状态。
+  - 展示投递汇总：已投递、部分成功、失败、跳过、待通知。
+  - 展示最近 SLA 超时通知事件。
+- Required states: loading、empty、error、running、success、disabled、partial delivery。
+- Constraints:
+  - 中文 UI。
+  - 不新增数据库表。
+  - 不执行数据库迁移。
+  - 不启动容器。
+  - 不安装中间件。
+  - 第一版订阅策略使用系统设置 JSON 和环境变量兜底。

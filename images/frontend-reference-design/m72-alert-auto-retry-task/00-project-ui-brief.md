@@ -1,0 +1,21 @@
+# Project UI Brief
+
+- Page: M72 Alert Auto Retry Task
+- Route: /monitor
+- Feature goal: 告警自动重试后台任务
+- Target users/roles: 监控、审计、成本运营人员；后端接口使用 `monitor:log:view` 权限。
+- APIs/services:
+  - `getPlatformUsageAlertNotificationTaskOverview()`
+  - `runPlatformUsageAlertNotificationAutoRetry()`
+  - `listPlatformUsageAlertNotifications({ window, status })`
+- Entities/fields/statuses:
+  - `PlatformUsageAlertNotificationTaskOverview`: scheduler_enabled, running, last_tick_at, next_tick_after_seconds, summary, last_auto_retry_result
+  - `PlatformUsageAlertNotificationTaskRunResult`: task, status, scanned_count, retried_count, success_count, failed_count, skipped_count, error_message
+  - Status: `SUCCESS`, `FAILED`, `SKIPPED`
+- Existing components/design system: Next.js client component, Tailwind CSS, shadcn-style `Card` / `Button`, shared `MetricCard`, `StatusBadge`, `EmptyState`, lucide icons, React Query.
+- Required states: loading, empty/no work, error, disabled while running, manual run success/failure.
+- Constraints:
+  - Do not add tables or migrations; task scans `platform_event`.
+  - Do not start containers or install middleware.
+  - UI text must be Chinese.
+  - Place inside existing `/monitor` dashboard panel.

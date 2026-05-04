@@ -1,0 +1,44 @@
+# Project UI Brief
+
+- Page: 用户管理中心
+- Route: /users
+- Feature goal: 租户用户账号、部门归属和角色分配管理
+- Parent layout: Next.js App Router console layout `apps/web/src/app/(console)/layout.tsx`
+- Target users/permissions:
+  - 查看：`system:user:view`
+  - 管理：`system:user:manage`
+  - 租户管理员角色 `tenant_admin` 视为可管理
+- API/service functions:
+  - `listUsers({ page, page_size, keyword, status, department_id })`
+  - `createUser(input)`
+  - `updateUser(userId, input)`
+  - `deleteUser(userId)`
+  - `listRoles({ page, page_size })`
+  - `getDepartmentTree()`
+- Data entities and fields:
+  - `UserListItem`: `id`, `tenant_id`, `department_id`, `email`, `name`, `status`, `department`, `roles`, `last_login_at`, `created_at`, `updated_at`
+  - `CreateUserInput`: `email`, `name`, `password`, `status`, `department_id`, `roleCodes`
+  - `UpdateUserInput`: `name`, `password`, `status`, `department_id`, `roleCodes`
+  - `RoleListItem`: `id`, `code`, `name`, `status`, `permission_count`, `menu_count`, `user_count`
+  - `DepartmentTreeItem`: `id`, `name`, `code`, `level`, `children`
+  - 状态：`ACTIVE`, `DISABLED`, `DELETED`
+- Existing components/design system:
+  - Tailwind CSS + shadcn/ui style local components
+  - `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`, `Input`
+  - React Query, React Hook Form, Zod, motion, lucide icons
+- Required states:
+  - loading, empty, error, validation, disabled, success, permission-denied
+  - self-delete disabled
+  - create/edit drawer
+  - delete confirmation
+- Actions:
+  - search by name/email
+  - filter by status and department
+  - create user
+  - edit name/password/status/department/roles
+  - soft delete user
+  - select user detail
+- Constraints:
+  - Page text must be Chinese
+  - Do not add unsupported backend fields
+  - Keep settings page unchanged

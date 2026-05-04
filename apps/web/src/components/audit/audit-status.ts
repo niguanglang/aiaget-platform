@@ -3,6 +3,7 @@ import type { AuditEventStatus, AuditEventSourceType } from '@aiaget/shared-type
 const sourceLabels: Record<AuditEventSourceType, string> = {
   login: '登录',
   operation: '操作',
+  approval_audit: '审批审计',
 };
 
 const statusLabels: Record<AuditEventStatus, string> = {

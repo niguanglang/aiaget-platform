@@ -425,7 +425,7 @@ export class ConversationsService {
     id: string,
     dto: SendConversationMessageDto,
     emit: (eventName: string, payload: unknown) => void,
-  ): Promise<void> {
+  ): Promise<ConversationDetail> {
     const conversation = await this.findConversation(currentUser.tenantId, id);
     const agent = await this.findConversationAgent(currentUser.tenantId, conversation.agentId);
     const trimmedMessage = dto.message.trim();
@@ -456,6 +456,50 @@ export class ConversationsService {
       }),
     ]);
 
+    return this.streamAssistantTurn(currentUser, id, agent, trimmedMessage, emit);
+  }
+
+  async streamCreate(
+    currentUser: AuthenticatedUser,
+    dto: CreateConversationDto,
+    emit: (eventName: string, payload: unknown) => void,
+  ): Promise<ConversationDetail> {
+    const agent = await this.findConversationAgent(currentUser.tenantId, dto.agent_id);
+    const trimmedMessage = dto.message.trim();
+    const now = new Date();
+    const conversation = await this.prisma.conversation.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        agentId: agent.id,
+        userId: currentUser.id,
+        title: dto.title?.trim() || createConversationTitle(trimmedMessage),
+        status: 'ACTIVE',
+        messageCount: 1,
+        lastMessagePreview: createPreview(trimmedMessage),
+        lastMessageAt: now,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+        messages: {
+          create: {
+            tenantId: currentUser.tenantId,
+            role: 'USER',
+            content: trimmedMessage,
+            createdBy: currentUser.id,
+          },
+        },
+      },
+    });
+
+    return this.streamAssistantTurn(currentUser, conversation.id, agent, trimmedMessage, emit);
+  }
+
+  private async streamAssistantTurn(
+    currentUser: AuthenticatedUser,
+    id: string,
+    agent: AgentConversationRecord,
+    trimmedMessage: string,
+    emit: (eventName: string, payload: unknown) => void,
+  ): Promise<ConversationDetail> {
     const preparation = await this.buildRuntimeRequest(currentUser, id, agent, trimmedMessage);
     const modelContext = await this.resolveModelExecutionContext(currentUser.tenantId, agent);
     let finalResponse: RuntimeConversationResponse | null = null;
@@ -513,6 +557,8 @@ export class ConversationsService {
       type: 'done',
       conversation: persistedConversation,
     });
+
+    return persistedConversation;
   }
 
   async createFeedback(

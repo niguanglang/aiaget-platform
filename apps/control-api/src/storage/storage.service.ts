@@ -207,13 +207,103 @@ export class StorageService {
     await this.assertBucketReady();
 
     const expiresIn = 300;
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: toTenantObjectKey(currentUser.tenantId, key),
-    });
 
     return {
-      url: await getSignedUrl(this.client, command, { expiresIn }),
+      url: await this.createSignedDownloadUrl(toTenantObjectKey(currentUser.tenantId, key), expiresIn),
+      expires_in: expiresIn,
+    };
+  }
+
+  async putTenantObject(input: {
+    tenantId: string;
+    key: string;
+    body: Buffer | string;
+    contentType: string;
+    metadata?: Record<string, string>;
+  }): Promise<StorageObjectItem> {
+    await this.assertBucketReady();
+
+    const body = typeof input.body === 'string' ? Buffer.from(input.body, 'utf8') : input.body;
+    const tenantPrefix = buildTenantPrefix(input.tenantId);
+    const objectKey = toTenantObjectKey(input.tenantId, input.key);
+
+    await this.client.send(
+      new PutObjectCommand({
+        Body: body,
+        Bucket: this.bucket,
+        ContentLength: body.byteLength,
+        ContentType: input.contentType,
+        Key: objectKey,
+        Metadata: {
+          tenant_id: input.tenantId,
+          ...(input.metadata ?? {}),
+        },
+      }),
+    );
+
+    return mapObjectItem(tenantPrefix, objectKey, body.byteLength, null, new Date());
+  }
+
+  async listTenantObjects(input: {
+    tenantId: string;
+    prefix: string;
+    keyword?: string | null;
+    limit?: number;
+  }): Promise<StorageObjectItem[]> {
+    await this.assertBucketReady();
+
+    const tenantPrefix = buildTenantPrefix(input.tenantId);
+    const listPrefix = `${tenantPrefix}${normalizeFolder(input.prefix)}`;
+    const keyword = input.keyword?.trim().toLowerCase();
+    const objects: StorageObjectItem[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+          Prefix: listPrefix,
+        }),
+      );
+
+      for (const object of response.Contents ?? []) {
+        if (!object.Key || object.Key.endsWith('/')) continue;
+        const item = mapObjectItem(tenantPrefix, object.Key, object.Size ?? 0, object.ETag, object.LastModified);
+        if (keyword && !`${item.relative_key} ${item.file_name} ${item.folder}`.toLowerCase().includes(keyword)) {
+          continue;
+        }
+        objects.push(item);
+        if (input.limit && objects.length >= input.limit) {
+          return sortStorageObjects(objects);
+        }
+      }
+
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return sortStorageObjects(objects);
+  }
+
+  async deleteTenantObject(tenantId: string, key: string): Promise<{ success: boolean }> {
+    await this.assertBucketReady();
+
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: toTenantObjectKey(tenantId, key),
+      }),
+    );
+
+    return { success: true };
+  }
+
+  async getTenantObjectDownloadUrl(tenantId: string, key: string, expiresIn = 300): Promise<StorageDownloadUrlResult> {
+    await this.assertBucketReady();
+
+    return {
+      url: await this.createSignedDownloadUrl(toTenantObjectKey(tenantId, key), expiresIn),
       expires_in: expiresIn,
     };
   }
@@ -246,6 +336,15 @@ export class StorageService {
         status: 'UNAVAILABLE',
       };
     }
+  }
+
+  private async createSignedDownloadUrl(key: string, expiresIn: number) {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    return getSignedUrl(this.client, command, { expiresIn });
   }
 }
 
@@ -317,6 +416,14 @@ function mapObjectItem(
     etag: etag ? etag.replaceAll('"', '') : null,
     last_modified: lastModified ? lastModified.toISOString() : null,
   };
+}
+
+function sortStorageObjects(items: StorageObjectItem[]) {
+  return [...items].sort((left, right) => {
+    const leftTime = left.last_modified ? Date.parse(left.last_modified) : 0;
+    const rightTime = right.last_modified ? Date.parse(right.last_modified) : 0;
+    return rightTime - leftTime;
+  });
 }
 
 function decodeBase64Payload(value: string) {

@@ -1,0 +1,162 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+
+import type {
+  PluginInstallationDetail,
+  PluginInstallationItem,
+  PluginMarketItem,
+  PluginOverview,
+} from '@aiaget/shared-types';
+
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RequireDataScope } from '../common/decorators/data-scope.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { RequireResourceAcl } from '../common/decorators/resource-acl.decorator';
+import { DataScopeGuard } from '../common/guards/data-scope.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
+import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
+import type { AuthenticatedUser } from '../common/types/request-context';
+import { CreatePluginInstallationDto } from './dto/create-plugin-installation.dto';
+import { UpdatePluginHookDto } from './dto/update-plugin-hook.dto';
+import { UpdatePluginInstallationDto } from './dto/update-plugin-installation.dto';
+import { UpdatePluginMenuBindingDto } from './dto/update-plugin-menu-binding.dto';
+import { PluginsService } from './plugins.service';
+
+@ApiTags('plugins')
+@ApiBearerAuth()
+@Controller('plugins')
+@UseGuards(JwtAuthGuard, PermissionsGuard, DataScopeGuard, ResourceAclGuard, SecurityPolicyGuard)
+export class PluginsController {
+  constructor(@Inject(PluginsService) private readonly pluginsService: PluginsService) {}
+
+  @Get('overview')
+  @Permissions('plugin:center:view')
+  @ApiOkResponse({ description: 'Plugin overview for current tenant' })
+  async getOverview(@CurrentUser() currentUser: AuthenticatedUser): Promise<PluginOverview> {
+    return this.pluginsService.getOverview(currentUser);
+  }
+
+  @Get('market')
+  @Permissions('plugin:center:view')
+  @ApiOkResponse({ description: 'Plugin market items for current tenant' })
+  async listMarket(@CurrentUser() currentUser: AuthenticatedUser): Promise<PluginMarketItem[]> {
+    return this.pluginsService.listMarket(currentUser);
+  }
+
+  @Get('installations')
+  @Permissions('plugin:center:view')
+  @ApiOkResponse({ description: 'Installed plugins for current tenant' })
+  async listInstallations(@CurrentUser() currentUser: AuthenticatedUser): Promise<PluginInstallationItem[]> {
+    return this.pluginsService.listInstallations(currentUser);
+  }
+
+  @Get(':pluginId')
+  @Permissions('plugin:center:view')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:view' })
+  @ApiOkResponse({ description: 'Plugin installation detail' })
+  async getInstallation(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.getInstallation(currentUser, pluginId);
+  }
+
+  @Post('install')
+  @Permissions('plugin:center:install')
+  @ApiOkResponse({ description: 'Install plugin into tenant workspace' })
+  async install(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CreatePluginInstallationDto,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.install(currentUser, dto);
+  }
+
+  @Patch(':pluginId')
+  @Permissions('plugin:center:manage')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:manage' })
+  @ApiOkResponse({ description: 'Update plugin installation' })
+  async update(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+    @Body() dto: UpdatePluginInstallationDto,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.update(currentUser, pluginId, dto);
+  }
+
+  @Post(':pluginId/enable')
+  @Permissions('plugin:center:enable')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:enable' })
+  @ApiOkResponse({ description: 'Enable plugin runtime' })
+  async enable(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.enable(currentUser, pluginId);
+  }
+
+  @Post(':pluginId/disable')
+  @Permissions('plugin:center:disable')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:disable' })
+  @ApiOkResponse({ description: 'Disable plugin runtime' })
+  async disable(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.disable(currentUser, pluginId);
+  }
+
+  @Post(':pluginId/upgrade')
+  @Permissions('plugin:center:upgrade')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:upgrade' })
+  @ApiOkResponse({ description: 'Upgrade plugin version' })
+  async upgrade(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.upgrade(currentUser, pluginId);
+  }
+
+  @Patch(':pluginId/hooks/:hookId')
+  @Permissions('plugin:center:manage')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:manage' })
+  @ApiOkResponse({ description: 'Update plugin hook' })
+  async updateHook(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+    @Param('hookId') hookId: string,
+    @Body() dto: UpdatePluginHookDto,
+  ) {
+    return this.pluginsService.updateHook(currentUser, pluginId, hookId, dto);
+  }
+
+  @Patch(':pluginId/menu-bindings/:bindingId')
+  @Permissions('plugin:center:manage')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:manage' })
+  @ApiOkResponse({ description: 'Update plugin menu binding' })
+  async updateMenuBinding(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+    @Param('bindingId') bindingId: string,
+    @Body() dto: UpdatePluginMenuBindingDto,
+  ) {
+    return this.pluginsService.updateMenuBinding(currentUser, pluginId, bindingId, dto);
+  }
+}

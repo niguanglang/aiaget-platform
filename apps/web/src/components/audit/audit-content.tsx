@@ -1,9 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import type { AuditEventDetail, AuditEventSourceType, AuditEventStatus, AuditOverview, AuditWindow } from '@aiaget/shared-types';
+import type {
+  ApprovalAuditOverview,
+  AuditEventDetail,
+  AuditEventSourceType,
+  AuditEventStatus,
+  AuditOverview,
+  AuditWindow,
+} from '@aiaget/shared-types';
 import { motion } from 'motion/react';
 import { AlertTriangle, Search } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { AuditCenterBackground } from '@/components/audit/audit-center-background';
@@ -13,10 +21,10 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getAuditEvent, getAuditOverview, listAuditEvents } from '@/lib/api-client';
+import { getApprovalAuditOverview, getAuditEvent, getAuditOverview, listAuditEvents } from '@/lib/api-client';
 
 const windows: AuditWindow[] = ['24h', '7d'];
-const sourceTypes: AuditEventSourceType[] = ['login', 'operation'];
+const sourceTypes: AuditEventSourceType[] = ['login', 'operation', 'approval_audit'];
 const statuses: AuditEventStatus[] = ['SUCCESS', 'DEGRADED', 'FAILED'];
 
 export function AuditContent() {
@@ -29,6 +37,11 @@ export function AuditContent() {
   const overviewQuery = useQuery({
     queryKey: ['audit-overview', windowValue],
     queryFn: () => getAuditOverview({ window: windowValue }),
+  });
+
+  const approvalAuditOverviewQuery = useQuery({
+    queryKey: ['audit-approval-audit-overview', windowValue],
+    queryFn: () => getApprovalAuditOverview({ window: windowValue }),
   });
 
   const eventsQuery = useQuery({
@@ -90,6 +103,7 @@ export function AuditContent() {
         <Button
           onClick={() => {
             void overviewQuery.refetch();
+            void approvalAuditOverviewQuery.refetch();
             void eventsQuery.refetch();
             void selectedEventQuery.refetch();
           }}
@@ -130,6 +144,12 @@ export function AuditContent() {
           loading={overviewQuery.isLoading}
         />
       </section>
+
+      <ApprovalAuditBridgeCard
+        loading={approvalAuditOverviewQuery.isLoading}
+        overview={approvalAuditOverviewQuery.data ?? null}
+        windowValue={windowValue}
+      />
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[1.18fr_0.82fr]">
         <Card className="min-w-0">
@@ -315,6 +335,87 @@ function FailureCard({
         </div>
       )}
     </Card>
+  );
+}
+
+function ApprovalAuditBridgeCard({
+  loading,
+  overview,
+  windowValue,
+}: {
+  loading: boolean;
+  overview: ApprovalAuditOverview | null;
+  windowValue: AuditWindow;
+}) {
+  const summary = overview?.summary;
+  const recentRiskEvents = overview?.recent_events.filter((event) => event.event_status !== 'SUCCESS').slice(0, 3) ?? [];
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="grid gap-4 p-5 lg:grid-cols-[0.9fr_1.1fr_auto] lg:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone="ready">M79</StatusBadge>
+            <StatusBadge tone="planned">审批审计联动</StatusBadge>
+          </div>
+          <h2 className="mt-3 text-sm font-semibold">审批审计风险入口</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            审计中心已纳入审批审计来源，可从这里查看审批风险概况并跳转到全局检索与导出页面。
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="text-sm text-muted-foreground">正在加载审批审计概况...</div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <BridgeMetric label="审批事件" value={`${summary?.total_count ?? 0}`} helper={`${windowValue} 窗口`} />
+            <BridgeMetric label="失败事件" value={`${summary?.failed_count ?? 0}`} helper="执行失败" />
+            <BridgeMetric label="Trace 覆盖" value={`${summary?.trace_count ?? 0}`} helper="可追踪链路" />
+          </div>
+        )}
+
+        <Button asChild className="w-full lg:w-auto" variant="outline">
+          <Link href={`/approval-audits?window=${windowValue}`}>打开审批审计</Link>
+        </Button>
+      </div>
+
+      <div className="border-t bg-muted/20 p-5">
+        <div className="mb-3 text-xs font-medium text-muted-foreground">最近审批风险</div>
+        {loading ? (
+          <div className="text-sm text-muted-foreground">正在加载风险样本...</div>
+        ) : recentRiskEvents.length === 0 ? (
+          <div className="text-sm text-muted-foreground">当前窗口没有审批风险事件。</div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-3">
+            {recentRiskEvents.map((event) => (
+              <Link
+                className="rounded-md border bg-background/80 px-3 py-2 transition-colors hover:bg-muted/40"
+                href={`/approval-audits?eventId=${event.id}`}
+                key={event.id}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="line-clamp-1 text-sm font-medium">{event.title}</span>
+                  <StatusBadge tone={event.event_status === 'FAILED' ? 'unavailable' : 'degraded'}>
+                    {event.event_status === 'FAILED' ? '失败' : '告警'}
+                  </StatusBadge>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">{formatDateTime(event.occurred_at)}</div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function BridgeMetric({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/80 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
+      <div className="text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

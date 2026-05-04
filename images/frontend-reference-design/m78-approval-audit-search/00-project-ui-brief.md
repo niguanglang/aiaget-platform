@@ -1,0 +1,48 @@
+# Project UI Brief
+
+- Page: M78 Approval Audit Search
+- Route: `/approval-audits`
+- Feature goal: 审批审计列表与全局检索。
+- Target users/roles: 安全管理员、租户管理员、审计员；查看需要 `security:approval:view`。
+- API endpoints/services:
+  - `GET /api/v1/tool-approvals/audit-events/overview`
+  - `GET /api/v1/tool-approvals/audit-events`
+  - `GET /api/v1/tool-approvals/audit-events/:eventId`
+- Frontend services:
+  - `getApprovalAuditOverview`
+  - `listApprovalAuditEvents`
+  - `getApprovalAuditEvent`
+- Entities:
+  - `ApprovalAuditEventItem`
+  - `ApprovalAuditOverview`
+  - `PaginatedResult<ApprovalAuditEventItem>`
+- Filters:
+  - window: 24h / 7d / 30d
+  - source_type: TOOL_APPROVAL / NOTIFICATION_POLICY
+  - event_type
+  - event_status
+  - keyword
+  - trace_only
+- Existing components/design system:
+  - `Card`
+  - `MetricCard`
+  - `StatusBadge`
+  - `Button`
+  - `EmptyState`
+  - `motion/react`
+  - Tailwind CSS
+- Required states:
+  - loading
+  - empty
+  - error
+  - selected detail
+  - trace-only filter
+  - metadata JSON preview
+- Constraints:
+  - UI text must be Chinese.
+  - Use existing console layout and navigation module system.
+  - Do not execute migrations or touch external services.
+- APIs/services: TBD
+- Entities/fields/statuses: TBD
+- Existing components/design system: TBD
+- Required states: loading, empty, error, validation, disabled, success, permission-denied

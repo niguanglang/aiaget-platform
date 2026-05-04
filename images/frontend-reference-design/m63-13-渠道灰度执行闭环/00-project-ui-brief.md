@@ -1,0 +1,39 @@
+# Project UI Brief
+
+- Product/module: 企业 Agent 平台 / 全渠道发布中心
+- Page: M63-13 渠道灰度执行闭环
+- Route: `/channels`
+- Feature goal: 把 M63-12 的 `publish_control.rollout_percentage` 接入真实渠道调用入口，并在渠道页面展示灰度门控的放行、拦截、全量和最近决策状态。
+- Target users and permissions:
+  - 租户管理员：可查看和管理全部渠道。
+  - 渠道管理员：需要 `channel:publish:view` 查看，`channel:publish:manage` 管理灰度控制。
+  - 审计员：查看最近门控事件和放行/拦截统计。
+- Existing route and layout:
+  - 复用 `apps/web/src/app/(console)/channels/page.tsx`。
+  - 主实现文件为 `apps/web/src/components/channels/channel-content.tsx`。
+  - 页面已有渠道清单、渠道详情、Sender 投递中心、投递策略、发布审批与灰度发布、后台任务面板。
+- APIs/services:
+  - `getPublishChannelOverview()` -> `/channels/overview`
+  - `getChannelPublishControl(channelId)` -> `/channels/:channelId/publish-control`
+  - 新增灰度执行概览 API：`getChannelRolloutGateOverview(channelId)` -> `/channels/:channelId/rollout-gate/overview`
+- Data entities and fields:
+  - `ChannelPublishControl`: `approval_required`, `approval_status`, `rollout_enabled`, `rollout_percentage`, `rollout_status`, `rollback_available`, `last_stable_status`, `updated_at`
+  - 新增 `ChannelRolloutGateOverview`: `status`, `rollout_percentage`, `evaluated_count_24h`, `allowed_count_24h`, `blocked_count_24h`, `bypass_count_24h`, `allowed_rate_24h`, `last_decision`
+  - 新增 `ChannelRolloutGateDecision`: `allowed`, `reason`, `bucket`, `rollout_percentage`, `source`, `evaluated_at`
+- Status/enums:
+  - 灰度状态：`CLOSED`, `GRAY`, `FULL`
+  - 门控状态：`CLOSED`, `GRAY`, `FULL`, `BLOCKING`
+  - 决策原因：`rollout_closed`, `rollout_full`, `rollout_bucket_allowed`, `rollout_bucket_blocked`, `approval_pending`, `channel_unavailable`
+- Existing components/design system:
+  - `Card`, `Button`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - Icons from `lucide-react`
+  - Tailwind CSS, subtle border, soft shadow, backdrop-blur
+  - Existing page sections use Bento/Dashboard layout and Chinese copy.
+- Required actions and states:
+  - 刷新门控概览
+  - 查看当前灰度比例、放行率、拦截量、最近决策
+  - loading skeleton, empty state, error alert, permission disabled state
+- Constraints:
+  - 不新增路由；在现有 `/channels` 页面追加轻量面板。
+  - 不新增数据库表；统计来自平台事件与用量。
+  - UI 文案使用中文。

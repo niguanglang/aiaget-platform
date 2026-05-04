@@ -1,0 +1,53 @@
+# Project UI Brief
+
+- Page: 开放接口文档中心
+- Route: /api-reference
+- Feature goal: 外部 Agent 调用 API 文档、鉴权示例和错误码
+- Parent layout: Next.js App Router console route group `(console)`, accessible at `/api-reference`
+- Target users:
+  - 企业集成开发者
+  - 租户管理员
+  - API Key 管理员
+  - 外部系统服务端开发者
+- Existing API contracts:
+  - External invocation: `POST /api/v1/external/agents/{agentId}/chat`
+  - API Key management: `GET /api/v1/api-keys`, `POST /api/v1/api-keys`, `DELETE /api/v1/api-keys/{id}`
+  - Swagger: `/api/docs`
+- Auth:
+  - External API: `Authorization: Bearer ak_xxx` or `x-api-key: ak_xxx`
+  - Console API Key management: JWT bearer token with `system:api_key:view/manage`
+- Request fields:
+  - `ExternalAgentChatInput`: `message` required, `title` optional
+  - message length: 1 to 4000 chars
+  - title max length: 220 chars
+- Response fields:
+  - `conversation_id`, `agent_id`, `agent_name`, `agent_code`, `message_id`, `run_id`, `trace_id`, `status`, `answer`, `references`, `tool_calls`, `usage`, `created_at`
+- Security checks:
+  - key hash/status/expiry
+  - scope `external:agent:chat`
+  - Agent allowlist
+  - IP allowlist
+  - minute rate limit
+  - daily quota
+  - key owner permissions
+  - data scope
+  - Resource ACL
+  - conversation/runtime/audit/trace persistence
+- Existing components/design system:
+  - Tailwind CSS
+  - `Button`, `Card`, `StatusBadge`, `MetricCard`
+  - lucide icons
+  - motion reveal
+- Navigation/permission contract:
+  - Add module spec `api_reference`
+  - Add fallback and dynamic menu icon mapping
+  - Protect visibility with `system:api_key:view`
+  - Keep `/api-reference` URL stable while moving the page under `(console)`
+- Required states:
+- Console documentation page with copyable snippets
+  - No backend request required
+  - All visible copy in Chinese
+- Constraints:
+  - Do not invent streaming endpoint until backend exposes one
+  - Do not present API Key plaintext retrieval after creation
+  - Must map examples to actual fields and current endpoints

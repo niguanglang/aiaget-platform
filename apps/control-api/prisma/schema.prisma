@@ -1108,6 +1108,10 @@ model AgentTeamStep {
   completionTokens Int     @default(0) @map("completion_tokens")
   totalTokens    Int       @default(0) @map("total_tokens")
   costTotal      Decimal   @default(0) @map("cost_total") @db.Decimal(12, 6)
+  childSteps     Json?     @map("child_steps")
+  references     Json?
+  toolCalls      Json?     @map("tool_calls")
+  modelCall      Json?     @map("model_call")
   errorMessage   String?   @map("error_message") @db.Text
   startedAt      DateTime? @map("started_at")
   endedAt        DateTime? @map("ended_at")

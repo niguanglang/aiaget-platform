@@ -3799,6 +3799,18 @@ export type AgentTeamStepStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' |
 export type AgentTeamStepType = 'PLAN' | 'AGENT_RUN' | 'HANDOFF' | 'VERIFY' | 'SUMMARY';
 export type AgentTeamHandoffStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO';
 
+export interface AgentTeamModelCallItem {
+  trace_id: string | null;
+  status: 'SUCCESS' | 'FAILED';
+  request_model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  latency_ms: number;
+  output_preview: string | null;
+  error_message: string | null;
+}
+
 export interface AgentTeamMemberItem {
   id: string;
   agent_id: string;
@@ -3880,6 +3892,10 @@ export interface AgentTeamStepItem {
   completion_tokens: number;
   total_tokens: number;
   cost_total: number;
+  child_steps: ConversationRunStepItem[];
+  references: ConversationReferenceItem[];
+  tool_calls: ConversationToolCallItem[];
+  model_call: AgentTeamModelCallItem | null;
   error_message: string | null;
   started_at: string | null;
   ended_at: string | null;

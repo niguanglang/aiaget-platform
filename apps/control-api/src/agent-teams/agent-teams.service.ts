@@ -7,10 +7,14 @@ import type {
   AgentTeamFeedbackItem,
   AgentTeamHandoffItem,
   AgentTeamListItem,
+  AgentTeamModelCallItem,
   AgentTeamMemberItem,
   AgentTeamOverview,
   AgentTeamRunSummary,
   AgentTeamStepItem,
+  ConversationReferenceItem,
+  ConversationRunStepItem,
+  ConversationToolCallItem,
   PaginatedResult,
 } from '@aiaget/shared-types';
 
@@ -338,6 +342,10 @@ interface RuntimeAgentTeamStepResult {
   error_message: string | null;
   started_at: string | null;
   ended_at: string | null;
+  child_steps?: ConversationRunStepItem[];
+  references?: ConversationReferenceItem[];
+  tool_calls?: ConversationToolCallItem[];
+  model_call?: AgentTeamModelCallItem | null;
 }
 
 interface RuntimeAgentTeamHandoffResult {
@@ -364,6 +372,9 @@ interface RuntimeAgentTeamMemberResult {
   total_tokens: number;
   cost_total: number;
   latency_ms: number;
+  steps?: ConversationRunStepItem[];
+  references?: ConversationReferenceItem[];
+  tool_calls?: ConversationToolCallItem[];
   model_call?: RuntimeModelCallSummary | null;
   error_message?: string | null;
 }
@@ -1270,8 +1281,10 @@ export class AgentTeamsService {
       appendExisting?: boolean;
     } = {},
   ) {
+    const enrichedSteps = enrichRuntimeTeamSteps(runtimeResponse.steps, runtimeResponse.member_results);
+
     if (!options.appendExisting) {
-      await this.persistBuiltTeamRun(currentUser, teamId, runId, runtimeResponse.steps, {
+      await this.persistBuiltTeamRun(currentUser, teamId, runId, enrichedSteps, {
         status: runtimeResponse.status,
         traceId: runtimeResponse.trace_id,
         latencyMs: runtimeResponse.latency_ms,
@@ -1300,7 +1313,7 @@ export class AgentTeamsService {
       });
       const createdAt = existingRun?.startedAt ?? new Date();
       await this.prisma.agentTeamStep.createMany({
-        data: runtimeResponse.steps.map((step) => ({
+        data: enrichedSteps.map((step) => ({
           ...mapTeamStepCreateInput(currentUser.tenantId, teamId, step, createdAt, runtimeResponse.trace_id),
           runId,
         })),
@@ -1325,9 +1338,9 @@ export class AgentTeamsService {
           })),
         });
       }
-      const totalSteps = (existingRun?.totalSteps ?? 0) + runtimeResponse.steps.length;
-      const completedSteps = (existingRun?.completedSteps ?? 0) + runtimeResponse.steps.filter((step) => step.status === 'SUCCESS').length;
-      const failedSteps = (existingRun?.failedSteps ?? 0) + runtimeResponse.steps.filter((step) => step.status === 'FAILED').length;
+      const totalSteps = (existingRun?.totalSteps ?? 0) + enrichedSteps.length;
+      const completedSteps = (existingRun?.completedSteps ?? 0) + enrichedSteps.filter((step) => step.status === 'SUCCESS').length;
+      const failedSteps = (existingRun?.failedSteps ?? 0) + enrichedSteps.filter((step) => step.status === 'FAILED').length;
       const totalTokens = Number(existingRun?.totalTokens ?? 0) + runtimeResponse.total_tokens;
       const totalCost = Number(existingRun?.totalCost ?? 0) + runtimeResponse.total_cost;
 
@@ -1365,9 +1378,9 @@ export class AgentTeamsService {
       totalTokens: runtimeResponse.total_tokens,
       totalCost: runtimeResponse.total_cost,
       latencyMs: runtimeResponse.latency_ms,
-      totalSteps: runtimeResponse.steps.length,
-      completedSteps: runtimeResponse.steps.filter((step) => step.status === 'SUCCESS').length,
-      failedSteps: runtimeResponse.steps.filter((step) => step.status === 'FAILED').length,
+      totalSteps: enrichedSteps.length,
+      completedSteps: enrichedSteps.filter((step) => step.status === 'SUCCESS').length,
+      failedSteps: enrichedSteps.filter((step) => step.status === 'FAILED').length,
       summary: runtimeResponse.summary,
       errorMessage: runtimeResponse.error_message ?? null,
       handoffs: runtimeResponse.handoffs ?? [],
@@ -2545,6 +2558,10 @@ export class AgentTeamsService {
       completion_tokens: step.completionTokens,
       total_tokens: step.totalTokens,
       cost_total: Number(step.costTotal),
+      child_steps: normalizeJsonArray<ConversationRunStepItem>(step.childSteps),
+      references: normalizeJsonArray<ConversationReferenceItem>(step.references),
+      tool_calls: normalizeJsonArray<ConversationToolCallItem>(step.toolCalls),
+      model_call: normalizeJsonObject<AgentTeamModelCallItem>(step.modelCall),
       error_message: step.errorMessage,
       started_at: step.startedAt?.toISOString() ?? null,
       ended_at: step.endedAt?.toISOString() ?? null,
@@ -2613,6 +2630,10 @@ interface BuiltStep {
   completionTokens?: number;
   totalTokens?: number;
   costTotal?: number;
+  childSteps?: ConversationRunStepItem[];
+  references?: ConversationReferenceItem[];
+  toolCalls?: ConversationToolCallItem[];
+  modelCall?: AgentTeamModelCallItem | null;
   errorMessage?: string | null;
   startedAt?: Date;
   endedAt?: Date;
@@ -2730,10 +2751,118 @@ function mapTeamStepCreateInput(
     completionTokens: stepNumber(step, 'completionTokens', 'completion_tokens'),
     totalTokens: stepNumber(step, 'totalTokens', 'total_tokens'),
     costTotal: new Prisma.Decimal(stepNumber(step, 'costTotal', 'cost_total')),
+    childSteps: toNullableJsonInput(stepJsonArray(step, 'childSteps', 'child_steps')),
+    references: toNullableJsonInput(stepJsonArray(step, 'references', 'references')),
+    toolCalls: toNullableJsonInput(stepJsonArray(step, 'toolCalls', 'tool_calls')),
+    modelCall: toNullableJsonInput(stepJsonObject(step, 'modelCall', 'model_call')),
     errorMessage: stepString(step, 'errorMessage', 'error_message'),
     startedAt,
     endedAt,
   };
+}
+
+function enrichRuntimeTeamSteps(
+  steps: RuntimeAgentTeamStepResult[],
+  memberResults: RuntimeAgentTeamMemberResult[],
+): RuntimeAgentTeamStepResult[] {
+  if (steps.length === 0 || memberResults.length === 0) {
+    return steps;
+  }
+
+  const membersById = new Map(memberResults.map((member) => [member.member_id, member]));
+  return steps.map((step) => {
+    if (step.step_type !== 'AGENT_RUN' || !step.member_id) {
+      return step;
+    }
+
+    const member = membersById.get(step.member_id);
+    if (!member) {
+      return step;
+    }
+
+    return {
+      ...step,
+      child_steps: member.steps ?? [],
+      references: member.references ?? [],
+      tool_calls: member.tool_calls ?? [],
+      model_call: mapRuntimeModelCallToTeamModelCall(member.model_call),
+    };
+  });
+}
+
+function mapRuntimeModelCallToTeamModelCall(modelCall?: RuntimeModelCallSummary | null): AgentTeamModelCallItem | null {
+  if (!modelCall) {
+    return null;
+  }
+
+  const outputPreview = stringValue(modelCall.response_summary.output_preview)
+    ?? stringValue(modelCall.response_summary.output_text)?.slice(0, 240)
+    ?? stringValue(modelCall.response_summary.message)?.slice(0, 240)
+    ?? null;
+
+  return {
+    trace_id: modelCall.trace_id ?? null,
+    status: modelCall.status,
+    request_model: modelCall.request_model,
+    prompt_tokens: modelCall.prompt_tokens,
+    completion_tokens: modelCall.completion_tokens,
+    total_tokens: modelCall.total_tokens,
+    latency_ms: modelCall.latency_ms,
+    output_preview: outputPreview,
+    error_message: modelCall.error_message ?? null,
+  };
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function stepJsonArray(
+  step: BuiltStep | RuntimeAgentTeamStepResult,
+  camelKey: string,
+  snakeKey: string,
+): unknown[] | null {
+  const record = step as unknown as Record<string, unknown>;
+  const value = record[camelKey] ?? record[snakeKey];
+  return Array.isArray(value) ? value : null;
+}
+
+function stepJsonObject(
+  step: BuiltStep | RuntimeAgentTeamStepResult,
+  camelKey: string,
+  snakeKey: string,
+): Record<string, unknown> | null {
+  const record = step as unknown as Record<string, unknown>;
+  const value = record[camelKey] ?? record[snakeKey];
+  return isPlainRecord(value) ? value : null;
+}
+
+function toNullableJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  if (value === null || value === undefined) {
+    return Prisma.JsonNull;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeJsonArray<T>(value: Prisma.JsonValue | null): T[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value as T[];
+}
+
+function normalizeJsonObject<T>(value: Prisma.JsonValue | null): T | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  return value as T;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function stepString(

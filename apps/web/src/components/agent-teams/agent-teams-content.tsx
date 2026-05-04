@@ -1078,10 +1078,15 @@ function StepDetailPanel({ step }: { step: AgentTeamStepItem | null }) {
   if (!step) {
     return (
       <div className="rounded-md border bg-background/70 p-4">
-        <EmptyState description="选择步骤后可以查看输入、输出、错误、Token、成本和 Span 信息。" title="未选择步骤" />
+        <EmptyState description="选择步骤后可以查看输入、输出、子事件、知识引用、工具调用、模型调用和 Span 信息。" title="未选择步骤" />
       </div>
     );
   }
+
+  const childSteps = step.child_steps ?? [];
+  const references = step.references ?? [];
+  const toolCalls = step.tool_calls ?? [];
+  const modelCall = step.model_call ?? null;
 
   return (
     <div className="grid gap-4 rounded-md border bg-background/70 p-4">
@@ -1116,12 +1121,176 @@ function StepDetailPanel({ step }: { step: AgentTeamStepItem | null }) {
         <PayloadBlock destructive title="错误信息" value={step.error_message} />
       ) : null}
 
+      <div className="grid gap-2 md:grid-cols-4">
+        <RunMetric label="成员子事件" value={formatInteger(childSteps.length)} helper="prompt / rag / tool / response" />
+        <RunMetric label="知识引用" value={formatInteger(references.length)} helper="RAG sources" />
+        <RunMetric label="工具调用" value={formatInteger(toolCalls.length)} helper="Tool Gateway" />
+        <RunMetric label="模型调用" value={modelCall ? '1' : '0'} helper={modelCall?.request_model ?? '未记录'} />
+      </div>
+
+      <ChildStepSection steps={childSteps} />
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ReferenceSection references={references} />
+        <ToolCallSection toolCalls={toolCalls} />
+      </div>
+
+      <ModelCallSection modelCall={modelCall} />
+
       <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground md:grid-cols-3">
         <span className="break-all">Trace：{step.trace_id ?? '-'}</span>
         <span className="break-all">Span：{step.span_id ?? '-'}</span>
         <span className="break-all">父 Span：{step.parent_span_id ?? '-'}</span>
       </div>
     </div>
+  );
+}
+
+function ChildStepSection({ steps }: { steps: NonNullable<AgentTeamStepItem['child_steps']> }) {
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-semibold">成员内部事件</div>
+        <StatusBadge tone={steps.length > 0 ? 'ready' : 'planned'}>{steps.length} 条</StatusBadge>
+      </div>
+      {steps.length === 0 ? (
+        <p className="text-sm text-muted-foreground">当前团队步骤没有记录成员内部事件。</p>
+      ) : (
+        <div className="grid gap-2">
+          {steps.map((childStep, index) => (
+            <div className="grid gap-2 rounded-md border bg-background/75 px-3 py-3" key={childStep.id || `${childStep.type}-${index}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-2">
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-xs text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{childStep.title}</div>
+                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{childStep.summary || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <StatusBadge tone={childStepStatusTone(childStep.status)}>{childStepStatusLabel(childStep.status)}</StatusBadge>
+                  <StatusBadge tone="planned">{childStepTypeLabel(childStep.type)}</StatusBadge>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {childStep.request_model ? <span>模型 {childStep.request_model}</span> : null}
+                {childStep.tool_name ? <span>工具 {childStep.tool_name}</span> : null}
+                {childStep.retrieval_mode ? <span>检索 {childStep.retrieval_mode}</span> : null}
+                {childStep.response_status ? <span>HTTP {childStep.response_status}</span> : null}
+                {childStep.latency_ms !== null && childStep.latency_ms !== undefined ? <span>{formatLatency(childStep.latency_ms)}</span> : null}
+                {childStep.total_tokens !== null && childStep.total_tokens !== undefined ? <span>{formatInteger(childStep.total_tokens)} tokens</span> : null}
+                {childStep.item_count !== null && childStep.item_count !== undefined ? <span>{formatInteger(childStep.item_count)} 项</span> : null}
+              </div>
+              {(childStep.trace_id || childStep.span_id) ? (
+                <div className="grid gap-1 rounded-md border bg-muted/20 px-2 py-2 text-xs text-muted-foreground md:grid-cols-2">
+                  <span className="break-all">Trace：{childStep.trace_id ?? '-'}</span>
+                  <span className="break-all">Span：{childStep.span_id ?? '-'}</span>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ReferenceSection({ references }: { references: NonNullable<AgentTeamStepItem['references']> }) {
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-semibold">知识引用</div>
+        <StatusBadge tone={references.length > 0 ? 'ready' : 'planned'}>{references.length} 条</StatusBadge>
+      </div>
+      {references.length === 0 ? (
+        <p className="text-sm text-muted-foreground">当前成员执行没有命中知识引用。</p>
+      ) : (
+        <div className="grid gap-2">
+          {references.map((reference) => (
+            <div className="rounded-md border bg-background/75 px-3 py-3" key={reference.id}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="truncate text-sm font-medium">{reference.title}</div>
+                <StatusBadge tone="mock">{formatReferenceScore(reference.score)}</StatusBadge>
+              </div>
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{reference.snippet || '-'}</p>
+              <div className="mt-2 text-xs text-muted-foreground">来源：{reference.source_type ?? '未知'}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ToolCallSection({ toolCalls }: { toolCalls: NonNullable<AgentTeamStepItem['tool_calls']> }) {
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-semibold">工具调用</div>
+        <StatusBadge tone={toolCalls.length > 0 ? 'ready' : 'planned'}>{toolCalls.length} 次</StatusBadge>
+      </div>
+      {toolCalls.length === 0 ? (
+        <p className="text-sm text-muted-foreground">当前成员执行没有调用工具。</p>
+      ) : (
+        <div className="grid gap-2">
+          {toolCalls.map((toolCall, index) => (
+            <div className="rounded-md border bg-background/75 px-3 py-3" key={`${toolCall.tool_id ?? toolCall.tool_code}-${index}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{toolCall.tool_name}</div>
+                  <div className="mt-1 break-all text-xs text-muted-foreground">{toolCall.tool_code}</div>
+                </div>
+                <StatusBadge tone={toolCallStatusTone(toolCall.status)}>{toolCallStatusLabel(toolCall.status)}</StatusBadge>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span>{formatLatency(toolCall.latency_ms)}</span>
+                <span>HTTP {toolCall.response_status ?? '-'}</span>
+                {toolCall.approval_request_id ? <span className="break-all">审批 {toolCall.approval_request_id}</span> : null}
+              </div>
+              {toolCall.output_preview ? (
+                <p className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-muted/20 px-2 py-2 text-xs leading-5 text-muted-foreground">
+                  {toolCall.output_preview}
+                </p>
+              ) : null}
+              {toolCall.error_message ? (
+                <p className="mt-2 whitespace-pre-wrap break-words rounded-md border border-destructive/30 bg-destructive/10 px-2 py-2 text-xs leading-5 text-destructive">
+                  {toolCall.error_message}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ModelCallSection({ modelCall }: { modelCall: AgentTeamStepItem['model_call'] }) {
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-semibold">模型调用</div>
+        <StatusBadge tone={modelCall ? modelCallStatusTone(modelCall.status) : 'planned'}>
+          {modelCall ? modelCallStatusLabel(modelCall.status) : '未记录'}
+        </StatusBadge>
+      </div>
+      {!modelCall ? (
+        <p className="text-sm text-muted-foreground">当前成员执行没有可用的模型调用摘要。</p>
+      ) : (
+        <div className="grid gap-3">
+          <div className="grid gap-2 md:grid-cols-4">
+            <RunMetric label="模型" value={modelCall.request_model || '-'} helper="request model" />
+            <RunMetric label="总 Token" value={formatInteger(modelCall.total_tokens)} helper={`${formatInteger(modelCall.prompt_tokens)} / ${formatInteger(modelCall.completion_tokens)}`} />
+            <RunMetric label="耗时" value={formatLatency(modelCall.latency_ms)} helper="model latency" />
+            <RunMetric label="Trace" value={shortTraceId(modelCall.trace_id)} helper="model call" />
+          </div>
+          {modelCall.output_preview ? <PayloadBlock title="模型输出预览" value={modelCall.output_preview} /> : null}
+          {modelCall.error_message ? <PayloadBlock destructive title="模型错误" value={modelCall.error_message} /> : null}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1651,6 +1820,44 @@ function teamStepStatusTone(status: string) {
 
 function teamStepTypeLabel(type: string) {
   return ({ PLAN: '规划', AGENT_RUN: 'Agent 执行', HANDOFF: '接力', VERIFY: '校验', SUMMARY: '汇总' } as Record<string, string>)[type] ?? type;
+}
+
+function childStepStatusLabel(status: string) {
+  return ({ done: '完成', failed: '失败', skipped: '跳过' } as Record<string, string>)[status] ?? status;
+}
+
+function childStepStatusTone(status: string) {
+  if (status === 'done') return 'healthy';
+  if (status === 'failed') return 'unavailable';
+  return 'loading';
+}
+
+function childStepTypeLabel(type: string) {
+  return ({ prompt: '提示词', tool: '工具', knowledge: '知识检索', response: '模型响应' } as Record<string, string>)[type] ?? type;
+}
+
+function toolCallStatusLabel(status: string) {
+  return ({ SUCCESS: '成功', FAILED: '失败', APPROVAL_REQUIRED: '等待审批', REJECTED: '已拒绝' } as Record<string, string>)[status] ?? status;
+}
+
+function toolCallStatusTone(status: string) {
+  if (status === 'SUCCESS') return 'healthy';
+  if (status === 'APPROVAL_REQUIRED') return 'degraded';
+  if (status === 'REJECTED' || status === 'FAILED') return 'unavailable';
+  return 'planned';
+}
+
+function modelCallStatusLabel(status: string) {
+  return ({ SUCCESS: '成功', FAILED: '失败' } as Record<string, string>)[status] ?? status;
+}
+
+function modelCallStatusTone(status: string) {
+  return status === 'SUCCESS' ? 'healthy' : 'unavailable';
+}
+
+function formatReferenceScore(score: number | null | undefined) {
+  if (score === null || score === undefined) return '无分数';
+  return `相关度 ${score.toFixed(3)}`;
 }
 
 function handoffStatusLabel(status: string) {

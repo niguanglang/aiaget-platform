@@ -2268,6 +2268,7 @@ export interface SecurityOperationAlertNotificationTaskRunResult {
   notified_count: number;
   retried_count: number;
   sla_dead_letter_notify_count: number;
+  agent_team_report_archive_delete_notify_count: number;
   recovery_archive_delete_notify_count: number;
   success_count: number;
   failed_count: number;
@@ -2332,6 +2333,7 @@ export interface SecurityOperationAlertNotificationTaskRunOverview {
     auto_notify_count: number;
     auto_retry_count: number;
     sla_dead_letter_notify_count: number;
+    agent_team_report_archive_delete_notify_count: number;
     recovery_archive_delete_notify_count: number;
     latest_finished_at: string | null;
   };
@@ -2356,6 +2358,7 @@ export type SecurityOperationAlertNotificationTaskRecoveryAction = 'ACKNOWLEDGE'
 
 export type SecurityOperationAlertNotificationTaskRecoveryFailureSource =
   | 'SLA_DEAD_LETTER_ARCHIVE_DELETE'
+  | 'AGENT_TEAM_REPORT_ARCHIVE_DELETE'
   | 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE'
   | 'MIXED'
   | 'UNKNOWN';
@@ -2368,6 +2371,7 @@ export interface SecurityOperationAlertNotificationTaskRecoverySuggestion {
   reason_code: SecurityOperationAlertNotificationTaskRecoveryReason;
   failure_source: SecurityOperationAlertNotificationTaskRecoveryFailureSource;
   sla_dead_letter_failed_count: number;
+  agent_team_report_archive_delete_failed_count: number;
   recovery_archive_delete_failed_count: number;
   status: SecurityOperationAlertNotificationTaskRecoveryStatus;
   last_action: SecurityOperationAlertNotificationTaskRecoveryAction | null;
@@ -2402,6 +2406,7 @@ export interface SecurityOperationAlertNotificationTaskRecoveryAuditItem {
   reason_code: SecurityOperationAlertNotificationTaskRecoveryReason;
   failure_source: SecurityOperationAlertNotificationTaskRecoveryFailureSource;
   sla_dead_letter_failed_count: number;
+  agent_team_report_archive_delete_failed_count: number;
   recovery_archive_delete_failed_count: number;
   action: SecurityOperationAlertNotificationTaskRecoveryAction;
   status: SecurityOperationAlertNotificationTaskRecoveryStatus;
@@ -2420,6 +2425,7 @@ export interface SecurityOperationAlertNotificationTaskRecoveryAuditOverview {
     ignored_count: number;
     resolved_count: number;
     sla_dead_letter_source_count: number;
+    agent_team_report_archive_delete_source_count: number;
     recovery_archive_delete_source_count: number;
     mixed_source_count: number;
     unknown_source_count: number;
@@ -2922,6 +2928,7 @@ export interface SecurityCenterOverview {
     notification_task_failure_rate_24h: number;
     notification_task_consecutive_failures: number;
     notification_task_sla_dead_letter_failed_24h: number;
+    notification_task_agent_team_report_archive_delete_failed_24h: number;
     notification_task_recovery_archive_delete_failed_24h: number;
     notification_task_recovery_suggestions: SecurityOperationAlertNotificationTaskRecoverySuggestion[];
     audit_events_24h: number;

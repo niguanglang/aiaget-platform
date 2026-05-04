@@ -3583,10 +3583,14 @@ function ApprovalArchiveOperationsCard({
     operations.notification_task_consecutive_failures >= 2;
   const notificationTaskCategoryFailureTotal =
     operations.notification_task_sla_dead_letter_failed_24h +
+    operations.notification_task_agent_team_report_archive_delete_failed_24h +
     operations.notification_task_recovery_archive_delete_failed_24h;
   const notificationTaskMixedFailure =
-    operations.notification_task_sla_dead_letter_failed_24h > 0 &&
-    operations.notification_task_recovery_archive_delete_failed_24h > 0;
+    [
+      operations.notification_task_sla_dead_letter_failed_24h,
+      operations.notification_task_agent_team_report_archive_delete_failed_24h,
+      operations.notification_task_recovery_archive_delete_failed_24h,
+    ].filter((count) => count > 0).length > 1;
   const notificationTaskRecoveryArchiveDeleteRisk =
     operations.notification_task_recovery_audit_archive_delete_rejected > 0 &&
     operations.notification_task_recovery_audit_archive_delete_rejected >=
@@ -3765,6 +3769,11 @@ function ApprovalArchiveOperationsCard({
       helper: notificationTaskCategoryFailureTotal > 0 ? '死信归档删除覆盖' : '暂无分类失败',
     },
     {
+      label: '团队失败来源',
+      value: operations.notification_task_agent_team_report_archive_delete_failed_24h,
+      helper: notificationTaskCategoryFailureTotal > 0 ? '团队报告归档删除覆盖' : '暂无分类失败',
+    },
+    {
       label: '自愈失败来源',
       value: operations.notification_task_recovery_archive_delete_failed_24h,
       helper: notificationTaskCategoryFailureTotal > 0 ? '自愈归档删除覆盖' : '暂无分类失败',
@@ -3808,8 +3817,9 @@ function ApprovalArchiveOperationsCard({
       {notificationTaskCategoryFailureTotal > 0 ? (
         <div className="mx-5 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
           通知任务来源失败已进入运营告警闭环：SLA 死信 {operations.notification_task_sla_dead_letter_failed_24h} 条，
+          团队报告 {operations.notification_task_agent_team_report_archive_delete_failed_24h} 条，
           自愈归档 {operations.notification_task_recovery_archive_delete_failed_24h} 条
-          {notificationTaskMixedFailure ? '，当前为双来源失败。' : '。'}
+          {notificationTaskMixedFailure ? '，当前为多来源失败。' : '。'}
         </div>
       ) : null}
 
@@ -4491,6 +4501,9 @@ function NotificationTaskRecoverySuggestionItem({
         <div className="mt-1 flex flex-wrap gap-1">
           <StatusBadge tone={suggestion.sla_dead_letter_failed_count > 0 ? 'degraded' : 'planned'}>
             SLA 死信 {suggestion.sla_dead_letter_failed_count}
+          </StatusBadge>
+          <StatusBadge tone={suggestion.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+            团队报告 {suggestion.agent_team_report_archive_delete_failed_count}
           </StatusBadge>
           <StatusBadge tone={suggestion.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
             自愈归档 {suggestion.recovery_archive_delete_failed_count}
@@ -5438,7 +5451,7 @@ function OperationAlertNotificationTaskCard({
   const hasNotifyWork = (summary?.pending_auto_notify_count ?? 0) > 0;
   const hasRetryWork = (summary?.pending_auto_retry_count ?? 0) > 0;
   const notifyMetrics = [
-    { label: '待自动通知', value: `${summary?.pending_auto_notify_count ?? 0}`, helper: 'SLA 死信 / 自愈归档删除' },
+    { label: '待自动通知', value: `${summary?.pending_auto_notify_count ?? 0}`, helper: 'SLA / 团队 / 自愈归档删除' },
     { label: '已自动覆盖', value: `${summary?.auto_notified_count ?? 0}`, helper: '回看窗口内已通知告警' },
     { label: '最早待通知', value: formatDateTime(summary?.oldest_auto_notify_at ?? ''), helper: '按触发时间优先' },
   ];
@@ -5455,6 +5468,7 @@ function OperationAlertNotificationTaskCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M100 自动通知</StatusBadge>
+            <StatusBadge tone="ready">M72 团队归档</StatusBadge>
             <StatusBadge tone="ready">M110 自愈归档</StatusBadge>
             <StatusBadge tone="ready">M87 自动重试</StatusBadge>
             <StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>
@@ -5466,7 +5480,7 @@ function OperationAlertNotificationTaskCard({
           </div>
           <h3 className="mt-3 text-sm font-semibold">通知任务中心</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            对 SLA 死信归档删除与通知任务自愈归档删除审批运营告警执行首发自动通知，并继续扫描失败或部分成功的投递做自动重试。
+            对 SLA 死信归档删除、团队运行报告归档删除与通知任务自愈归档删除审批运营告警执行首发自动通知，并继续扫描失败或部分成功的投递做自动重试。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -5529,7 +5543,7 @@ function OperationAlertNotificationTaskCard({
                   </div>
                   <h4 className="mt-3 text-sm font-semibold">归档删除审批告警首发通知</h4>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    扫描待审或拒绝风险类 SLA 死信归档删除、自愈归档删除运营告警，跳过回看窗口内已有通知的告警。
+                    扫描待审或拒绝风险类 SLA 死信归档删除、团队运行报告归档删除和自愈归档删除运营告警，跳过回看窗口内已有通知的告警。
                   </p>
                 </div>
                 <Button disabled={loading || running} onClick={onRunAutoNotify} size="sm" type="button">
@@ -5545,7 +5559,7 @@ function OperationAlertNotificationTaskCard({
               {!hasNotifyWork ? (
                 <div className="mt-4">
                   <EmptyState
-                    description="当前没有尚未首发通知的 SLA 死信或自愈归档删除审批运营告警。"
+                    description="当前没有尚未首发通知的 SLA 死信、团队报告或自愈归档删除审批运营告警。"
                     title="暂无待自动通知项"
                   />
                 </div>
@@ -5679,6 +5693,11 @@ function OperationAlertNotificationTaskRunHistoryCard({
     { label: '手动触发', value: `${summary?.manual_count ?? 0}`, helper: `调度 ${summary?.scheduled_count ?? 0} 次` },
     { label: '首发通知', value: `${summary?.auto_notify_count ?? 0}`, helper: `重试 ${summary?.auto_retry_count ?? 0} 次` },
     { label: 'SLA 覆盖', value: `${summary?.sla_dead_letter_notify_count ?? 0}`, helper: '死信归档删除' },
+    {
+      label: '团队覆盖',
+      value: `${summary?.agent_team_report_archive_delete_notify_count ?? 0}`,
+      helper: '团队报告归档删除',
+    },
     { label: '自愈覆盖', value: `${summary?.recovery_archive_delete_notify_count ?? 0}`, helper: '自愈归档删除' },
     { label: '最近完成', value: formatDateTime(summary?.latest_finished_at ?? ''), helper: '任务完成时间' },
   ];
@@ -5805,6 +5824,9 @@ function OperationAlertNotificationTaskRunRow({ item }: { item: SecurityOperatio
           <StatusBadge tone={item.sla_dead_letter_notify_count > 0 ? 'degraded' : 'planned'}>
             SLA {item.sla_dead_letter_notify_count}
           </StatusBadge>
+          <StatusBadge tone={item.agent_team_report_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}>
+            团队 {item.agent_team_report_archive_delete_notify_count}
+          </StatusBadge>
           <StatusBadge tone={item.recovery_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}>
             自愈 {item.recovery_archive_delete_notify_count}
           </StatusBadge>
@@ -5928,6 +5950,11 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
       helper: `混合 ${summary?.mixed_source_count ?? 0}`,
     },
     {
+      label: '团队来源',
+      value: `${summary?.agent_team_report_archive_delete_source_count ?? 0}`,
+      helper: '团队报告归档删除',
+    },
+    {
       label: '自愈来源',
       value: `${summary?.recovery_archive_delete_source_count ?? 0}`,
       helper: `未知 ${summary?.unknown_source_count ?? 0}`,
@@ -6021,6 +6048,7 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
         >
           <option value="">全部来源</option>
           <option value="SLA_DEAD_LETTER_ARCHIVE_DELETE">SLA 死信归档</option>
+          <option value="AGENT_TEAM_REPORT_ARCHIVE_DELETE">团队报告归档删除</option>
           <option value="NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE">自愈归档删除</option>
           <option value="MIXED">混合来源</option>
           <option value="UNKNOWN">未知来源</option>
@@ -6467,6 +6495,9 @@ function OperationAlertNotificationTaskRecoveryAuditRow({
           <StatusBadge tone={item.sla_dead_letter_failed_count > 0 ? 'degraded' : 'planned'}>
             SLA {item.sla_dead_letter_failed_count}
           </StatusBadge>
+          <StatusBadge tone={item.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+            团队 {item.agent_team_report_archive_delete_failed_count}
+          </StatusBadge>
           <StatusBadge tone={item.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
             自愈 {item.recovery_archive_delete_failed_count}
           </StatusBadge>
@@ -6734,6 +6765,7 @@ function OperationAlertNotificationTaskResult({
         <SummaryTile label="通知" value={`${result.notified_count}`} />
         <SummaryTile label="重试" value={`${result.retried_count}`} />
         <SummaryTile label="SLA 覆盖" value={`${result.sla_dead_letter_notify_count}`} />
+        <SummaryTile label="团队覆盖" value={`${result.agent_team_report_archive_delete_notify_count}`} />
         <SummaryTile label="自愈覆盖" value={`${result.recovery_archive_delete_notify_count}`} />
         <SummaryTile label="成功" value={`${result.success_count}`} />
         <SummaryTile label="失败" value={`${result.failed_count}`} />
@@ -9081,6 +9113,7 @@ function notificationTaskRecoveryReasonLabel(
 
 function notificationTaskRecoveryFailureSourceLabel(source: SecurityOperationAlertNotificationTaskRecoveryFailureSource) {
   if (source === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档';
+  if (source === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
   if (source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
   if (source === 'MIXED') return '混合来源';
   return '未知来源';

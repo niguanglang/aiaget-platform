@@ -34,9 +34,12 @@ const TASK_REQUEST_ID_PREFIX = 'security_operation_alert_notification_task';
 const AUTO_NOTIFY_ALERT_IDS = new Set([
   'sla-dead-letter-archive-delete-pending',
   'sla-dead-letter-archive-delete-rejected-risk',
+  'agent-team-report-archive-delete-pending',
+  'agent-team-report-archive-delete-rejected-risk',
   'notification-task-recovery-audit-archive-delete-pending',
   'notification-task-recovery-audit-archive-delete-rejected-risk',
   'operation-alert-notification-task-sla-dead-letter-failure-source',
+  'operation-alert-notification-task-agent-team-report-archive-failure-source',
   'operation-alert-notification-task-recovery-archive-failure-source',
   'operation-alert-notification-task-mixed-failure-source',
 ]);
@@ -44,6 +47,12 @@ const SLA_DEAD_LETTER_AUTO_NOTIFY_ALERT_IDS = new Set([
   'sla-dead-letter-archive-delete-pending',
   'sla-dead-letter-archive-delete-rejected-risk',
   'operation-alert-notification-task-sla-dead-letter-failure-source',
+  'operation-alert-notification-task-mixed-failure-source',
+]);
+const AGENT_TEAM_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS = new Set([
+  'agent-team-report-archive-delete-pending',
+  'agent-team-report-archive-delete-rejected-risk',
+  'operation-alert-notification-task-agent-team-report-archive-failure-source',
   'operation-alert-notification-task-mixed-failure-source',
 ]);
 const RECOVERY_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS = new Set([
@@ -273,6 +282,7 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
     let failedCount = 0;
     let skippedCount = 0;
     let slaDeadLetterNotifyCount = 0;
+    let agentTeamReportArchiveDeleteNotifyCount = 0;
     let recoveryArchiveDeleteNotifyCount = 0;
     let errorMessage: string | null = null;
 
@@ -280,11 +290,14 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
       try {
         const result = await this.securityCenter.notifyOperationAlert(buildSystemUser(tenantId, requestId), alert.id, {
           channels: ['IN_APP', 'WEBHOOK'],
-          note: 'SLA 死信与自愈归档删除审批运营告警自动通知',
+          note: 'SLA 死信、团队报告与自愈归档删除审批运营告警自动通知',
         });
         notifiedCount += 1;
         if (SLA_DEAD_LETTER_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
           slaDeadLetterNotifyCount += 1;
+        }
+        if (AGENT_TEAM_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
+          agentTeamReportArchiveDeleteNotifyCount += 1;
         }
         if (RECOVERY_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
           recoveryArchiveDeleteNotifyCount += 1;
@@ -300,7 +313,7 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
         failedCount += 1;
         errorMessage =
           errorMessage ??
-          (error instanceof Error ? error.message : 'SLA 死信与自愈归档删除审批运营告警自动通知失败。');
+          (error instanceof Error ? error.message : 'SLA 死信、团队报告与自愈归档删除审批运营告警自动通知失败。');
       }
     }
 
@@ -308,6 +321,7 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
       scanned_count: alerts.length,
       notified_count: notifiedCount,
       sla_dead_letter_notify_count: slaDeadLetterNotifyCount,
+      agent_team_report_archive_delete_notify_count: agentTeamReportArchiveDeleteNotifyCount,
       recovery_archive_delete_notify_count: recoveryArchiveDeleteNotifyCount,
       success_count: successCount,
       failed_count: failedCount,
@@ -553,6 +567,7 @@ function buildTaskResult(
     notified_count: input.notified_count ?? 0,
     retried_count: input.retried_count ?? 0,
     sla_dead_letter_notify_count: input.sla_dead_letter_notify_count ?? 0,
+    agent_team_report_archive_delete_notify_count: input.agent_team_report_archive_delete_notify_count ?? 0,
     recovery_archive_delete_notify_count: input.recovery_archive_delete_notify_count ?? 0,
     success_count: input.success_count ?? 0,
     failed_count: failedCount,
@@ -590,6 +605,7 @@ function mapTaskRunEvent(
     notified_count: numberField(payload?.notified_count),
     retried_count: numberField(payload?.retried_count),
     sla_dead_letter_notify_count: numberField(payload?.sla_dead_letter_notify_count),
+    agent_team_report_archive_delete_notify_count: numberField(payload?.agent_team_report_archive_delete_notify_count),
     recovery_archive_delete_notify_count: numberField(payload?.recovery_archive_delete_notify_count),
     success_count: numberField(payload?.success_count),
     failed_count: numberField(payload?.failed_count),
@@ -618,6 +634,10 @@ function buildTaskRunSummary(items: SecurityOperationAlertNotificationTaskRunOve
     auto_notify_count: items.filter((item) => item.task === 'AUTO_NOTIFY').length,
     auto_retry_count: items.filter((item) => item.task === 'AUTO_RETRY').length,
     sla_dead_letter_notify_count: items.reduce((sum, item) => sum + item.sla_dead_letter_notify_count, 0),
+    agent_team_report_archive_delete_notify_count: items.reduce(
+      (sum, item) => sum + item.agent_team_report_archive_delete_notify_count,
+      0,
+    ),
     recovery_archive_delete_notify_count: items.reduce(
       (sum, item) => sum + item.recovery_archive_delete_notify_count,
       0,

@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Copy,
   Edit,
+  FileText,
   GitBranch,
   Layers3,
   MessageSquare,
@@ -54,6 +55,7 @@ import {
   getAgentTeam,
   getAgentTeamOverview,
   getModelProvider,
+  exportAgentTeamRunReport,
   listAgentTeams,
   listAgents,
   listModelProviders,
@@ -363,6 +365,14 @@ export function AgentTeamsContent() {
       if (selectedTeamId) await invalidateTeams(selectedTeamId);
       setFeedbackComment('');
       setFeedbackRating(5);
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const exportRunReportMutation = useMutation({
+    mutationFn: ({ runId, fileName }: { runId: string; fileName: string }) =>
+      exportAgentTeamRunReport(runId).then((blob) => ({ blob, fileName })),
+    onSuccess: ({ blob, fileName }) => {
+      downloadBlob(blob, fileName);
     },
     onError: (error: ApiClientError) => setFormError(error.message),
   });
@@ -720,12 +730,14 @@ export function AgentTeamsContent() {
               }
             }}
             onHandoffReasonChange={setHandoffReason}
+            onExportRunReport={(run) => exportRunReportMutation.mutate({ runId: run.id, fileName: agentTeamReportFileName(selectedTeam, run) })}
             onSaveFeedback={(runId) => feedbackMutation.mutate({ runId, rating: feedbackRating, comment: feedbackComment })}
             onSelectRun={setSelectedRunId}
             onSelectStep={setSelectedStepId}
             onSubmitHandoff={(runId) => handoffMutation.mutate({ runId, reason: handoffReason })}
             previousRun={previousRun}
             previousRunSteps={previousRunSteps}
+            reportExportPending={exportRunReportMutation.isPending}
             selectedRun={selectedRun}
             selectedRunId={selectedRunId}
             selectedStep={selectedStep}
@@ -876,6 +888,7 @@ function RunTraceWorkspace({
   handoffReason,
   onFeedbackCommentChange,
   onFeedbackRatingChange,
+  onExportRunReport,
   onHandoffDecisionNoteChange,
   onHandoffReasonChange,
   onReviewHandoff,
@@ -885,6 +898,7 @@ function RunTraceWorkspace({
   onSubmitHandoff,
   previousRun,
   previousRunSteps,
+  reportExportPending,
   selectedRun,
   selectedRunId,
   selectedStep,
@@ -904,6 +918,7 @@ function RunTraceWorkspace({
   handoffReason: string;
   onFeedbackCommentChange: (value: string) => void;
   onFeedbackRatingChange: (value: number) => void;
+  onExportRunReport: (run: AgentTeamRunSummary) => void;
   onHandoffDecisionNoteChange: (value: string) => void;
   onHandoffReasonChange: (value: string) => void;
   onReviewHandoff: (handoffId: string, action: 'approve' | 'reject') => void;
@@ -913,6 +928,7 @@ function RunTraceWorkspace({
   onSubmitHandoff: (runId: string) => void;
   previousRun: AgentTeamRunSummary | null;
   previousRunSteps: AgentTeamStepItem[];
+  reportExportPending: boolean;
   selectedRun: AgentTeamRunSummary | null;
   selectedRunId: string | null;
   selectedStep: AgentTeamStepItem | null;
@@ -964,7 +980,7 @@ function RunTraceWorkspace({
                 ))}
               </select>
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {traceHref ? (
                 <Button asChild size="sm" variant="outline">
                   <Link href={traceHref}>
@@ -977,12 +993,22 @@ function RunTraceWorkspace({
                 <Copy className="size-4" />
                 复制 Trace
               </Button>
+              <Button disabled={!selectedRun || reportExportPending} onClick={() => selectedRun && onExportRunReport(selectedRun)} size="sm" type="button" variant="outline">
+                <FileText className="size-4" />
+                {reportExportPending ? '导出中' : '导出报告'}
+              </Button>
             </div>
           </div>
 
           {selectedRun ? (
             <>
               <RunSummaryPanel run={selectedRun} />
+              <RunReportExportPanel
+                exporting={reportExportPending}
+                onExport={() => onExportRunReport(selectedRun)}
+                run={selectedRun}
+                steps={steps}
+              />
               <RunReplayComparePanel
                 currentRun={selectedRun}
                 currentSteps={steps}
@@ -1066,6 +1092,53 @@ function RunSummaryPanel({ run }: { run: AgentTeamRunSummary }) {
         <RunMetric label="耗时" value={formatLatency(run.latency_ms)} helper={run.ended_at ? formatDateTime(run.ended_at) : '执行中'} />
       </div>
     </div>
+  );
+}
+
+function RunReportExportPanel({
+  exporting,
+  onExport,
+  run,
+  steps,
+}: {
+  exporting: boolean;
+  onExport: () => void;
+  run: AgentTeamRunSummary;
+  steps: AgentTeamStepItem[];
+}) {
+  const signals = summarizeRunReplay(steps);
+
+  return (
+    <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="size-4 text-primary" />
+            审计报告导出
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            导出当前运行的团队摘要、成员步骤、内部事件、知识引用、工具调用、模型调用、接力和反馈。
+          </p>
+        </div>
+        <Button disabled={exporting || !run.id} onClick={onExport} size="sm" type="button" variant="outline">
+          <FileText className="size-4" />
+          {exporting ? '正在导出' : '下载 CSV'}
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <StatusBadge tone="ready">运行摘要</StatusBadge>
+        <StatusBadge tone={steps.length > 0 ? 'healthy' : 'planned'}>{steps.length} 个步骤</StatusBadge>
+        <StatusBadge tone={signals.childEvents > 0 ? 'healthy' : 'planned'}>{signals.childEvents} 个内部事件</StatusBadge>
+        <StatusBadge tone={signals.references > 0 ? 'healthy' : 'planned'}>{signals.references} 条知识引用</StatusBadge>
+        <StatusBadge tone={signals.toolCalls > 0 ? 'healthy' : 'planned'}>{signals.toolCalls} 次工具调用</StatusBadge>
+        <StatusBadge tone={signals.modelCalls > 0 ? 'healthy' : 'planned'}>{signals.modelCalls} 次模型调用</StatusBadge>
+      </div>
+      <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+        <span className="break-all">运行 ID：{run.id}</span>
+        <span className="break-all">Trace：{run.trace_id ?? '-'}</span>
+        <span>导出格式：CSV / UTF-8</span>
+      </div>
+    </section>
   );
 }
 
@@ -2217,4 +2290,20 @@ function shortText(value: string, maxLength: number) {
 function copyText(value: string | null | undefined) {
   if (!value || typeof navigator === 'undefined') return;
   void navigator.clipboard?.writeText(value);
+}
+
+function agentTeamReportFileName(team: AgentTeamDetail, run: AgentTeamRunSummary) {
+  const code = team.code.replace(/[^a-zA-Z0-9_-]/g, '-');
+  return `Agent团队运行报告-${code}-${run.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }

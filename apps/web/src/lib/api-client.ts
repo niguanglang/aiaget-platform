@@ -1362,6 +1362,33 @@ export function createAgentTeamFeedback(runId: string, input: CreateAgentTeamFee
   });
 }
 
+export async function exportAgentTeamRunReport(runId: string) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(`${CONTROL_API_BASE_URL}/agent-teams/runs/${runId}/report/export`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
 export function listModelProviders(params: {
   page?: number;
   page_size?: number;

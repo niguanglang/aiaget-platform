@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import type {
   AgentTeamDetail,
@@ -152,6 +153,22 @@ export class AgentTeamsController {
     @Body() dto: CreateAgentTeamHandoffDto,
   ): Promise<AgentTeamDetail> {
     return this.agentTeamsService.createHandoff(currentUser, runId, dto);
+  }
+
+  @Get('runs/:runId/report/export')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'Export agent team run audit report as CSV' })
+  async exportRunReport(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('runId') runId: string,
+    @Res() response: Response,
+  ) {
+    const csv = await this.agentTeamsService.exportRunReport(currentUser, runId);
+    const fileName = `agent-team-run-report-${runId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    response.send(`\uFEFF${csv}`);
   }
 
   @Post('handoffs/:handoffId/approve')

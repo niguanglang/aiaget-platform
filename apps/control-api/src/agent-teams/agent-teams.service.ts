@@ -423,6 +423,23 @@ interface TeamRunPlatformProjection {
   sourceSystem: string;
 }
 
+interface AgentTeamRunReportInput {
+  team: {
+    id: string;
+    name: string;
+    code: string;
+    mode: string;
+    handoffPolicy: string;
+    failurePolicy: string;
+    supervisorModel: string | null;
+    ownerName: string | null;
+  };
+  run: AgentTeamRunSummary;
+  steps: AgentTeamStepItem[];
+  handoffs: AgentTeamHandoffItem[];
+  feedback: AgentTeamFeedbackItem[];
+}
+
 @Injectable()
 export class AgentTeamsService {
   constructor(
@@ -798,6 +815,88 @@ export class AgentTeamsService {
 
     await this.touchTeam(teamId, currentUser.id);
     return this.get(currentUser, teamId);
+  }
+
+  async exportRunReport(currentUser: AuthenticatedUser, runId: string): Promise<string> {
+    const run = await this.prisma.agentTeamRun.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: runId,
+        deletedAt: null,
+      },
+      include: {
+        operator: true,
+        team: {
+          include: {
+            owner: true,
+            supervisorModel: true,
+          },
+        },
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Agent 协作运行不存在。');
+    }
+
+    const [steps, handoffs, feedback] = await Promise.all([
+      this.prisma.agentTeamStep.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          runId: run.id,
+        },
+        include: {
+          agent: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.agentTeamHandoff.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          runId: run.id,
+          deletedAt: null,
+        },
+        include: {
+          fromAgent: true,
+          toAgent: true,
+          decider: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.agentTeamFeedback.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          runId: run.id,
+        },
+        include: {
+          author: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+    ]);
+
+    return buildAgentTeamRunReportCsv({
+      team: {
+        id: run.team.id,
+        name: run.team.name,
+        code: run.team.code,
+        mode: run.team.mode,
+        handoffPolicy: run.team.handoffPolicy,
+        failurePolicy: run.team.failurePolicy,
+        supervisorModel: run.team.supervisorModel?.model ?? null,
+        ownerName: run.team.owner?.name ?? null,
+      },
+      run: this.mapRun(run),
+      steps: steps.map((step) => this.mapStep(step)),
+      handoffs: handoffs.map((handoff) => this.mapHandoff(handoff)),
+      feedback: feedback.map((item) => this.mapFeedback(item)),
+    });
   }
 
   async runWorkflowRun(runId: string): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {
@@ -2709,6 +2808,178 @@ function buildRunSteps(
   });
 
   return steps;
+}
+
+function buildAgentTeamRunReportCsv(input: AgentTeamRunReportInput) {
+  const rows: string[][] = [];
+  const add = (section: string, recordType: string, values: Record<string, unknown>) => {
+    rows.push([
+      section,
+      recordType,
+      stringOrEmpty(values['id']),
+      stringOrEmpty(values['name']),
+      stringOrEmpty(values['status']),
+      stringOrEmpty(values['summary']),
+      stringOrEmpty(values['metric']),
+      stringOrEmpty(values['metric_value']),
+      stringOrEmpty(values['trace_id']),
+      stringOrEmpty(values['span_id']),
+      stringOrEmpty(values['parent_span_id']),
+      stringOrEmpty(values['created_at']),
+      stringOrEmpty(values['extra']),
+    ]);
+  };
+
+  rows.push([
+    '报告分区',
+    '记录类型',
+    '记录ID',
+    '名称',
+    '状态',
+    '摘要',
+    '指标',
+    '指标值',
+    'Trace ID',
+    'Span ID',
+    '父 Span ID',
+    '时间',
+    '扩展信息',
+  ]);
+
+  add('团队信息', 'team', {
+    id: input.team.id,
+    name: `${input.team.name} / ${input.team.code}`,
+    status: input.team.mode,
+    summary: `负责人：${input.team.ownerName ?? '未设置'}；Supervisor：${input.team.supervisorModel ?? '成员模型兜底'}`,
+    metric: 'handoff_policy/failure_policy',
+    metric_value: `${input.team.handoffPolicy}/${input.team.failurePolicy}`,
+  });
+
+  add('运行摘要', 'run', {
+    id: input.run.id,
+    name: input.run.objective,
+    status: input.run.status,
+    summary: input.run.error_message ?? '运行完成或正在执行。',
+    metric: 'steps/tokens/cost/latency',
+    metric_value: `${input.run.completed_steps}/${input.run.total_steps}; ${input.run.total_tokens}; ${input.run.total_cost}; ${input.run.latency_ms}ms`,
+    trace_id: input.run.trace_id,
+    created_at: input.run.created_at,
+    extra: `request_id=${input.run.request_id ?? ''}; started_at=${input.run.started_at ?? ''}; ended_at=${input.run.ended_at ?? ''}`,
+  });
+
+  input.steps.forEach((step, index) => {
+    add('成员步骤', step.step_type, {
+      id: step.id,
+      name: `${index + 1}. ${step.title}`,
+      status: step.status,
+      summary: step.output_summary ?? step.input_summary ?? step.error_message ?? '',
+      metric: 'tokens/cost/latency',
+      metric_value: `${step.total_tokens}; ${step.cost_total}; ${step.duration_ms}ms`,
+      trace_id: step.trace_id,
+      span_id: step.span_id,
+      parent_span_id: step.parent_span_id,
+      created_at: step.created_at,
+      extra: `agent=${step.agent_name ?? '团队节点'}; prompt_tokens=${step.prompt_tokens}; completion_tokens=${step.completion_tokens}`,
+    });
+
+    step.child_steps.forEach((childStep) => {
+      add('成员内部事件', childStep.type, {
+        id: childStep.id,
+        name: childStep.title,
+        status: childStep.status,
+        summary: childStep.summary,
+        metric: 'tokens/items/latency',
+        metric_value: `${childStep.total_tokens ?? 0}; ${childStep.item_count ?? 0}; ${childStep.latency_ms ?? 0}ms`,
+        trace_id: childStep.trace_id ?? step.trace_id,
+        span_id: childStep.span_id,
+        parent_span_id: childStep.parent_span_id,
+        created_at: step.created_at,
+        extra: `model=${childStep.request_model ?? ''}; tool=${childStep.tool_name ?? ''}; retrieval=${childStep.retrieval_mode ?? ''}; response_status=${childStep.response_status ?? ''}`,
+      });
+    });
+
+    step.references.forEach((reference) => {
+      add('知识引用', 'reference', {
+        id: reference.id,
+        name: reference.title,
+        status: reference.source_type ?? '',
+        summary: reference.snippet,
+        metric: 'score',
+        metric_value: reference.score ?? '',
+        trace_id: step.trace_id,
+        span_id: step.span_id,
+        created_at: step.created_at,
+      });
+    });
+
+    step.tool_calls.forEach((toolCall) => {
+      add('工具调用', 'tool_call', {
+        id: toolCall.tool_id ?? toolCall.tool_code,
+        name: `${toolCall.tool_name} / ${toolCall.tool_code}`,
+        status: toolCall.status,
+        summary: toolCall.output_preview ?? toolCall.error_message ?? '',
+        metric: 'latency/response_status',
+        metric_value: `${toolCall.latency_ms}ms; ${toolCall.response_status ?? ''}`,
+        trace_id: step.trace_id,
+        span_id: step.span_id,
+        created_at: step.created_at,
+        extra: `approval_request_id=${toolCall.approval_request_id ?? ''}`,
+      });
+    });
+
+    if (step.model_call) {
+      add('模型调用', 'model_call', {
+        id: step.model_call.trace_id ?? step.id,
+        name: step.model_call.request_model,
+        status: step.model_call.status,
+        summary: step.model_call.output_preview ?? step.model_call.error_message ?? '',
+        metric: 'tokens/latency',
+        metric_value: `${step.model_call.total_tokens}; ${step.model_call.latency_ms}ms`,
+        trace_id: step.model_call.trace_id ?? step.trace_id,
+        span_id: step.span_id,
+        created_at: step.created_at,
+        extra: `prompt_tokens=${step.model_call.prompt_tokens}; completion_tokens=${step.model_call.completion_tokens}`,
+      });
+    }
+  });
+
+  input.handoffs.forEach((handoff) => {
+    add('接力记录', 'handoff', {
+      id: handoff.id,
+      name: `${handoff.from_agent_name ?? '团队'} -> ${handoff.to_agent_name ?? '人工处理'}`,
+      status: handoff.status,
+      summary: handoff.reason,
+      metric: 'decision',
+      metric_value: handoff.decision_note ?? '',
+      created_at: handoff.created_at,
+      extra: `decided_by=${handoff.decided_by?.name ?? ''}; decided_at=${handoff.decided_at ?? ''}`,
+    });
+  });
+
+  input.feedback.forEach((feedback) => {
+    add('反馈记录', 'feedback', {
+      id: feedback.id,
+      name: feedback.created_by?.name ?? '未知用户',
+      status: `${feedback.rating} 分`,
+      summary: feedback.comment ?? '',
+      metric: 'rating',
+      metric_value: feedback.rating,
+      created_at: feedback.created_at,
+      extra: `email=${feedback.created_by?.email ?? ''}`,
+    });
+  });
+
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function stringOrEmpty(value: unknown) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  return String(value);
 }
 
 function teamRunEventType(status: RuntimeAgentTeamResponse['status']) {

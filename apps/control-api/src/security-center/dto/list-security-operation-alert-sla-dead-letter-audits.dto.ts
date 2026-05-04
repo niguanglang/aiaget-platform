@@ -23,6 +23,10 @@ export class ListSecurityOperationAlertSlaDeadLetterAuditsDto {
   keyword?: string;
 
   @IsOptional()
+  @IsString()
+  alert_category?: string;
+
+  @IsOptional()
   @IsIn(SECURITY_OPERATION_ALERT_SLA_DEAD_LETTER_ACTIONS)
   action?: 'CLAIM' | 'REQUEUE' | 'CLOSE';
 

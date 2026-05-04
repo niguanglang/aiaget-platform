@@ -2716,6 +2716,7 @@ export function listSecurityOperationAlertSlaDeadLetterAudits(
 ) {
   const queryParams = {
     action: params.action,
+    alert_category: params.alert_category,
     disposition_status: params.disposition_status,
     keyword: params.keyword,
     page: params.page,
@@ -2736,6 +2737,7 @@ export async function exportSecurityOperationAlertSlaDeadLetterAudits(
   const headers = new Headers();
   const queryParams = {
     action: params.action,
+    alert_category: params.alert_category,
     disposition_status: params.disposition_status,
     keyword: params.keyword,
     page: params.page,
@@ -2771,6 +2773,7 @@ export function createSecurityOperationAlertSlaDeadLetterAuditArchive(
 ) {
   const queryParams = {
     action: params.action,
+    alert_category: params.alert_category,
     disposition_status: params.disposition_status,
     keyword: params.keyword,
   };

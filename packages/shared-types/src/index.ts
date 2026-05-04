@@ -2525,6 +2525,7 @@ export type SecurityOperationAlertSlaTaskName = 'AUTO_ESCALATE';
 
 export interface SecurityOperationAlertSlaItem {
   alert_id: string;
+  alert_category: string | null;
   title: string;
   description: string;
   severity: SecurityCenterRiskLevel;
@@ -2569,6 +2570,7 @@ export interface SecurityOperationAlertSlaSubscriptionPolicy {
 export interface SecurityOperationAlertSlaNotificationItem {
   notification_event_id: string;
   alert_id: string;
+  alert_category: string | null;
   title: string;
   status: SecurityOperationAlertNotificationStatus;
   channels: SecurityOperationAlertNotificationChannel[];
@@ -2704,6 +2706,7 @@ export interface SecurityOperationAlertSlaDeadLetterAuditItem {
   event_id: string;
   notification_event_id: string;
   alert_id: string | null;
+  alert_category: string | null;
   title: string;
   action: SecurityOperationAlertSlaDeadLetterAction;
   disposition_status: SecurityOperationAlertSlaDeadLetterDispositionStatus;
@@ -2719,6 +2722,7 @@ export interface ListSecurityOperationAlertSlaDeadLetterAuditsParams {
   page?: number;
   page_size?: number;
   keyword?: string;
+  alert_category?: string;
   action?: SecurityOperationAlertSlaDeadLetterAction | '';
   disposition_status?: SecurityOperationAlertSlaDeadLetterDispositionStatus | '';
 }

@@ -1,0 +1,26 @@
+# Project UI Brief
+
+- Page: 安全中心 / 审批与归档告警 SLA 通知与死信闭环
+- Route: `/security`
+- Feature goal: 团队报告归档删除来源 SLA 超时通知与死信处置一致性
+- Users: 租户管理员、安全管理员、审计员；处置按钮受 `security:approval:handle` 与安全中心后端接口控制。
+- APIs/services:
+  - `GET /security-center/operation-alert-sla/notifications/overview`
+  - `POST /security-center/operation-alert-sla/notify-overdue`
+  - `GET /security-center/operation-alert-sla/notification-retry/overview`
+  - `POST /security-center/operation-alert-sla/notification-retry/run`
+  - `POST /security-center/operation-alert-sla/notifications/:notificationEventId/retry`
+  - `GET /security-center/operation-alert-sla/dead-letters/overview`
+  - `POST /security-center/operation-alert-sla/dead-letters/:notificationEventId/actions`
+  - `GET /security-center/operation-alert-sla/dead-letter-audits`
+  - `GET /security-center/operation-alert-sla/dead-letter-audits/export`
+  - `POST /security-center/operation-alert-sla/dead-letter-audits/archives`
+- Entities/fields/statuses:
+  - `SecurityOperationAlertSlaNotificationItem`: `notification_event_id`, `alert_id`, `alert_category`, `title`, `status`, `channels`, `targets`, `webhook_status`, `retry_count`, `dead_lettered`, `delivered_at`, `message`
+  - `SecurityOperationAlertSlaDeadLetterItem`: 通知字段 + `disposition_status`, `disposition_action`, `disposition_note`, `handled_by`, `handled_at`
+  - `SecurityOperationAlertSlaDeadLetterAuditItem`: `event_id`, `notification_event_id`, `alert_id`, `alert_category`, `title`, `action`, `disposition_status`, `request_id`, `trace_id`, `occurred_at`
+  - 状态：`SENT`, `PARTIAL`, `SKIPPED`, `FAILED`, `OPEN`, `CLAIMED`, `REQUEUED`, `CLOSED`, `AGENT_TEAM_REPORT_ARCHIVE_DELETE`
+- Actions: 刷新、手动通知、立即扫描重试、单条重试、死信认领、重新投递、关闭、按来源分类筛选死信处置审计、导出/归档审计。
+- Existing components/design system: Next.js + React + TypeScript + Tailwind CSS + shadcn/ui 风格；复用 `Card`, `Button`, `Input`, `StatusBadge`, `MetricCard`, `SummaryTile`, `EmptyState`。
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, partial delivery, dead letter pending/claimed/requeued/closed.
+- Constraints: 前端可见文案使用中文；不新增容器或中间件；只接入现有安全中心页面与 API 合约；视觉保持细边框、轻阴影、紧凑可扫描的运营后台风格。

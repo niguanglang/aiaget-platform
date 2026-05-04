@@ -604,6 +604,7 @@ export class SecurityOperationAlertSlaService implements OnModuleInit, OnModuleD
     return events
       .map(mapDeadLetterAuditEvent)
       .filter((item): item is SecurityOperationAlertSlaDeadLetterAuditItem => Boolean(item))
+      .filter((item) => !query.alert_category || item.alert_category === query.alert_category)
       .filter((item) => !query.action || item.action === query.action)
       .filter((item) => !query.disposition_status || item.disposition_status === query.disposition_status)
       .filter((item) => {
@@ -612,6 +613,7 @@ export class SecurityOperationAlertSlaService implements OnModuleInit, OnModuleD
           item.event_id,
           item.notification_event_id,
           item.alert_id,
+          item.alert_category,
           item.title,
           item.note,
           item.delivery_event_id,
@@ -1099,6 +1101,7 @@ export class SecurityOperationAlertSlaService implements OnModuleInit, OnModuleD
         summary: message,
         payloadJson: {
           alert_id: input.item.alert_id,
+          alert_category: input.item.alert_category,
           title: input.item.title,
           severity: input.item.severity,
           metric: input.item.metric,
@@ -1312,6 +1315,7 @@ export class SecurityOperationAlertSlaService implements OnModuleInit, OnModuleD
         summary: `审批与归档告警 SLA 超时自动升级：${item.title}`,
         payloadJson: {
           alert_id: item.alert_id,
+          alert_category: item.alert_category,
           title: item.title,
           severity: item.severity,
           metric: item.metric,
@@ -1455,6 +1459,7 @@ export class SecurityOperationAlertSlaService implements OnModuleInit, OnModuleD
         payloadJson: {
           notification_event_id: notification.notification_event_id,
           alert_id: notification.alert_id,
+          alert_category: notification.alert_category,
           title: notification.title,
           action: input.action,
           disposition_status: dispositionStatus,
@@ -1564,6 +1569,7 @@ function buildSlaItems(
 
       return {
         alert_id: alert.id,
+        alert_category: operationAlertSlaCategory(alert.id),
         title: alert.title,
         description: alert.description,
         severity: alert.severity,
@@ -1766,6 +1772,7 @@ function mapSlaNotificationEvent(event: Prisma.PlatformEventGetPayload<object>):
   return {
     notification_event_id: event.id,
     alert_id: typeof payload?.alert_id === 'string' ? payload.alert_id : event.resourceId ?? '',
+    alert_category: normalizeOperationAlertSlaCategory(payload?.alert_category, payload?.alert_id, event.resourceId),
     title: typeof payload?.title === 'string' ? payload.title : 'SLA 超时通知',
     status,
     channels,
@@ -1913,6 +1920,7 @@ function buildDeadLetterAuditCsv(items: SecurityOperationAlertSlaDeadLetterAudit
       '事件ID',
       '通知事件ID',
       '告警ID',
+      '来源分类',
       '标题',
       '动作',
       '处置状态',
@@ -1927,6 +1935,7 @@ function buildDeadLetterAuditCsv(items: SecurityOperationAlertSlaDeadLetterAudit
       item.event_id,
       item.notification_event_id,
       item.alert_id ?? '',
+      operationAlertSlaCategoryLabel(item.alert_category),
       item.title,
       deadLetterActionLabel(item.action),
       deadLetterDispositionLabel(item.disposition_status),
@@ -2116,6 +2125,7 @@ function mapDeadLetterAuditEvent(
       ? payload.notification_event_id
       : event.resourceId ?? '',
     alert_id: typeof payload?.alert_id === 'string' ? payload.alert_id : null,
+    alert_category: normalizeOperationAlertSlaCategory(payload?.alert_category, payload?.alert_id, event.resourceId),
     title: typeof payload?.title === 'string' ? payload.title : event.summary ?? 'SLA 死信处置',
     action,
     disposition_status: normalizeDeadLetterDisposition(payload?.disposition_status, action),
@@ -2133,6 +2143,7 @@ function notificationItemToSlaItem(
 ): SecurityOperationAlertSlaItem {
   return {
     alert_id: item.alert_id,
+    alert_category: item.alert_category,
     title: item.title,
     description: item.message,
     severity: 'MEDIUM',
@@ -2218,6 +2229,7 @@ async function deliverSlaNotificationWebhook(
   const body = JSON.stringify({
     event: 'platform.security.approval_operation_alert_sla.notification',
     alert_id: item.alert_id,
+    alert_category: item.alert_category,
     severity: item.severity,
     title: item.title,
     metric: item.metric,
@@ -2291,6 +2303,66 @@ function clampInteger(value: unknown, min: number, max: number, fallback: number
 
 function buildRequestId(source: string) {
   return `${TASK_REQUEST_ID_PREFIX}_${source}_${Date.now()}`;
+}
+
+function normalizeOperationAlertSlaCategory(
+  value: unknown,
+  alertId: unknown,
+  fallbackAlertId: string | null,
+) {
+  if (typeof value === 'string' && value.trim()) return value;
+  const normalizedAlertId = typeof alertId === 'string' && alertId.trim() ? alertId : fallbackAlertId;
+  return normalizedAlertId ? operationAlertSlaCategory(normalizedAlertId) : null;
+}
+
+function operationAlertSlaCategory(alertId: string) {
+  if (alertId === 'operation-alert-notification-task-sla-dead-letter-failure-source') {
+    return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  }
+  if (alertId === 'operation-alert-notification-task-agent-team-report-archive-failure-source') {
+    return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
+  }
+  if (alertId === 'operation-alert-notification-task-recovery-archive-failure-source') {
+    return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+  }
+  if (alertId === 'operation-alert-notification-task-mixed-failure-source') {
+    return 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE';
+  }
+  if (
+    alertId === 'operation-alert-notification-task-failure-risk' ||
+    alertId === 'operation-alert-notification-task-consecutive-failure'
+  ) {
+    return 'NOTIFICATION_TASK';
+  }
+  if (alertId === 'agent-team-report-archive-delete-pending' || alertId === 'agent-team-report-archive-delete-rejected-risk') {
+    return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
+  }
+  if (alertId === 'sla-dead-letter-archive-delete-pending' || alertId === 'sla-dead-letter-archive-delete-rejected-risk') {
+    return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
+  }
+  if (
+    alertId === 'notification-task-recovery-audit-archive-delete-pending' ||
+    alertId === 'notification-task-recovery-audit-archive-delete-rejected-risk'
+  ) {
+    return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+  }
+  if (alertId.includes('archive')) return 'ARCHIVE_OPERATION';
+  if (alertId.includes('notification')) return 'NOTIFICATION_POLICY';
+  if (alertId.includes('runtime')) return 'RUNTIME_APPROVAL';
+  return 'SECURITY_OPERATION';
+}
+
+function operationAlertSlaCategoryLabel(category: string | null) {
+  if (category === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档删除';
+  if (category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
+  if (category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
+  if (category === 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE') return '多来源失败';
+  if (category === 'NOTIFICATION_TASK') return '通知任务风险';
+  if (category === 'ARCHIVE_OPERATION') return '归档运营';
+  if (category === 'NOTIFICATION_POLICY') return '通知策略';
+  if (category === 'RUNTIME_APPROVAL') return '运行时审批';
+  if (category === 'SECURITY_OPERATION') return '运营告警';
+  return '未分类';
 }
 
 function buildSystemUser(tenantId: string, requestId: string): AuthenticatedUser {

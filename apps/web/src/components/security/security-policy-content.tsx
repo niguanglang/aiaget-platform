@@ -358,6 +358,7 @@ export function SecurityPolicyContent() {
     useState<Record<string, SecurityOperationAlertNotificationTaskRecoveryActionResult>>({});
   const [slaDeadLetterNote, setSlaDeadLetterNote] = useState('');
   const [slaDeadLetterAuditKeyword, setSlaDeadLetterAuditKeyword] = useState('');
+  const [slaDeadLetterAuditCategory, setSlaDeadLetterAuditCategory] = useState('');
   const [slaDeadLetterAuditAction, setSlaDeadLetterAuditAction] = useState<SecurityOperationAlertSlaDeadLetterAction | ''>('');
   const [slaDeadLetterAuditStatus, setSlaDeadLetterAuditStatus] = useState<SecurityOperationAlertSlaDeadLetterDispositionStatus | ''>('');
   const [slaDeadLetterAuditPage, setSlaDeadLetterAuditPage] = useState(1);
@@ -394,10 +395,11 @@ export function SecurityPolicyContent() {
   const slaDeadLetterAuditExportParams = useMemo(
     () => ({
       keyword: slaDeadLetterAuditKeyword,
+      alert_category: slaDeadLetterAuditCategory,
       action: slaDeadLetterAuditAction,
       disposition_status: slaDeadLetterAuditStatus,
     }),
-    [slaDeadLetterAuditAction, slaDeadLetterAuditKeyword, slaDeadLetterAuditStatus],
+    [slaDeadLetterAuditAction, slaDeadLetterAuditCategory, slaDeadLetterAuditKeyword, slaDeadLetterAuditStatus],
   );
 
   const canWrite = Boolean(
@@ -603,6 +605,7 @@ export function SecurityPolicyContent() {
     queryKey: [
       'security-operation-alert-sla-dead-letter-audits',
       slaDeadLetterAuditKeyword,
+      slaDeadLetterAuditCategory,
       slaDeadLetterAuditAction,
       slaDeadLetterAuditStatus,
       slaDeadLetterAuditPage,
@@ -612,6 +615,7 @@ export function SecurityPolicyContent() {
         page: slaDeadLetterAuditPage,
         page_size: slaDeadLetterAuditPageSize,
         keyword: slaDeadLetterAuditKeyword,
+        alert_category: slaDeadLetterAuditCategory,
         action: slaDeadLetterAuditAction,
         disposition_status: slaDeadLetterAuditStatus,
       }),
@@ -1536,6 +1540,7 @@ export function SecurityPolicyContent() {
             note: slaDeadLetterNote.trim() || null,
           })}
         slaDeadLetterAuditAction={slaDeadLetterAuditAction}
+        slaDeadLetterAuditCategory={slaDeadLetterAuditCategory}
         slaDeadLetterAuditKeyword={slaDeadLetterAuditKeyword}
         slaDeadLetterAuditLoading={operationAlertSlaDeadLetterAuditQuery.isLoading}
         slaDeadLetterAuditPage={slaDeadLetterAuditPage}
@@ -1562,6 +1567,10 @@ export function SecurityPolicyContent() {
         }
         onSlaDeadLetterAuditActionChange={(value) => {
           setSlaDeadLetterAuditAction(value);
+          setSlaDeadLetterAuditPage(1);
+        }}
+        onSlaDeadLetterAuditCategoryChange={(value) => {
+          setSlaDeadLetterAuditCategory(value);
           setSlaDeadLetterAuditPage(1);
         }}
         onSlaDeadLetterAuditArchiveApprove={(approvalId) => approveSlaDeadLetterAuditArchiveApprovalMutation.mutate(approvalId)}
@@ -3335,6 +3344,7 @@ function ApprovalArchiveOperationsCard({
   slaDeadLetterAuditArchiveApprovalOverview,
   slaDeadLetterAuditArchiveApprovals,
   slaDeadLetterAuditArchiveApprovalsLoading,
+  slaDeadLetterAuditCategory,
   onRefreshTask,
   onRunAutoNotify,
   onRunAutoRetry,
@@ -3379,6 +3389,7 @@ function ApprovalArchiveOperationsCard({
   onSlaDeadLetterAuditExport,
   onSlaDeadLetterAuditKeywordChange,
   onSlaDeadLetterAuditStatusChange,
+  onSlaDeadLetterAuditCategoryChange,
   onSlaDeadLetterAuditPageChange,
   onRefreshSlaDeadLetterAudit,
   retryingSlaNotification,
@@ -3506,6 +3517,7 @@ function ApprovalArchiveOperationsCard({
   slaDeadLetterAuditArchiveApprovalOverview: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalOverview | null;
   slaDeadLetterAuditArchiveApprovals: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem[];
   slaDeadLetterAuditArchiveApprovalsLoading: boolean;
+  slaDeadLetterAuditCategory: string;
   onRefreshTask: () => void;
   onRunAutoNotify: () => void;
   onRunAutoRetry: () => void;
@@ -3550,6 +3562,7 @@ function ApprovalArchiveOperationsCard({
   onSlaDeadLetterAuditExport: () => void;
   onSlaDeadLetterAuditKeywordChange: (keyword: string) => void;
   onSlaDeadLetterAuditStatusChange: (status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '') => void;
+  onSlaDeadLetterAuditCategoryChange: (category: string) => void;
   onSlaDeadLetterAuditPageChange: (page: number) => void;
   onRefreshSlaDeadLetterAudit: () => void;
   retryingSlaNotification: boolean;
@@ -4173,6 +4186,7 @@ function ApprovalArchiveOperationsCard({
         deadLetterPendingEventId={slaDeadLetterPendingEventId}
         deadLetterRunning={slaDeadLetterRunning}
         deadLetterAuditAction={slaDeadLetterAuditAction}
+        deadLetterAuditCategory={slaDeadLetterAuditCategory}
         deadLetterAuditKeyword={slaDeadLetterAuditKeyword}
         deadLetterAuditLoading={slaDeadLetterAuditLoading}
         deadLetterAuditPage={slaDeadLetterAuditPage}
@@ -4198,6 +4212,7 @@ function ApprovalArchiveOperationsCard({
         onHandleDeadLetter={onHandleSlaDeadLetter}
         onRefreshDeadLetter={onRefreshSlaDeadLetter}
         onDeadLetterAuditActionChange={onSlaDeadLetterAuditActionChange}
+        onDeadLetterAuditCategoryChange={onSlaDeadLetterAuditCategoryChange}
         onDeadLetterAuditArchiveApprove={onSlaDeadLetterAuditArchiveApprove}
         onDeadLetterAuditArchiveCreate={onSlaDeadLetterAuditArchiveCreate}
         onDeadLetterAuditArchiveDelete={onSlaDeadLetterAuditArchiveDelete}
@@ -6807,6 +6822,7 @@ function OperationAlertSlaCard({
   deadLetterPendingEventId,
   deadLetterRunning,
   deadLetterAuditAction,
+  deadLetterAuditCategory,
   deadLetterAuditKeyword,
   deadLetterAuditLoading,
   deadLetterAuditPage,
@@ -6832,6 +6848,7 @@ function OperationAlertSlaCard({
   onHandleDeadLetter,
   onRefreshDeadLetter,
   onDeadLetterAuditActionChange,
+  onDeadLetterAuditCategoryChange,
   onDeadLetterAuditArchiveApprove,
   onDeadLetterAuditArchiveCreate,
   onDeadLetterAuditArchiveDelete,
@@ -6871,6 +6888,7 @@ function OperationAlertSlaCard({
   deadLetterPendingEventId: string | null;
   deadLetterRunning: boolean;
   deadLetterAuditAction: SecurityOperationAlertSlaDeadLetterAction | '';
+  deadLetterAuditCategory: string;
   deadLetterAuditKeyword: string;
   deadLetterAuditLoading: boolean;
   deadLetterAuditPage: number;
@@ -6896,6 +6914,7 @@ function OperationAlertSlaCard({
   onHandleDeadLetter: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
   onRefreshDeadLetter: () => void;
   onDeadLetterAuditActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
+  onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
   onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
@@ -7004,6 +7023,7 @@ function OperationAlertSlaCard({
           <OperationAlertSlaNotificationCard
             loading={notificationLoading}
             deadLetterAuditAction={deadLetterAuditAction}
+            deadLetterAuditCategory={deadLetterAuditCategory}
             deadLetterAuditKeyword={deadLetterAuditKeyword}
             deadLetterAuditLoading={deadLetterAuditLoading}
             deadLetterAuditPage={deadLetterAuditPage}
@@ -7036,6 +7056,7 @@ function OperationAlertSlaCard({
             notificationRetryRunning={notificationRetryRunning}
             onDeadLetterNoteChange={onDeadLetterNoteChange}
             onDeadLetterAuditActionChange={onDeadLetterAuditActionChange}
+            onDeadLetterAuditCategoryChange={onDeadLetterAuditCategoryChange}
             onDeadLetterAuditArchiveApprove={onDeadLetterAuditArchiveApprove}
             onDeadLetterAuditArchiveCreate={onDeadLetterAuditArchiveCreate}
             onDeadLetterAuditArchiveDelete={onDeadLetterAuditArchiveDelete}
@@ -7070,6 +7091,7 @@ function OperationAlertSlaCard({
 function OperationAlertSlaNotificationCard({
   loading,
   deadLetterAuditAction,
+  deadLetterAuditCategory,
   deadLetterAuditKeyword,
   deadLetterAuditLoading,
   deadLetterAuditPage,
@@ -7102,6 +7124,7 @@ function OperationAlertSlaNotificationCard({
   notificationRetryRunning,
   onDeadLetterNoteChange,
   onDeadLetterAuditActionChange,
+  onDeadLetterAuditCategoryChange,
   onDeadLetterAuditArchiveApprove,
   onDeadLetterAuditArchiveCreate,
   onDeadLetterAuditArchiveDelete,
@@ -7129,6 +7152,7 @@ function OperationAlertSlaNotificationCard({
 }: {
   loading: boolean;
   deadLetterAuditAction: SecurityOperationAlertSlaDeadLetterAction | '';
+  deadLetterAuditCategory: string;
   deadLetterAuditKeyword: string;
   deadLetterAuditLoading: boolean;
   deadLetterAuditPage: number;
@@ -7161,6 +7185,7 @@ function OperationAlertSlaNotificationCard({
   notificationRetryRunning: boolean;
   onDeadLetterNoteChange: (note: string) => void;
   onDeadLetterAuditActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
+  onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
   onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
@@ -7278,6 +7303,7 @@ function OperationAlertSlaNotificationCard({
           <OperationAlertSlaNotificationRetryCard
             loading={notificationRetryLoading}
             deadLetterAuditAction={deadLetterAuditAction}
+            deadLetterAuditCategory={deadLetterAuditCategory}
             deadLetterAuditKeyword={deadLetterAuditKeyword}
             deadLetterAuditLoading={deadLetterAuditLoading}
             deadLetterAuditPage={deadLetterAuditPage}
@@ -7307,6 +7333,7 @@ function OperationAlertSlaNotificationCard({
             deadLetterRunning={deadLetterRunning}
             onDeadLetterNoteChange={onDeadLetterNoteChange}
             onDeadLetterAuditActionChange={onDeadLetterAuditActionChange}
+            onDeadLetterAuditCategoryChange={onDeadLetterAuditCategoryChange}
             onDeadLetterAuditArchiveApprove={onDeadLetterAuditArchiveApprove}
             onDeadLetterAuditArchiveCreate={onDeadLetterAuditArchiveCreate}
             onDeadLetterAuditArchiveDelete={onDeadLetterAuditArchiveDelete}
@@ -7339,6 +7366,7 @@ function OperationAlertSlaNotificationCard({
 function OperationAlertSlaNotificationRetryCard({
   loading,
   deadLetterAuditAction,
+  deadLetterAuditCategory,
   deadLetterAuditKeyword,
   deadLetterAuditLoading,
   deadLetterAuditPage,
@@ -7368,6 +7396,7 @@ function OperationAlertSlaNotificationRetryCard({
   deadLetterRunning,
   onDeadLetterNoteChange,
   onDeadLetterAuditActionChange,
+  onDeadLetterAuditCategoryChange,
   onDeadLetterAuditArchiveApprove,
   onDeadLetterAuditArchiveCreate,
   onDeadLetterAuditArchiveDelete,
@@ -7393,6 +7422,7 @@ function OperationAlertSlaNotificationRetryCard({
 }: {
   loading: boolean;
   deadLetterAuditAction: SecurityOperationAlertSlaDeadLetterAction | '';
+  deadLetterAuditCategory: string;
   deadLetterAuditKeyword: string;
   deadLetterAuditLoading: boolean;
   deadLetterAuditPage: number;
@@ -7422,6 +7452,7 @@ function OperationAlertSlaNotificationRetryCard({
   deadLetterRunning: boolean;
   onDeadLetterNoteChange: (note: string) => void;
   onDeadLetterAuditActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
+  onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
   onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
@@ -7577,6 +7608,7 @@ function OperationAlertSlaNotificationRetryCard({
 
           <OperationAlertSlaDeadLetterAuditCard
             action={deadLetterAuditAction}
+            category={deadLetterAuditCategory}
             archives={deadLetterAuditArchives}
             archiveError={deadLetterAuditArchiveError}
             archiveLoading={deadLetterAuditArchiveLoading}
@@ -7595,6 +7627,7 @@ function OperationAlertSlaNotificationRetryCard({
             approvingArchive={deadLetterAuditArchiveApproving}
             rejectingArchive={deadLetterAuditArchiveRejecting}
             onActionChange={onDeadLetterAuditActionChange}
+            onCategoryChange={onDeadLetterAuditCategoryChange}
             onArchiveApprove={onDeadLetterAuditArchiveApprove}
             onArchiveCreate={onDeadLetterAuditArchiveCreate}
             onArchiveDelete={onDeadLetterAuditArchiveDelete}
@@ -7636,6 +7669,11 @@ function OperationAlertSlaNotificationRetryRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            {item.alert_category ? (
+              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+                {operationAlertNotificationCategoryLabel(item.alert_category)}
+              </StatusBadge>
+            ) : null}
             <span className="text-xs text-muted-foreground">重试 {item.retry_count} 次</span>
             <span className="text-xs text-muted-foreground">{item.channels.map(notificationChannelLabel).join('、') || '未配置渠道'}</span>
           </div>
@@ -7789,6 +7827,11 @@ function OperationAlertSlaDeadLetterDispositionRow({
               {deadLetterDispositionLabel(item.disposition_status)}
             </StatusBadge>
             <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            {item.alert_category ? (
+              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+                {operationAlertNotificationCategoryLabel(item.alert_category)}
+              </StatusBadge>
+            ) : null}
             <span className="text-xs text-muted-foreground">重试 {item.retry_count} 次</span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
@@ -7854,6 +7897,7 @@ function OperationAlertSlaDeadLetterActionResultCard({
 
 function OperationAlertSlaDeadLetterAuditCard({
   action,
+  category,
   archives,
   archiveError,
   archiveLoading,
@@ -7871,6 +7915,7 @@ function OperationAlertSlaDeadLetterAuditCard({
   keyword,
   loading,
   onActionChange,
+  onCategoryChange,
   onArchiveApprove,
   onArchiveCreate,
   onArchiveDelete,
@@ -7891,6 +7936,7 @@ function OperationAlertSlaDeadLetterAuditCard({
   status,
 }: {
   action: SecurityOperationAlertSlaDeadLetterAction | '';
+  category: string;
   archives: SecurityOperationAlertSlaDeadLetterAuditArchiveItem[];
   archiveError: string | null;
   archiveLoading: boolean;
@@ -7908,6 +7954,7 @@ function OperationAlertSlaDeadLetterAuditCard({
   keyword: string;
   loading: boolean;
   onActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
+  onCategoryChange: (category: string) => void;
   onArchiveApprove: (approvalId: string) => void;
   onArchiveCreate: () => void;
   onArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
@@ -7929,11 +7976,12 @@ function OperationAlertSlaDeadLetterAuditCard({
 }) {
   const items = result?.items ?? [];
   const total = result?.total ?? 0;
-  const hasFilters = Boolean(keyword || action || status);
+  const hasFilters = Boolean(keyword || category || action || status);
   const exporting = exportState === 'exporting';
 
   const resetFilters = () => {
     onKeywordChange('');
+    onCategoryChange('');
     onActionChange('');
     onStatusChange('');
     onPageChange(1);
@@ -7974,7 +8022,7 @@ function OperationAlertSlaDeadLetterAuditCard({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_150px_auto]">
+      <div className="mt-4 grid gap-2 xl:grid-cols-[1fr_190px_150px_150px_auto]">
         <label className="flex h-9 min-w-0 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
           <Search className="size-4 shrink-0 text-muted-foreground" />
           <input
@@ -7984,6 +8032,20 @@ function OperationAlertSlaDeadLetterAuditCard({
             value={keyword}
           />
         </label>
+        <select
+          className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+          onChange={(event) => onCategoryChange(event.target.value)}
+          value={category}
+        >
+          <option value="">全部来源</option>
+          <option value="AGENT_TEAM_REPORT_ARCHIVE_DELETE">团队报告归档删除</option>
+          <option value="SLA_DEAD_LETTER_ARCHIVE_DELETE">SLA 死信归档删除</option>
+          <option value="NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE">自愈归档删除</option>
+          <option value="NOTIFICATION_TASK_MIXED_FAILURE_SOURCE">多来源失败</option>
+          <option value="NOTIFICATION_TASK">通知任务风险</option>
+          <option value="ARCHIVE_OPERATION">归档运营</option>
+          <option value="NOTIFICATION_POLICY">通知策略</option>
+        </select>
         <select
           className="h-9 rounded-md border bg-background/80 px-3 text-sm"
           onChange={(event) => onActionChange(event.target.value as SecurityOperationAlertSlaDeadLetterAction | '')}
@@ -8643,6 +8705,11 @@ function OperationAlertSlaDeadLetterAuditRow({ item }: { item: SecurityOperation
               {deadLetterDispositionLabel(item.disposition_status)}
             </StatusBadge>
             <StatusBadge tone="mock">{deadLetterActionLabel(item.action)}</StatusBadge>
+            {item.alert_category ? (
+              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+                {operationAlertNotificationCategoryLabel(item.alert_category)}
+              </StatusBadge>
+            ) : null}
             <span className="font-mono text-xs text-muted-foreground">{shortId(item.event_id)}</span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
@@ -8692,6 +8759,11 @@ function OperationAlertSlaDeadLetterRow({ item }: { item: SecurityOperationAlert
     <div className="rounded-md border border-destructive/25 bg-destructive/5 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone="unavailable">死信</StatusBadge>
+        {item.alert_category ? (
+          <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+            {operationAlertNotificationCategoryLabel(item.alert_category)}
+          </StatusBadge>
+        ) : null}
         {disposition ? (
           <StatusBadge tone={deadLetterDispositionTone(disposition)}>{deadLetterDispositionLabel(disposition)}</StatusBadge>
         ) : null}
@@ -8759,6 +8831,11 @@ function OperationAlertSlaNotificationRow({ item }: { item: SecurityOperationAle
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            {item.alert_category ? (
+              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+                {operationAlertNotificationCategoryLabel(item.alert_category)}
+              </StatusBadge>
+            ) : null}
             <span className="text-xs text-muted-foreground">{item.channels.map(notificationChannelLabel).join('、')}</span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>

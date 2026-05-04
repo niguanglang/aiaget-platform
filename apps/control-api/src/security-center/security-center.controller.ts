@@ -109,6 +109,21 @@ export class SecurityCenterController {
     return this.securityApprovalWorkbenchService.list(currentUser, query);
   }
 
+  @Get('approval-workbench/export')
+  @Permissions('security:approval:view')
+  @ApiOkResponse({ description: 'Export unified security approval workbench queue as CSV' })
+  async exportApprovalWorkbenchItems(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query() query: ListSecurityApprovalWorkbenchDto,
+    @Res() response: Response,
+  ) {
+    const csv = await this.securityApprovalWorkbenchService.exportCsv(currentUser, query);
+    const fileName = `security-approval-workbench-${new Date().toISOString().slice(0, 10)}.csv`;
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    response.send(`\uFEFF${csv}`);
+  }
+
   @Get('approval-workbench/:approvalId')
   @Permissions('security:approval:view')
   @ApiOkResponse({ description: 'Unified security approval workbench detail' })

@@ -18,6 +18,7 @@ import type {
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import type { ListSecurityApprovalWorkbenchDto } from './dto/list-security-approval-workbench.dto';
@@ -110,6 +111,7 @@ export class SecurityApprovalWorkbenchService {
     @Inject(SystemSettingsService) private readonly systemSettingsService: SystemSettingsService,
     @Inject(SecurityCenterService) private readonly securityCenterService: SecurityCenterService,
     @Inject(SecurityOperationAlertSlaService) private readonly operationAlertSlaService: SecurityOperationAlertSlaService,
+    @Inject(PlatformEventsService) private readonly platformEventsService: PlatformEventsService,
   ) {}
 
   async overview(currentUser: AuthenticatedUser): Promise<SecurityApprovalWorkbenchOverview> {
@@ -148,6 +150,34 @@ export class SecurityApprovalWorkbenchService {
       page_size: pageSize,
       total: items.length,
     };
+  }
+
+  async exportCsv(currentUser: AuthenticatedUser, query: ListSecurityApprovalWorkbenchDto): Promise<string> {
+    const items = filterItems(await this.loadAll(currentUser.tenantId), query).slice(0, 5000);
+
+    await this.platformEventsService.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'SECURITY_APPROVAL_WORKBENCH',
+      resourceId: 'approval-workbench',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventSource: 'security_center',
+      eventType: 'platform.security.approval_workbench.exported',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      summary: `统一安全审批工作台已导出 ${items.length} 条记录。`,
+      payloadJson: toJsonInput({
+        exported_count: items.length,
+        filter: approvalWorkbenchExportFilter(query),
+      }),
+      sourceSystem: 'security_center',
+      sourceId: 'approval-workbench',
+      dedupeKey: null,
+    });
+
+    return buildApprovalWorkbenchCsv(items.map(stripDetail));
   }
 
   async get(currentUser: AuthenticatedUser, id: string): Promise<SecurityApprovalWorkbenchDetail> {
@@ -727,9 +757,75 @@ function searchableMetadataValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function approvalWorkbenchExportFilter(query: ListSecurityApprovalWorkbenchDto) {
+  return {
+    keyword: query.keyword?.trim() || null,
+    type: query.type ?? null,
+    status: query.status ?? null,
+    risk_domain: query.risk_domain ?? null,
+  };
+}
+
+function buildApprovalWorkbenchCsv(items: SecurityApprovalWorkbenchItem[]) {
+  const rows = [
+    [
+      '审批ID',
+      '来源ID',
+      '审批类型',
+      '来源模块',
+      '标题',
+      '状态',
+      '风险域',
+      '风险等级',
+      '审批对象ID',
+      '审批对象',
+      '审批原因',
+      '申请人',
+      '申请人邮箱',
+      '审批人',
+      '审批人邮箱',
+      '申请时间',
+      '审批时间',
+      '请求ID',
+      'Trace ID',
+    ],
+    ...items.map((item) => [
+      item.id,
+      item.source_id,
+      item.type,
+      item.source_module,
+      item.title,
+      item.status,
+      item.risk_domain,
+      item.risk_level,
+      item.target_id ?? '',
+      item.target_label,
+      item.reason ?? '',
+      item.requester?.name ?? '系统',
+      item.requester?.email ?? '',
+      item.reviewer?.name ?? '',
+      item.reviewer?.email ?? '',
+      item.requested_at,
+      item.reviewed_at ?? '',
+      item.request_id ?? '',
+      item.trace_id ?? '',
+    ]),
+  ];
+
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
 function stripDetail(item: WorkbenchSourceRecord): SecurityApprovalWorkbenchItem {
   const { metadata: _metadata, timeline: _timeline, ...rest } = item;
   return rest;
+}
+
+function toJsonInput(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function buildTypeStats(items: WorkbenchSourceRecord[]): SecurityApprovalWorkbenchOverview['by_type'] {

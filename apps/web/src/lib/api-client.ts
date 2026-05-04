@@ -2290,6 +2290,41 @@ export function listSecurityApprovalWorkbenchItems(params: ListSecurityApprovalW
   );
 }
 
+export async function exportSecurityApprovalWorkbenchItems(params: ListSecurityApprovalWorkbenchQuery = {}) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+
+  headers.set('accept', 'text/csv');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${CONTROL_API_BASE_URL}/security-center/approval-workbench/export?${toSearchParams({
+      keyword: params.keyword,
+      type: params.type,
+      status: params.status,
+      risk_domain: params.risk_domain,
+    })}`,
+    {
+      headers,
+    },
+  );
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
 export function getSecurityApprovalWorkbenchItem(approvalId: string) {
   return request<SecurityApprovalWorkbenchDetail>(`/security-center/approval-workbench/${approvalId}`);
 }

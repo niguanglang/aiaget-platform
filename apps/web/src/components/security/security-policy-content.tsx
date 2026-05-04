@@ -140,6 +140,7 @@ import {
   exportSecurityOperationAlertNotificationTaskRecoveryAudits,
   exportSecurityOperationAlertNotifications,
   exportSecurityOperationAlertSlaDeadLetterAudits,
+  exportSecurityApprovalWorkbenchItems,
   getSecurityApprovalWorkbenchItem,
   getSecurityApprovalWorkbenchOverview,
   getSecurityOperationAlertNotificationArchiveApproval,
@@ -337,6 +338,9 @@ export function SecurityPolicyContent() {
   const [approvalWorkbenchNote, setApprovalWorkbenchNote] = useState('');
   const [approvalWorkbenchMessage, setApprovalWorkbenchMessage] = useState<string | null>(null);
   const [approvalWorkbenchError, setApprovalWorkbenchError] = useState<string | null>(null);
+  const [approvalWorkbenchExportState, setApprovalWorkbenchExportState] = useState<
+    'idle' | 'exporting' | 'success' | 'error'
+  >('idle');
   const [operationNotificationStatus, setOperationNotificationStatus] = useState<
     SecurityOperationAlertNotificationStatus | ''
   >('');
@@ -427,6 +431,15 @@ export function SecurityPolicyContent() {
       disposition_status: slaDeadLetterAuditStatus,
     }),
     [slaDeadLetterAuditAction, slaDeadLetterAuditCategory, slaDeadLetterAuditKeyword, slaDeadLetterAuditStatus],
+  );
+  const approvalWorkbenchExportParams = useMemo(
+    () => ({
+      keyword: approvalWorkbenchKeyword,
+      type: approvalWorkbenchType,
+      status: approvalWorkbenchStatus,
+      risk_domain: approvalWorkbenchRiskDomain,
+    }),
+    [approvalWorkbenchKeyword, approvalWorkbenchRiskDomain, approvalWorkbenchStatus, approvalWorkbenchType],
   );
 
   const canWrite = Boolean(
@@ -739,6 +752,21 @@ export function SecurityPolicyContent() {
       setOperationNotificationTaskRecoveryAuditExportState('success');
     } catch {
       setOperationNotificationTaskRecoveryAuditExportState('error');
+    }
+  }
+
+  async function handleExportApprovalWorkbench() {
+    setApprovalWorkbenchError(null);
+    setApprovalWorkbenchMessage(null);
+    setApprovalWorkbenchExportState('exporting');
+    try {
+      const blob = await exportSecurityApprovalWorkbenchItems(approvalWorkbenchExportParams);
+      downloadBlob(blob, `安全审批工作台-${new Date().toISOString().slice(0, 10)}.csv`);
+      setApprovalWorkbenchExportState('success');
+      setApprovalWorkbenchMessage('当前筛选下的安全审批记录已导出，导出行为已写入平台事件审计。');
+    } catch {
+      setApprovalWorkbenchExportState('error');
+      setApprovalWorkbenchError('导出安全审批记录失败，请稍后重试。');
     }
   }
 
@@ -1630,10 +1658,12 @@ export function SecurityPolicyContent() {
         detail={selectedApprovalWorkbenchQuery.data ?? null}
         detailLoading={selectedApprovalWorkbenchQuery.isLoading || selectedApprovalWorkbenchQuery.isFetching}
         error={approvalWorkbenchError}
+        exportState={approvalWorkbenchExportState}
         keyword={approvalWorkbenchKeyword}
         loading={approvalWorkbenchQuery.isLoading}
         message={approvalWorkbenchMessage}
         note={approvalWorkbenchNote}
+        onExport={() => void handleExportApprovalWorkbench()}
         onKeywordChange={(value) => {
           setApprovalWorkbenchPage(1);
           setApprovalWorkbenchKeyword(value);
@@ -1857,10 +1887,12 @@ function SecurityApprovalWorkbenchCard({
   detail,
   detailLoading,
   error,
+  exportState,
   keyword,
   loading,
   message,
   note,
+  onExport,
   onKeywordChange,
   onNoteChange,
   onPageChange,
@@ -1888,10 +1920,12 @@ function SecurityApprovalWorkbenchCard({
   detail: SecurityApprovalWorkbenchDetail | null;
   detailLoading: boolean;
   error: string | null;
+  exportState: 'idle' | 'exporting' | 'success' | 'error';
   keyword: string;
   loading: boolean;
   message: string | null;
   note: string;
+  onExport: () => void;
   onKeywordChange: (value: string) => void;
   onNoteChange: (value: string) => void;
   onPageChange: (value: number) => void;
@@ -1916,6 +1950,7 @@ function SecurityApprovalWorkbenchCard({
 }) {
   const hasFilters = Boolean(keyword || type || riskDomain || status !== 'PENDING');
   const current = detail ?? workbenchItems.find((item) => item.id === selectedId) ?? null;
+  const exporting = exportState === 'exporting';
 
   return (
     <Card className="min-w-0 overflow-hidden border-blue-100 bg-background/95 shadow-sm">
@@ -1937,6 +1972,10 @@ function SecurityApprovalWorkbenchCard({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button disabled={!canViewApprovals || exporting || total === 0} onClick={onExport} type="button" variant="outline">
+              <Download className="size-4" />
+              {exporting ? '导出中' : '导出当前筛选'}
+            </Button>
             <Button disabled={!canViewApprovals || refreshing} onClick={onRefresh} type="button" variant="outline">
               <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
               刷新
@@ -2005,6 +2044,13 @@ function SecurityApprovalWorkbenchCard({
             清空筛选
           </Button>
         </div>
+        {canViewApprovals ? (
+          <div className="mt-3 text-xs text-muted-foreground">
+            当前筛选命中 {total} 条审批记录，导出 CSV 会记录平台事件审计。
+            {exportState === 'success' ? <span className="ml-2 text-emerald-700">最近一次导出成功。</span> : null}
+            {exportState === 'error' ? <span className="ml-2 text-destructive">最近一次导出失败。</span> : null}
+          </div>
+        ) : null}
       </div>
 
       {!canViewApprovals ? (

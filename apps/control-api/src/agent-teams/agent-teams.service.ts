@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
@@ -10,12 +12,17 @@ import type {
   AgentTeamModelCallItem,
   AgentTeamMemberItem,
   AgentTeamOverview,
+  AgentTeamRunReportArchiveApprovalItem,
+  AgentTeamRunReportArchiveListResult,
+  AgentTeamRunReportArchiveItem,
   AgentTeamRunSummary,
   AgentTeamStepItem,
   ConversationReferenceItem,
   ConversationRunStepItem,
   ConversationToolCallItem,
+  CreateAgentTeamRunReportArchiveResult,
   PaginatedResult,
+  StorageDownloadUrlResult,
 } from '@aiaget/shared-types';
 
 import { requireEnv } from '../common/env';
@@ -32,6 +39,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { decryptSecret } from '../models/model-secrets';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import type { CreateAgentTeamDto } from './dto/create-agent-team.dto';
 import type { CreateAgentTeamFeedbackDto } from './dto/create-agent-team-feedback.dto';
 import type { CreateAgentTeamHandoffDto } from './dto/create-agent-team-handoff.dto';
@@ -47,6 +55,8 @@ const CONTROL_API_INTERNAL_BASE_URL = requireEnv('CONTROL_API_INTERNAL_BASE_URL'
 const RUNTIME_INTERNAL_TOKEN = requireEnv('RUNTIME_INTERNAL_TOKEN');
 const AGENT_TEAM_WORKFLOW_MODE = normalizeWorkflowMode(process.env.AGENT_TEAM_WORKFLOW_MODE);
 const WORKFLOW_REQUEST_TIMEOUT_MS = 5000;
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX = 'agent-team-run-reports';
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
 
 const teamInclude = {
   owner: true,
@@ -119,6 +129,18 @@ const teamInclude = {
     take: 20,
   },
 } satisfies Prisma.AgentTeamInclude;
+
+const runReportArchiveAuditInclude = {
+  actor: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ApprovalAuditEventInclude;
+
+type RunReportArchiveAuditEventRecord = Prisma.ApprovalAuditEventGetPayload<{ include: typeof runReportArchiveAuditInclude }>;
 
 const promptTemplateSelect = {
   id: true,
@@ -446,6 +468,7 @@ export class AgentTeamsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+    @Inject(StorageService) private readonly storageService: StorageService,
   ) {}
 
   async overview(currentUser: AuthenticatedUser): Promise<AgentTeamOverview> {
@@ -897,6 +920,237 @@ export class AgentTeamsService {
       handoffs: handoffs.map((handoff) => this.mapHandoff(handoff)),
       feedback: feedback.map((item) => this.mapFeedback(item)),
     });
+  }
+
+  async createRunReportArchive(
+    currentUser: AuthenticatedUser,
+    runId: string,
+  ): Promise<CreateAgentTeamRunReportArchiveResult> {
+    const run = await this.prisma.agentTeamRun.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: runId,
+        deletedAt: null,
+      },
+      include: {
+        team: true,
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Agent 协作运行不存在。');
+    }
+
+    const csv = await this.exportRunReport(currentUser, runId);
+    const createdAt = new Date();
+    const archiveKey = `${AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX}/${run.teamId}/${createdAt.toISOString().replace(/[:.]/g, '-')}-${run.id}.csv`;
+    const item = await this.storageService.putTenantObject({
+      tenantId: currentUser.tenantId,
+      key: archiveKey,
+      body: `\uFEFF${csv}`,
+      contentType: 'text/csv; charset=utf-8',
+      metadata: {
+        archive_type: 'agent_team_run_report',
+        team_id: run.teamId,
+        run_id: run.id,
+        created_by: currentUser.id,
+      },
+    });
+    const mappedItem = mapAgentTeamRunReportArchive(item);
+
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: agentTeamRunReportArchiveSourceIdFromKey(mappedItem.key),
+      eventType: 'ARCHIVED',
+      eventStatus: 'SUCCESS',
+      title: '团队运行报告归档已生成',
+      note: `归档文件 ${mappedItem.file_name} 已保存到对象存储。`,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? run.traceId ?? null,
+      metadata: {
+        archive_id: mappedItem.id,
+        archive_key: mappedItem.key,
+        archive_file_name: mappedItem.file_name,
+        archive_size_bytes: mappedItem.size_bytes,
+        team_id: run.teamId,
+        team_name: run.team.name,
+        run_id: run.id,
+        run_objective: run.objective,
+      },
+      actorId: currentUser.id,
+    });
+
+    return {
+      item: mappedItem,
+    };
+  }
+
+  async listRunReportArchives(currentUser: AuthenticatedUser): Promise<AgentTeamRunReportArchiveListResult> {
+    const items = (await this.storageService.listTenantObjects({
+      tenantId: currentUser.tenantId,
+      prefix: AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX,
+      limit: 200,
+    })).map(mapAgentTeamRunReportArchive);
+
+    return {
+      items,
+      total: items.length,
+      summary: {
+        archive_count: items.length,
+        total_size_bytes: items.reduce((sum, item) => sum + item.size_bytes, 0),
+      },
+    };
+  }
+
+  async getRunReportArchiveDownloadUrl(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<StorageDownloadUrlResult> {
+    const key = agentTeamRunReportArchiveKeyFromId(archiveId);
+    const result = await this.storageService.getTenantObjectDownloadUrl(
+      currentUser.tenantId,
+      key,
+      AGENT_TEAM_RUN_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    );
+
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: agentTeamRunReportArchiveSourceIdFromKey(key),
+      eventType: 'DOWNLOAD_URL_CREATED',
+      eventStatus: 'INFO',
+      title: '团队运行报告归档下载链接已生成',
+      note: '已生成短期归档下载链接。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_id: archiveId,
+        archive_key: key,
+        expires_in: result.expires_in,
+      },
+      actorId: currentUser.id,
+    });
+
+    return result;
+  }
+
+  async requestDeleteRunReportArchive(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    const key = agentTeamRunReportArchiveKeyFromId(archiveId);
+    const sourceId = agentTeamRunReportArchiveSourceIdFromKey(key);
+    const existing = await this.findPendingRunReportArchiveDeleteApproval(currentUser.tenantId, sourceId);
+
+    if (existing) {
+      return {
+        success: true,
+        approval_id: existing.id,
+      };
+    }
+
+    const event = await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId,
+      eventType: 'DELETE_REQUESTED',
+      eventStatus: 'WARNING',
+      title: '团队运行报告归档删除待审批',
+      note: '删除团队运行报告归档属于高危审计操作，已进入审批队列。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_id: archiveId,
+        archive_key: key,
+        archive_file_name: key.split('/').at(-1) ?? key,
+      },
+      actorId: currentUser.id,
+    });
+
+    return {
+      success: true,
+      approval_id: event.id,
+    };
+  }
+
+  async listRunReportArchiveDeleteApprovals(
+    currentUser: AuthenticatedUser,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem[]> {
+    const events = await this.loadRunReportArchiveDeleteEvents(currentUser.tenantId);
+    return buildRunReportArchiveDeleteApprovals(events);
+  }
+
+  async approveRunReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    dto: ReviewAgentTeamHandoffDto,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem> {
+    const detail = await this.getRunReportArchiveDeleteApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的报告归档删除申请可以通过。');
+    }
+
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'APPROVED',
+      eventStatus: 'SUCCESS',
+      title: '团队运行报告归档删除已批准',
+      note: nullableText(dto.decision_note),
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    await this.storageService.deleteTenantObject(currentUser.tenantId, detail.archive_key);
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'DELETE_APPLIED',
+      eventStatus: 'SUCCESS',
+      title: '团队运行报告归档删除已生效',
+      note: '报告归档文件已从对象存储删除。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    return this.getRunReportArchiveDeleteApproval(currentUser, approvalId);
+  }
+
+  async rejectRunReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    dto: ReviewAgentTeamHandoffDto,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem> {
+    const detail = await this.getRunReportArchiveDeleteApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的报告归档删除申请可以拒绝。');
+    }
+
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'REJECTED',
+      eventStatus: 'WARNING',
+      title: '团队运行报告归档删除已拒绝',
+      note: nullableText(dto.decision_note) ?? '报告归档删除申请已拒绝。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    return this.getRunReportArchiveDeleteApproval(currentUser, approvalId);
   }
 
   async runWorkflowRun(runId: string): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {
@@ -2429,6 +2683,76 @@ export class AgentTeamsService {
     }
   }
 
+  private async getRunReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem> {
+    const items = await this.listRunReportArchiveDeleteApprovals(currentUser);
+    const item = items.find((approval) => approval.id === approvalId);
+
+    if (!item) {
+      throw new NotFoundException('团队运行报告归档删除审批不存在。');
+    }
+
+    return item;
+  }
+
+  private async loadRunReportArchiveDeleteEvents(tenantId: string) {
+    const items = await this.prisma.approvalAuditEvent.findMany({
+      where: {
+        tenantId,
+        sourceType: 'AGENT_TEAM_RUN_REPORT_ARCHIVE',
+        eventType: {
+          in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
+        },
+      },
+      include: {
+        actor: true,
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 500,
+    });
+
+    return items.map(mapRunReportArchiveAuditEvent);
+  }
+
+  private async findPendingRunReportArchiveDeleteApproval(tenantId: string, sourceId: string) {
+    const events = (await this.loadRunReportArchiveDeleteEvents(tenantId)).filter((event) => event.source_id === sourceId);
+    const approval = buildRunReportArchiveDeleteApprovals(events)[0] ?? null;
+    return approval?.status === 'PENDING' ? approval : null;
+  }
+
+  private async recordRunReportArchiveAuditEvent(input: {
+    tenantId: string;
+    sourceId: string;
+    eventType: string;
+    eventStatus: string;
+    title: string;
+    note?: string | null;
+    requestId?: string | null;
+    traceId?: string | null;
+    metadata?: Record<string, unknown> | null;
+    actorId?: string | null;
+  }) {
+    return this.prisma.approvalAuditEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        sourceType: 'AGENT_TEAM_RUN_REPORT_ARCHIVE',
+        sourceId: input.sourceId,
+        eventType: input.eventType,
+        eventStatus: input.eventStatus,
+        title: input.title,
+        note: input.note ?? null,
+        requestId: input.requestId ?? null,
+        traceId: input.traceId ?? null,
+        metadata: input.metadata ? toJsonInput(input.metadata) : Prisma.JsonNull,
+        actorId: input.actorId ?? null,
+      },
+    });
+  }
+
   private async validateOwner(tenantId: string, ownerId?: string | null) {
     if (!ownerId) return;
 
@@ -2808,6 +3132,159 @@ function buildRunSteps(
   });
 
   return steps;
+}
+
+function mapAgentTeamRunReportArchive(item: {
+  key: string;
+  relative_key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+}): AgentTeamRunReportArchiveItem {
+  const metadata = parseRunReportArchiveKey(item.key);
+  return {
+    id: Buffer.from(item.key, 'utf8').toString('base64url'),
+    key: item.key,
+    file_name: item.file_name,
+    folder: item.folder,
+    size_bytes: item.size_bytes,
+    etag: item.etag,
+    last_modified: item.last_modified,
+    download_expires_in: AGENT_TEAM_RUN_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    team_id: metadata.teamId,
+    team_name: null,
+    run_id: metadata.runId,
+    run_objective: null,
+    created_by: null,
+  };
+}
+
+function parseRunReportArchiveKey(key: string) {
+  const parts = key.split('/');
+  const teamId = parts.length >= 3 && parts[0] === AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
+  const fileName = parts.at(-1) ?? '';
+  const fileNameWithoutExtension = fileName.endsWith('.csv') ? fileName.slice(0, -4) : '';
+  const candidateRunId = fileNameWithoutExtension.slice(-36);
+  const runId = isUuid(candidateRunId) ? candidateRunId : null;
+  return { teamId, runId };
+}
+
+function buildRunReportArchiveDeleteApprovals(
+  events: AgentTeamRunReportArchiveAuditEventItem[],
+): AgentTeamRunReportArchiveApprovalItem[] {
+  const groups = new Map<string, AgentTeamRunReportArchiveAuditEventItem[]>();
+
+  for (const event of events) {
+    groups.set(event.source_id, [...(groups.get(event.source_id) ?? []), event]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([sourceId, groupEvents]) => {
+      const sorted = [...groupEvents].sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at));
+      const request = sorted.find((event) => event.event_type === 'DELETE_REQUESTED');
+      if (!request) return null;
+      const reversed = [...sorted].reverse();
+      const applied = reversed.find((event) => event.event_type === 'DELETE_APPLIED') ?? null;
+      const approved = reversed.find((event) => event.event_type === 'APPROVED') ?? null;
+      const rejected = reversed.find((event) => event.event_type === 'REJECTED') ?? null;
+      const latestDecision = applied ?? rejected ?? approved;
+      const metadata = normalizeRunReportArchiveMetadata(request.metadata);
+
+      return {
+        id: request.id,
+        archive_id: sourceId,
+        archive_key: metadata.archive_key,
+        archive_file_name: metadata.archive_file_name,
+        archive_size_bytes: metadata.archive_size_bytes,
+        status: runReportArchiveApprovalStatus({ applied, approved, rejected }),
+        reason: request.note,
+        requested_by: request.actor,
+        reviewed_by: latestDecision?.actor ?? null,
+        requested_at: request.occurred_at,
+        reviewed_at: latestDecision?.occurred_at ?? null,
+      };
+    })
+    .filter((item): item is AgentTeamRunReportArchiveApprovalItem => Boolean(item))
+    .sort((left, right) => Date.parse(right.requested_at) - Date.parse(left.requested_at));
+}
+
+function runReportArchiveApprovalStatus(input: {
+  applied: AgentTeamRunReportArchiveAuditEventItem | null;
+  approved: AgentTeamRunReportArchiveAuditEventItem | null;
+  rejected: AgentTeamRunReportArchiveAuditEventItem | null;
+}): AgentTeamRunReportArchiveApprovalItem['status'] {
+  if (input.applied) return 'APPLIED';
+  if (input.rejected) return 'REJECTED';
+  if (input.approved) return 'APPROVED';
+  return 'PENDING';
+}
+
+function normalizeRunReportArchiveMetadata(metadata: Record<string, unknown> | null) {
+  const archiveKey = typeof metadata?.archive_key === 'string' ? metadata.archive_key : '';
+  return {
+    archive_key: archiveKey,
+    archive_file_name:
+      typeof metadata?.archive_file_name === 'string'
+        ? metadata.archive_file_name
+        : archiveKey.split('/').at(-1) ?? '团队运行报告归档.csv',
+    archive_size_bytes:
+      typeof metadata?.archive_size_bytes === 'number'
+        ? metadata.archive_size_bytes
+        : 0,
+  };
+}
+
+interface AgentTeamRunReportArchiveAuditEventItem {
+  id: string;
+  source_id: string;
+  event_type: string;
+  note: string | null;
+  metadata: Record<string, unknown> | null;
+  actor: AgentOwnerSummary | null;
+  occurred_at: string;
+}
+
+function mapRunReportArchiveAuditEvent(item: RunReportArchiveAuditEventRecord): AgentTeamRunReportArchiveAuditEventItem {
+  return {
+    id: item.id,
+    source_id: item.sourceId,
+    event_type: item.eventType,
+    note: item.note,
+    metadata: normalizeJsonRecord(item.metadata),
+    actor: item.actor ? mapOwner(item.actor) : null,
+    occurred_at: item.occurredAt.toISOString(),
+  };
+}
+
+function agentTeamRunReportArchiveKeyFromId(archiveId: string) {
+  const key = Buffer.from(archiveId, 'base64url').toString('utf8');
+  if (!key.startsWith(`${AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX}/`)) {
+    throw new BadRequestException('无效的团队运行报告归档 ID。');
+  }
+  return key;
+}
+
+function agentTeamRunReportArchiveSourceIdFromKey(key: string) {
+  return uuidFromText(`agent-team-run-report-archive:${key}`);
+}
+
+function uuidFromText(value: string) {
+  const hash = createHash('sha256').update(value).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function toJsonInput(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeJsonRecord(value: Prisma.JsonValue | null): Record<string, unknown> | null {
+  return isPlainRecord(value) ? value : null;
 }
 
 function buildAgentTeamRunReportCsv(input: AgentTeamRunReportInput) {

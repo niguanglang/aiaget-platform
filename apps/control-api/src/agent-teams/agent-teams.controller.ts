@@ -7,7 +7,11 @@ import type {
   AgentTeamFeedbackItem,
   AgentTeamListItem,
   AgentTeamOverview,
+  AgentTeamRunReportArchiveApprovalItem,
+  AgentTeamRunReportArchiveListResult,
+  CreateAgentTeamRunReportArchiveResult,
   PaginatedResult,
+  StorageDownloadUrlResult,
 } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -169,6 +173,76 @@ export class AgentTeamsController {
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     response.send(`\uFEFF${csv}`);
+  }
+
+  @Post('runs/:runId/report/archives')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'Create agent team run report archive' })
+  async createRunReportArchive(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('runId') runId: string,
+  ): Promise<CreateAgentTeamRunReportArchiveResult> {
+    return this.agentTeamsService.createRunReportArchive(currentUser, runId);
+  }
+
+  @Get('report/archives')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'List agent team run report archives' })
+  async listRunReportArchives(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<AgentTeamRunReportArchiveListResult> {
+    return this.agentTeamsService.listRunReportArchives(currentUser);
+  }
+
+  @Get('report/archives/:archiveId/download-url')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'Create agent team run report archive download URL' })
+  async getRunReportArchiveDownloadUrl(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('archiveId') archiveId: string,
+  ): Promise<StorageDownloadUrlResult> {
+    return this.agentTeamsService.getRunReportArchiveDownloadUrl(currentUser, archiveId);
+  }
+
+  @Delete('report/archives/:archiveId')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'Request agent team run report archive deletion approval' })
+  async requestDeleteRunReportArchive(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('archiveId') archiveId: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    return this.agentTeamsService.requestDeleteRunReportArchive(currentUser, archiveId);
+  }
+
+  @Get('report/archive-approvals')
+  @Permissions('agent:team:view')
+  @ApiOkResponse({ description: 'List agent team run report archive delete approvals' })
+  async listRunReportArchiveDeleteApprovals(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem[]> {
+    return this.agentTeamsService.listRunReportArchiveDeleteApprovals(currentUser);
+  }
+
+  @Post('report/archive-approvals/:approvalId/approve')
+  @Permissions('security:approval:handle')
+  @ApiOkResponse({ description: 'Approve agent team run report archive deletion' })
+  async approveRunReportArchiveDeleteApproval(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+    @Body() dto: ReviewAgentTeamHandoffDto,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem> {
+    return this.agentTeamsService.approveRunReportArchiveDeleteApproval(currentUser, approvalId, dto);
+  }
+
+  @Post('report/archive-approvals/:approvalId/reject')
+  @Permissions('security:approval:handle')
+  @ApiOkResponse({ description: 'Reject agent team run report archive deletion' })
+  async rejectRunReportArchiveDeleteApproval(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+    @Body() dto: ReviewAgentTeamHandoffDto,
+  ): Promise<AgentTeamRunReportArchiveApprovalItem> {
+    return this.agentTeamsService.rejectRunReportArchiveDeleteApproval(currentUser, approvalId, dto);
   }
 
   @Post('handoffs/:handoffId/approve')

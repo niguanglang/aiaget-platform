@@ -84,6 +84,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M67 多 Agent 团队运行步骤子事件视图](./m67-agent-team-step-sub-events.md)
 - [M68 多 Agent 团队运行回放与对比](./m68-agent-team-run-replay-compare.md)
 - [M69 多 Agent 团队运行报告导出](./m69-agent-team-run-report-export.md)
+- [M70 多 Agent 团队运行报告归档](./m70-agent-team-run-report-archive.md)
 - [M67 统一用量 Rollup 聚合任务](./m67-platform-usage-rollup-task.md)
 - [M68 统一用量异常检测与告警闭环](./m68-platform-usage-anomaly-alerts.md)
 - [M69 告警生命周期与通知策略](./m69-usage-alert-lifecycle.md)

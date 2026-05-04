@@ -3929,6 +3929,51 @@ export interface AgentTeamFeedbackItem {
   created_by: AgentOwnerSummary | null;
 }
 
+export interface AgentTeamRunReportArchiveItem {
+  id: string;
+  key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+  download_expires_in: number;
+  team_id: string | null;
+  team_name: string | null;
+  run_id: string | null;
+  run_objective: string | null;
+  created_by: string | null;
+}
+
+export interface AgentTeamRunReportArchiveListResult {
+  items: AgentTeamRunReportArchiveItem[];
+  total: number;
+  summary: {
+    archive_count: number;
+    total_size_bytes: number;
+  };
+}
+
+export interface CreateAgentTeamRunReportArchiveResult {
+  item: AgentTeamRunReportArchiveItem;
+}
+
+export type AgentTeamRunReportArchiveApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED';
+
+export interface AgentTeamRunReportArchiveApprovalItem {
+  id: string;
+  archive_id: string;
+  archive_key: string;
+  archive_file_name: string;
+  archive_size_bytes: number;
+  status: AgentTeamRunReportArchiveApprovalStatus;
+  reason: string | null;
+  requested_by: AgentOwnerSummary | null;
+  reviewed_by: AgentOwnerSummary | null;
+  requested_at: string;
+  reviewed_at: string | null;
+}
+
 export interface AgentTeamDetail extends AgentTeamListItem {
   members: AgentTeamMemberItem[];
   runs: AgentTeamRunSummary[];

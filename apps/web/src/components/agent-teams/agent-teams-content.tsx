@@ -11,6 +11,8 @@ import {
   type AgentTeamHandoffPolicy,
   type AgentTeamListItem,
   type AgentTeamMode,
+  type AgentTeamRunReportArchiveApprovalItem,
+  type AgentTeamRunReportArchiveItem,
   type AgentTeamRunSummary,
   type AgentTeamStepItem,
   type AgentTeamStatus,
@@ -46,21 +48,28 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveAgentTeamHandoff,
+  approveAgentTeamRunReportArchiveApproval,
   createAgentTeam,
   createAgentTeamFeedback,
   createAgentTeamHandoff,
   createAgentTeamMember,
+  createAgentTeamRunReportArchive,
   deleteAgentTeam,
   deleteAgentTeamMember,
+  deleteAgentTeamRunReportArchive,
   getAgentTeam,
   getAgentTeamOverview,
   getModelProvider,
+  getAgentTeamRunReportArchiveDownloadUrl,
   exportAgentTeamRunReport,
+  listAgentTeamRunReportArchiveApprovals,
+  listAgentTeamRunReportArchives,
   listAgentTeams,
   listAgents,
   listModelProviders,
   listUsers,
   rejectAgentTeamHandoff,
+  rejectAgentTeamRunReportArchiveApproval,
   startAgentTeamRun,
   updateAgentTeam,
   updateAgentTeamMember,
@@ -161,6 +170,7 @@ export function AgentTeamsContent() {
   const [runObjective, setRunObjective] = useState('');
   const [handoffReason, setHandoffReason] = useState('');
   const [handoffDecisionNote, setHandoffDecisionNote] = useState('');
+  const [archiveDecisionNote, setArchiveDecisionNote] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -216,6 +226,14 @@ export function AgentTeamsContent() {
     queryKey: ['agent-team-supervisor-model-options'],
     queryFn: () => listModelProviders({ page: 1, page_size: 100, status: 'ACTIVE' }),
   });
+  const archiveQuery = useQuery({
+    queryKey: ['agent-team-run-report-archives'],
+    queryFn: listAgentTeamRunReportArchives,
+  });
+  const archiveApprovalsQuery = useQuery({
+    queryKey: ['agent-team-run-report-archive-approvals'],
+    queryFn: listAgentTeamRunReportArchiveApprovals,
+  });
   const modelProviderDetailsQuery = useQuery({
     enabled: Boolean(modelProvidersQuery.data?.items.length),
     queryKey: ['agent-team-supervisor-model-provider-details', modelProvidersQuery.data?.items.map((provider) => provider.id).sort().join(',')],
@@ -229,6 +247,8 @@ export function AgentTeamsContent() {
   const modelOptions = useMemo(() => flattenModelOptions(modelProviderDetailsQuery.data ?? []), [modelProviderDetailsQuery.data]);
   const latestRun = selectedTeam?.runs[0] ?? null;
   const selectedRun = selectedTeam?.runs.find((run) => run.id === selectedRunId) ?? latestRun ?? null;
+  const reportArchives = archiveQuery.data?.items ?? [];
+  const reportArchiveApprovals = archiveApprovalsQuery.data ?? [];
   const selectedRunSteps = useMemo(
     () => filterStepsForRun(selectedTeam?.steps ?? [], selectedRun),
     [selectedTeam?.steps, selectedRun],
@@ -373,6 +393,51 @@ export function AgentTeamsContent() {
       exportAgentTeamRunReport(runId).then((blob) => ({ blob, fileName })),
     onSuccess: ({ blob, fileName }) => {
       downloadBlob(blob, fileName);
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const createArchiveMutation = useMutation({
+    mutationFn: createAgentTeamRunReportArchive,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] });
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const downloadArchiveMutation = useMutation({
+    mutationFn: getAgentTeamRunReportArchiveDownloadUrl,
+    onSuccess: (result) => {
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const deleteArchiveMutation = useMutation({
+    mutationFn: deleteAgentTeamRunReportArchive,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const approveArchiveDeleteMutation = useMutation({
+    mutationFn: ({ approvalId, decisionNote }: { approvalId: string; decisionNote: string }) =>
+      approveAgentTeamRunReportArchiveApproval(approvalId, { decision_note: nullableText(decisionNote) }),
+    onSuccess: async () => {
+      setArchiveDecisionNote('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => setFormError(error.message),
+  });
+  const rejectArchiveDeleteMutation = useMutation({
+    mutationFn: ({ approvalId, decisionNote }: { approvalId: string; decisionNote: string }) =>
+      rejectAgentTeamRunReportArchiveApproval(approvalId, { decision_note: nullableText(decisionNote) }),
+    onSuccess: async () => {
+      setArchiveDecisionNote('');
+      await queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] });
     },
     onError: (error: ApiClientError) => setFormError(error.message),
   });
@@ -708,6 +773,14 @@ export function AgentTeamsContent() {
           </Card>
 
           <RunTraceWorkspace
+            archiveApprovals={reportArchiveApprovals}
+            archiveCreating={createArchiveMutation.isPending}
+            archiveDecisionNote={archiveDecisionNote}
+            archiveDeleting={deleteArchiveMutation.isPending}
+            archiveDownloading={downloadArchiveMutation.isPending}
+            archiveLoading={archiveQuery.isLoading}
+            archiveReviewing={approveArchiveDeleteMutation.isPending || rejectArchiveDeleteMutation.isPending}
+            archives={reportArchives}
             canRun={canRun}
             canReviewHandoff={canReviewHandoff}
             feedbackComment={feedbackComment}
@@ -718,6 +791,10 @@ export function AgentTeamsContent() {
             handoffRejectionPending={rejectHandoffMutation.isPending}
             handoffMutationPending={handoffMutation.isPending}
             handoffReason={handoffReason}
+            onArchiveDecisionNoteChange={setArchiveDecisionNote}
+            onCreateArchive={(run) => createArchiveMutation.mutate(run.id)}
+            onDeleteArchive={(archive) => deleteArchiveMutation.mutate(archive.id)}
+            onDownloadArchive={(archive) => downloadArchiveMutation.mutate(archive.id)}
             onFeedbackCommentChange={setFeedbackComment}
             onFeedbackRatingChange={setFeedbackRating}
             onHandoffDecisionNoteChange={setHandoffDecisionNote}
@@ -731,6 +808,14 @@ export function AgentTeamsContent() {
             }}
             onHandoffReasonChange={setHandoffReason}
             onExportRunReport={(run) => exportRunReportMutation.mutate({ runId: run.id, fileName: agentTeamReportFileName(selectedTeam, run) })}
+            onReviewArchive={(approvalId, action) => {
+              const payload = { approvalId, decisionNote: archiveDecisionNote };
+              if (action === 'approve') {
+                approveArchiveDeleteMutation.mutate(payload);
+              } else {
+                rejectArchiveDeleteMutation.mutate(payload);
+              }
+            }}
             onSaveFeedback={(runId) => feedbackMutation.mutate({ runId, rating: feedbackRating, comment: feedbackComment })}
             onSelectRun={setSelectedRunId}
             onSelectStep={setSelectedStepId}
@@ -876,6 +961,14 @@ function MemberForm({ agents, form, isPending, onChange, onSubmit }: {
 }
 
 function RunTraceWorkspace({
+  archiveApprovals,
+  archiveCreating,
+  archiveDecisionNote,
+  archiveDeleting,
+  archiveDownloading,
+  archiveLoading,
+  archiveReviewing,
+  archives,
   canRun,
   canReviewHandoff,
   feedbackComment,
@@ -886,11 +979,16 @@ function RunTraceWorkspace({
   handoffRejectionPending,
   handoffMutationPending,
   handoffReason,
+  onArchiveDecisionNoteChange,
+  onCreateArchive,
+  onDeleteArchive,
+  onDownloadArchive,
   onFeedbackCommentChange,
   onFeedbackRatingChange,
   onExportRunReport,
   onHandoffDecisionNoteChange,
   onHandoffReasonChange,
+  onReviewArchive,
   onReviewHandoff,
   onSaveFeedback,
   onSelectRun,
@@ -906,6 +1004,14 @@ function RunTraceWorkspace({
   steps,
   team,
 }: {
+  archiveApprovals: AgentTeamRunReportArchiveApprovalItem[];
+  archiveCreating: boolean;
+  archiveDecisionNote: string;
+  archiveDeleting: boolean;
+  archiveDownloading: boolean;
+  archiveLoading: boolean;
+  archiveReviewing: boolean;
+  archives: AgentTeamRunReportArchiveItem[];
   canRun: boolean;
   canReviewHandoff: boolean;
   feedbackComment: string;
@@ -916,11 +1022,16 @@ function RunTraceWorkspace({
   handoffRejectionPending: boolean;
   handoffMutationPending: boolean;
   handoffReason: string;
+  onArchiveDecisionNoteChange: (value: string) => void;
+  onCreateArchive: (run: AgentTeamRunSummary) => void;
+  onDeleteArchive: (archive: AgentTeamRunReportArchiveItem) => void;
+  onDownloadArchive: (archive: AgentTeamRunReportArchiveItem) => void;
   onFeedbackCommentChange: (value: string) => void;
   onFeedbackRatingChange: (value: number) => void;
   onExportRunReport: (run: AgentTeamRunSummary) => void;
   onHandoffDecisionNoteChange: (value: string) => void;
   onHandoffReasonChange: (value: string) => void;
+  onReviewArchive: (approvalId: string, action: 'approve' | 'reject') => void;
   onReviewHandoff: (handoffId: string, action: 'approve' | 'reject') => void;
   onSaveFeedback: (runId: string) => void;
   onSelectRun: (runId: string) => void;
@@ -939,6 +1050,9 @@ function RunTraceWorkspace({
   const handoffs = filterHandoffsForRun(team.handoffs, selectedRun);
   const pendingHandoff = handoffs.find((handoff) => handoff.status === 'PENDING') ?? null;
   const feedback = filterFeedbackForRun(team.feedback, selectedRun);
+  const selectedRunArchives = filterArchivesForRun(archives, selectedRun);
+  const teamArchives = filterArchivesForTeam(archives, team.id);
+  const teamArchiveApprovals = filterArchiveApprovalsForTeam(archiveApprovals, team.id);
   const traceHref = selectedRun?.trace_id ? `/monitor?keyword=${encodeURIComponent(selectedRun.trace_id)}` : null;
 
   return (
@@ -1008,6 +1122,25 @@ function RunTraceWorkspace({
                 onExport={() => onExportRunReport(selectedRun)}
                 run={selectedRun}
                 steps={steps}
+              />
+              <RunReportArchivePanel
+                approvals={teamArchiveApprovals}
+                archives={selectedRunArchives.length > 0 ? selectedRunArchives : teamArchives}
+                canReview={canReviewHandoff}
+                creating={archiveCreating}
+                decisionNote={archiveDecisionNote}
+                deleting={archiveDeleting}
+                downloading={archiveDownloading}
+                loading={archiveLoading}
+                onCreate={() => onCreateArchive(selectedRun)}
+                onDecisionNoteChange={onArchiveDecisionNoteChange}
+                onDelete={onDeleteArchive}
+                onDownload={onDownloadArchive}
+                onReview={onReviewArchive}
+                reviewing={archiveReviewing}
+                run={selectedRun}
+                selectedRunArchiveCount={selectedRunArchives.length}
+                teamArchiveCount={teamArchives.length}
               />
               <RunReplayComparePanel
                 currentRun={selectedRun}
@@ -1137,6 +1270,190 @@ function RunReportExportPanel({
         <span className="break-all">运行 ID：{run.id}</span>
         <span className="break-all">Trace：{run.trace_id ?? '-'}</span>
         <span>导出格式：CSV / UTF-8</span>
+      </div>
+    </section>
+  );
+}
+
+function RunReportArchivePanel({
+  approvals,
+  archives,
+  canReview,
+  creating,
+  decisionNote,
+  deleting,
+  downloading,
+  loading,
+  onCreate,
+  onDecisionNoteChange,
+  onDelete,
+  onDownload,
+  onReview,
+  reviewing,
+  run,
+  selectedRunArchiveCount,
+  teamArchiveCount,
+}: {
+  approvals: AgentTeamRunReportArchiveApprovalItem[];
+  archives: AgentTeamRunReportArchiveItem[];
+  canReview: boolean;
+  creating: boolean;
+  decisionNote: string;
+  deleting: boolean;
+  downloading: boolean;
+  loading: boolean;
+  onCreate: () => void;
+  onDecisionNoteChange: (value: string) => void;
+  onDelete: (archive: AgentTeamRunReportArchiveItem) => void;
+  onDownload: (archive: AgentTeamRunReportArchiveItem) => void;
+  onReview: (approvalId: string, action: 'approve' | 'reject') => void;
+  reviewing: boolean;
+  run: AgentTeamRunSummary;
+  selectedRunArchiveCount: number;
+  teamArchiveCount: number;
+}) {
+  const pendingApprovals = approvals.filter((approval) => approval.status === 'PENDING');
+  const archiveKeysWithPendingDelete = new Set(pendingApprovals.map((approval) => approval.archive_key));
+  const handleDelete = (archive: AgentTeamRunReportArchiveItem) => {
+    const confirmed = window.confirm(`确认申请删除归档 ${archive.file_name}？审批通过后对象存储文件会被删除。`);
+    if (confirmed) onDelete(archive);
+  };
+
+  return (
+    <section className="grid gap-4 rounded-md border bg-background/70 p-4">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="size-4 text-primary" />
+            报告归档
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            将当前运行报告写入对象存储，归档下载使用短期链接，删除需要进入安全审批。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge tone="ready">MinIO</StatusBadge>
+          <StatusBadge tone={pendingApprovals.length > 0 ? 'degraded' : 'planned'}>{pendingApprovals.length} 个待审批</StatusBadge>
+          <Button disabled={creating || !run.id} onClick={onCreate} size="sm" type="button">
+            <FileText className="size-4" />
+            {creating ? '归档中' : '生成归档'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-4">
+        <RunMetric label="当前运行归档" value={formatInteger(selectedRunArchiveCount)} helper={shortText(run.objective, 20)} />
+        <RunMetric label="团队归档" value={formatInteger(teamArchiveCount)} helper="最近 200 个对象" />
+        <RunMetric label="待删除审批" value={formatInteger(pendingApprovals.length)} helper="审批后删除" />
+        <RunMetric label="下载有效期" value="5 分钟" helper="临时 URL" />
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">正在加载报告归档...</p>
+      ) : archives.length === 0 ? (
+        <div className="rounded-md border bg-muted/20 p-3">
+          <EmptyState description="生成归档后，可在这里下载 CSV 或申请删除对象存储文件。" title="暂无报告归档" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                {['归档文件', '范围', '大小', '更新时间', '对象路径', '操作'].map((column) => (
+                  <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {archives.map((archive) => {
+                const pendingDelete = archiveKeysWithPendingDelete.has(archive.key);
+                return (
+                  <tr className="border-b last:border-0" key={archive.id}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{archive.file_name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">运行 {shortTraceId(archive.run_id)}</div>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {archive.run_id === run.id ? '当前运行' : '同团队归档'}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{formatBytes(archive.size_bytes)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{formatDateTime(archive.last_modified)}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      <span className="line-clamp-2 break-all">{archive.key}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button disabled={downloading} onClick={() => onDownload(archive)} size="sm" type="button" variant="outline">
+                          <ArrowUpRight className="size-4" />
+                          下载
+                        </Button>
+                        <Button disabled={deleting || pendingDelete} onClick={() => handleDelete(archive)} size="sm" type="button" variant="outline">
+                          <Trash2 className="size-4" />
+                          {pendingDelete ? '待审批' : '申请删除'}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold">删除审批</div>
+          <StatusBadge tone={canReview ? 'healthy' : 'planned'}>{canReview ? '可审批' : '无审批权限'}</StatusBadge>
+        </div>
+        {approvals.length === 0 ? (
+          <p className="text-sm text-muted-foreground">暂无报告归档删除审批记录。</p>
+        ) : (
+          <div className="grid gap-2">
+            {approvals.slice(0, 6).map((approval) => (
+              <div className="grid gap-3 rounded-md border bg-background/75 px-3 py-3" key={approval.id}>
+                <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge tone={archiveApprovalStatusTone(approval.status)}>{archiveApprovalStatusLabel(approval.status)}</StatusBadge>
+                      <span className="text-xs text-muted-foreground">{formatBytes(approval.archive_size_bytes)}</span>
+                    </div>
+                    <div className="mt-2 truncate text-sm font-medium">{approval.archive_file_name}</div>
+                    <div className="mt-1 line-clamp-1 font-mono text-xs text-muted-foreground">{approval.archive_key}</div>
+                  </div>
+                  <div className="grid gap-1 text-xs text-muted-foreground md:text-right">
+                    <span>申请人：{approval.requested_by?.name ?? '未知用户'}</span>
+                    <span>申请时间：{formatDateTime(approval.requested_at)}</span>
+                    {approval.reviewed_by ? <span>审批人：{approval.reviewed_by.name}</span> : null}
+                    {approval.reviewed_at ? <span>审批时间：{formatDateTime(approval.reviewed_at)}</span> : null}
+                  </div>
+                </div>
+                {approval.status === 'PENDING' ? (
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+                    <label className="grid gap-1 text-sm">
+                      <span className="text-muted-foreground">审批备注</span>
+                      <input
+                        className="h-9 min-w-0 rounded-md border bg-background px-3 outline-none"
+                        onChange={(event) => onDecisionNoteChange(event.target.value)}
+                        placeholder="填写通过或拒绝说明"
+                        value={decisionNote}
+                      />
+                    </label>
+                    <Button disabled={!canReview || reviewing} onClick={() => onReview(approval.id, 'approve')} size="sm" type="button">
+                      <CheckCircle2 className="size-4" />
+                      通过并删除
+                    </Button>
+                    <Button disabled={!canReview || reviewing} onClick={() => onReview(approval.id, 'reject')} size="sm" type="button" variant="outline">
+                      <XCircle className="size-4" />
+                      拒绝删除
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+        {!canReview ? <p className="text-xs text-muted-foreground">审批操作需要 `security:approval:handle` 权限。</p> : null}
       </div>
     </section>
   );
@@ -2120,6 +2437,26 @@ function filterFeedbackForRun(feedback: AgentTeamFeedbackItem[], run: AgentTeamR
     .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
+function filterArchivesForRun(archives: AgentTeamRunReportArchiveItem[], run: AgentTeamRunSummary | null) {
+  if (!run) return [];
+  return archives
+    .filter((archive) => archive.run_id === run.id)
+    .sort((left, right) => Date.parse(right.last_modified ?? '') - Date.parse(left.last_modified ?? ''));
+}
+
+function filterArchivesForTeam(archives: AgentTeamRunReportArchiveItem[], teamId: string) {
+  return archives
+    .filter((archive) => archive.team_id === teamId)
+    .sort((left, right) => Date.parse(right.last_modified ?? '') - Date.parse(left.last_modified ?? ''));
+}
+
+function filterArchiveApprovalsForTeam(approvals: AgentTeamRunReportArchiveApprovalItem[], teamId: string) {
+  const teamPrefix = `agent-team-run-reports/${teamId}/`;
+  return approvals
+    .filter((approval) => approval.archive_key.startsWith(teamPrefix))
+    .sort((left, right) => Date.parse(right.requested_at) - Date.parse(left.requested_at));
+}
+
 function flattenModelOptions(providers: Array<{ name: string; models?: ModelConfigItem[] }>): ModelOption[] {
   return providers.flatMap((provider) =>
     (provider.models ?? [])
@@ -2238,6 +2575,16 @@ function handoffStatusTone(status: string) {
   return 'degraded';
 }
 
+function archiveApprovalStatusLabel(status: AgentTeamRunReportArchiveApprovalItem['status']) {
+  return ({ PENDING: '待审批', APPROVED: '已通过', REJECTED: '已拒绝', APPLIED: '已删除' } as const)[status];
+}
+
+function archiveApprovalStatusTone(status: AgentTeamRunReportArchiveApprovalItem['status']) {
+  if (status === 'APPLIED' || status === 'APPROVED') return 'healthy';
+  if (status === 'REJECTED') return 'unavailable';
+  return 'degraded';
+}
+
 function formatInteger(value: number | null | undefined) {
   return new Intl.NumberFormat('zh-CN').format(value ?? 0);
 }
@@ -2276,6 +2623,18 @@ function formatDateTime(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatBytes(value: number) {
+  if (value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function shortTraceId(value: string | null | undefined) {

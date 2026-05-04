@@ -14,6 +14,8 @@ import type {
   AgentTeamDetail,
   AgentTeamListItem,
   AgentTeamOverview,
+  AgentTeamRunReportArchiveApprovalItem,
+  AgentTeamRunReportArchiveListResult,
   AgentDetail,
   AgentListItem,
   BillingOverview,
@@ -34,6 +36,7 @@ import type {
   CreateAgentTeamHandoffInput,
   CreateAgentTeamInput,
   CreateAgentTeamMemberInput,
+  CreateAgentTeamRunReportArchiveResult,
   CreateDepartmentInput,
   CreateModelApiKeyInput,
   CreateModelConfigInput,
@@ -1387,6 +1390,44 @@ export async function exportAgentTeamRunReport(runId: string) {
   }
 
   return response.blob();
+}
+
+export function createAgentTeamRunReportArchive(runId: string) {
+  return request<CreateAgentTeamRunReportArchiveResult>(`/agent-teams/runs/${runId}/report/archives`, {
+    method: 'POST',
+  });
+}
+
+export function listAgentTeamRunReportArchives() {
+  return request<AgentTeamRunReportArchiveListResult>('/agent-teams/report/archives');
+}
+
+export function getAgentTeamRunReportArchiveDownloadUrl(archiveId: string) {
+  return request<StorageDownloadUrlResult>(`/agent-teams/report/archives/${archiveId}/download-url`);
+}
+
+export function deleteAgentTeamRunReportArchive(archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(`/agent-teams/report/archives/${archiveId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listAgentTeamRunReportArchiveApprovals() {
+  return request<AgentTeamRunReportArchiveApprovalItem[]>('/agent-teams/report/archive-approvals');
+}
+
+export function approveAgentTeamRunReportArchiveApproval(approvalId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<AgentTeamRunReportArchiveApprovalItem>(`/agent-teams/report/archive-approvals/${approvalId}/approve`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function rejectAgentTeamRunReportArchiveApproval(approvalId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<AgentTeamRunReportArchiveApprovalItem>(`/agent-teams/report/archive-approvals/${approvalId}/reject`, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export function listModelProviders(params: {

@@ -2935,6 +2935,10 @@ export interface SecurityCenterOverview {
     notification_task_agent_team_report_archive_delete_failed_24h: number;
     notification_task_recovery_archive_delete_failed_24h: number;
     notification_task_recovery_suggestions: SecurityOperationAlertNotificationTaskRecoverySuggestion[];
+    approval_workbench_exports_24h: number;
+    approval_workbench_exported_records_24h: number;
+    approval_workbench_high_risk_exports_24h: number;
+    approval_workbench_repeated_exports_24h: number;
     audit_events_24h: number;
     audit_failed_24h: number;
     audit_warning_24h: number;

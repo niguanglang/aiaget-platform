@@ -3751,6 +3751,10 @@ function ApprovalArchiveOperationsCard({
     operations.notification_task_sla_dead_letter_failed_24h +
     operations.notification_task_agent_team_report_archive_delete_failed_24h +
     operations.notification_task_recovery_archive_delete_failed_24h;
+  const approvalWorkbenchExportRisk =
+    operations.approval_workbench_exports_24h > 0 ||
+    operations.approval_workbench_high_risk_exports_24h > 0 ||
+    operations.approval_workbench_repeated_exports_24h > 0;
   const notificationTaskMixedFailure =
     [
       operations.notification_task_sla_dead_letter_failed_24h,
@@ -3908,6 +3912,28 @@ function ApprovalArchiveOperationsCard({
       helper: '审批审计 CSV',
     },
   ];
+  const approvalWorkbenchExportMetrics = [
+    {
+      label: '导出次数',
+      value: operations.approval_workbench_exports_24h,
+      helper: '最近 24 小时',
+    },
+    {
+      label: '导出记录',
+      value: operations.approval_workbench_exported_records_24h,
+      helper: '累计导出审批数',
+    },
+    {
+      label: '高风险导出',
+      value: operations.approval_workbench_high_risk_exports_24h,
+      helper: '待审 / 审计归档 / 高危归档删除',
+    },
+    {
+      label: '重复导出',
+      value: operations.approval_workbench_repeated_exports_24h,
+      helper: '同一主体重复取数',
+    },
+  ];
   const notificationTaskMetrics = [
     {
       label: '通知任务',
@@ -3989,6 +4015,15 @@ function ApprovalArchiveOperationsCard({
         </div>
       ) : null}
 
+      {approvalWorkbenchExportRisk ? (
+        <div className="mx-5 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
+          审批工作台导出治理已发现风险：导出次数 {operations.approval_workbench_exports_24h} 次，导出记录{' '}
+          {operations.approval_workbench_exported_records_24h} 条，高风险导出{' '}
+          {operations.approval_workbench_high_risk_exports_24h} 次，重复导出{' '}
+          {operations.approval_workbench_repeated_exports_24h} 次。
+        </div>
+      ) : null}
+
       <div className="grid gap-4 p-5 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {approvalMetrics.map((metric) => (
@@ -4003,6 +4038,39 @@ function ApprovalArchiveOperationsCard({
 
         <div className="grid gap-3 md:grid-cols-2">
           {archiveMetrics.map((metric) => (
+            <OperationMetricTile
+              helper={metric.helper}
+              key={metric.label}
+              label={metric.label}
+              value={String(metric.value)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t bg-muted/10 p-5">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>M78</StatusBadge>
+              <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>
+                {approvalWorkbenchExportRisk ? '导出治理风险' : '导出治理正常'}
+              </StatusBadge>
+            </div>
+            <h3 className="mt-3 text-sm font-semibold">审批工作台导出治理</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              监控统一审批工作台导出次数、导出记录总量、高风险筛选和重复导出行为，避免审批数据被过量取数或异常导出。
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline">
+            <Link href="/security?eventSource=APPROVAL_WORKBENCH">
+              <Archive className="size-4" />
+              查看导出事件
+            </Link>
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {approvalWorkbenchExportMetrics.map((metric) => (
             <OperationMetricTile
               helper={metric.helper}
               key={metric.label}
@@ -9286,6 +9354,7 @@ function notificationChannelLabel(channel: SecurityOperationAlertNotificationRes
 }
 
 function operationAlertNotificationCategoryLabel(category: string) {
+  if (category === 'APPROVAL_WORKBENCH_EXPORT') return '审批导出治理';
   if (category === 'NOTIFICATION_TASK') return '通知任务风险';
   if (category === 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE') return '双来源失败';
   if (category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
@@ -9299,6 +9368,7 @@ function operationAlertNotificationCategoryLabel(category: string) {
 
 function operationAlertNotificationCategoryRisk(category: string | null) {
   return (
+    category === 'APPROVAL_WORKBENCH_EXPORT' ||
     category === 'SLA_DEAD_LETTER_ARCHIVE_DELETE' ||
     category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE' ||
     category === 'NOTIFICATION_TASK' ||
@@ -9308,6 +9378,9 @@ function operationAlertNotificationCategoryRisk(category: string | null) {
 }
 
 function operationAlertCategory(alertId: string) {
+  if (alertId === 'approval-workbench-export-volume-risk') return 'APPROVAL_WORKBENCH_EXPORT';
+  if (alertId === 'approval-workbench-export-high-risk-filter') return 'APPROVAL_WORKBENCH_EXPORT';
+  if (alertId === 'approval-workbench-export-repeated-risk') return 'APPROVAL_WORKBENCH_EXPORT';
   if (alertId === 'operation-alert-notification-task-sla-dead-letter-failure-source') {
     return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
   }

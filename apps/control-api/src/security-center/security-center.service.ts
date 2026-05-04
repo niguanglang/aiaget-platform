@@ -113,6 +113,14 @@ type NotificationTaskRecoveryFailureSourceSummary = {
   recoveryArchiveDeleteFailedCount: number;
 };
 
+type ApprovalWorkbenchExportStats = {
+  total: number;
+  exportedRecords: number;
+  highRiskExports: number;
+  repeatedExports: number;
+  oldestRiskAt: Date | null;
+};
+
 type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations'], 'operational_alerts'> & {
   tool_pending_oldest_at: Date | null;
   runtime_pending_oldest_at: Date | null;
@@ -124,6 +132,7 @@ type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations']
   sla_dead_letter_archive_delete_pending_oldest_at: Date | null;
   notification_task_recovery_audit_archive_delete_pending_oldest_at: Date | null;
   notification_task_failure_oldest_at: Date | null;
+  approval_workbench_export_risk_oldest_at: Date | null;
   audit_risk_oldest_at: Date | null;
   audit_trace_gap_oldest_at: Date | null;
   approval_audit_oldest_at: Date | null;
@@ -1734,6 +1743,7 @@ export class SecurityCenterService {
       notificationTaskRecoveryAuditArchiveDeleteEvents,
       notificationTaskEvents,
       notificationDeliveryEvents,
+      approvalWorkbenchExportEvents,
       archiveStorageStats,
       lifecycleEvents,
       notificationTaskRecoveryEvents,
@@ -1953,6 +1963,25 @@ export class SecurityCenterService {
         },
         take: 500,
       }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: 'platform.security.approval_workbench.exported',
+          occurredAt: {
+            gte: since,
+          },
+        },
+        select: {
+          userId: true,
+          payloadJson: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
       this.loadArchiveStorageStats(tenantId),
       this.loadOperationAlertLifecycleEvents(tenantId),
       this.loadNotificationTaskRecoveryLifecycleEvents(tenantId),
@@ -2026,6 +2055,7 @@ export class SecurityCenterService {
     );
     const notificationTaskStats = summarizeNotificationTaskEvents(notificationTaskEvents);
     const notificationDeliveryStats = summarizeNotificationDeliveryEvents(notificationDeliveryEvents);
+    const approvalWorkbenchExportStats = summarizeApprovalWorkbenchExportEvents(approvalWorkbenchExportEvents);
     const notificationTaskRecoveryLifecycleMap = buildNotificationTaskRecoveryLifecycleMap(notificationTaskRecoveryEvents);
     const archiveDeletePendingOldest = oldestPendingArchiveDeleteAt(archiveDeleteEvents);
     const operationAlertNotificationArchiveDeletePendingOldest = oldestPendingOperationAlertNotificationArchiveDeleteAt(
@@ -2090,6 +2120,10 @@ export class SecurityCenterService {
         stats: notificationTaskStats,
         webhookConfigured: Boolean(externalWebhookUrl),
       }),
+      approval_workbench_exports_24h: approvalWorkbenchExportStats.total,
+      approval_workbench_exported_records_24h: approvalWorkbenchExportStats.exportedRecords,
+      approval_workbench_high_risk_exports_24h: approvalWorkbenchExportStats.highRiskExports,
+      approval_workbench_repeated_exports_24h: approvalWorkbenchExportStats.repeatedExports,
       audit_events_24h: approvalAuditEvents.length,
       audit_failed_24h: approvalAuditEvents.filter((event) => event.eventStatus === 'FAILED').length,
       audit_warning_24h: approvalAuditEvents.filter((event) => event.eventStatus === 'WARNING').length,
@@ -2109,6 +2143,7 @@ export class SecurityCenterService {
       notification_task_recovery_audit_archive_delete_pending_oldest_at:
         notificationTaskRecoveryAuditArchiveDeletePendingOldest,
       notification_task_failure_oldest_at: notificationTaskStats.oldestFailureAt,
+      approval_workbench_export_risk_oldest_at: approvalWorkbenchExportStats.oldestRiskAt,
       audit_risk_oldest_at: auditRiskOldest,
       audit_trace_gap_oldest_at: auditTraceGapOldest,
       approval_audit_oldest_at: approvalAuditOldest,
@@ -3009,6 +3044,46 @@ function summarizeNotificationDeliveryEvents(events: Array<{ payloadJson: Prisma
     webhookFailed: sortedWebhookFailures.length,
     latestWebhookError: sortedWebhookFailures[0]?.webhookError ?? null,
   };
+}
+
+function summarizeApprovalWorkbenchExportEvents(
+  events: Array<{ userId: string | null; payloadJson: Prisma.JsonValue; occurredAt: Date }>,
+): ApprovalWorkbenchExportStats {
+  const userExportCounts = new Map<string, number>();
+  const items = events.map((event) => {
+    const payload = normalizeJsonObjectOutput(event.payloadJson);
+    const filter = normalizeJsonObjectOutput(payload?.filter);
+    const exportedRecords = numericPayloadField(payload?.exported_count);
+    const userKey = event.userId ?? 'SYSTEM';
+    userExportCounts.set(userKey, (userExportCounts.get(userKey) ?? 0) + 1);
+
+    return {
+      exportedRecords,
+      highRisk: approvalWorkbenchExportHasHighRiskFilter(filter),
+      occurredAt: event.occurredAt,
+    };
+  });
+  const highRiskItems = items.filter((item) => item.highRisk);
+  const repeatedExports = Array.from(userExportCounts.values()).reduce((sum, count) => sum + Math.max(0, count - 2), 0);
+  const volumeRiskItems = items.filter((item) => item.exportedRecords >= 1000);
+
+  return {
+    total: items.length,
+    exportedRecords: items.reduce((sum, item) => sum + item.exportedRecords, 0),
+    highRiskExports: highRiskItems.length,
+    repeatedExports,
+    oldestRiskAt: oldestDateOrNull([...highRiskItems, ...volumeRiskItems].map((item) => item.occurredAt)),
+  };
+}
+
+function approvalWorkbenchExportHasHighRiskFilter(filter: Record<string, unknown> | null) {
+  return (
+    filter?.status === 'PENDING' ||
+    filter?.risk_domain === 'AUDIT_ARCHIVE' ||
+    filter?.type === 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE' ||
+    filter?.type === 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE' ||
+    filter?.type === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE'
+  );
 }
 
 function buildNotificationTaskRecoverySuggestions(input: {
@@ -4320,6 +4395,48 @@ function buildApprovalOperationAlerts(
     });
   }
 
+  if (operations.approval_workbench_exported_records_24h >= 1000 || operations.approval_workbench_exports_24h >= 10) {
+    alerts.push({
+      id: 'approval-workbench-export-volume-risk',
+      title: '审批工作台导出量偏高',
+      description: '统一安全审批工作台最近 24 小时导出次数或导出记录数偏高，建议审计导出用途、筛选范围和操作人。',
+      severity:
+        operations.approval_workbench_exported_records_24h >= 5000 || operations.approval_workbench_exports_24h >= 20
+          ? 'HIGH'
+          : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.approval_workbench_exports_24h} 次 / ${operations.approval_workbench_exported_records_24h} 条`,
+      action_label: '查看导出事件',
+      triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.approval_workbench_high_risk_exports_24h > 0) {
+    alerts.push({
+      id: 'approval-workbench-export-high-risk-filter',
+      title: '高风险审批筛选被导出',
+      description: '审批工作台导出包含待审批、审计归档或归档删除等高风险筛选范围，需要确认导出目的和数据流向。',
+      severity: operations.approval_workbench_high_risk_exports_24h >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.approval_workbench_high_risk_exports_24h} 次高风险导出`,
+      action_label: '复核导出范围',
+      triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
+  if (operations.approval_workbench_repeated_exports_24h > 0) {
+    alerts.push({
+      id: 'approval-workbench-export-repeated-risk',
+      title: '审批工作台短时间重复导出',
+      description: '同一操作主体最近 24 小时多次导出审批工作台数据，建议确认是否为审计任务、批量取数或异常操作。',
+      severity: operations.approval_workbench_repeated_exports_24h >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.approval_workbench_repeated_exports_24h} 次重复导出`,
+      action_label: '查看导出链路',
+      triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+    });
+  }
+
   if (auditRiskTotal > 0) {
     alerts.push({
       id: 'approval-audit-event-risk',
@@ -4391,6 +4508,9 @@ function buildApprovalOperationAlerts(
 }
 
 function securityOperationAlertNotificationTargets(alert: SecurityCenterOperationalAlert) {
+  if (isApprovalWorkbenchExportAlert(alert.id)) {
+    return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
+  }
   if (isNotificationTaskFailureAlert(alert.id)) {
     return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
   }
@@ -4406,6 +4526,14 @@ function securityOperationAlertNotificationTargets(alert: SecurityCenterOperatio
   if (alert.severity === 'HIGH') return ['租户管理员', '安全管理员', '审计员'];
   if (alert.id.includes('archive')) return ['安全管理员', '审计员'];
   return ['安全管理员'];
+}
+
+function isApprovalWorkbenchExportAlert(alertId: string) {
+  return (
+    alertId === 'approval-workbench-export-volume-risk' ||
+    alertId === 'approval-workbench-export-high-risk-filter' ||
+    alertId === 'approval-workbench-export-repeated-risk'
+  );
 }
 
 function isSlaDeadLetterArchiveDeleteAlert(alertId: string) {
@@ -4447,6 +4575,7 @@ function isNotificationTaskFailureSourceAlert(alertId: string) {
 }
 
 function securityOperationAlertCategory(alert: SecurityCenterOperationalAlert) {
+  if (isApprovalWorkbenchExportAlert(alert.id)) return 'APPROVAL_WORKBENCH_EXPORT';
   if (alert.id === 'operation-alert-notification-task-sla-dead-letter-failure-source') {
     return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
   }

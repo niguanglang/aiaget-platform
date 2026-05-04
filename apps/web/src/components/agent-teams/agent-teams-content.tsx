@@ -110,6 +110,40 @@ interface ModelOption {
   provider_name?: string;
 }
 
+interface ReplaySignals {
+  agentSteps: number;
+  childEvents: number;
+  references: number;
+  toolCalls: number;
+  modelCalls: number;
+}
+
+interface MemberRunSignal {
+  agentName: string;
+  outputSummary: string | null;
+  totalTokens: number;
+  costTotal: number;
+  durationMs: number;
+  references: number;
+  toolCalls: number;
+  modelCalls: number;
+}
+
+interface MemberRunDelta {
+  key: string;
+  agentName: string;
+  statusLabel: string;
+  statusTone: 'healthy' | 'planned' | 'ready' | 'mock' | 'loading' | 'degraded' | 'unavailable';
+  stateLabel: string;
+  current: MemberRunSignal;
+  previous: MemberRunSignal;
+  diff: {
+    totalTokens: number;
+    costTotal: number;
+    durationMs: number;
+  };
+}
+
 export function AgentTeamsContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
@@ -196,6 +230,14 @@ export function AgentTeamsContent() {
   const selectedRunSteps = useMemo(
     () => filterStepsForRun(selectedTeam?.steps ?? [], selectedRun),
     [selectedTeam?.steps, selectedRun],
+  );
+  const previousRun = useMemo(
+    () => findPreviousRun(selectedTeam?.runs ?? [], selectedRun),
+    [selectedTeam?.runs, selectedRun],
+  );
+  const previousRunSteps = useMemo(
+    () => filterStepsForRun(selectedTeam?.steps ?? [], previousRun),
+    [selectedTeam?.steps, previousRun],
   );
   const selectedStep = selectedRunSteps.find((step) => step.id === selectedStepId) ?? selectedRunSteps[0] ?? null;
 
@@ -682,6 +724,8 @@ export function AgentTeamsContent() {
             onSelectRun={setSelectedRunId}
             onSelectStep={setSelectedStepId}
             onSubmitHandoff={(runId) => handoffMutation.mutate({ runId, reason: handoffReason })}
+            previousRun={previousRun}
+            previousRunSteps={previousRunSteps}
             selectedRun={selectedRun}
             selectedRunId={selectedRunId}
             selectedStep={selectedStep}
@@ -839,6 +883,8 @@ function RunTraceWorkspace({
   onSelectRun,
   onSelectStep,
   onSubmitHandoff,
+  previousRun,
+  previousRunSteps,
   selectedRun,
   selectedRunId,
   selectedStep,
@@ -865,6 +911,8 @@ function RunTraceWorkspace({
   onSelectRun: (runId: string) => void;
   onSelectStep: (stepId: string) => void;
   onSubmitHandoff: (runId: string) => void;
+  previousRun: AgentTeamRunSummary | null;
+  previousRunSteps: AgentTeamStepItem[];
   selectedRun: AgentTeamRunSummary | null;
   selectedRunId: string | null;
   selectedStep: AgentTeamStepItem | null;
@@ -935,6 +983,12 @@ function RunTraceWorkspace({
           {selectedRun ? (
             <>
               <RunSummaryPanel run={selectedRun} />
+              <RunReplayComparePanel
+                currentRun={selectedRun}
+                currentSteps={steps}
+                previousRun={previousRun}
+                previousSteps={previousRunSteps}
+              />
               <section className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)]">
                 <StepTimeline
                   onSelectStep={onSelectStep}
@@ -1011,6 +1065,156 @@ function RunSummaryPanel({ run }: { run: AgentTeamRunSummary }) {
         <RunMetric label="成本" value={formatMoney(run.total_cost)} helper="模型估算" />
         <RunMetric label="耗时" value={formatLatency(run.latency_ms)} helper={run.ended_at ? formatDateTime(run.ended_at) : '执行中'} />
       </div>
+    </div>
+  );
+}
+
+function RunReplayComparePanel({
+  currentRun,
+  currentSteps,
+  previousRun,
+  previousSteps,
+}: {
+  currentRun: AgentTeamRunSummary;
+  currentSteps: AgentTeamStepItem[];
+  previousRun: AgentTeamRunSummary | null;
+  previousSteps: AgentTeamStepItem[];
+}) {
+  const currentSignals = summarizeRunReplay(currentSteps);
+  const previousSignals = previousRun ? summarizeRunReplay(previousSteps) : null;
+  const memberDeltas = previousRun ? buildMemberDeltas(currentSteps, previousSteps) : [];
+
+  return (
+    <section className="grid gap-4 rounded-md border bg-background/70 p-4">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Layers3 className="size-4 text-primary" />
+            运行回放与对比
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            回放当前团队运行的成员执行信号，并和上一轮运行对比用量、耗时、RAG、工具和模型调用变化。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge tone="ready">M68</StatusBadge>
+          <StatusBadge tone={previousRun ? 'healthy' : 'planned'}>{previousRun ? '可对比' : '暂无上一轮'}</StatusBadge>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-4">
+        <RunMetric label="回放步骤" value={formatInteger(currentSteps.length)} helper={`${currentSignals.agentSteps} 个 Agent 步骤`} />
+        <RunMetric label="内部事件" value={formatInteger(currentSignals.childEvents)} helper="成员子步骤" />
+        <RunMetric label="知识引用" value={formatInteger(currentSignals.references)} helper="RAG sources" />
+        <RunMetric label="工具调用" value={formatInteger(currentSignals.toolCalls)} helper="Tool Gateway" />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold">当前运行信号</div>
+            <StatusBadge tone={teamRunStatusTone(currentRun.status)}>{teamRunStatusLabel(currentRun.status)}</StatusBadge>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ReplaySignal label="运行目标" value={shortText(currentRun.objective, 80)} />
+            <ReplaySignal label="Trace" value={shortTraceId(currentRun.trace_id)} />
+            <ReplaySignal label="模型调用" value={`${currentSignals.modelCalls} 次`} />
+            <ReplaySignal label="失败步骤" value={`${currentRun.failed_steps} 步`} />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <ReplaySignal label="Token" value={formatInteger(currentRun.total_tokens)} />
+            <ReplaySignal label="成本" value={formatMoney(currentRun.total_cost)} />
+            <ReplaySignal label="耗时" value={formatLatency(currentRun.latency_ms)} />
+          </div>
+        </div>
+
+        <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold">上一轮差异</div>
+            {previousRun ? <StatusBadge tone={teamRunStatusTone(previousRun.status)}>{teamRunStatusLabel(previousRun.status)}</StatusBadge> : <StatusBadge tone="planned">无基线</StatusBadge>}
+          </div>
+          {!previousRun || !previousSignals ? (
+            <p className="text-sm text-muted-foreground">暂无上一轮可对比。完成至少两次团队运行后，这里会显示差异。</p>
+          ) : (
+            <>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <DeltaMetric label="Token 差异" value={currentRun.total_tokens - previousRun.total_tokens} formatter={formatSignedInteger} />
+                <DeltaMetric label="成本差异" value={currentRun.total_cost - previousRun.total_cost} formatter={formatSignedMoney} />
+                <DeltaMetric label="耗时差异" value={currentRun.latency_ms - previousRun.latency_ms} formatter={formatSignedLatency} />
+              </div>
+              <div className="grid gap-2 sm:grid-cols-4">
+                <DeltaMetric label="步骤" value={currentSteps.length - previousSteps.length} formatter={formatSignedInteger} />
+                <DeltaMetric label="内部事件" value={currentSignals.childEvents - previousSignals.childEvents} formatter={formatSignedInteger} />
+                <DeltaMetric label="知识引用" value={currentSignals.references - previousSignals.references} formatter={formatSignedInteger} />
+                <DeltaMetric label="工具调用" value={currentSignals.toolCalls - previousSignals.toolCalls} formatter={formatSignedInteger} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                对比基线：{formatDateTime(previousRun.created_at)} / {shortTraceId(previousRun.trace_id)}
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {previousRun ? <MemberDeltaList deltas={memberDeltas} /> : null}
+    </section>
+  );
+}
+
+function ReplaySignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/75 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+function DeltaMetric({ formatter, label, value }: { formatter: (value: number) => string; label: string; value: number }) {
+  return (
+    <div className="rounded-md border bg-background/75 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={['mt-1 text-sm font-semibold', value > 0 ? 'text-amber-700' : value < 0 ? 'text-emerald-700' : 'text-foreground'].join(' ')}>
+        {formatter(value)}
+      </div>
+    </div>
+  );
+}
+
+function MemberDeltaList({ deltas }: { deltas: MemberRunDelta[] }) {
+  return (
+    <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-semibold">成员差异</div>
+        <StatusBadge tone={deltas.length > 0 ? 'ready' : 'planned'}>{deltas.length} 个成员</StatusBadge>
+      </div>
+      {deltas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">当前运行和上一轮都没有可对比的 Agent 成员步骤。</p>
+      ) : (
+        <div className="grid gap-2">
+          {deltas.map((delta) => (
+            <div className="grid gap-2 rounded-md border bg-background/75 px-3 py-3" key={delta.key}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{delta.agentName}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{delta.stateLabel}</div>
+                </div>
+                <StatusBadge tone={delta.statusTone}>{delta.statusLabel}</StatusBadge>
+              </div>
+              <div className="grid gap-2 md:grid-cols-4">
+                <ReplaySignal label="Token" value={`${formatInteger(delta.current.totalTokens)} / ${formatInteger(delta.previous.totalTokens)} (${formatSignedInteger(delta.diff.totalTokens)})`} />
+                <ReplaySignal label="成本" value={`${formatMoney(delta.current.costTotal)} / ${formatMoney(delta.previous.costTotal)} (${formatSignedMoney(delta.diff.costTotal)})`} />
+                <ReplaySignal label="耗时" value={`${formatLatency(delta.current.durationMs)} / ${formatLatency(delta.previous.durationMs)} (${formatSignedLatency(delta.diff.durationMs)})`} />
+                <ReplaySignal label="RAG / 工具 / 模型" value={`${delta.current.references}/${delta.current.toolCalls}/${delta.current.modelCalls} vs ${delta.previous.references}/${delta.previous.toolCalls}/${delta.previous.modelCalls}`} />
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <PayloadBlock title="当前输出" value={delta.current.outputSummary} />
+                <PayloadBlock title="上一轮输出" value={delta.previous.outputSummary} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1728,12 +1932,103 @@ function nullableText(value?: string) {
 
 function filterStepsForRun(steps: AgentTeamStepItem[], run: AgentTeamRunSummary | null) {
   if (!run) return [];
+  const runSteps = steps.filter((step) => step.run_id === run.id);
+  if (runSteps.length > 0) return sortStepsAsc(runSteps);
+
   if (run.trace_id) {
     const traced = steps.filter((step) => step.trace_id === run.trace_id);
     if (traced.length > 0) return sortStepsAsc(traced);
   }
 
   return sortStepsAsc(steps).slice(0, Math.max(run.total_steps, 12));
+}
+
+function findPreviousRun(runs: AgentTeamRunSummary[], selectedRun: AgentTeamRunSummary | null) {
+  if (!selectedRun) return null;
+  const sortedRuns = [...runs].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+  const index = sortedRuns.findIndex((run) => run.id === selectedRun.id);
+  return index >= 0 ? sortedRuns[index + 1] ?? null : null;
+}
+
+function summarizeRunReplay(steps: AgentTeamStepItem[]): ReplaySignals {
+  return steps.reduce(
+    (summary, step) => ({
+      agentSteps: summary.agentSteps + (step.step_type === 'AGENT_RUN' ? 1 : 0),
+      childEvents: summary.childEvents + (step.child_steps?.length ?? 0),
+      references: summary.references + (step.references?.length ?? 0),
+      toolCalls: summary.toolCalls + (step.tool_calls?.length ?? 0),
+      modelCalls: summary.modelCalls + (step.model_call ? 1 : 0),
+    }),
+    { agentSteps: 0, childEvents: 0, references: 0, toolCalls: 0, modelCalls: 0 },
+  );
+}
+
+function buildMemberDeltas(currentSteps: AgentTeamStepItem[], previousSteps: AgentTeamStepItem[]): MemberRunDelta[] {
+  const currentMembers = mapMemberSignals(currentSteps);
+  const previousMembers = mapMemberSignals(previousSteps);
+  const keys = Array.from(new Set([...currentMembers.keys(), ...previousMembers.keys()])).sort((left, right) => {
+    const leftName = currentMembers.get(left)?.agentName ?? previousMembers.get(left)?.agentName ?? left;
+    const rightName = currentMembers.get(right)?.agentName ?? previousMembers.get(right)?.agentName ?? right;
+    return leftName.localeCompare(rightName, 'zh-CN');
+  });
+
+  return keys.map((key) => {
+    const current = currentMembers.get(key) ?? emptyMemberSignal(previousMembers.get(key)?.agentName ?? '未知成员');
+    const previous = previousMembers.get(key) ?? emptyMemberSignal(current.agentName);
+    const existsCurrent = currentMembers.has(key);
+    const existsPrevious = previousMembers.has(key);
+    const statusLabel = existsCurrent && existsPrevious ? '持续存在' : existsCurrent ? '本轮新增' : '本轮缺失';
+    const statusTone = existsCurrent && existsPrevious ? 'healthy' : existsCurrent ? 'ready' : 'degraded';
+
+    return {
+      key,
+      agentName: current.agentName || previous.agentName,
+      statusLabel,
+      statusTone,
+      stateLabel: existsCurrent && existsPrevious ? '当前运行与上一轮均有成员执行' : existsCurrent ? '上一轮没有该成员执行步骤' : '当前运行没有该成员执行步骤',
+      current,
+      previous,
+      diff: {
+        totalTokens: current.totalTokens - previous.totalTokens,
+        costTotal: current.costTotal - previous.costTotal,
+        durationMs: current.durationMs - previous.durationMs,
+      },
+    };
+  });
+}
+
+function mapMemberSignals(steps: AgentTeamStepItem[]) {
+  const members = new Map<string, MemberRunSignal>();
+  steps
+    .filter((step) => step.step_type === 'AGENT_RUN')
+    .forEach((step) => {
+      const key = step.member_id ?? step.agent_id ?? step.agent_name ?? step.id;
+      const existing = members.get(key) ?? emptyMemberSignal(step.agent_name ?? step.agent_code ?? '未知成员');
+      members.set(key, {
+        agentName: existing.agentName || step.agent_name || step.agent_code || '未知成员',
+        outputSummary: step.output_summary ?? existing.outputSummary,
+        totalTokens: existing.totalTokens + step.total_tokens,
+        costTotal: existing.costTotal + step.cost_total,
+        durationMs: existing.durationMs + step.duration_ms,
+        references: existing.references + (step.references?.length ?? 0),
+        toolCalls: existing.toolCalls + (step.tool_calls?.length ?? 0),
+        modelCalls: existing.modelCalls + (step.model_call ? 1 : 0),
+      });
+    });
+  return members;
+}
+
+function emptyMemberSignal(agentName: string): MemberRunSignal {
+  return {
+    agentName,
+    outputSummary: null,
+    totalTokens: 0,
+    costTotal: 0,
+    durationMs: 0,
+    references: 0,
+    toolCalls: 0,
+    modelCalls: 0,
+  };
 }
 
 function sortStepsAsc(steps: AgentTeamStepItem[]) {
@@ -1879,6 +2174,21 @@ function formatMoney(value: number | null | undefined) {
     maximumFractionDigits: 6,
     minimumFractionDigits: 0,
   }).format(value ?? 0)}`;
+}
+
+function formatSignedInteger(value: number) {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${formatInteger(value)}`;
+}
+
+function formatSignedMoney(value: number) {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${formatMoney(value)}`;
+}
+
+function formatSignedLatency(value: number) {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${formatLatency(Math.abs(value))}`;
 }
 
 function formatLatency(value: number | null | undefined) {

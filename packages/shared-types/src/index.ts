@@ -3875,6 +3875,7 @@ export interface AgentTeamListItem {
 
 export interface AgentTeamStepItem {
   id: string;
+  run_id: string;
   member_id: string | null;
   agent_id: string | null;
   agent_name: string | null;

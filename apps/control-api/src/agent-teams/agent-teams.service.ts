@@ -93,7 +93,7 @@ const teamInclude = {
     orderBy: {
       createdAt: 'desc',
     },
-    take: 30,
+    take: 120,
   },
   handoffs: {
     where: {
@@ -2541,6 +2541,7 @@ export class AgentTeamsService {
   ): AgentTeamStepItem {
     return {
       id: step.id,
+      run_id: step.runId,
       member_id: step.memberId,
       agent_id: step.agentId,
       agent_name: step.agent?.name ?? null,

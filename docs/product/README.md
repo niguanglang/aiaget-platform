@@ -82,6 +82,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M66 统一事件关系自动建链](./m66-platform-event-auto-relations.md)
 - [M66 多 Agent 团队 Supervisor 策略与预算约束](./m66-agent-team-supervisor-policy-budget.md)
 - [M67 多 Agent 团队运行步骤子事件视图](./m67-agent-team-step-sub-events.md)
+- [M68 多 Agent 团队运行回放与对比](./m68-agent-team-run-replay-compare.md)
 - [M67 统一用量 Rollup 聚合任务](./m67-platform-usage-rollup-task.md)
 - [M68 统一用量异常检测与告警闭环](./m68-platform-usage-anomaly-alerts.md)
 - [M69 告警生命周期与通知策略](./m69-usage-alert-lifecycle.md)

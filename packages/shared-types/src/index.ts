@@ -3788,6 +3788,11 @@ export interface ChannelCallbackResult {
 export type AgentTeamStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ARCHIVED';
 export type AgentTeamMode = 'SEQUENTIAL' | 'PARALLEL' | 'SUPERVISOR';
 export type AgentTeamHandoffPolicy = 'AUTO' | 'MANUAL' | 'APPROVAL_REQUIRED';
+export type AgentTeamFailurePolicy =
+  | 'MATCH_HANDOFF_POLICY'
+  | 'STOP_ON_REQUIRED_FAILURE'
+  | 'WAIT_HUMAN_ON_REQUIRED_FAILURE'
+  | 'CONTINUE_OPTIONAL';
 export type AgentTeamMemberStatus = 'ACTIVE' | 'DISABLED';
 export type AgentTeamRunStatus = 'QUEUED' | 'RUNNING' | 'WAITING_HUMAN' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type AgentTeamStepStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
@@ -3838,6 +3843,15 @@ export interface AgentTeamListItem {
   max_rounds: number;
   timeout_seconds: number;
   handoff_policy: AgentTeamHandoffPolicy;
+  supervisor_model_id: string | null;
+  supervisor_model_name: string | null;
+  supervisor_model: string | null;
+  supervisor_prompt: string | null;
+  failure_policy: AgentTeamFailurePolicy;
+  quality_gate_enabled: boolean;
+  quality_threshold: number;
+  budget_token_limit: number | null;
+  budget_cost_limit: number | null;
   owner: AgentOwnerSummary | null;
   member_count: number;
   active_member_count: number;
@@ -3927,6 +3941,13 @@ export interface CreateAgentTeamInput {
   max_rounds?: number;
   timeout_seconds?: number;
   handoff_policy?: AgentTeamHandoffPolicy;
+  supervisor_model_id?: string | null;
+  supervisor_prompt?: string | null;
+  failure_policy?: AgentTeamFailurePolicy;
+  quality_gate_enabled?: boolean;
+  quality_threshold?: number;
+  budget_token_limit?: number | null;
+  budget_cost_limit?: number | null;
 }
 
 export interface UpdateAgentTeamInput {
@@ -3938,6 +3959,13 @@ export interface UpdateAgentTeamInput {
   max_rounds?: number;
   timeout_seconds?: number;
   handoff_policy?: AgentTeamHandoffPolicy;
+  supervisor_model_id?: string | null;
+  supervisor_prompt?: string | null;
+  failure_policy?: AgentTeamFailurePolicy;
+  quality_gate_enabled?: boolean;
+  quality_threshold?: number;
+  budget_token_limit?: number | null;
+  budget_cost_limit?: number | null;
 }
 
 export interface CreateAgentTeamMemberInput {

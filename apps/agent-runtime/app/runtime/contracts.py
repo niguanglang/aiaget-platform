@@ -78,6 +78,18 @@ class RuntimeModelConfig(BaseModel):
     output_price: float = 0
 
 
+class RuntimeSupervisorPolicy(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    runtime_model_config: RuntimeModelConfig | None = Field(default=None, alias="model_config")
+    prompt: str | None = None
+    failure_policy: str = "MATCH_HANDOFF_POLICY"
+    quality_gate_enabled: bool = False
+    quality_threshold: float = 0.75
+    budget_token_limit: int | None = None
+    budget_cost_limit: float | None = None
+
+
 class RuntimeAgentSnapshot(BaseModel):
     tenant_id: str
     user_id: str
@@ -251,6 +263,14 @@ class RuntimeAgentTeamSnapshot(BaseModel):
     max_rounds: int = 3
     timeout_seconds: int = 300
     handoff_policy: str = "AUTO"
+    supervisor_model_id: str | None = None
+    supervisor_prompt: str | None = None
+    failure_policy: str = "MATCH_HANDOFF_POLICY"
+    quality_gate_enabled: bool = False
+    quality_threshold: float = 0.75
+    budget_token_limit: int | None = None
+    budget_cost_limit: float | None = None
+    supervisor_policy: RuntimeSupervisorPolicy | None = None
 
 
 class RuntimeAgentTeamMemberRequest(BaseModel):

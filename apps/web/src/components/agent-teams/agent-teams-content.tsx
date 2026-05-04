@@ -6,6 +6,7 @@ import {
   type AgentListItem,
   type AgentTeamDetail,
   type AgentTeamFeedbackItem,
+  type AgentTeamFailurePolicy,
   type AgentTeamHandoffItem,
   type AgentTeamHandoffPolicy,
   type AgentTeamListItem,
@@ -13,6 +14,7 @@ import {
   type AgentTeamRunSummary,
   type AgentTeamStepItem,
   type AgentTeamStatus,
+  type ModelConfigItem,
 } from '@aiaget/shared-types';
 import {
   Activity,
@@ -51,8 +53,10 @@ import {
   deleteAgentTeamMember,
   getAgentTeam,
   getAgentTeamOverview,
+  getModelProvider,
   listAgentTeams,
   listAgents,
+  listModelProviders,
   listUsers,
   rejectAgentTeamHandoff,
   startAgentTeamRun,
@@ -64,6 +68,12 @@ import {
 const teamStatuses: AgentTeamStatus[] = ['DRAFT', 'ACTIVE', 'DISABLED', 'ARCHIVED'];
 const teamModes: AgentTeamMode[] = ['SEQUENTIAL', 'PARALLEL', 'SUPERVISOR'];
 const handoffPolicies: AgentTeamHandoffPolicy[] = ['AUTO', 'MANUAL', 'APPROVAL_REQUIRED'];
+const failurePolicies: AgentTeamFailurePolicy[] = [
+  'MATCH_HANDOFF_POLICY',
+  'STOP_ON_REQUIRED_FAILURE',
+  'WAIT_HUMAN_ON_REQUIRED_FAILURE',
+  'CONTINUE_OPTIONAL',
+];
 
 interface TeamFormValues {
   name: string;
@@ -75,6 +85,13 @@ interface TeamFormValues {
   max_rounds: number;
   timeout_seconds: number;
   handoff_policy: AgentTeamHandoffPolicy;
+  supervisor_model_id: string;
+  supervisor_prompt: string;
+  failure_policy: AgentTeamFailurePolicy;
+  quality_gate_enabled: boolean;
+  quality_threshold: number;
+  budget_token_limit: number | '';
+  budget_cost_limit: number | '';
 }
 
 interface MemberFormValues {
@@ -84,6 +101,13 @@ interface MemberFormValues {
   execution_order: number;
   required: boolean;
   status: 'ACTIVE' | 'DISABLED';
+}
+
+interface ModelOption {
+  id: string;
+  label: string;
+  model: string;
+  provider_name?: string;
 }
 
 export function AgentTeamsContent() {
@@ -152,11 +176,21 @@ export function AgentTeamsContent() {
         status: 'ACTIVE',
       }),
   });
+  const modelProvidersQuery = useQuery({
+    queryKey: ['agent-team-supervisor-model-options'],
+    queryFn: () => listModelProviders({ page: 1, page_size: 100, status: 'ACTIVE' }),
+  });
+  const modelProviderDetailsQuery = useQuery({
+    enabled: Boolean(modelProvidersQuery.data?.items.length),
+    queryKey: ['agent-team-supervisor-model-provider-details', modelProvidersQuery.data?.items.map((provider) => provider.id).sort().join(',')],
+    queryFn: async () => Promise.all((modelProvidersQuery.data?.items ?? []).map((provider) => getModelProvider(provider.id))),
+  });
 
   const selectedTeam = detailQuery.data ?? null;
   const teams = teamsQuery.data?.items ?? [];
   const agents = agentsQuery.data?.items ?? [];
   const owners = ownersQuery.data?.items ?? [];
+  const modelOptions = useMemo(() => flattenModelOptions(modelProviderDetailsQuery.data ?? []), [modelProviderDetailsQuery.data]);
   const latestRun = selectedTeam?.runs[0] ?? null;
   const selectedRun = selectedTeam?.runs.find((run) => run.id === selectedRunId) ?? latestRun ?? null;
   const selectedRunSteps = useMemo(
@@ -316,6 +350,13 @@ export function AgentTeamsContent() {
       max_rounds: team.max_rounds,
       timeout_seconds: team.timeout_seconds,
       handoff_policy: team.handoff_policy,
+      supervisor_model_id: team.supervisor_model_id ?? '',
+      supervisor_prompt: team.supervisor_prompt ?? '',
+      failure_policy: team.failure_policy,
+      quality_gate_enabled: team.quality_gate_enabled,
+      quality_threshold: team.quality_threshold,
+      budget_token_limit: team.budget_token_limit ?? '',
+      budget_cost_limit: team.budget_cost_limit ?? '',
     });
   }
 
@@ -464,10 +505,10 @@ export function AgentTeamsContent() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    {['团队', '状态', '模式', '成员', '最近运行', '负责人', '更新时间', '操作'].map((column) => (
+                    {['团队', '状态', '模式', '策略', '成员', '最近运行', '负责人', '更新时间', '操作'].map((column) => (
                       <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>
                     ))}
                   </tr>
@@ -484,6 +525,10 @@ export function AgentTeamsContent() {
                       </td>
                       <td className="px-4 py-3"><StatusBadge tone={teamStatusTone(team.status)}>{teamStatusLabel(team.status)}</StatusBadge></td>
                       <td className="px-4 py-3 text-muted-foreground">{teamModeLabel(team.mode)}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        <div>{failurePolicyLabel(team.failure_policy)}</div>
+                        <div>{team.quality_gate_enabled ? `质量 ${team.quality_threshold.toFixed(2)}` : '质量未启用'}</div>
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{team.active_member_count} / {team.member_count}</td>
                       <td className="px-4 py-3 text-muted-foreground">{team.latest_run ? teamRunStatusLabel(team.latest_run.status) : '未运行'}</td>
                       <td className="px-4 py-3 text-muted-foreground">{team.owner?.name ?? '-'}</td>
@@ -531,6 +576,10 @@ export function AgentTeamsContent() {
                 <DetailRow label="状态" value={teamStatusLabel(selectedTeam.status)} />
                 <DetailRow label="模式" value={teamModeLabel(selectedTeam.mode)} />
                 <DetailRow label="接力策略" value={handoffPolicyLabel(selectedTeam.handoff_policy)} />
+                <DetailRow label="Supervisor 模型" value={selectedTeam.supervisor_model_name ? `${selectedTeam.supervisor_model_name} / ${selectedTeam.supervisor_model ?? '-'}` : '使用成员模型兜底'} />
+                <DetailRow label="失败策略" value={failurePolicyLabel(selectedTeam.failure_policy)} />
+                <DetailRow label="质量门槛" value={selectedTeam.quality_gate_enabled ? `${selectedTeam.quality_threshold.toFixed(2)} 已启用` : '未启用'} />
+                <DetailRow label="预算约束" value={formatTeamBudget(selectedTeam)} />
                 <DetailRow label="负责人" value={selectedTeam.owner?.email ?? '-'} />
               </div>
 
@@ -653,6 +702,7 @@ export function AgentTeamsContent() {
             isPending={createTeamMutation.isPending || updateTeamMutation.isPending}
             onChange={setTeamForm}
             onSubmit={submitTeamForm}
+            modelOptions={modelOptions}
             owners={owners}
           />
         </FormShell>
@@ -673,10 +723,11 @@ export function AgentTeamsContent() {
   );
 }
 
-function TeamForm({ canEditCode, form, isPending, onChange, onSubmit, owners }: {
+function TeamForm({ canEditCode, form, isPending, modelOptions, onChange, onSubmit, owners }: {
   canEditCode: boolean;
   form: TeamFormValues;
   isPending: boolean;
+  modelOptions: ModelOption[];
   onChange: (form: TeamFormValues) => void;
   onSubmit: () => void;
   owners: Array<{ id: string; name: string }>;
@@ -697,6 +748,40 @@ function TeamForm({ canEditCode, form, isPending, onChange, onSubmit, owners }: 
         <NumberField label="最大轮次" min={1} onChange={(max_rounds) => onChange({ ...form, max_rounds })} value={form.max_rounds} />
         <NumberField label="超时秒数" min={30} onChange={(timeout_seconds) => onChange({ ...form, timeout_seconds })} value={form.timeout_seconds} />
       </div>
+      <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+        <div>
+          <h3 className="text-sm font-semibold">Supervisor 策略</h3>
+          <p className="mt-1 text-xs text-muted-foreground">用于主管调度模式，也会作为团队运行的统一策略约束。</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <SelectField
+            label="Supervisor 模型"
+            onChange={(supervisor_model_id) => onChange({ ...form, supervisor_model_id })}
+            options={[['', modelOptions.length ? '使用成员模型兜底' : '暂无可用模型，使用成员模型兜底'], ...modelOptions.map((model) => [model.id, model.label] as [string, string])]}
+            value={form.supervisor_model_id}
+          />
+          <SelectField label="失败策略" onChange={(failure_policy) => onChange({ ...form, failure_policy: failure_policy as AgentTeamFailurePolicy })} options={failurePolicies.map((item) => [item, failurePolicyLabel(item)])} value={form.failure_policy} />
+          <NumberField label="质量阈值" max={1} min={0} onChange={(quality_threshold) => onChange({ ...form, quality_threshold })} step="0.05" value={form.quality_threshold} />
+          <label className="flex items-end gap-2 text-sm">
+            <input checked={form.quality_gate_enabled} onChange={(event) => onChange({ ...form, quality_gate_enabled: event.target.checked })} type="checkbox" />
+            启用质量门槛
+          </label>
+        </div>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">调度提示词</span>
+          <textarea className="min-h-24 rounded-md border bg-background px-3 py-2 outline-none" onChange={(event) => onChange({ ...form, supervisor_prompt: event.target.value })} placeholder="例如：优先调用审核 Agent，涉及高风险工具时必须等待人工接力。" value={form.supervisor_prompt} />
+        </label>
+      </section>
+      <section className="grid gap-3 rounded-md border bg-muted/20 p-3">
+        <div>
+          <h3 className="text-sm font-semibold">预算约束</h3>
+          <p className="mt-1 text-xs text-muted-foreground">达到 Token 或成本上限后，Runtime Supervisor 会停止后续调度并写入失败步骤。</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <OptionalNumberField label="Token 预算上限" min={1} onChange={(budget_token_limit) => onChange({ ...form, budget_token_limit })} value={form.budget_token_limit} />
+          <OptionalNumberField label="成本预算上限" min={0} onChange={(budget_cost_limit) => onChange({ ...form, budget_cost_limit })} step="0.000001" value={form.budget_cost_limit} />
+        </div>
+      </section>
       <Button disabled={!form.name.trim() || !form.code.trim() || isPending} onClick={onSubmit}>
         保存团队
       </Button>
@@ -1357,11 +1442,28 @@ function TextField({ disabled, label, onChange, value }: { disabled?: boolean; l
   );
 }
 
-function NumberField({ label, min, onChange, value }: { label: string; min: number; onChange: (value: number) => void; value: number }) {
+function NumberField({ label, max, min, onChange, step, value }: { label: string; max?: number; min: number; onChange: (value: number) => void; step?: string; value: number }) {
   return (
     <label className="grid gap-1 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <input className="h-9 rounded-md border bg-background px-3 outline-none" min={min} onChange={(event) => onChange(Number(event.target.value))} type="number" value={value} />
+      <input className="h-9 rounded-md border bg-background px-3 outline-none" max={max} min={min} onChange={(event) => onChange(Number(event.target.value))} step={step} type="number" value={value} />
+    </label>
+  );
+}
+
+function OptionalNumberField({ label, min, onChange, step, value }: { label: string; min: number; onChange: (value: number | '') => void; step?: string; value: number | '' }) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <input
+        className="h-9 rounded-md border bg-background px-3 outline-none"
+        min={min}
+        onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))}
+        placeholder="不限制"
+        step={step}
+        type="number"
+        value={value}
+      />
     </label>
   );
 }
@@ -1397,6 +1499,13 @@ function defaultTeamForm(): TeamFormValues {
     max_rounds: 3,
     timeout_seconds: 300,
     handoff_policy: 'AUTO',
+    supervisor_model_id: '',
+    supervisor_prompt: '',
+    failure_policy: 'MATCH_HANDOFF_POLICY',
+    quality_gate_enabled: false,
+    quality_threshold: 0.75,
+    budget_token_limit: '',
+    budget_cost_limit: '',
   };
 }
 
@@ -1422,6 +1531,13 @@ function toTeamInput(values: TeamFormValues) {
     max_rounds: values.max_rounds,
     timeout_seconds: values.timeout_seconds,
     handoff_policy: values.handoff_policy,
+    supervisor_model_id: values.supervisor_model_id || null,
+    supervisor_prompt: nullableText(values.supervisor_prompt),
+    failure_policy: values.failure_policy,
+    quality_gate_enabled: values.quality_gate_enabled,
+    quality_threshold: values.quality_threshold,
+    budget_token_limit: values.budget_token_limit === '' ? null : values.budget_token_limit,
+    budget_cost_limit: values.budget_cost_limit === '' ? null : values.budget_cost_limit,
   };
 }
 
@@ -1467,6 +1583,19 @@ function filterFeedbackForRun(feedback: AgentTeamFeedbackItem[], run: AgentTeamR
     .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
+function flattenModelOptions(providers: Array<{ name: string; models?: ModelConfigItem[] }>): ModelOption[] {
+  return providers.flatMap((provider) =>
+    (provider.models ?? [])
+      .filter((model) => model.status === 'ACTIVE')
+      .map((model) => ({
+        id: model.id,
+        label: `${provider.name} / ${model.name || model.model}`,
+        model: model.model,
+        provider_name: provider.name,
+      })),
+  );
+}
+
 function teamStatusLabel(status: AgentTeamStatus) {
   return ({ DRAFT: '草稿', ACTIVE: '启用', DISABLED: '停用', ARCHIVED: '归档' } as const)[status];
 }
@@ -1481,6 +1610,21 @@ function teamModeLabel(mode: AgentTeamMode) {
 
 function handoffPolicyLabel(policy: AgentTeamHandoffPolicy) {
   return ({ AUTO: '自动接力', MANUAL: '人工接力', APPROVAL_REQUIRED: '接力需审批' } as const)[policy];
+}
+
+function failurePolicyLabel(policy: AgentTeamFailurePolicy) {
+  return ({
+    MATCH_HANDOFF_POLICY: '跟随接力策略',
+    STOP_ON_REQUIRED_FAILURE: '必选失败即终止',
+    WAIT_HUMAN_ON_REQUIRED_FAILURE: '必选失败等人工',
+    CONTINUE_OPTIONAL: '允许继续调度',
+  } as const)[policy];
+}
+
+function formatTeamBudget(team: AgentTeamListItem) {
+  const tokenLimit = team.budget_token_limit ? `${formatInteger(team.budget_token_limit)} Token` : 'Token 不限制';
+  const costLimit = team.budget_cost_limit ? `${formatMoney(team.budget_cost_limit)}` : '成本不限制';
+  return `${tokenLimit} / ${costLimit}`;
 }
 
 function teamRunStatusLabel(status: string) {

@@ -47,6 +47,8 @@ class SupervisorRun:
     handoffs: list[RuntimeAgentTeamHandoffResult]
     waiting_human: bool = False
     error_message: str | None = None
+    budget_exceeded: bool = False
+    quality_gate_failed: bool = False
 
 
 @dataclass
@@ -101,6 +103,8 @@ async def build_team_runtime_response(request: RuntimeAgentTeamRequest) -> Runti
     steps.extend(execution.step for execution in executions)
     failed_required_member = has_failed_required_member(executions)
     waiting_human = request.team.mode == "SUPERVISOR" and "supervisor_run" in locals() and supervisor_run.waiting_human
+    budget_exceeded = request.team.mode == "SUPERVISOR" and "supervisor_run" in locals() and supervisor_run.budget_exceeded
+    quality_gate_failed = request.team.mode == "SUPERVISOR" and "supervisor_run" in locals() and supervisor_run.quality_gate_failed
     error_message = (
         supervisor_run.error_message
         if request.team.mode == "SUPERVISOR" and "supervisor_run" in locals()
@@ -122,7 +126,7 @@ async def build_team_runtime_response(request: RuntimeAgentTeamRequest) -> Runti
             agent_id=None,
             step_type="SUMMARY",
             title="Runtime 团队结果汇总",
-            status="SKIPPED" if waiting_human else "FAILED" if failed_required_member else "SUCCESS",
+            status="SKIPPED" if waiting_human else "FAILED" if failed_required_member or budget_exceeded or quality_gate_failed else "SUCCESS",
             input_summary=f"完成 {len(member_results)} 个成员执行步骤。",
             output_summary=summary_message,
             trace_id=trace_id,
@@ -133,7 +137,7 @@ async def build_team_runtime_response(request: RuntimeAgentTeamRequest) -> Runti
             completion_tokens=member_completion_tokens + supervisor_completion_tokens,
             total_tokens=member_total_tokens + supervisor_total_tokens,
             cost_total=round(member_cost_total + supervisor_cost_total, 6),
-            error_message=(error_message or "存在必选成员执行失败.") if failed_required_member else None,
+            error_message=(error_message or "团队运行未通过策略约束。") if failed_required_member or budget_exceeded or quality_gate_failed else None,
             started_at=utc_now(),
             ended_at=utc_now(),
         )
@@ -141,7 +145,7 @@ async def build_team_runtime_response(request: RuntimeAgentTeamRequest) -> Runti
 
     total_tokens = member_total_tokens + supervisor_total_tokens
     total_cost = round(member_cost_total + supervisor_cost_total, 6)
-    response_status = "WAITING_HUMAN" if waiting_human else "FAILED" if failed_required_member else "SUCCESS"
+    response_status = "WAITING_HUMAN" if waiting_human else "FAILED" if failed_required_member or budget_exceeded or quality_gate_failed else "SUCCESS"
     return RuntimeAgentTeamResponse(
         trace_id=trace_id,
         status=response_status,
@@ -152,7 +156,7 @@ async def build_team_runtime_response(request: RuntimeAgentTeamRequest) -> Runti
         steps=steps,
         handoffs=handoffs,
         member_results=member_results,
-        error_message=(error_message or "存在必选成员执行失败.") if failed_required_member else None,
+        error_message=(error_message or "团队运行未通过策略约束。") if failed_required_member or budget_exceeded or quality_gate_failed else None,
     )
 
 
@@ -279,6 +283,17 @@ async def run_supervisor_members(
     round_index = resume_context.next_round_index if resume_context and resume_context.next_round_index > 0 else 1
 
     while remaining and round_index <= max_rounds:
+        budget_check = evaluate_budget_policy(request, executions, steps)
+        if budget_check:
+            steps.append(build_supervisor_step(request, trace_id, root_span_id, round_index, None, budget_check, "FAILED"))
+            return SupervisorRun(
+                executions=executions,
+                steps=steps + build_handoff_steps(handoffs, trace_id, root_span_id),
+                handoffs=handoffs,
+                budget_exceeded=True,
+                error_message=budget_check,
+            )
+
         decision = await build_supervisor_decision(request, remaining, executions, round_index, trace_id, root_span_id)
         next_member = resolve_decision_member(decision, remaining)
         if should_accept_stop_decision(request, decision, executions):
@@ -374,7 +389,8 @@ async def run_supervisor_members(
                     previous_outputs.append(f"{retry_execution.result.agent_name}：{retry_execution.result.assistant_message}")
 
             if execution.result.status == "FAILED" and next_member.required:
-                waiting_required = request.team.handoff_policy == "APPROVAL_REQUIRED"
+                failure_policy = resolve_failure_policy(request)
+                waiting_required = failure_policy == "WAIT_HUMAN_ON_REQUIRED_FAILURE"
                 status = "PENDING" if waiting_required else "AUTO"
                 handoffs.append(
                     RuntimeAgentTeamHandoffResult(
@@ -438,6 +454,17 @@ async def run_supervisor_members(
 
         round_index += 1
 
+        budget_check = evaluate_budget_policy(request, executions, steps)
+        if budget_check:
+            steps.append(build_supervisor_step(request, trace_id, root_span_id, round_index, None, budget_check, "FAILED"))
+            return SupervisorRun(
+                executions=executions,
+                steps=steps + build_handoff_steps(handoffs, trace_id, root_span_id),
+                handoffs=handoffs,
+                budget_exceeded=True,
+                error_message=budget_check,
+            )
+
     if remaining:
         skipped = "；".join(member.agent_request.agent_name for member in remaining)
         steps.append(
@@ -450,6 +477,28 @@ async def run_supervisor_members(
                 f"已达到最大轮次 {max_rounds}，剩余成员未调度：{skipped}。",
                 "SKIPPED",
             )
+        )
+
+    budget_check = evaluate_budget_policy(request, executions, steps)
+    if budget_check:
+        steps.append(build_supervisor_step(request, trace_id, root_span_id, round_index, None, budget_check, "FAILED"))
+        return SupervisorRun(
+            executions=executions,
+            steps=steps + build_handoff_steps(handoffs, trace_id, root_span_id),
+            handoffs=handoffs,
+            budget_exceeded=True,
+            error_message=budget_check,
+        )
+
+    quality_check = evaluate_quality_gate(request, executions)
+    if quality_check:
+        steps.append(build_supervisor_step(request, trace_id, root_span_id, round_index, None, quality_check, "FAILED"))
+        return SupervisorRun(
+            executions=executions,
+            steps=steps + build_handoff_steps(handoffs, trace_id, root_span_id),
+            handoffs=handoffs,
+            quality_gate_failed=True,
+            error_message=quality_check,
         )
 
     return SupervisorRun(
@@ -503,7 +552,18 @@ def build_plan_summary(
         "SUPERVISOR": "先生成 Supervisor 调度决策，再按计划顺序执行成员并自动记录接力。",
     }
     mode_note = mode_notes.get(request.team.mode, "按顺序执行成员步骤。")
-    return f"已规划 {len(members)} 个成员，最大轮次 {request.team.max_rounds}，接力策略 {request.team.handoff_policy}，{mode_note}"
+    budget_notes = []
+    token_limit = resolve_budget_token_limit(request)
+    cost_limit = resolve_budget_cost_limit(request)
+    if token_limit:
+        budget_notes.append(f"Token 预算 {token_limit}")
+    if cost_limit:
+        budget_notes.append(f"成本预算 {cost_limit:.6f}")
+    if resolve_quality_gate_enabled(request):
+        budget_notes.append(f"质量阈值 {resolve_quality_threshold(request):.2f}")
+    policy_note = f"失败策略 {resolve_failure_policy(request)}"
+    constraint_note = "；".join([policy_note, *budget_notes])
+    return f"已规划 {len(members)} 个成员，最大轮次 {request.team.max_rounds}，接力策略 {request.team.handoff_policy}，{constraint_note}，{mode_note}"
 
 
 def build_supervisor_plan(
@@ -575,7 +635,7 @@ async def build_supervisor_decision(
         confidence=0.55,
         source="RULE_FALLBACK",
     )
-    model_config = select_supervisor_model_config(remaining, executions)
+    model_config = select_supervisor_model_config(request, remaining, executions)
     if model_config is None:
         fallback_decision.fallback_reason = "未找到可用成员模型配置。"
         return fallback_decision
@@ -631,9 +691,13 @@ def build_rule_supervisor_reason(
 
 
 def select_supervisor_model_config(
+    request: RuntimeAgentTeamRequest,
     remaining: list[RuntimeAgentTeamMemberRequest],
     executions: list[MemberExecution],
 ) -> RuntimeModelConfig | None:
+    if request.team.supervisor_policy and request.team.supervisor_policy.runtime_model_config:
+        return request.team.supervisor_policy.runtime_model_config
+
     for member in remaining:
         if member.agent_request.runtime_model_config:
             return member.agent_request.runtime_model_config
@@ -655,6 +719,38 @@ def build_supervisor_model_request(
     root_span_id: str,
 ) -> RuntimeConversationRequest:
     parent_span_id = create_span_id()
+    prompt_messages = [
+        RuntimePromptMessage(
+            role="system",
+            content=(
+                "你是企业 Agent 团队的 Supervisor 调度器。"
+                "你只负责选择下一步调度动作，不直接回答业务问题。"
+                "必须只输出严格 JSON，不要输出 Markdown、代码块或额外解释。"
+            ),
+        )
+    ]
+    supervisor_prompt = resolve_supervisor_prompt(request)
+    if supervisor_prompt:
+        prompt_messages.append(
+            RuntimePromptMessage(
+                role="system",
+                content=f"团队补充调度策略：{supervisor_prompt}",
+            )
+        )
+    prompt_messages.append(
+        RuntimePromptMessage(
+            role="user",
+            content=(
+                "请根据团队目标、已完成结果、失败情况和剩余成员，输出下一步决策。"
+                "JSON 字段必须包含：action、next_member_id、reason、confidence。"
+                "action 只能是 RUN_MEMBER、RETRY_MEMBER、WAIT_HUMAN、STOP。"
+                "RUN_MEMBER 或 RETRY_MEMBER 时 next_member_id 必须是 remaining_members 中的 member_id。"
+                "STOP 或 WAIT_HUMAN 时 next_member_id 可以为 null。"
+                "reason 必须使用中文，confidence 是 0 到 1 的数字。"
+            ),
+        )
+    )
+
     return RuntimeConversationRequest(
         request_id=request.request_id,
         trace_id=trace_id,
@@ -669,27 +765,7 @@ def build_supervisor_model_request(
             ensure_ascii=False,
         ),
         history=[],
-        prompt_messages=[
-            RuntimePromptMessage(
-                role="system",
-                content=(
-                    "你是企业 Agent 团队的 Supervisor 调度器。"
-                    "你只负责选择下一步调度动作，不直接回答业务问题。"
-                    "必须只输出严格 JSON，不要输出 Markdown、代码块或额外解释。"
-                ),
-            ),
-            RuntimePromptMessage(
-                role="user",
-                content=(
-                    "请根据团队目标、已完成结果、失败情况和剩余成员，输出下一步决策。"
-                    "JSON 字段必须包含：action、next_member_id、reason、confidence。"
-                    "action 只能是 RUN_MEMBER、RETRY_MEMBER、WAIT_HUMAN、STOP。"
-                    "RUN_MEMBER 或 RETRY_MEMBER 时 next_member_id 必须是 remaining_members 中的 member_id。"
-                    "STOP 或 WAIT_HUMAN 时 next_member_id 可以为 null。"
-                    "reason 必须使用中文，confidence 是 0 到 1 的数字。"
-                ),
-            ),
-        ],
+        prompt_messages=prompt_messages,
         prompts=[],
         knowledge_bindings=[],
         tools=[],
@@ -714,6 +790,11 @@ def build_supervisor_decision_payload(
             "mode": request.team.mode,
             "max_rounds": request.team.max_rounds,
             "handoff_policy": request.team.handoff_policy,
+            "failure_policy": resolve_failure_policy(request),
+            "quality_gate_enabled": resolve_quality_gate_enabled(request),
+            "quality_threshold": resolve_quality_threshold(request),
+            "budget_token_limit": resolve_budget_token_limit(request),
+            "budget_cost_limit": resolve_budget_cost_limit(request),
         },
         "round_index": round_index,
         "remaining_members": [
@@ -746,6 +827,7 @@ def build_supervisor_decision_payload(
             "如果必选成员失败且还有审核、复核或安全角色可调度，优先交给该成员处理。",
             "如果已覆盖目标，可以 STOP。",
             "如果需要人工介入且 handoff_policy 为 APPROVAL_REQUIRED，可以 WAIT_HUMAN。",
+            "必须遵守 failure_policy、quality_threshold、budget_token_limit 和 budget_cost_limit。",
             "不要选择 remaining_members 之外的成员。",
         ],
     }
@@ -856,8 +938,98 @@ def should_accept_wait_human_decision(
     return (
         decision.source == "MODEL"
         and decision.action == "WAIT_HUMAN"
-        and request.team.handoff_policy == "APPROVAL_REQUIRED"
+        and resolve_failure_policy(request) == "WAIT_HUMAN_ON_REQUIRED_FAILURE"
     )
+
+
+def resolve_failure_policy(request: RuntimeAgentTeamRequest) -> str:
+    policy = request.team.failure_policy
+    if request.team.supervisor_policy and request.team.supervisor_policy.failure_policy:
+        policy = request.team.supervisor_policy.failure_policy
+
+    if policy == "MATCH_HANDOFF_POLICY":
+        return "WAIT_HUMAN_ON_REQUIRED_FAILURE" if request.team.handoff_policy == "APPROVAL_REQUIRED" else "STOP_ON_REQUIRED_FAILURE"
+
+    if policy in {"STOP_ON_REQUIRED_FAILURE", "WAIT_HUMAN_ON_REQUIRED_FAILURE", "CONTINUE_OPTIONAL"}:
+        return policy
+
+    return "STOP_ON_REQUIRED_FAILURE"
+
+
+def resolve_supervisor_prompt(request: RuntimeAgentTeamRequest) -> str | None:
+    prompt = request.team.supervisor_prompt
+    if request.team.supervisor_policy and request.team.supervisor_policy.prompt:
+        prompt = request.team.supervisor_policy.prompt
+    return prompt.strip() if isinstance(prompt, str) and prompt.strip() else None
+
+
+def resolve_quality_gate_enabled(request: RuntimeAgentTeamRequest) -> bool:
+    if request.team.supervisor_policy:
+        return request.team.supervisor_policy.quality_gate_enabled
+    return request.team.quality_gate_enabled
+
+
+def resolve_quality_threshold(request: RuntimeAgentTeamRequest) -> float:
+    threshold = request.team.quality_threshold
+    if request.team.supervisor_policy:
+        threshold = request.team.supervisor_policy.quality_threshold
+    return max(0, min(1, float(threshold)))
+
+
+def resolve_budget_token_limit(request: RuntimeAgentTeamRequest) -> int | None:
+    value = request.team.budget_token_limit
+    if request.team.supervisor_policy:
+        value = request.team.supervisor_policy.budget_token_limit
+    return value if isinstance(value, int) and value > 0 else None
+
+
+def resolve_budget_cost_limit(request: RuntimeAgentTeamRequest) -> float | None:
+    value = request.team.budget_cost_limit
+    if request.team.supervisor_policy:
+        value = request.team.supervisor_policy.budget_cost_limit
+    return float(value) if isinstance(value, int | float) and value > 0 else None
+
+
+def evaluate_budget_policy(
+    request: RuntimeAgentTeamRequest,
+    executions: list[MemberExecution],
+    supervisor_steps: list[RuntimeAgentTeamStepResult],
+) -> str | None:
+    token_limit = resolve_budget_token_limit(request)
+    cost_limit = resolve_budget_cost_limit(request)
+    if token_limit is None and cost_limit is None:
+        return None
+
+    used_tokens = sum(execution.result.total_tokens for execution in executions) + sum(
+        step.total_tokens for step in supervisor_steps if step.step_type == "VERIFY"
+    )
+    used_cost = round(
+        sum(execution.result.cost_total for execution in executions)
+        + sum(step.cost_total for step in supervisor_steps if step.step_type == "VERIFY"),
+        6,
+    )
+
+    if token_limit is not None and used_tokens >= token_limit:
+        return f"团队运行已达到 Token 预算上限 {token_limit}，当前消耗 {used_tokens}，Supervisor 已停止调度。"
+
+    if cost_limit is not None and used_cost >= cost_limit:
+        return f"团队运行已达到成本预算上限 {cost_limit:.6f}，当前成本 {used_cost:.6f}，Supervisor 已停止调度。"
+
+    return None
+
+
+def evaluate_quality_gate(request: RuntimeAgentTeamRequest, executions: list[MemberExecution]) -> str | None:
+    if not resolve_quality_gate_enabled(request):
+        return None
+    if not executions:
+        return "质量门槛已启用，但团队没有产生可评估的成员结果。"
+
+    successful = [execution for execution in executions if execution.result.status == "SUCCESS"]
+    score = len(successful) / len(executions)
+    threshold = resolve_quality_threshold(request)
+    if score < threshold:
+        return f"团队质量门槛未通过，成功率 {score:.2f} 低于阈值 {threshold:.2f}。"
+    return None
 
 
 def build_runnable_fallback_decision(

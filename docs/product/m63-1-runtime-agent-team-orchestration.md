@@ -150,7 +150,19 @@ VERIFY 步骤现在会记录：
 
 团队运行汇总的 total_tokens / total_cost 已包含 Supervisor 决策模型开销，因此后续成本中心可以按团队运行完整计费。
 
-当前没有新增独立 Supervisor 模型配置表。Runtime 会使用剩余成员中第一个可用的模型配置；如果团队成员都没有模型配置，则保持确定性规则调度。
+M66 已补齐团队级 Supervisor 策略和预算约束。Runtime 会优先使用 `agent_team.supervisor_model_id` 对应模型；未配置时继续使用剩余成员中第一个可用的模型配置；如果团队成员都没有模型配置，则保持确定性规则调度。
+
+团队级策略还包括：
+
+```text
+supervisor_prompt：补充调度 system prompt
+failure_policy：必选成员失败处理策略
+quality_gate_enabled / quality_threshold：团队质量门槛
+budget_token_limit：单次团队运行 Token 预算上限
+budget_cost_limit：单次团队运行成本预算上限
+```
+
+策略触发时会写入 VERIFY / SUMMARY 步骤，继续进入团队运行台账和 platform_event / platform_usage_event 归因链路。
 
 ### Control API 联动
 
@@ -401,8 +413,8 @@ temporal：
 ```text
 1. M64：统一事件查询、用量汇总、事件关系和 rollup 聚合
 2. M65：团队运行步骤继续拆出成员内部 RAG、工具和模型子事件视图
-3. M66：团队级 Supervisor 模型配置、预算上限和策略模板
-4. M67：复杂计费规则、团队任务预算和渠道级成本分摊
+3. M67：团队运行步骤继续拆出成员内部 RAG、工具和模型子事件视图
+4. M68：复杂计费规则、团队任务预算和渠道级成本分摊
 ```
 
 ## 验证

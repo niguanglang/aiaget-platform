@@ -46,6 +46,7 @@ const WORKFLOW_REQUEST_TIMEOUT_MS = 5000;
 
 const teamInclude = {
   owner: true,
+  supervisorModel: true,
   members: {
     where: {
       deletedAt: null,
@@ -139,6 +140,7 @@ type AgentTeamRecord = Prisma.AgentTeamGetPayload<{ include: typeof teamInclude 
 type AgentTeamListRecord = Prisma.AgentTeamGetPayload<{
   include: {
     owner: true;
+    supervisorModel: true;
     members: true;
     runs: {
       include: {
@@ -219,6 +221,16 @@ interface RuntimeModelConfig {
   output_price: number;
 }
 
+interface RuntimeSupervisorPolicy {
+  model_config: RuntimeModelConfig | null;
+  prompt: string | null;
+  failure_policy: AgentTeamListItem['failure_policy'];
+  quality_gate_enabled: boolean;
+  quality_threshold: number;
+  budget_token_limit: number | null;
+  budget_cost_limit: number | null;
+}
+
 interface RuntimeConversationRequest {
   request_id?: string | null;
   trace_id?: string | null;
@@ -266,6 +278,14 @@ interface RuntimeAgentTeamRequest {
     max_rounds: number;
     timeout_seconds: number;
     handoff_policy: AgentTeamListItem['handoff_policy'];
+    supervisor_model_id: string | null;
+    supervisor_prompt: string | null;
+    failure_policy: AgentTeamListItem['failure_policy'];
+    quality_gate_enabled: boolean;
+    quality_threshold: number;
+    budget_token_limit: number | null;
+    budget_cost_limit: number | null;
+    supervisor_policy: RuntimeSupervisorPolicy;
   };
   members: RuntimeAgentTeamMemberRequest[];
   resume_context?: {
@@ -487,6 +507,7 @@ export class AgentTeamsService {
         where,
         include: {
           owner: true,
+          supervisorModel: true,
           members: {
             where: {
               deletedAt: null,
@@ -524,6 +545,8 @@ export class AgentTeamsService {
 
   async create(currentUser: AuthenticatedUser, dto: CreateAgentTeamDto): Promise<AgentTeamDetail> {
     await this.validateOwner(currentUser.tenantId, dto.owner_id);
+    await this.validateSupervisorModel(currentUser.tenantId, dto.supervisor_model_id);
+    this.validateTeamPolicyLimits(dto);
 
     try {
       const team = await this.prisma.agentTeam.create({
@@ -538,6 +561,15 @@ export class AgentTeamsService {
           maxRounds: dto.max_rounds ?? 3,
           timeoutSeconds: dto.timeout_seconds ?? 300,
           handoffPolicy: dto.handoff_policy ?? 'AUTO',
+          supervisorModelId: dto.supervisor_model_id || null,
+          supervisorPrompt: dto.supervisor_prompt?.trim() || null,
+          failurePolicy: dto.failure_policy ?? 'MATCH_HANDOFF_POLICY',
+          qualityGateEnabled: dto.quality_gate_enabled ?? false,
+          qualityThreshold: new Prisma.Decimal(dto.quality_threshold ?? 0.75),
+          budgetTokenLimit: dto.budget_token_limit ?? null,
+          budgetCostLimit: dto.budget_cost_limit === undefined || dto.budget_cost_limit === null
+            ? null
+            : new Prisma.Decimal(dto.budget_cost_limit),
           createdBy: currentUser.id,
           updatedBy: currentUser.id,
         },
@@ -561,6 +593,8 @@ export class AgentTeamsService {
   async update(currentUser: AuthenticatedUser, id: string, dto: UpdateAgentTeamDto): Promise<AgentTeamDetail> {
     await this.ensureTeamExists(currentUser.tenantId, id);
     await this.validateOwner(currentUser.tenantId, dto.owner_id);
+    await this.validateSupervisorModel(currentUser.tenantId, dto.supervisor_model_id);
+    this.validateTeamPolicyLimits(dto);
 
     const data: Prisma.AgentTeamUpdateInput = {
       updatedBy: currentUser.id,
@@ -573,6 +607,17 @@ export class AgentTeamsService {
     if (dto.max_rounds !== undefined) data.maxRounds = dto.max_rounds;
     if (dto.timeout_seconds !== undefined) data.timeoutSeconds = dto.timeout_seconds;
     if (dto.handoff_policy !== undefined) data.handoffPolicy = dto.handoff_policy;
+    if (dto.supervisor_model_id !== undefined) {
+      data.supervisorModel = dto.supervisor_model_id ? { connect: { id: dto.supervisor_model_id } } : { disconnect: true };
+    }
+    if (dto.supervisor_prompt !== undefined) data.supervisorPrompt = dto.supervisor_prompt?.trim() || null;
+    if (dto.failure_policy !== undefined) data.failurePolicy = dto.failure_policy;
+    if (dto.quality_gate_enabled !== undefined) data.qualityGateEnabled = dto.quality_gate_enabled;
+    if (dto.quality_threshold !== undefined) data.qualityThreshold = new Prisma.Decimal(dto.quality_threshold);
+    if (dto.budget_token_limit !== undefined) data.budgetTokenLimit = dto.budget_token_limit ?? null;
+    if (dto.budget_cost_limit !== undefined) {
+      data.budgetCostLimit = dto.budget_cost_limit === null ? null : new Prisma.Decimal(dto.budget_cost_limit);
+    }
     if (dto.owner_id !== undefined) {
       data.owner = dto.owner_id ? { connect: { id: dto.owner_id } } : { disconnect: true };
     }
@@ -1023,6 +1068,8 @@ export class AgentTeamsService {
     traceContext: TraceContext,
     resumeContext: TeamResumeContext | null,
   ): Promise<RuntimeAgentTeamRequest> {
+    const supervisorPolicy = await this.buildSupervisorPolicy(currentUser.tenantId, team);
+
     return {
       request_id: traceContext.requestId ?? null,
       trace_id: traceContext.traceId,
@@ -1041,6 +1088,14 @@ export class AgentTeamsService {
         max_rounds: team.maxRounds,
         timeout_seconds: team.timeoutSeconds,
         handoff_policy: team.handoffPolicy as AgentTeamListItem['handoff_policy'],
+        supervisor_model_id: team.supervisorModelId,
+        supervisor_prompt: team.supervisorPrompt,
+        failure_policy: team.failurePolicy as AgentTeamListItem['failure_policy'],
+        quality_gate_enabled: team.qualityGateEnabled,
+        quality_threshold: Number(team.qualityThreshold),
+        budget_token_limit: team.budgetTokenLimit,
+        budget_cost_limit: team.budgetCostLimit === null ? null : Number(team.budgetCostLimit),
+        supervisor_policy: supervisorPolicy,
       },
       members: await Promise.all(
         members.map(async (member) => ({
@@ -1159,6 +1214,21 @@ export class AgentTeamsService {
         internal_token: RUNTIME_INTERNAL_TOKEN,
       },
       model_config: modelConfig,
+    };
+  }
+
+  private async buildSupervisorPolicy(
+    tenantId: string,
+    team: AgentTeamRecord,
+  ): Promise<RuntimeSupervisorPolicy> {
+    return {
+      model_config: await this.resolveSupervisorModelConfig(tenantId, team.supervisorModelId),
+      prompt: team.supervisorPrompt,
+      failure_policy: team.failurePolicy as AgentTeamListItem['failure_policy'],
+      quality_gate_enabled: team.qualityGateEnabled,
+      quality_threshold: Number(team.qualityThreshold),
+      budget_token_limit: team.budgetTokenLimit,
+      budget_cost_limit: team.budgetCostLimit === null ? null : Number(team.budgetCostLimit),
     };
   }
 
@@ -1719,6 +1789,12 @@ export class AgentTeamsService {
         deletedAt: null,
         status: 'ACTIVE',
         ...(boundModelId ? { id: boundModelId } : { isDefault: true }),
+        provider: {
+          is: {
+            deletedAt: null,
+            status: 'ACTIVE',
+          },
+        },
       },
       include: {
         provider: {
@@ -1755,6 +1831,61 @@ export class AgentTeamsService {
       api_key: decryptSecret(activeKey.encryptedKey),
       model: model.model,
       temperature: Number(member.agent.temperature),
+      input_price: Number(model.inputPrice),
+      output_price: Number(model.outputPrice),
+    };
+  }
+
+  private async resolveSupervisorModelConfig(
+    tenantId: string,
+    modelId?: string | null,
+  ): Promise<RuntimeModelConfig | null> {
+    if (!modelId) {
+      return null;
+    }
+
+    const model = await this.prisma.modelConfig.findFirst({
+      where: {
+        tenantId,
+        id: modelId,
+        deletedAt: null,
+        status: 'ACTIVE',
+        provider: {
+          is: {
+            deletedAt: null,
+            status: 'ACTIVE',
+          },
+        },
+      },
+      include: {
+        provider: {
+          include: {
+            apiKeys: {
+              where: {
+                deletedAt: null,
+                status: 'ACTIVE',
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    const activeKey = model?.provider.apiKeys[0] ?? null;
+    if (!model || !activeKey) {
+      return null;
+    }
+
+    return {
+      provider_type: model.provider.providerType,
+      base_url: model.provider.baseUrl,
+      api_key: decryptSecret(activeKey.encryptedKey),
+      model: model.model,
+      temperature: 0.2,
       input_price: Number(model.inputPrice),
       output_price: Number(model.outputPrice),
     };
@@ -2202,6 +2333,49 @@ export class AgentTeamsService {
     }
   }
 
+  private async validateSupervisorModel(tenantId: string, modelId?: string | null) {
+    if (!modelId) return;
+
+    const model = await this.prisma.modelConfig.findFirst({
+      where: {
+        tenantId,
+        id: modelId,
+        deletedAt: null,
+        status: 'ACTIVE',
+        provider: {
+          is: {
+            deletedAt: null,
+            status: 'ACTIVE',
+            apiKeys: {
+              some: {
+                deletedAt: null,
+                status: 'ACTIVE',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!model) {
+      throw new BadRequestException('Supervisor 模型不存在、已停用、已删除或缺少可用密钥。');
+    }
+  }
+
+  private validateTeamPolicyLimits(dto: CreateAgentTeamDto | UpdateAgentTeamDto) {
+    if (dto.quality_threshold !== undefined && (dto.quality_threshold < 0 || dto.quality_threshold > 1)) {
+      throw new BadRequestException('质量门槛阈值必须在 0 到 1 之间。');
+    }
+
+    if (dto.budget_token_limit !== undefined && dto.budget_token_limit !== null && dto.budget_token_limit <= 0) {
+      throw new BadRequestException('Token 预算上限必须大于 0。');
+    }
+
+    if (dto.budget_cost_limit !== undefined && dto.budget_cost_limit !== null && dto.budget_cost_limit <= 0) {
+      throw new BadRequestException('成本预算上限必须大于 0。');
+    }
+  }
+
   private async validateHandoffReferences(tenantId: string, teamId: string, dto: CreateAgentTeamHandoffDto) {
     const memberIds = [dto.from_member_id, dto.to_member_id].filter((id): id is string => Boolean(id));
     if (memberIds.length > 0) {
@@ -2262,6 +2436,15 @@ export class AgentTeamsService {
       max_rounds: team.maxRounds,
       timeout_seconds: team.timeoutSeconds,
       handoff_policy: team.handoffPolicy as AgentTeamListItem['handoff_policy'],
+      supervisor_model_id: team.supervisorModelId,
+      supervisor_model_name: team.supervisorModel?.name ?? null,
+      supervisor_model: team.supervisorModel?.model ?? null,
+      supervisor_prompt: team.supervisorPrompt,
+      failure_policy: team.failurePolicy as AgentTeamListItem['failure_policy'],
+      quality_gate_enabled: team.qualityGateEnabled,
+      quality_threshold: Number(team.qualityThreshold),
+      budget_token_limit: team.budgetTokenLimit,
+      budget_cost_limit: team.budgetCostLimit === null ? null : Number(team.budgetCostLimit),
       owner: team.owner ? mapOwner(team.owner) : null,
       member_count: team.members.length,
       active_member_count: team.members.filter((member) => member.status === 'ACTIVE').length,

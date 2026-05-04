@@ -968,6 +968,7 @@ model AgentTeam {
   id             String    @id @default(uuid()) @db.Uuid
   tenantId       String    @map("tenant_id") @db.Uuid
   ownerId        String?   @map("owner_id") @db.Uuid
+  supervisorModelId String? @map("supervisor_model_id") @db.Uuid
   name           String    @db.VarChar(160)
   code           String    @db.VarChar(100)
   description    String?   @db.Text
@@ -976,6 +977,12 @@ model AgentTeam {
   maxRounds      Int       @default(3) @map("max_rounds")
   timeoutSeconds Int       @default(300) @map("timeout_seconds")
   handoffPolicy  String    @default("AUTO") @map("handoff_policy") @db.VarChar(30)
+  supervisorPrompt String? @map("supervisor_prompt") @db.Text
+  failurePolicy String @default("MATCH_HANDOFF_POLICY") @map("failure_policy") @db.VarChar(40)
+  qualityGateEnabled Boolean @default(false) @map("quality_gate_enabled")
+  qualityThreshold Decimal @default(0.75) @map("quality_threshold") @db.Decimal(4, 2)
+  budgetTokenLimit Int? @map("budget_token_limit")
+  budgetCostLimit Decimal? @map("budget_cost_limit") @db.Decimal(12, 6)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
@@ -983,6 +990,7 @@ model AgentTeam {
   updatedBy      String?   @map("updated_by") @db.Uuid
   tenant         Tenant    @relation(fields: [tenantId], references: [id])
   owner          User?     @relation("AgentTeamOwner", fields: [ownerId], references: [id])
+  supervisorModel ModelConfig? @relation("AgentTeamSupervisorModel", fields: [supervisorModelId], references: [id])
   members        AgentTeamMember[]
   runs           AgentTeamRun[]
   steps          AgentTeamStep[]
@@ -992,8 +1000,11 @@ model AgentTeam {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([ownerId])
+  @@index([supervisorModelId])
   @@index([status])
   @@index([mode])
+  @@index([failurePolicy])
+  @@index([qualityGateEnabled])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([deletedAt])
@@ -1242,6 +1253,7 @@ model ModelConfig {
   costRules      ModelCostRule[]
   callLogs       ModelCallLog[]
   promptTestRecords PromptTestRecord[]
+  supervisedAgentTeams AgentTeam[] @relation("AgentTeamSupervisorModel")
 
   @@unique([tenantId, providerId, model])
   @@index([tenantId])

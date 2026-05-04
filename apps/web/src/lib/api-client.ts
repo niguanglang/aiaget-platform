@@ -153,6 +153,11 @@ import type {
   SecurityCenterEventListItem,
   SecurityCenterEventWindow,
   SecurityCenterOverview,
+  SecurityApprovalWorkbenchDetail,
+  SecurityApprovalWorkbenchItem,
+  SecurityApprovalWorkbenchOverview,
+  ListSecurityApprovalWorkbenchQuery,
+  ReviewSecurityApprovalWorkbenchInput,
   SecurityOperationAlertActionResult,
   SecurityOperationAlertNotificationArchiveApprovalDetail,
   SecurityOperationAlertNotificationArchiveApprovalItem,
@@ -2198,6 +2203,37 @@ export function getSecurityPolicyOverview() {
 
 export function getSecurityCenterOverview() {
   return request<SecurityCenterOverview>('/security-center/overview');
+}
+
+export function getSecurityApprovalWorkbenchOverview() {
+  return request<SecurityApprovalWorkbenchOverview>('/security-center/approval-workbench/overview');
+}
+
+export function listSecurityApprovalWorkbenchItems(params: ListSecurityApprovalWorkbenchQuery = {}) {
+  return request<PaginatedResult<SecurityApprovalWorkbenchItem>>(
+    `/security-center/approval-workbench?${toSearchParams({
+      page: params.page,
+      page_size: params.page_size,
+      keyword: params.keyword,
+      type: params.type,
+      status: params.status,
+      risk_domain: params.risk_domain,
+    })}`,
+  );
+}
+
+export function getSecurityApprovalWorkbenchItem(approvalId: string) {
+  return request<SecurityApprovalWorkbenchDetail>(`/security-center/approval-workbench/${approvalId}`);
+}
+
+export function reviewSecurityApprovalWorkbenchItem(
+  approvalId: string,
+  input: ReviewSecurityApprovalWorkbenchInput,
+) {
+  return request<SecurityApprovalWorkbenchDetail>(`/security-center/approval-workbench/${approvalId}/review`, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export function listSecurityCenterEvents(params: {

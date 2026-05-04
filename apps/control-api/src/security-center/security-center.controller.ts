@@ -7,6 +7,9 @@ import type {
   SecurityCenterEventDetail,
   SecurityCenterEventListItem,
   SecurityCenterOverview,
+  SecurityApprovalWorkbenchDetail,
+  SecurityApprovalWorkbenchItem,
+  SecurityApprovalWorkbenchOverview,
   CreateSecurityOperationAlertNotificationArchiveResult,
   CreateSecurityOperationAlertNotificationTaskRecoveryAuditArchiveResult,
   CreateSecurityOperationAlertSlaDeadLetterAuditArchiveResult,
@@ -48,6 +51,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { ListSecurityApprovalWorkbenchDto } from './dto/list-security-approval-workbench.dto';
 import { ListSecurityCenterEventsDto } from './dto/list-security-center-events.dto';
 import { ListSecurityOperationAlertNotificationsDto } from './dto/list-security-operation-alert-notifications.dto';
 import { ListSecurityOperationAlertNotificationTaskRecoveryAuditsDto } from './dto/list-security-operation-alert-notification-task-recovery-audits.dto';
@@ -56,8 +60,10 @@ import { ListSecurityOperationAlertSlaDeadLetterAuditsDto } from './dto/list-sec
 import { HandleSecurityOperationAlertSlaDeadLetterDto } from './dto/handle-security-operation-alert-sla-dead-letter.dto';
 import { NotifySecurityOperationAlertDto } from './dto/notify-security-operation-alert.dto';
 import { ReviewSecurityOperationAlertSlaDeadLetterAuditArchiveApprovalDto } from './dto/review-security-operation-alert-sla-dead-letter-audit-archive-approval.dto';
+import { ReviewSecurityApprovalWorkbenchDto } from './dto/review-security-approval-workbench.dto';
 import { UpdateSecurityOperationAlertNotificationTaskRecoverySuggestionDto } from './dto/update-security-operation-alert-notification-task-recovery-suggestion.dto';
 import { UpdateSecurityOperationAlertDto } from './dto/update-security-operation-alert.dto';
+import { SecurityApprovalWorkbenchService } from './security-approval-workbench.service';
 import { SecurityOperationAlertNotificationTaskService } from './security-operation-alert-notification-task.service';
 import { SecurityOperationAlertSlaService } from './security-operation-alert-sla.service';
 import { SecurityCenterService } from './security-center.service';
@@ -69,6 +75,8 @@ import { SecurityCenterService } from './security-center.service';
 export class SecurityCenterController {
   constructor(
     @Inject(SecurityCenterService) private readonly securityCenterService: SecurityCenterService,
+    @Inject(SecurityApprovalWorkbenchService)
+    private readonly securityApprovalWorkbenchService: SecurityApprovalWorkbenchService,
     @Inject(SecurityOperationAlertNotificationTaskService)
     private readonly operationAlertNotificationTaskService: SecurityOperationAlertNotificationTaskService,
     @Inject(SecurityOperationAlertSlaService)
@@ -80,6 +88,46 @@ export class SecurityCenterController {
   @ApiOkResponse({ description: 'Integrated security center overview for current tenant' })
   async getOverview(@CurrentUser() currentUser: AuthenticatedUser): Promise<SecurityCenterOverview> {
     return this.securityCenterService.getOverview(currentUser);
+  }
+
+  @Get('approval-workbench/overview')
+  @Permissions('security:approval:view')
+  @ApiOkResponse({ description: 'Unified security approval workbench overview' })
+  async getApprovalWorkbenchOverview(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<SecurityApprovalWorkbenchOverview> {
+    return this.securityApprovalWorkbenchService.overview(currentUser);
+  }
+
+  @Get('approval-workbench')
+  @Permissions('security:approval:view')
+  @ApiOkResponse({ description: 'Unified security approval workbench queue' })
+  async listApprovalWorkbenchItems(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query() query: ListSecurityApprovalWorkbenchDto,
+  ): Promise<PaginatedResult<SecurityApprovalWorkbenchItem>> {
+    return this.securityApprovalWorkbenchService.list(currentUser, query);
+  }
+
+  @Get('approval-workbench/:approvalId')
+  @Permissions('security:approval:view')
+  @ApiOkResponse({ description: 'Unified security approval workbench detail' })
+  async getApprovalWorkbenchItem(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+  ): Promise<SecurityApprovalWorkbenchDetail> {
+    return this.securityApprovalWorkbenchService.get(currentUser, approvalId);
+  }
+
+  @Post('approval-workbench/:approvalId/review')
+  @Permissions('security:approval:handle')
+  @ApiOkResponse({ description: 'Approve or reject one unified security approval workbench item' })
+  async reviewApprovalWorkbenchItem(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+    @Body() body: ReviewSecurityApprovalWorkbenchDto,
+  ): Promise<SecurityApprovalWorkbenchDetail> {
+    return this.securityApprovalWorkbenchService.review(currentUser, approvalId, body);
   }
 
   @Post('operation-alerts/:alertId/notify')

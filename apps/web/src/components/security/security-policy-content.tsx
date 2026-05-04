@@ -12,6 +12,14 @@ import {
   type SecurityCenterModuleSummary,
   type SecurityCenterOperationalAlert,
   type SecurityCenterOverview,
+  type SecurityApprovalWorkbenchDetail,
+  type SecurityApprovalWorkbenchItem,
+  type SecurityApprovalWorkbenchOverview,
+  type SecurityApprovalWorkbenchRiskDomain,
+  type SecurityApprovalWorkbenchRiskLevel,
+  type SecurityApprovalWorkbenchStatus,
+  type SecurityApprovalWorkbenchTimelineItem,
+  type SecurityApprovalWorkbenchType,
   type SecurityCenterRiskLevel,
   type SecurityCenterRiskSignal,
   type SecurityOperationAlertAction,
@@ -132,6 +140,8 @@ import {
   exportSecurityOperationAlertNotificationTaskRecoveryAudits,
   exportSecurityOperationAlertNotifications,
   exportSecurityOperationAlertSlaDeadLetterAudits,
+  getSecurityApprovalWorkbenchItem,
+  getSecurityApprovalWorkbenchOverview,
   getSecurityOperationAlertNotificationArchiveApproval,
   getSecurityOperationAlertNotificationArchiveApprovalOverview,
   getSecurityCenterOverview,
@@ -151,6 +161,7 @@ import {
   getSecurityPolicy,
   getSecurityPolicyOverview,
   listSecurityCenterEvents,
+  listSecurityApprovalWorkbenchItems,
   listSecurityOperationAlertNotificationArchiveApprovals,
   listSecurityOperationAlertNotificationArchives,
   listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals,
@@ -169,6 +180,7 @@ import {
   rejectSecurityOperationAlertNotificationArchiveApproval,
   rejectSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval,
   rejectSecurityOperationAlertSlaDeadLetterAuditArchiveApproval,
+  reviewSecurityApprovalWorkbenchItem,
   retrySecurityOperationAlertNotification,
   retrySecurityOperationAlertSlaNotification,
   runSecurityOperationAlertNotificationAutoNotify,
@@ -196,7 +208,28 @@ const eventWindows: Array<{ label: string; value: SecurityCenterEventWindow }> =
   { label: '最近 7 天', value: '7d' },
   { label: '最近 30 天', value: '30d' },
 ];
+const approvalWorkbenchTypes: Array<{ label: string; value: SecurityApprovalWorkbenchType }> = [
+  { label: '工具调用审批', value: 'TOOL_CALL' },
+  { label: '通知策略审批', value: 'NOTIFICATION_POLICY' },
+  { label: '审批审计归档删除', value: 'APPROVAL_AUDIT_ARCHIVE_DELETE' },
+  { label: '运营告警通知归档删除', value: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE' },
+  { label: 'SLA 死信审计归档删除', value: 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE' },
+  { label: '自愈审计归档删除', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
+];
+const approvalWorkbenchStatuses: Array<{ label: string; value: SecurityApprovalWorkbenchStatus }> = [
+  { label: '待审批', value: 'PENDING' },
+  { label: '已批准', value: 'APPROVED' },
+  { label: '已拒绝', value: 'REJECTED' },
+  { label: '已生效', value: 'APPLIED' },
+];
+const approvalWorkbenchRiskDomains: Array<{ label: string; value: SecurityApprovalWorkbenchRiskDomain }> = [
+  { label: '工具风险', value: 'TOOL' },
+  { label: '策略风险', value: 'POLICY' },
+  { label: '审计归档', value: 'AUDIT_ARCHIVE' },
+  { label: '运营告警', value: 'OPERATION_ALERT' },
+];
 const eventPageSize = 20;
+const securityApprovalWorkbenchPageSize = 12;
 const slaDeadLetterAuditPageSize = 6;
 type PaginatedSecurityOperationAlertSlaDeadLetterAudits = {
   items: SecurityOperationAlertSlaDeadLetterAuditItem[];
@@ -267,6 +300,15 @@ export function SecurityPolicyContent() {
   const [eventTraceOnly, setEventTraceOnly] = useState(false);
   const [eventPage, setEventPage] = useState(1);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [approvalWorkbenchKeyword, setApprovalWorkbenchKeyword] = useState('');
+  const [approvalWorkbenchType, setApprovalWorkbenchType] = useState<SecurityApprovalWorkbenchType | ''>('');
+  const [approvalWorkbenchStatus, setApprovalWorkbenchStatus] = useState<SecurityApprovalWorkbenchStatus | ''>('PENDING');
+  const [approvalWorkbenchRiskDomain, setApprovalWorkbenchRiskDomain] = useState<SecurityApprovalWorkbenchRiskDomain | ''>('');
+  const [approvalWorkbenchPage, setApprovalWorkbenchPage] = useState(1);
+  const [selectedApprovalWorkbenchId, setSelectedApprovalWorkbenchId] = useState<string | null>(null);
+  const [approvalWorkbenchNote, setApprovalWorkbenchNote] = useState('');
+  const [approvalWorkbenchMessage, setApprovalWorkbenchMessage] = useState<string | null>(null);
+  const [approvalWorkbenchError, setApprovalWorkbenchError] = useState<string | null>(null);
   const [operationNotificationStatus, setOperationNotificationStatus] = useState<
     SecurityOperationAlertNotificationStatus | ''
   >('');
@@ -362,6 +404,17 @@ export function SecurityPolicyContent() {
       hasPermission(currentUser?.user.permissions ?? [], 'security:rule:manage'),
   );
 
+  const canViewApprovals = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:view') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:handle'),
+  );
+
+  const canHandleApprovals = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:handle'),
+  );
+
   const overviewQuery = useQuery({
     queryKey: ['security-policy-overview'],
     queryFn: getSecurityPolicyOverview,
@@ -405,6 +458,39 @@ export function SecurityPolicyContent() {
         window: eventWindow,
         trace_only: eventTraceOnly,
       }),
+  });
+
+  const approvalWorkbenchOverviewQuery = useQuery({
+    enabled: canViewApprovals,
+    queryKey: ['security-approval-workbench-overview'],
+    queryFn: getSecurityApprovalWorkbenchOverview,
+  });
+
+  const approvalWorkbenchQuery = useQuery({
+    enabled: canViewApprovals,
+    queryKey: [
+      'security-approval-workbench',
+      approvalWorkbenchKeyword,
+      approvalWorkbenchType,
+      approvalWorkbenchStatus,
+      approvalWorkbenchRiskDomain,
+      approvalWorkbenchPage,
+    ],
+    queryFn: () =>
+      listSecurityApprovalWorkbenchItems({
+        page: approvalWorkbenchPage,
+        page_size: securityApprovalWorkbenchPageSize,
+        keyword: approvalWorkbenchKeyword,
+        type: approvalWorkbenchType,
+        status: approvalWorkbenchStatus,
+        risk_domain: approvalWorkbenchRiskDomain,
+      }),
+  });
+
+  const selectedApprovalWorkbenchQuery = useQuery({
+    enabled: canViewApprovals && Boolean(selectedApprovalWorkbenchId),
+    queryKey: ['security-approval-workbench-detail', selectedApprovalWorkbenchId],
+    queryFn: () => getSecurityApprovalWorkbenchItem(selectedApprovalWorkbenchId ?? ''),
   });
 
   const selectedEventQuery = useQuery({
@@ -549,6 +635,14 @@ export function SecurityPolicyContent() {
   const overview = overviewQuery.data ?? null;
   const evaluations = evaluationsQuery.data?.items ?? [];
   const securityOverview = securityCenterQuery.data ?? null;
+  const approvalWorkbenchOverview = approvalWorkbenchOverviewQuery.data ?? null;
+  const approvalWorkbenchResult = approvalWorkbenchQuery.data ?? null;
+  const approvalWorkbenchItems = approvalWorkbenchResult?.items ?? [];
+  const approvalWorkbenchTotal = approvalWorkbenchResult?.total ?? 0;
+  const approvalWorkbenchPageCount = Math.max(
+    1,
+    Math.ceil(approvalWorkbenchTotal / securityApprovalWorkbenchPageSize),
+  );
   const securityEvents = securityEventsQuery.data?.items ?? [];
   const securityEventsTotal = securityEventsQuery.data?.total ?? 0;
   const securityEventsPageCount = Math.max(1, Math.ceil(securityEventsTotal / eventPageSize));
@@ -560,6 +654,20 @@ export function SecurityPolicyContent() {
       setEventPage(securityEventsPageCount);
     }
   }, [eventPage, securityEventsPageCount]);
+
+  useEffect(() => {
+    if (approvalWorkbenchPage > approvalWorkbenchPageCount) {
+      setApprovalWorkbenchPage(approvalWorkbenchPageCount);
+    }
+  }, [approvalWorkbenchPage, approvalWorkbenchPageCount]);
+
+  useEffect(() => {
+    if (selectedApprovalWorkbenchId && !approvalWorkbenchItems.some((item) => item.id === selectedApprovalWorkbenchId)) {
+      setSelectedApprovalWorkbenchId(approvalWorkbenchItems[0]?.id ?? null);
+    } else if (!selectedApprovalWorkbenchId && approvalWorkbenchItems.length > 0) {
+      setSelectedApprovalWorkbenchId(approvalWorkbenchItems[0]?.id ?? null);
+    }
+  }, [approvalWorkbenchItems, selectedApprovalWorkbenchId]);
 
   useEffect(() => {
     if (slaDeadLetterAuditPage > slaDeadLetterAuditPageCount) {
@@ -1028,6 +1136,33 @@ export function SecurityPolicyContent() {
     onError: (error: ApiClientError) => setActionError(error.message),
   });
 
+  const reviewApprovalWorkbenchMutation = useMutation({
+    mutationFn: ({
+      approvalId,
+      decision,
+    }: {
+      approvalId: string;
+      decision: 'APPROVE' | 'REJECT';
+    }) =>
+      reviewSecurityApprovalWorkbenchItem(approvalId, {
+        decision,
+        decision_note: approvalWorkbenchNote.trim() || null,
+      }),
+    onSuccess: async (detail) => {
+      setApprovalWorkbenchError(null);
+      setApprovalWorkbenchNote('');
+      setApprovalWorkbenchMessage(
+        detail.status === 'REJECTED' ? '审批申请已拒绝。' : '审批申请已批准并同步更新来源记录。',
+      );
+      queryClient.setQueryData(['security-approval-workbench-detail', detail.id], detail);
+      await invalidateSecurityQueries(queryClient);
+    },
+    onError: (error: ApiClientError) => {
+      setApprovalWorkbenchMessage(null);
+      setApprovalWorkbenchError(error.message);
+    },
+  });
+
   const updateOperationAlertMutation = useMutation({
     mutationFn: ({ action, alertId }: { action: SecurityOperationAlertAction; alertId: string }) =>
       updateSecurityOperationAlert(alertId, {
@@ -1452,6 +1587,63 @@ export function SecurityPolicyContent() {
         onRefreshSlaDeadLetterAudit={() => void operationAlertSlaDeadLetterAuditQuery.refetch()}
       />
 
+      <SecurityApprovalWorkbenchCard
+        canHandleApprovals={canHandleApprovals}
+        canViewApprovals={canViewApprovals}
+        detail={selectedApprovalWorkbenchQuery.data ?? null}
+        detailLoading={selectedApprovalWorkbenchQuery.isLoading || selectedApprovalWorkbenchQuery.isFetching}
+        error={approvalWorkbenchError}
+        keyword={approvalWorkbenchKeyword}
+        loading={approvalWorkbenchQuery.isLoading}
+        message={approvalWorkbenchMessage}
+        note={approvalWorkbenchNote}
+        onKeywordChange={(value) => {
+          setApprovalWorkbenchPage(1);
+          setApprovalWorkbenchKeyword(value);
+        }}
+        onNoteChange={setApprovalWorkbenchNote}
+        onPageChange={setApprovalWorkbenchPage}
+        onRefresh={() => {
+          void approvalWorkbenchOverviewQuery.refetch();
+          void approvalWorkbenchQuery.refetch();
+          if (selectedApprovalWorkbenchId) {
+            void selectedApprovalWorkbenchQuery.refetch();
+          }
+        }}
+        onResetFilters={() => {
+          setApprovalWorkbenchKeyword('');
+          setApprovalWorkbenchType('');
+          setApprovalWorkbenchStatus('PENDING');
+          setApprovalWorkbenchRiskDomain('');
+          setApprovalWorkbenchPage(1);
+        }}
+        onReview={(approvalId, decision) => reviewApprovalWorkbenchMutation.mutate({ approvalId, decision })}
+        onRiskDomainChange={(value) => {
+          setApprovalWorkbenchPage(1);
+          setApprovalWorkbenchRiskDomain(value);
+        }}
+        onSelect={setSelectedApprovalWorkbenchId}
+        onStatusChange={(value) => {
+          setApprovalWorkbenchPage(1);
+          setApprovalWorkbenchStatus(value);
+        }}
+        onTypeChange={(value) => {
+          setApprovalWorkbenchPage(1);
+          setApprovalWorkbenchType(value);
+        }}
+        overview={approvalWorkbenchOverview}
+        page={approvalWorkbenchPage}
+        pageCount={approvalWorkbenchPageCount}
+        refreshing={approvalWorkbenchOverviewQuery.isFetching || approvalWorkbenchQuery.isFetching}
+        reviewing={reviewApprovalWorkbenchMutation.isPending}
+        riskDomain={approvalWorkbenchRiskDomain}
+        selectedId={selectedApprovalWorkbenchId}
+        status={approvalWorkbenchStatus}
+        total={approvalWorkbenchTotal}
+        type={approvalWorkbenchType}
+        workbenchItems={approvalWorkbenchItems}
+      />
+
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {actionError}
@@ -1619,6 +1811,456 @@ export function SecurityPolicyContent() {
         />
       ) : null}
     </main>
+  );
+}
+
+function SecurityApprovalWorkbenchCard({
+  canHandleApprovals,
+  canViewApprovals,
+  detail,
+  detailLoading,
+  error,
+  keyword,
+  loading,
+  message,
+  note,
+  onKeywordChange,
+  onNoteChange,
+  onPageChange,
+  onRefresh,
+  onResetFilters,
+  onReview,
+  onRiskDomainChange,
+  onSelect,
+  onStatusChange,
+  onTypeChange,
+  overview,
+  page,
+  pageCount,
+  refreshing,
+  reviewing,
+  riskDomain,
+  selectedId,
+  status,
+  total,
+  type,
+  workbenchItems,
+}: {
+  canHandleApprovals: boolean;
+  canViewApprovals: boolean;
+  detail: SecurityApprovalWorkbenchDetail | null;
+  detailLoading: boolean;
+  error: string | null;
+  keyword: string;
+  loading: boolean;
+  message: string | null;
+  note: string;
+  onKeywordChange: (value: string) => void;
+  onNoteChange: (value: string) => void;
+  onPageChange: (value: number) => void;
+  onRefresh: () => void;
+  onResetFilters: () => void;
+  onReview: (approvalId: string, decision: 'APPROVE' | 'REJECT') => void;
+  onRiskDomainChange: (value: SecurityApprovalWorkbenchRiskDomain | '') => void;
+  onSelect: (approvalId: string) => void;
+  onStatusChange: (value: SecurityApprovalWorkbenchStatus | '') => void;
+  onTypeChange: (value: SecurityApprovalWorkbenchType | '') => void;
+  overview: SecurityApprovalWorkbenchOverview | null;
+  page: number;
+  pageCount: number;
+  refreshing: boolean;
+  reviewing: boolean;
+  riskDomain: SecurityApprovalWorkbenchRiskDomain | '';
+  selectedId: string | null;
+  status: SecurityApprovalWorkbenchStatus | '';
+  total: number;
+  type: SecurityApprovalWorkbenchType | '';
+  workbenchItems: SecurityApprovalWorkbenchItem[];
+}) {
+  const hasFilters = Boolean(keyword || type || riskDomain || status !== 'PENDING');
+  const current = detail ?? workbenchItems.find((item) => item.id === selectedId) ?? null;
+
+  return (
+    <Card className="min-w-0 overflow-hidden border-blue-100 bg-background/95 shadow-sm">
+      <div className="border-b p-5">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">M117</StatusBadge>
+              <StatusBadge tone={(overview?.summary.pending_count ?? 0) > 0 ? 'degraded' : 'healthy'}>
+                {overview?.summary.pending_count ?? 0} 个待审批
+              </StatusBadge>
+              <StatusBadge tone={(overview?.summary.high_risk_pending_count ?? 0) > 0 ? 'unavailable' : 'planned'}>
+                {overview?.summary.high_risk_pending_count ?? 0} 个高风险
+              </StatusBadge>
+            </div>
+            <h2 className="mt-3 text-sm font-semibold">安全细分审批工作台</h2>
+            <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">
+              汇总工具调用、通知策略、审批审计归档、SLA 死信审计归档和通知任务自愈归档删除审批，统一筛选、查看时间线和处理待办。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={!canViewApprovals || refreshing} onClick={onRefresh} type="button" variant="outline">
+              <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+              刷新
+            </Button>
+            <Button asChild type="button" variant="outline">
+              <Link href="/approvals">
+                <ClipboardCheck className="size-4" />
+                工具审批中心
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard helper="全部审批来源" label="审批总数" value={`${overview?.summary.total_count ?? 0}`} />
+          <MetricCard helper="等待安全管理员处理" label="待处理" value={`${overview?.summary.pending_count ?? 0}`} />
+          <MetricCard helper="高风险工具或删除类操作" label="高风险待审" value={`${overview?.summary.high_risk_pending_count ?? 0}`} />
+          <MetricCard
+            helper={overview?.summary.oldest_pending_at ? `最早 ${formatDateTime(overview.summary.oldest_pending_at)}` : '无积压'}
+            label="归档删除待审"
+            value={`${overview?.summary.archive_delete_pending_count ?? 0}`}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_210px_150px_150px_auto]">
+          <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              onChange={(event) => onKeywordChange(event.target.value)}
+              placeholder="搜索审批 ID、目标、申请人、request_id、trace_id"
+              value={keyword}
+            />
+          </label>
+          <select
+            className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+            onChange={(event) => onTypeChange(event.target.value as SecurityApprovalWorkbenchType | '')}
+            value={type}
+          >
+            <option value="">全部类型</option>
+            {approvalWorkbenchTypes.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+            onChange={(event) => onStatusChange(event.target.value as SecurityApprovalWorkbenchStatus | '')}
+            value={status}
+          >
+            <option value="">全部状态</option>
+            {approvalWorkbenchStatuses.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+            onChange={(event) => onRiskDomainChange(event.target.value as SecurityApprovalWorkbenchRiskDomain | '')}
+            value={riskDomain}
+          >
+            <option value="">全部风险域</option>
+            {approvalWorkbenchRiskDomains.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <Button disabled={!hasFilters} onClick={onResetFilters} type="button" variant="outline">
+            清空筛选
+          </Button>
+        </div>
+      </div>
+
+      {!canViewApprovals ? (
+        <EmptyState
+          className="m-5 rounded-md border bg-muted/15 p-6"
+          description="当前账号没有安全审批查看权限。需要 security:approval:view 或租户管理员角色。"
+          title="无权查看安全审批工作台"
+        />
+      ) : null}
+
+      {canViewApprovals && message ? (
+        <div className="mx-5 mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {message}
+        </div>
+      ) : canViewApprovals && error ? (
+        <div className="mx-5 mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {!canViewApprovals ? null : loading ? (
+        <div className="p-6 text-sm text-muted-foreground">正在加载安全审批工作台...</div>
+      ) : workbenchItems.length === 0 ? (
+        <EmptyState
+          className="m-5 rounded-md border bg-muted/15 p-6"
+          description="当前筛选条件下没有审批记录。可以切换到全部状态或清空关键词后重试。"
+          title="暂无安全审批记录"
+        />
+      ) : (
+        <div className="grid gap-0 xl:grid-cols-[0.92fr_1.08fr]">
+          <div className="border-r">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    {['状态', '审批对象', '风险', '申请人', '申请时间', '操作'].map((column) => (
+                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {workbenchItems.map((item, index) => (
+                    <SecurityApprovalWorkbenchRow
+                      active={item.id === selectedId}
+                      item={item}
+                      key={item.id}
+                      onSelect={onSelect}
+                      rowIndex={index}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t p-4">
+              <PaginationBar onPageChange={onPageChange} page={page} pageCount={pageCount} total={total} />
+            </div>
+          </div>
+
+          <SecurityApprovalWorkbenchDetailPanel
+            canHandleApprovals={canHandleApprovals}
+            detail={detail}
+            fallback={current}
+            loading={detailLoading}
+            note={note}
+            onNoteChange={onNoteChange}
+            onReview={onReview}
+            reviewing={reviewing}
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SecurityApprovalWorkbenchRow({
+  active,
+  item,
+  onSelect,
+  rowIndex,
+}: {
+  active: boolean;
+  item: SecurityApprovalWorkbenchItem;
+  onSelect: (approvalId: string) => void;
+  rowIndex: number;
+}) {
+  return (
+    <motion.tr
+      animate={{ opacity: 1, y: 0 }}
+      className={`border-b transition-colors last:border-0 hover:bg-muted/25 ${active ? 'bg-blue-50/55' : ''}`}
+      initial={{ opacity: 0, y: 6 }}
+      transition={{ delay: rowIndex * 0.018, duration: 0.18 }}
+    >
+      <td className="px-4 py-3">
+        <StatusBadge tone={archiveApprovalStatusTone(item.status)}>{archiveApprovalStatusLabel(item.status)}</StatusBadge>
+        <div className="mt-1 font-mono text-xs text-muted-foreground">{shortId(item.id)}</div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{item.target_label}</span>
+          <StatusBadge tone="planned">{securityApprovalWorkbenchTypeLabel(item.type)}</StatusBadge>
+        </div>
+        <div className="mt-1 max-w-sm truncate text-xs text-muted-foreground">{item.title}</div>
+        <div className="mt-1 max-w-sm truncate text-xs text-muted-foreground">{item.description}</div>
+      </td>
+      <td className="px-4 py-3">
+        <StatusBadge tone={securityApprovalWorkbenchRiskTone(item.risk_level)}>
+          {securityApprovalWorkbenchRiskLevelLabel(item.risk_level)}
+        </StatusBadge>
+        <div className="mt-1 text-xs text-muted-foreground">{securityApprovalWorkbenchRiskDomainLabel(item.risk_domain)}</div>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground">
+        {item.requester?.name ?? '系统'}
+        <div className="mt-1 max-w-36 truncate text-xs">{item.requester?.email ?? '-'}</div>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.requested_at)}</td>
+      <td className="px-4 py-3">
+        <Button onClick={() => onSelect(item.id)} size="sm" type="button" variant="outline">
+          <Eye className="size-4" />
+          {active ? '当前详情' : '查看'}
+        </Button>
+      </td>
+    </motion.tr>
+  );
+}
+
+function SecurityApprovalWorkbenchDetailPanel({
+  canHandleApprovals,
+  detail,
+  fallback,
+  loading,
+  note,
+  onNoteChange,
+  onReview,
+  reviewing,
+}: {
+  canHandleApprovals: boolean;
+  detail: SecurityApprovalWorkbenchDetail | null;
+  fallback: SecurityApprovalWorkbenchItem | null;
+  loading: boolean;
+  note: string;
+  onNoteChange: (value: string) => void;
+  onReview: (approvalId: string, decision: 'APPROVE' | 'REJECT') => void;
+  reviewing: boolean;
+}) {
+  const current = detail ?? fallback;
+
+  if (loading && !current) {
+    return <div className="p-6 text-sm text-muted-foreground">正在加载审批详情...</div>;
+  }
+
+  if (!current) {
+    return (
+      <EmptyState
+        className="m-5 rounded-md border bg-muted/15 p-6"
+        description="从左侧审批队列选择一条记录后，可以查看审批原因、请求链路和审计时间线。"
+        title="请选择审批记录"
+      />
+    );
+  }
+
+  const pending = current.status === 'PENDING';
+  const timeline = detail?.timeline ?? [];
+  const metadata = detail?.metadata ?? {};
+
+  return (
+    <div className="grid content-start gap-5 p-5">
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone={archiveApprovalStatusTone(current.status)}>{archiveApprovalStatusLabel(current.status)}</StatusBadge>
+          <StatusBadge tone={securityApprovalWorkbenchRiskTone(current.risk_level)}>
+            {securityApprovalWorkbenchRiskLevelLabel(current.risk_level)}
+          </StatusBadge>
+          <StatusBadge tone="planned">{securityApprovalWorkbenchRiskDomainLabel(current.risk_domain)}</StatusBadge>
+        </div>
+        <h3 className="mt-3 text-base font-semibold">{current.title}</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.description}</p>
+      </div>
+
+      <div className="grid gap-3 rounded-md border bg-muted/10 p-4 text-sm md:grid-cols-2">
+        <SummaryTile label="来源模块" value={current.source_module} />
+        <SummaryTile label="审批类型" value={securityApprovalWorkbenchTypeLabel(current.type)} />
+        <SummaryTile label="审批对象" value={current.target_label} />
+        <SummaryTile label="申请人" value={current.requester?.name ?? '系统'} />
+        <SummaryTile label="申请时间" value={formatDateTime(current.requested_at)} />
+        <SummaryTile label="审批时间" value={formatDateTime(current.reviewed_at)} />
+      </div>
+
+      <div className="rounded-md border bg-background/75 p-4">
+        <h4 className="text-sm font-semibold">审批原因与链路</h4>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.reason ?? '未填写审批原因。'}</p>
+        <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+          <span className="truncate">审批 ID：{current.id}</span>
+          <span className="truncate">来源 ID：{current.source_id}</span>
+          <span className="truncate">request_id：{current.request_id ?? '-'}</span>
+          <span className="truncate">trace_id：{current.trace_id ?? '-'}</span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {current.request_id ? (
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href={`/audit?keyword=${encodeURIComponent(current.request_id)}`}>审计中心</Link>
+            </Button>
+          ) : null}
+          {current.trace_id ? (
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link href={`/monitor?keyword=${encodeURIComponent(current.trace_id)}`}>查看 Trace</Link>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {Object.keys(metadata).length > 0 ? (
+        <div className="rounded-md border bg-background/75 p-4">
+          <h4 className="text-sm font-semibold">来源扩展信息</h4>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            {Object.entries(metadata).slice(0, 12).map(([key, value]) => (
+              <div className="min-w-0 rounded-md border bg-muted/10 px-3 py-2" key={key}>
+                <div className="font-medium text-foreground">{securityApprovalMetadataLabel(key)}</div>
+                <div className="mt-1 truncate">{formatSecurityApprovalMetadataValue(value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="rounded-md border bg-background/75 p-4">
+        <h4 className="text-sm font-semibold">审批时间线</h4>
+        {timeline.length === 0 ? (
+          <div className="mt-3 text-sm text-muted-foreground">详情加载后会展示申请、审批和生效事件。</div>
+        ) : (
+          <div className="mt-4 grid gap-3">
+            {timeline.map((item) => (
+              <SecurityApprovalTimelineItem item={item} key={item.id} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-md border bg-muted/10 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">审批处理</h4>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              {canHandleApprovals ? '通过或拒绝会回写到原审批来源，并保留审计事件。' : '当前账号没有处理审批权限，只能查看审批详情。'}
+            </p>
+          </div>
+          <StatusBadge tone={pending ? 'degraded' : 'planned'}>{pending ? '可处理' : '已结束'}</StatusBadge>
+        </div>
+        <textarea
+          className="mt-3 min-h-20 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring"
+          disabled={!canHandleApprovals || !pending || reviewing}
+          onChange={(event) => onNoteChange(event.target.value)}
+          placeholder="填写审批意见，拒绝高风险操作时建议说明原因。"
+          value={note}
+        />
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <Button
+            disabled={!canHandleApprovals || !pending || reviewing}
+            onClick={() => onReview(current.id, 'REJECT')}
+            type="button"
+            variant="outline"
+          >
+            {reviewing ? '处理中' : '拒绝'}
+          </Button>
+          <Button
+            disabled={!canHandleApprovals || !pending || reviewing}
+            onClick={() => onReview(current.id, 'APPROVE')}
+            type="button"
+          >
+            {reviewing ? '处理中' : '通过'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SecurityApprovalTimelineItem({ item }: { item: SecurityApprovalWorkbenchTimelineItem }) {
+  return (
+    <div className="rounded-md border bg-muted/10 p-3">
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={archiveApprovalEventTone(item.type)}>{archiveApprovalEventLabel(item.type)}</StatusBadge>
+            <StatusBadge tone={archiveApprovalEventStatusTone(item.status)}>{item.status}</StatusBadge>
+          </div>
+          <div className="mt-2 text-sm font-medium">{item.title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{item.actor?.name ?? '系统'} · {formatDateTime(item.occurred_at)}</div>
+        </div>
+        <div className="text-xs text-muted-foreground">{item.request_id ? shortId(item.request_id) : '无 request_id'}</div>
+      </div>
+      {item.note ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.note}</p> : null}
+      {item.trace_id ? <div className="mt-2 truncate text-xs text-muted-foreground">Trace：{item.trace_id}</div> : null}
+    </div>
   );
 }
 
@@ -2405,6 +3047,26 @@ function toPolicyPayload(values: PolicyFormValues):
 async function invalidateSecurityQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-approval-workbench-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-approval-workbench'] }),
+    queryClient.invalidateQueries({ queryKey: ['tool-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['tool-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['notification-policy-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['notification-policy-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['approval-audit-archive-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['approval-audit-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['approval-audit-archives'] }),
+    queryClient.invalidateQueries({ queryKey: ['approval-audit-events'] }),
+    queryClient.invalidateQueries({ queryKey: ['approval-audit-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archive-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archives'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archives'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approval-overview'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archives'] }),
     queryClient.invalidateQueries({ queryKey: ['security-policy-overview'] }),
     queryClient.invalidateQueries({ queryKey: ['security-policies'] }),
     queryClient.invalidateQueries({ queryKey: ['security-policy-evaluations'] }),
@@ -8456,6 +9118,62 @@ function archiveApprovalEventStatusTone(status: string) {
   if (status === 'WARNING' || status === 'PENDING') return 'degraded';
   if (status === 'FAILED' || status === 'ERROR') return 'unavailable';
   return 'planned';
+}
+
+function securityApprovalWorkbenchTypeLabel(type: SecurityApprovalWorkbenchType) {
+  return approvalWorkbenchTypes.find((item) => item.value === type)?.label ?? type;
+}
+
+function securityApprovalWorkbenchRiskDomainLabel(riskDomain: SecurityApprovalWorkbenchRiskDomain) {
+  return approvalWorkbenchRiskDomains.find((item) => item.value === riskDomain)?.label ?? riskDomain;
+}
+
+function securityApprovalWorkbenchRiskLevelLabel(riskLevel: SecurityApprovalWorkbenchRiskLevel) {
+  if (riskLevel === 'CRITICAL') return '极高风险';
+  if (riskLevel === 'HIGH') return '高风险';
+  if (riskLevel === 'MEDIUM') return '中风险';
+  return '低风险';
+}
+
+function securityApprovalWorkbenchRiskTone(riskLevel: SecurityApprovalWorkbenchRiskLevel) {
+  if (riskLevel === 'CRITICAL') return 'unavailable';
+  if (riskLevel === 'HIGH') return 'degraded';
+  if (riskLevel === 'MEDIUM') return 'mock';
+  return 'healthy';
+}
+
+function securityApprovalMetadataLabel(key: string) {
+  const labels: Record<string, string> = {
+    action: '动作',
+    agent_name: 'Agent',
+    archive_file_name: '归档文件',
+    archive_id: '归档 ID',
+    archive_key: '对象路径',
+    archive_size_bytes: '归档大小',
+    conversation_title: '会话',
+    execution_status: '执行状态',
+    impact_level: '影响等级',
+    next_status: '变更后状态',
+    next_value: '变更后值',
+    previous_status: '变更前状态',
+    previous_value: '变更前值',
+    request_method: '请求方法',
+    request_url: '请求地址',
+    setting_key: '配置键',
+    tool_code: '工具编码',
+    trigger_source: '触发来源',
+    version: '版本',
+  };
+
+  return labels[key] ?? key;
+}
+
+function formatSecurityApprovalMetadataValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'number' && Number.isFinite(value)) return value > 1024 ? formatBytes(value) : value.toString();
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  return JSON.stringify(value);
 }
 
 function slaProgressPercent(item: SecurityOperationAlertSlaItem) {

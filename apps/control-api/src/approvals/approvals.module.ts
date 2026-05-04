@@ -11,5 +11,6 @@ import { ApprovalsService } from './approvals.service';
   imports: [AuthModule, PrismaModule, StorageModule, ToolsModule],
   controllers: [ApprovalsController],
   providers: [ApprovalsService],
+  exports: [ApprovalsService],
 })
 export class ApprovalsModule {}

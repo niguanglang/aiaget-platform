@@ -1878,6 +1878,109 @@ export interface NotificationPolicyApprovalOverview {
   high_impact_pending_count: number;
 }
 
+export type SecurityApprovalWorkbenchType =
+  | 'TOOL_CALL'
+  | 'NOTIFICATION_POLICY'
+  | 'APPROVAL_AUDIT_ARCHIVE_DELETE'
+  | 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE'
+  | 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE'
+  | 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
+
+export type SecurityApprovalWorkbenchStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED';
+
+export type SecurityApprovalWorkbenchRiskDomain = 'TOOL' | 'POLICY' | 'AUDIT_ARCHIVE' | 'OPERATION_ALERT';
+
+export type SecurityApprovalWorkbenchRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type SecurityApprovalWorkbenchDecision = 'APPROVE' | 'REJECT';
+
+export interface SecurityApprovalWorkbenchActor {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface SecurityApprovalWorkbenchTimelineItem {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  note: string | null;
+  actor: SecurityApprovalWorkbenchActor | null;
+  request_id: string | null;
+  trace_id: string | null;
+  occurred_at: string;
+}
+
+export interface SecurityApprovalWorkbenchItem {
+  id: string;
+  source_id: string;
+  type: SecurityApprovalWorkbenchType;
+  source_module: string;
+  title: string;
+  description: string;
+  status: SecurityApprovalWorkbenchStatus;
+  risk_domain: SecurityApprovalWorkbenchRiskDomain;
+  risk_level: SecurityApprovalWorkbenchRiskLevel;
+  target_id: string | null;
+  target_label: string;
+  reason: string | null;
+  requester: SecurityApprovalWorkbenchActor | null;
+  reviewer: SecurityApprovalWorkbenchActor | null;
+  requested_at: string;
+  reviewed_at: string | null;
+  request_id: string | null;
+  trace_id: string | null;
+}
+
+export interface SecurityApprovalWorkbenchDetail extends SecurityApprovalWorkbenchItem {
+  metadata: Record<string, unknown>;
+  timeline: SecurityApprovalWorkbenchTimelineItem[];
+}
+
+export interface SecurityApprovalWorkbenchOverview {
+  generated_at: string;
+  summary: {
+    total_count: number;
+    pending_count: number;
+    approved_count: number;
+    rejected_count: number;
+    applied_count: number;
+    high_risk_pending_count: number;
+    archive_delete_pending_count: number;
+    oldest_pending_at: string | null;
+  };
+  by_type: Array<{
+    type: SecurityApprovalWorkbenchType;
+    total_count: number;
+    pending_count: number;
+    approved_count: number;
+    rejected_count: number;
+    applied_count: number;
+  }>;
+  by_risk_domain: Array<{
+    risk_domain: SecurityApprovalWorkbenchRiskDomain;
+    total_count: number;
+    pending_count: number;
+    high_risk_pending_count: number;
+  }>;
+  recent_pending: SecurityApprovalWorkbenchItem[];
+}
+
+export interface ListSecurityApprovalWorkbenchQuery {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  type?: SecurityApprovalWorkbenchType | '';
+  status?: SecurityApprovalWorkbenchStatus | '';
+  risk_domain?: SecurityApprovalWorkbenchRiskDomain | '';
+}
+
+export interface ReviewSecurityApprovalWorkbenchInput {
+  decision: SecurityApprovalWorkbenchDecision;
+  decision_note?: string | null;
+}
+
 export interface ListNotificationPolicyApprovalsQuery {
   page?: number;
   page_size?: number;

@@ -1,43 +1,6 @@
 name: aiaget
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: aiaget-postgres
-    profiles: ["local"]
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB-}
-      POSTGRES_USER: ${POSTGRES_USER-}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD-}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - aiaget
-
-  redis:
-    image: redis:7-alpine
-    container_name: aiaget-redis
-    profiles: ["local"]
-    command: ["redis-server", "--appendonly", "yes"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - aiaget
-
   minio:
     image: minio/minio:latest
     container_name: aiaget-minio
@@ -101,15 +64,12 @@ services:
     image: temporalio/auto-setup:latest
     container_name: aiaget-temporal
     profiles: ["local"]
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
       DB: postgres12
-      DB_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER-}
-      POSTGRES_PWD: ${POSTGRES_PASSWORD-}
-      POSTGRES_SEEDS: postgres
+      DB_PORT: ${TEMPORAL_POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${TEMPORAL_POSTGRES_USER-}
+      POSTGRES_PWD: ${TEMPORAL_POSTGRES_PASSWORD-}
+      POSTGRES_SEEDS: ${TEMPORAL_POSTGRES_HOST-}
     ports:
       - "7233:7233"
     networks:
@@ -130,8 +90,6 @@ services:
       - aiaget
 
 volumes:
-  postgres_data:
-  redis_data:
   minio_data:
   qdrant_data:
     name: aiaget_qdrant_data

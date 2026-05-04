@@ -2835,7 +2835,7 @@ export interface SecurityOperationAlertSlaOverview {
 
 export interface SecurityCenterDenialItem {
   id: string;
-  source: 'DATA_SCOPE' | 'RESOURCE_ACL' | 'SECURITY_POLICY' | 'OPERATION';
+  source: 'DATA_SCOPE' | 'RESOURCE_ACL' | 'SECURITY_POLICY' | 'OPERATION' | 'APPROVAL_WORKBENCH';
   title: string;
   reason: string;
   resource_type: string | null;
@@ -2856,7 +2856,7 @@ export type SecurityCenterEventWindow = '1h' | '24h' | '7d' | '30d';
 export interface SecurityCenterEventListItem extends SecurityCenterDenialItem {
   severity: SecurityCenterRiskLevel;
   has_trace: boolean;
-  source_record_type: 'operation_log' | 'security_policy_evaluation';
+  source_record_type: 'operation_log' | 'security_policy_evaluation' | 'platform_event';
   source_record_id: string;
 }
 

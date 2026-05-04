@@ -1,7 +1,13 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export const SECURITY_CENTER_EVENT_SOURCES = ['DATA_SCOPE', 'RESOURCE_ACL', 'SECURITY_POLICY', 'OPERATION'] as const;
+export const SECURITY_CENTER_EVENT_SOURCES = [
+  'DATA_SCOPE',
+  'RESOURCE_ACL',
+  'SECURITY_POLICY',
+  'OPERATION',
+  'APPROVAL_WORKBENCH',
+] as const;
 export const SECURITY_CENTER_EVENT_WINDOWS = ['1h', '24h', '7d', '30d'] as const;
 
 export class ListSecurityCenterEventsDto {

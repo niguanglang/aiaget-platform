@@ -202,6 +202,7 @@ const eventSources: Array<{ label: string; value: SecurityCenterEventSource }> =
   { label: '资源授权', value: 'RESOURCE_ACL' },
   { label: '安全策略', value: 'SECURITY_POLICY' },
   { label: '操作拒绝', value: 'OPERATION' },
+  { label: '审批工作台', value: 'APPROVAL_WORKBENCH' },
 ];
 const eventWindows: Array<{ label: string; value: SecurityCenterEventWindow }> = [
   { label: '最近 1 小时', value: '1h' },
@@ -2685,7 +2686,7 @@ function SecurityEventCenterCard({
             </div>
             <h2 className="mt-2 text-sm font-semibold">安全事件详情中心</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              汇总 DataScope、Resource ACL、SecurityPolicyGuard 和操作拒绝事件，支持筛选、审计和 trace 跳转。
+              汇总 DataScope、Resource ACL、SecurityPolicyGuard、操作拒绝和审批工作台导出事件，支持筛选、审计和 trace 跳转。
             </p>
           </div>
           <div className="text-sm text-muted-foreground">
@@ -2863,9 +2864,11 @@ function SecurityEventDetailDrawer({
               <StatusBadge tone="ready">事件详情</StatusBadge>
               {event ? <StatusBadge tone={securityRiskTone(event.severity)}>{securityRiskLevelLabel(event.severity)}</StatusBadge> : null}
             </div>
-            <h2 className="mt-2 text-base font-semibold">安全拒绝事件</h2>
+            <h2 className="mt-2 text-base font-semibold">{event?.source === 'APPROVAL_WORKBENCH' ? '审批工作台导出事件' : '安全拒绝事件'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              查看 Guard 来源、主体属性、资源属性、上下文和链路追踪信息。
+              {event?.source === 'APPROVAL_WORKBENCH'
+                ? '查看导出数量、筛选条件、操作人和链路追踪信息。'
+                : '查看 Guard 来源、主体属性、资源属性、上下文和链路追踪信息。'}
             </p>
           </div>
           <Button onClick={onClose} type="button" variant="outline">
@@ -2903,6 +2906,18 @@ function SecurityEventDetailDrawer({
               <SummaryTile label="路径" value={`${event.method} ${event.path}`} />
               <SummaryTile label="状态码" value={`${event.status_code}`} />
             </div>
+
+            {event.source === 'APPROVAL_WORKBENCH' ? (
+              <div className="rounded-lg border bg-background/70 p-4">
+                <h3 className="text-sm font-semibold">导出摘要</h3>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <SummaryTile label="导出数量" value={`${securityEventExportedCount(event)}`} />
+                  <SummaryTile label="筛选状态" value={securityEventExportFilterValue(event, 'status')} />
+                  <SummaryTile label="审批类型" value={securityEventExportFilterValue(event, 'type')} />
+                  <SummaryTile label="风险域" value={securityEventExportFilterValue(event, 'risk_domain')} />
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => void copyValue('请求 ID', event.request_id)} size="sm" type="button" variant="outline">
@@ -9208,7 +9223,23 @@ function securityDenialSourceLabel(source: SecurityCenterDenialItem['source']) {
   if (source === 'DATA_SCOPE') return '数据权限';
   if (source === 'RESOURCE_ACL') return '资源授权';
   if (source === 'SECURITY_POLICY') return '安全策略';
+  if (source === 'APPROVAL_WORKBENCH') return '审批工作台';
   return '操作拒绝';
+}
+
+function securityEventExportedCount(event: SecurityCenterEventDetail) {
+  const value = event.request_summary?.exported_count;
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function securityEventExportFilterValue(event: SecurityCenterEventDetail, key: 'status' | 'type' | 'risk_domain') {
+  const filter = event.request_summary?.filter;
+  if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return '全部';
+  const value = (filter as Record<string, unknown>)[key];
+  if (typeof value !== 'string' || !value) return '全部';
+  if (key === 'status') return archiveApprovalStatusLabel(value as SecurityApprovalWorkbenchStatus);
+  if (key === 'type') return securityApprovalWorkbenchTypeLabel(value as SecurityApprovalWorkbenchType);
+  return securityApprovalWorkbenchRiskDomainLabel(value as SecurityApprovalWorkbenchRiskDomain);
 }
 
 function securityRiskLevelLabel(level: SecurityCenterRiskLevel) {

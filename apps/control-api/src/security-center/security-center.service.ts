@@ -81,6 +81,11 @@ type PolicySecurityEventRecord = Prisma.SecurityPolicyEvaluationGetPayload<{
 }>;
 
 type SecurityOperationNotificationEventRecord = Prisma.PlatformEventGetPayload<object>;
+type PlatformSecurityEventRecord = Prisma.PlatformEventGetPayload<{
+  include: {
+    user: true;
+  };
+}>;
 
 type NotificationTaskStats = ReturnType<typeof summarizeNotificationTaskEvents>;
 type NotificationTaskPolicySnapshot = {
@@ -2358,7 +2363,7 @@ export class SecurityCenterService {
   }
 
   private async loadSecurityEvents(tenantId: string, since: Date): Promise<SecurityCenterEventDetail[]> {
-    const [operationLogs, policyEvaluations] = await this.prisma.$transaction([
+    const [operationLogs, policyEvaluations, platformEvents] = await this.prisma.$transaction([
       this.prisma.operationLog.findMany({
         where: {
           tenantId,
@@ -2396,14 +2401,34 @@ export class SecurityCenterService {
         },
         take: 300,
       }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          eventSource: 'security_center',
+          eventType: {
+            in: ['platform.security.approval_workbench.exported'],
+          },
+          occurredAt: {
+            gte: since,
+          },
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 300,
+      }),
     ]);
 
     const operationDenials = operationLogs.map(mapOperationDenial);
     const policyDenials = policyEvaluations.map(mapPolicyDenial);
+    const platformSecurityEvents = platformEvents.map(mapPlatformSecurityEvent);
 
-    return [...operationDenials, ...policyDenials]
+    return [...operationDenials, ...policyDenials, ...platformSecurityEvents]
       .sort((left, right) => Date.parse(right.occurred_at) - Date.parse(left.occurred_at))
-      .slice(0, 600);
+      .slice(0, 900);
   }
 
   private async findSecurityEvent(tenantId: string, eventId: string): Promise<SecurityCenterEventDetail | null> {
@@ -2446,6 +2471,22 @@ export class SecurityCenterService {
       });
 
       return evaluation ? mapPolicyDenial(evaluation) : null;
+    }
+
+    if (sourceType === 'platform') {
+      const event = await this.prisma.platformEvent.findFirst({
+        where: {
+          tenantId,
+          id: recordId,
+          eventSource: 'security_center',
+          eventType: 'platform.security.approval_workbench.exported',
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      return event ? mapPlatformSecurityEvent(event) : null;
     }
 
     return null;
@@ -4846,6 +4887,64 @@ function mapPolicyDenial(
   };
 }
 
+function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCenterEventDetail {
+  const payload = normalizeJsonObjectOutput(item.payloadJson);
+  const filter = normalizeJsonObjectOutput(payload?.filter);
+  const exportedCount = typeof payload?.exported_count === 'number' ? payload.exported_count : 0;
+
+  return {
+    id: `platform:${item.id}`,
+    source: 'APPROVAL_WORKBENCH',
+    title: '审批工作台导出',
+    reason: item.summary ?? `统一安全审批工作台导出 ${exportedCount} 条记录。`,
+    resource_type: item.resourceType,
+    resource_id: item.resourceId,
+    action: 'export',
+    matched_code: stringValue(filter?.type ?? filter?.status ?? filter?.risk_domain),
+    path: '/security-center/approval-workbench/export',
+    method: 'GET',
+    status_code: item.status === 'SUCCESS' ? 200 : 500,
+    request_id: item.requestId ?? '',
+    trace_id: item.traceId,
+    occurred_at: item.occurredAt.toISOString(),
+    severity: exportedCount >= 1000 ? 'MEDIUM' : 'LOW',
+    has_trace: Boolean(item.traceId),
+    source_record_type: 'platform_event',
+    source_record_id: item.id,
+    subject: item.user
+      ? {
+          user_id: item.user.id,
+          name: item.user.name,
+          email: item.user.email,
+        }
+      : null,
+    resource: {
+      resource_type: item.resourceType,
+      resource_id: item.resourceId,
+    },
+    context: filter
+      ? {
+          filter,
+          exported_count: exportedCount,
+        }
+      : {
+          exported_count: exportedCount,
+        },
+    request_summary: payload,
+    matched_policy: null,
+    operator: item.user
+      ? {
+          id: item.user.id,
+          name: item.user.name,
+          email: item.user.email,
+        }
+      : null,
+    ip: null,
+    user_agent: null,
+    error_message: item.status === 'SUCCESS' ? null : item.summary,
+  };
+}
+
 function stripEventDetail(event: SecurityCenterEventDetail): SecurityCenterEventListItem {
   return {
     id: event.id,
@@ -4901,7 +5000,13 @@ function stringValue(value: unknown) {
 }
 
 function normalizeEventSource(value: string | undefined): SecurityCenterEventSource | null {
-  if (value === 'DATA_SCOPE' || value === 'RESOURCE_ACL' || value === 'SECURITY_POLICY' || value === 'OPERATION') {
+  if (
+    value === 'DATA_SCOPE' ||
+    value === 'RESOURCE_ACL' ||
+    value === 'SECURITY_POLICY' ||
+    value === 'OPERATION' ||
+    value === 'APPROVAL_WORKBENCH'
+  ) {
     return value;
   }
   return null;

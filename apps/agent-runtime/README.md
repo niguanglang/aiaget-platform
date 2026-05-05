@@ -64,3 +64,21 @@ app/workflows/               Temporal/local workflow dispatch boundary
 ```
 
 The public Runtime endpoints and SSE event contract are unchanged by this split. Control API can continue calling the same `/runtime/conversations/respond`, `/runtime/conversations/respond-stream`, and `/runtime/workflows/knowledge-tasks/start` endpoints.
+
+## Model adapters and streaming
+
+Runtime model execution now normalizes these provider types:
+
+```text
+OPENAI_COMPATIBLE
+DEEPSEEK
+QWEN
+MOONSHOT
+LOCAL
+AZURE_OPENAI
+ANTHROPIC
+```
+
+`DEEPSEEK`, `QWEN`, `MOONSHOT`, and `LOCAL` use the OpenAI-compatible `/chat/completions` protocol. `AZURE_OPENAI` uses an Azure deployment URL with the `api-key` header and `api-version=2024-06-01`. `ANTHROPIC` uses `/messages`, `x-api-key`, and `anthropic-version=2023-06-01`, with system prompts folded into Anthropic's top-level `system` field.
+
+`POST /runtime/conversations/respond-stream` now reads provider SSE incrementally and forwards provider deltas as Runtime `delta` events before the provider stream finishes. If no model config is supplied, Runtime keeps the deterministic local fallback and chunks the generated message for compatibility.

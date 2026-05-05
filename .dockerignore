@@ -5,7 +5,7 @@ dist
 build
 coverage
 .turbo
-tmp/
+tmp
 .env
 .env.*
 !.env.example
@@ -17,4 +17,6 @@ __pycache__
 .ruff_cache
 .venv
 venv
+.git
+.gitignore
 .DS_Store

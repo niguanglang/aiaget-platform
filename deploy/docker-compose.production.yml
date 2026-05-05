@@ -1,0 +1,143 @@
+name: aiaget-production
+
+services:
+  control-api:
+    build:
+      context: ..
+      dockerfile: apps/control-api/Dockerfile
+    image: aiaget/control-api:${AIAGET_IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CONTROL_API_PORT: ${CONTROL_API_PORT:-3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
+      RUNTIME_BASE_URL: ${RUNTIME_BASE_URL:-http://agent-runtime:8000}
+      CONTROL_API_INTERNAL_BASE_URL: ${CONTROL_API_INTERNAL_BASE_URL:-http://control-api:3001}
+      AGENT_RUNTIME_EXECUTION_MODE: ${AGENT_RUNTIME_EXECUTION_MODE:-runtime_first}
+      KNOWLEDGE_WORKFLOW_MODE: ${KNOWLEDGE_WORKFLOW_MODE:-runtime_first}
+      AGENT_TEAM_WORKFLOW_MODE: ${AGENT_TEAM_WORKFLOW_MODE:-runtime_first}
+      CHANNEL_RELEASE_WORKFLOW_MODE: ${CHANNEL_RELEASE_WORKFLOW_MODE:-runtime_first}
+      CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: ${CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE:-runtime_first}
+      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:?JWT_ACCESS_TOKEN_SECRET is required}
+      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:?JWT_REFRESH_TOKEN_SECRET is required}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:?SECRET_ENCRYPTION_KEY is required}
+      MODEL_KEY_ENCRYPTION_SECRET: ${MODEL_KEY_ENCRYPTION_SECRET:?MODEL_KEY_ENCRYPTION_SECRET is required}
+      DEFAULT_TENANT_CODE: ${DEFAULT_TENANT_CODE:-default}
+      DEFAULT_TENANT_NAME: ${DEFAULT_TENANT_NAME:-Default Enterprise}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:?DEFAULT_ADMIN_EMAIL is required}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?DEFAULT_ADMIN_PASSWORD is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?MINIO_ENDPOINT is required}
+      MINIO_CONSOLE: ${MINIO_CONSOLE:?MINIO_CONSOLE is required}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_BUCKET: ${MINIO_BUCKET:-aiaget-files}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
+      QDRANT_URL: ${QDRANT_URL:?QDRANT_URL is required}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION_PREFIX: ${QDRANT_COLLECTION_PREFIX:-aiaget_knowledge_segments}
+      OPENSEARCH_ENABLED: ${OPENSEARCH_ENABLED:-true}
+      OPENSEARCH_URL: ${OPENSEARCH_URL:?OPENSEARCH_URL is required}
+      OPENSEARCH_INDEX_PREFIX: ${OPENSEARCH_INDEX_PREFIX:-aiaget_knowledge_segments}
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME:-}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD:-}
+      RUNTIME_INTERNAL_TOKEN: ${RUNTIME_INTERNAL_TOKEN:?RUNTIME_INTERNAL_TOKEN is required}
+      TOOL_GATEWAY_RATE_LIMIT_PER_MINUTE: ${TOOL_GATEWAY_RATE_LIMIT_PER_MINUTE:-120}
+      TOOL_GATEWAY_MAX_RETRIES: ${TOOL_GATEWAY_MAX_RETRIES:-1}
+      TOOL_GATEWAY_MAX_RESPONSE_CHARS: ${TOOL_GATEWAY_MAX_RESPONSE_CHARS:-20000}
+      CHANNEL_SENDER_TASK_ENABLED: ${CHANNEL_SENDER_TASK_ENABLED:-true}
+      CHANNEL_SENDER_TASK_INTERVAL_MS: ${CHANNEL_SENDER_TASK_INTERVAL_MS:-60000}
+      CHANNEL_RELEASE_SCHEDULER_ENABLED: ${CHANNEL_RELEASE_SCHEDULER_ENABLED:-false}
+      CHANNEL_RELEASE_SCHEDULER_INTERVAL_MS: ${CHANNEL_RELEASE_SCHEDULER_INTERVAL_MS:-120000}
+      PLATFORM_USAGE_ALERT_NOTIFICATION_TASK_ENABLED: ${PLATFORM_USAGE_ALERT_NOTIFICATION_TASK_ENABLED:-true}
+      SECURITY_OPERATION_ALERT_AUTO_NOTIFY_ENABLED: ${SECURITY_OPERATION_ALERT_AUTO_NOTIFY_ENABLED:-true}
+      SECURITY_OPERATION_ALERT_NOTIFICATION_TASK_ENABLED: ${SECURITY_OPERATION_ALERT_NOTIFICATION_TASK_ENABLED:-true}
+      SECURITY_OPERATION_ALERT_SLA_ENABLED: ${SECURITY_OPERATION_ALERT_SLA_ENABLED:-true}
+    ports:
+      - "${CONTROL_API_PUBLISHED_PORT:-3001}:${CONTROL_API_PORT:-3001}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + (process.env.CONTROL_API_PORT || '3001') + '/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - aiaget
+
+  agent-runtime:
+    build:
+      context: ..
+      dockerfile: apps/agent-runtime/Dockerfile
+    image: aiaget/agent-runtime:${AIAGET_IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      RUNTIME_PORT: ${RUNTIME_PORT:-8000}
+      RUNTIME_CORS_ORIGIN: ${RUNTIME_CORS_ORIGIN:?RUNTIME_CORS_ORIGIN is required}
+      RUNTIME_CONTROL_API_BASE_URL: ${RUNTIME_CONTROL_API_BASE_URL:-http://control-api:3001}
+      RUNTIME_INTERNAL_TOKEN: ${RUNTIME_INTERNAL_TOKEN:?RUNTIME_INTERNAL_TOKEN is required}
+      RUNTIME_TEMPORAL_ENABLED: ${RUNTIME_TEMPORAL_ENABLED:-false}
+      RUNTIME_TEMPORAL_ADDRESS: ${RUNTIME_TEMPORAL_ADDRESS:-temporal:7233}
+      RUNTIME_TEMPORAL_NAMESPACE: ${RUNTIME_TEMPORAL_NAMESPACE:-default}
+      RUNTIME_TEMPORAL_TASK_QUEUE: ${RUNTIME_TEMPORAL_TASK_QUEUE:-aiaget-production}
+    ports:
+      - "${RUNTIME_PUBLISHED_PORT:-8000}:${RUNTIME_PORT:-8000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('RUNTIME_PORT', '8000') + '/runtime/health', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - aiaget
+
+  agent-runtime-worker:
+    image: aiaget/agent-runtime:${AIAGET_IMAGE_TAG:-local}
+    restart: unless-stopped
+    profiles: ["temporal-worker"]
+    command: ["python", "-m", "app.workflows.worker"]
+    environment:
+      RUNTIME_CORS_ORIGIN: ${RUNTIME_CORS_ORIGIN:?RUNTIME_CORS_ORIGIN is required}
+      RUNTIME_CONTROL_API_BASE_URL: ${RUNTIME_CONTROL_API_BASE_URL:-http://control-api:3001}
+      RUNTIME_INTERNAL_TOKEN: ${RUNTIME_INTERNAL_TOKEN:?RUNTIME_INTERNAL_TOKEN is required}
+      RUNTIME_TEMPORAL_ENABLED: "true"
+      RUNTIME_TEMPORAL_ADDRESS: ${RUNTIME_TEMPORAL_ADDRESS:?RUNTIME_TEMPORAL_ADDRESS is required for worker}
+      RUNTIME_TEMPORAL_NAMESPACE: ${RUNTIME_TEMPORAL_NAMESPACE:-default}
+      RUNTIME_TEMPORAL_TASK_QUEUE: ${RUNTIME_TEMPORAL_TASK_QUEUE:-aiaget-production}
+    depends_on:
+      control-api:
+        condition: service_healthy
+    networks:
+      - aiaget
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_CONTROL_API_BASE_URL: ${NEXT_PUBLIC_CONTROL_API_BASE_URL:?NEXT_PUBLIC_CONTROL_API_BASE_URL is required}
+        NEXT_PUBLIC_RUNTIME_BASE_URL: ${NEXT_PUBLIC_RUNTIME_BASE_URL:?NEXT_PUBLIC_RUNTIME_BASE_URL is required}
+    image: aiaget/web:${AIAGET_IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-3000}
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_CONTROL_API_BASE_URL: ${NEXT_PUBLIC_CONTROL_API_BASE_URL:?NEXT_PUBLIC_CONTROL_API_BASE_URL is required}
+      NEXT_PUBLIC_RUNTIME_BASE_URL: ${NEXT_PUBLIC_RUNTIME_BASE_URL:?NEXT_PUBLIC_RUNTIME_BASE_URL is required}
+    ports:
+      - "${WEB_PUBLISHED_PORT:-3000}:${WEB_PORT:-3000}"
+    depends_on:
+      control-api:
+        condition: service_healthy
+      agent-runtime:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - aiaget
+
+networks:
+  aiaget:
+    driver: bridge

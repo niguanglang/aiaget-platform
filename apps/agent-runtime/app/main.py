@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
@@ -20,8 +19,8 @@ from app.runtime.contracts import (
     WorkflowSignalResponse,
     WorkflowStartResponse,
 )
-from app.runtime.execution import build_runtime_response
-from app.runtime.helpers import apply_http_trace_context, apply_team_http_trace_context, chunk_text, sse_event, verify_runtime_internal_token
+from app.runtime.execution import build_runtime_response, stream_runtime_response_events
+from app.runtime.helpers import apply_http_trace_context, apply_team_http_trace_context, sse_event, verify_runtime_internal_token
 from app.runtime.team_execution import build_team_runtime_response
 from app.workflows.worker import (
     resume_agent_team_run_workflow,
@@ -74,31 +73,10 @@ async def run_agent_team(request: RuntimeAgentTeamRequest, http_request: Request
 @app.post("/runtime/conversations/respond-stream")
 async def respond_stream(request: RuntimeConversationRequest, http_request: Request) -> StreamingResponse:
     apply_http_trace_context(request, http_request)
-    response = await build_runtime_response(request)
 
     async def event_stream():
-        yield sse_event(
-            "start",
-            {
-                "type": "start",
-                "trace_id": response.trace_id,
-                "request_model": response.request_model,
-                "steps": [step.model_dump(mode="json") for step in response.steps],
-                "references": [reference.model_dump(mode="json") for reference in response.references],
-                "tool_calls": [tool_call.model_dump(mode="json") for tool_call in response.tool_calls],
-            },
-        )
-
-        for chunk in chunk_text(response.assistant_message):
-            yield sse_event("delta", {"type": "delta", "delta": chunk})
-            await asyncio.sleep(0.012)
-
-        yield sse_event(
-            "done",
-            {
-                **response.model_dump(mode="json"),
-            },
-        )
+        async for item in stream_runtime_response_events(request):
+            yield sse_event(item["event"], item["data"])
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

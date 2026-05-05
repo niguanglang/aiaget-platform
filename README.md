@@ -53,6 +53,27 @@ docker compose -f deploy/docker-compose.yml config
 docker compose -f deploy/docker-compose.yml --profile local up -d
 ```
 
+## Production Deployment Template
+
+Production deployment is described in [docs/architecture/production-deployment.md](./docs/architecture/production-deployment.md). The repository includes application-service Dockerfiles and a Compose template that does not create middleware containers.
+
+```bash
+cp .env.production.example .env.production
+node scripts/validate-production-env.mjs .env.production
+docker compose -f deploy/docker-compose.production.yml --env-file .env.production config
+```
+
+Useful verification commands:
+
+```bash
+pnpm build:prod
+pnpm test
+pnpm verify:prod-template
+python3 -m compileall apps/agent-runtime/app
+```
+
+Do not start or add middleware/container services without explicit operator approval.
+
 Apply Control API database migration and seed:
 
 ```bash

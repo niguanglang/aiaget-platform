@@ -6,6 +6,7 @@ import re
 import secrets
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -114,6 +115,95 @@ def extract_usage(payload: Any, messages: list[dict[str, str]], output_text: str
         "completion_tokens": completion_tokens,
         "total_tokens": prompt_tokens + completion_tokens,
     }
+
+
+def extract_usage_from_stream(payload: Any) -> dict[str, int] | None:
+    if not isinstance(payload, dict):
+        return None
+
+    usage = payload.get("usage")
+    if not isinstance(usage, dict) and isinstance(payload.get("choices"), list) and payload["choices"]:
+        first_choice = payload["choices"][0]
+        usage = first_choice.get("usage") if isinstance(first_choice, dict) else None
+
+    if not isinstance(usage, dict):
+        return None
+
+    prompt_tokens = int_value(usage.get("prompt_tokens"))
+    completion_tokens = int_value(usage.get("completion_tokens"))
+    total_tokens = int_value(usage.get("total_tokens"))
+    if prompt_tokens is None or completion_tokens is None:
+        return None
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens or prompt_tokens + completion_tokens,
+    }
+
+
+def extract_stream_delta(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or len(choices) == 0 or not isinstance(choices[0], dict):
+        return ""
+
+    delta = choices[0].get("delta")
+    return delta.get("content", "") if isinstance(delta, dict) and isinstance(delta.get("content"), str) else ""
+
+
+def extract_anthropic_stream_delta(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+
+    if payload.get("type") == "content_block_delta" and isinstance(payload.get("delta"), dict):
+        delta = payload["delta"]
+        if isinstance(delta.get("text"), str):
+            return delta["text"]
+
+    if isinstance(payload.get("delta"), dict) and isinstance(payload["delta"].get("text"), str):
+        return payload["delta"]["text"]
+    return ""
+
+
+def extract_anthropic_usage_from_stream(payload: Any) -> dict[str, int] | None:
+    if not isinstance(payload, dict):
+        return None
+
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        message = payload.get("message")
+        usage = message.get("usage") if isinstance(message, dict) else None
+    if not isinstance(usage, dict):
+        return None
+
+    prompt_tokens = int_value(usage.get("input_tokens"))
+    completion_tokens = int_value(usage.get("output_tokens"))
+    if prompt_tokens is None or completion_tokens is None:
+        return None
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
+
+
+def parse_provider_sse_event(raw_event: str) -> Any:
+    data_lines = [line[5:].strip() for line in raw_event.splitlines() if line.startswith("data:")]
+    if not data_lines:
+        return None
+
+    raw_data = "\n".join(data_lines)
+    if raw_data == "[DONE]":
+        return "[DONE]"
+
+    try:
+        return json.loads(raw_data)
+    except json.JSONDecodeError:
+        return None
 
 
 def extract_provider_error(payload: Any) -> str | None:
@@ -248,6 +338,88 @@ def verify_runtime_internal_token(http_request: Request) -> None:
 
 def build_chat_url(base_url: str) -> str:
     return f"{base_url.rstrip('/')}/chat/completions"
+
+
+def build_azure_chat_url(base_url: str, api_version: str = "2024-06-01") -> str:
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{urllib.parse.urlencode({'api-version': api_version})}"
+
+
+def build_anthropic_messages_url(base_url: str) -> str:
+    return f"{base_url.rstrip('/')}/messages"
+
+
+def build_anthropic_payload(
+    config: RuntimeModelConfig,
+    messages: list[dict[str, str]],
+    stream: bool,
+) -> dict[str, Any]:
+    system_messages: list[str] = []
+    conversation_messages: list[dict[str, str]] = []
+
+    for message in messages:
+        role = message["role"]
+        content = message["content"]
+        if role == "system":
+            system_messages.append(content)
+            continue
+
+        conversation_messages.append(
+            {
+                "role": "assistant" if role == "assistant" else "user",
+                "content": content,
+            }
+        )
+
+    payload: dict[str, Any] = {
+        "model": config.model,
+        "messages": conversation_messages or [{"role": "user", "content": "请根据系统指令继续。"}],
+        "max_tokens": 2048,
+        "temperature": config.temperature,
+        "stream": stream,
+    }
+    if system_messages:
+        payload["system"] = "\n\n".join(system_messages)
+    return payload
+
+
+def extract_anthropic_completion_text(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+
+    content = payload.get("content")
+    if isinstance(content, str):
+        return content
+
+    if not isinstance(content, list):
+        return ""
+
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, dict) and item.get("type") == "text" and isinstance(item.get("text"), str):
+            parts.append(item["text"])
+    return "".join(parts)
+
+
+def extract_anthropic_usage(payload: Any, messages: list[dict[str, str]], output_text: str) -> dict[str, int]:
+    if isinstance(payload, dict) and isinstance(payload.get("usage"), dict):
+        usage = payload["usage"]
+        prompt_tokens = int_value(usage.get("input_tokens")) or estimate_messages_tokens(messages)
+        completion_tokens = int_value(usage.get("output_tokens")) or estimate_tokens(output_text)
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
+
+    prompt_tokens = estimate_messages_tokens(messages)
+    completion_tokens = estimate_tokens(output_text)
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
 
 
 def preview_messages(messages: list[dict[str, str]]) -> list[dict[str, str]]:

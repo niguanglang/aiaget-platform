@@ -28,7 +28,20 @@ import type {
 } from '@aiaget/shared-types';
 import { hasPermission } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { CalendarClock, Coins, FileText, Gauge, Plus, RefreshCw, ShieldAlert, SlidersHorizontal } from 'lucide-react';
+import {
+  CalendarClock,
+  ChevronDown,
+  ChevronRight,
+  Coins,
+  FileText,
+  Gauge,
+  Plus,
+  ReceiptText,
+  RefreshCw,
+  ShieldAlert,
+  SlidersHorizontal,
+  RotateCcw,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
@@ -40,7 +53,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { createBillingAdjustment, getBillingOverview, updateBillingQuotaPolicy, updateBillingSubscription } from '@/lib/api-client';
+import { createBillingAdjustment, getBillingOverview, recalculateCurrentBillingInvoice, updateBillingQuotaPolicy, updateBillingSubscription } from '@/lib/api-client';
 
 const windows: BillingWindow[] = ['24h', '7d'];
 
@@ -128,6 +141,9 @@ const quotaPolicyStatusLabels: Record<BillingQuotaPolicyStatus, string> = {
 const quotaActions: BillingQuotaAction[] = ['WARN', 'THROTTLE', 'REQUIRE_APPROVAL', 'BLOCK'];
 const quotaPolicyStatuses: BillingQuotaPolicyStatus[] = ['ACTIVE', 'DISABLED'];
 const adjustmentTypes: BillingAdjustmentType[] = ['CREDIT', 'DEBIT', 'REFUND', 'DISCOUNT', 'CORRECTION'];
+const invoiceStatusFilters: InvoiceStatusFilter[] = ['ALL', 'DRAFT', 'OPEN', 'PAID', 'OVERDUE', 'VOID'];
+
+type InvoiceStatusFilter = 'ALL' | BillingInvoiceItem['status'];
 
 export function BillingContent() {
   const queryClient = useQueryClient();
@@ -180,6 +196,15 @@ export function BillingContent() {
       await invalidateBilling();
     },
     onError: () => setActionMessage('调账单创建失败，请检查金额、原因或权限。'),
+  });
+
+  const recalculateInvoiceMutation = useMutation({
+    mutationFn: () => recalculateCurrentBillingInvoice(),
+    onSuccess: async (invoice) => {
+      setActionMessage(`当前账期账单 ${invoice.invoice_no} 已重算。`);
+      await invalidateBilling();
+    },
+    onError: () => setActionMessage('当前账期账单重算失败，请稍后重试。'),
   });
 
   const startEditPolicy = (policy: BillingQuotaPolicyItem) => {
@@ -264,6 +289,15 @@ export function BillingContent() {
               </button>
             ))}
           </div>
+          <Button
+            disabled={recalculateInvoiceMutation.isPending}
+            onClick={() => recalculateInvoiceMutation.mutate()}
+            type="button"
+            variant="outline"
+          >
+            <RotateCcw className="size-4" />
+            {recalculateInvoiceMutation.isPending ? '重算中...' : '重算当前账期'}
+          </Button>
           <Button onClick={() => void billingQuery.refetch()} type="button" variant="outline">
             <RefreshCw className="size-4" />
             刷新
@@ -319,7 +353,7 @@ export function BillingContent() {
           onSave={savePolicy}
           saving={quotaPolicyMutation.isPending}
         />
-        <InvoiceCard invoices={overview?.invoices ?? []} loading={billingQuery.isLoading} />
+        <InvoiceCard adjustments={overview?.adjustments ?? []} invoices={overview?.invoices ?? []} loading={billingQuery.isLoading} />
       </section>
 
       <AdjustmentCard
@@ -367,6 +401,20 @@ interface AdjustmentDraft {
   amount: string;
   reason: string;
   description: string;
+}
+
+interface InvoiceLineItem {
+  id: string;
+  name: string;
+  quantity: string;
+  unit_price: number | null;
+  amount: number;
+  description: string;
+}
+
+interface InvoiceSummary {
+  outstanding_amount: number;
+  line_item_total: number;
 }
 
 function SubscriptionCard({
@@ -655,45 +703,253 @@ function QuotaPolicyCard({
   );
 }
 
-function InvoiceCard({ invoices, loading }: { invoices: BillingInvoiceItem[]; loading: boolean }) {
+function InvoiceCard({
+  adjustments,
+  invoices,
+  loading,
+}: {
+  adjustments: BillingAdjustmentItem[];
+  invoices: BillingInvoiceItem[];
+  loading: boolean;
+}) {
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>('ALL');
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const filteredInvoices = useMemo(
+    () => (statusFilter === 'ALL' ? invoices : invoices.filter((invoice) => invoice.status === statusFilter)),
+    [invoices, statusFilter],
+  );
+  const selectedInvoice =
+    invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? filteredInvoices[0] ?? invoices[0] ?? null;
+  const selectedAdjustments = selectedInvoice
+    ? adjustments.filter((adjustment) => adjustment.invoice_id === selectedInvoice.id)
+    : [];
+  const invoiceSummary = selectedInvoice ? buildInvoiceSummary(selectedInvoice) : null;
+  const statusCounts = useMemo(() => countInvoicesByStatus(invoices), [invoices]);
+
   return (
     <Card className="grid gap-4 p-5">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <FileText className="size-4 text-primary" />
-        账单列表
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="size-4 text-primary" />
+            账单明细
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">选择发票后查看账期金额、账单项和关联调账记录。</p>
+        </div>
+        <StatusBadge tone={invoices.length > 0 ? 'ready' : 'planned'}>{invoices.length} 张发票</StatusBadge>
       </div>
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载账单...</div>
       ) : invoices.length === 0 ? (
         <EmptyState description="当前租户暂无账单记录。" title="暂无账单" />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40">
-                {['账单', '状态', '账期', '总额', '已付', '到期'].map((column) => (
-                  <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => (
-                <tr className="border-b last:border-0" key={invoice.id}>
-                  <td className="px-3 py-2 font-medium">{invoice.invoice_no}</td>
-                  <td className="px-3 py-2">
-                    <StatusBadge tone={invoiceTone(invoice.status)}>{invoiceStatusLabels[invoice.status]}</StatusBadge>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{formatDateShort(invoice.period_start)} 至 {formatDateShort(invoice.period_end)}</td>
-                  <td className="px-3 py-2 font-medium">{formatMoney(invoice.total_amount)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{formatMoney(invoice.paid_amount)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{invoice.due_at ? formatDateShort(invoice.due_at) : '-'}</td>
-                </tr>
+        <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+          <div className="grid content-start gap-3">
+            <div className="flex flex-wrap gap-2">
+              {invoiceStatusFilters.map((status) => (
+                <button
+                  className={`h-8 rounded-md border px-3 text-xs transition-colors ${statusFilter === status ? 'border-primary/50 bg-primary/10 text-primary' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  type="button"
+                >
+                  {status === 'ALL' ? '全部' : invoiceStatusLabels[status]}
+                  <span className="ml-1 text-[11px]">
+                    {status === 'ALL' ? invoices.length : statusCounts[status]}
+                  </span>
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {filteredInvoices.length === 0 ? (
+              <EmptyState description="当前筛选状态下没有发票。" title="暂无匹配账单" />
+            ) : (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40">
+                      {['账单', '状态', '账期', '总额', '未结清'].map((column) => (
+                        <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredInvoices.map((invoice) => {
+                      const outstanding = getOutstandingAmount(invoice);
+                      const selected = selectedInvoice?.id === invoice.id;
+                      return (
+                        <tr
+                          className={`cursor-pointer border-b transition-colors last:border-0 ${selected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
+                          key={invoice.id}
+                          onClick={() => setSelectedInvoiceId(invoice.id)}
+                        >
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{invoice.invoice_no}</div>
+                            <div className="text-xs text-muted-foreground">创建 {formatDateShort(invoice.created_at)}</div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <StatusBadge tone={invoiceTone(invoice.status)}>{invoiceStatusLabels[invoice.status]}</StatusBadge>
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {formatDateShort(invoice.period_start)} 至 {formatDateShort(invoice.period_end)}
+                          </td>
+                          <td className="px-3 py-2 font-medium">{formatMoney(invoice.total_amount)}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{formatMoney(outstanding)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {selectedInvoice && invoiceSummary ? (
+            <InvoiceDetailPanel
+              adjustments={selectedAdjustments}
+              invoice={selectedInvoice}
+              lineItems={parseInvoiceLineItems(selectedInvoice)}
+              summary={invoiceSummary}
+            />
+          ) : null}
         </div>
       )}
     </Card>
+  );
+}
+
+function InvoiceDetailPanel({
+  adjustments,
+  invoice,
+  lineItems,
+  summary,
+}: {
+  adjustments: BillingAdjustmentItem[];
+  invoice: BillingInvoiceItem;
+  lineItems: InvoiceLineItem[];
+  summary: InvoiceSummary;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="grid content-start gap-4 rounded-md border bg-muted/15 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ReceiptText className="size-4 text-primary" />
+            <h3 className="text-sm font-semibold">{invoice.invoice_no}</h3>
+            <StatusBadge tone={invoiceTone(invoice.status)}>{invoiceStatusLabels[invoice.status]}</StatusBadge>
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            账期 {formatDateShort(invoice.period_start)} 至 {formatDateShort(invoice.period_end)}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-muted-foreground">应付总额</div>
+          <div className="mt-1 text-xl font-semibold">{formatMoney(invoice.total_amount)}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <InvoiceAmountTile label="小计" value={formatMoney(invoice.subtotal_amount)} />
+        <InvoiceAmountTile label="折扣" value={formatSignedMoney(-Math.abs(invoice.discount_amount))} />
+        <InvoiceAmountTile label="税费" value={formatMoney(invoice.tax_amount)} />
+        <InvoiceAmountTile label="未结清" value={formatMoney(summary.outstanding_amount)} />
+      </div>
+
+      <div className="grid gap-3 rounded-md border bg-background/70 p-3 text-sm sm:grid-cols-3">
+        <div>
+          <div className="text-xs text-muted-foreground">到期日</div>
+          <div className="mt-1 font-medium">{invoice.due_at ? formatDateShort(invoice.due_at) : '-'}</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">支付时间</div>
+          <div className="mt-1 font-medium">{invoice.paid_at ? formatDateShort(invoice.paid_at) : '未支付'}</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">账单项</div>
+          <div className="mt-1 font-medium">{lineItems.length} 项</div>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-background/70">
+        <button
+          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-medium"
+          onClick={() => setExpanded((value) => !value)}
+          type="button"
+        >
+          <span className="flex items-center gap-2">
+            {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            账单项明细
+          </span>
+          <span className="text-xs text-muted-foreground">{formatMoney(summary.line_item_total)}</span>
+        </button>
+        {expanded ? (
+          lineItems.length === 0 ? (
+            <div className="border-t px-3 py-4">
+              <EmptyState description="当前发票没有可解析的账单项。" title="暂无账单项" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto border-t">
+              <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    {['项目', '数量', '单价', '金额', '说明'].map((column) => (
+                      <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map((item) => (
+                    <tr className="border-b last:border-0" key={item.id}>
+                      <td className="px-3 py-2 font-medium">{item.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{item.quantity}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{item.unit_price === null ? '-' : formatMoney(item.unit_price)}</td>
+                      <td className="px-3 py-2 font-medium">{formatMoney(item.amount)}</td>
+                      <td className="max-w-[180px] truncate px-3 py-2 text-muted-foreground">{item.description || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : null}
+      </div>
+
+      <div className="grid gap-3 rounded-md border bg-background/70 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-medium">关联调账</div>
+          <StatusBadge tone={adjustments.length > 0 ? 'ready' : 'planned'}>{adjustments.length} 条</StatusBadge>
+        </div>
+        {adjustments.length === 0 ? (
+          <div className="text-xs text-muted-foreground">此账单暂无退款、折扣、减免、补收或纠错记录。</div>
+        ) : (
+          <div className="grid gap-2">
+            {adjustments.map((adjustment) => (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/15 px-3 py-2" key={adjustment.id}>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">{adjustment.adjustment_no}</span>
+                    <StatusBadge tone={adjustmentStatusTone(adjustment.status)}>{adjustmentStatusLabels[adjustment.status]}</StatusBadge>
+                  </div>
+                  <div className="mt-1 max-w-[260px] truncate text-xs text-muted-foreground">{adjustment.reason}</div>
+                </div>
+                <div className="text-right text-sm font-semibold">{formatSignedMoney(adjustment.signed_amount)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InvoiceAmountTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/70 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
   );
 }
 
@@ -1191,6 +1447,114 @@ function formatQuotaValue(metricType: BillingQuotaMetricType, value: number) {
 function formatSignedMoney(value: number) {
   const prefix = value > 0 ? '+' : '';
   return `${prefix}${formatMoney(value)}`;
+}
+
+function getOutstandingAmount(invoice: BillingInvoiceItem) {
+  return Math.max(0, invoice.total_amount - invoice.paid_amount);
+}
+
+function buildInvoiceSummary(invoice: BillingInvoiceItem): InvoiceSummary {
+  const lineItems = parseInvoiceLineItems(invoice);
+
+  return {
+    outstanding_amount: getOutstandingAmount(invoice),
+    line_item_total: lineItems.reduce((total, item) => total + item.amount, 0),
+  };
+}
+
+function countInvoicesByStatus(invoices: BillingInvoiceItem[]) {
+  return invoices.reduce<Record<BillingInvoiceItem['status'], number>>(
+    (counts, invoice) => {
+      counts[invoice.status] += 1;
+      return counts;
+    },
+    {
+      DRAFT: 0,
+      OPEN: 0,
+      PAID: 0,
+      VOID: 0,
+      OVERDUE: 0,
+    },
+  );
+}
+
+function parseInvoiceLineItems(invoice: BillingInvoiceItem): InvoiceLineItem[] {
+  const rawItems = extractInvoiceLineItemRecords(invoice.line_items);
+  const parsedItems = rawItems
+    .map((item, index) => toInvoiceLineItem(item, index))
+    .filter((item): item is InvoiceLineItem => item !== null);
+
+  if (parsedItems.length > 0) return parsedItems;
+  if (invoice.subtotal_amount === 0 && invoice.total_amount === 0) return [];
+
+  return [
+    {
+      id: `${invoice.id}-subtotal`,
+      name: '账单小计',
+      quantity: '1',
+      unit_price: invoice.subtotal_amount,
+      amount: invoice.subtotal_amount,
+      description: '后端未提供结构化账单项，按发票小计展示。',
+    },
+  ];
+}
+
+function extractInvoiceLineItemRecords(value: BillingInvoiceItem['line_items']): Record<string, unknown>[] {
+  if (!value || typeof value !== 'object') return [];
+
+  if (Array.isArray(value)) {
+    return value.filter(isRecord);
+  }
+
+  const candidateKeys = ['items', 'line_items', 'lines', 'details'];
+  for (const key of candidateKeys) {
+    const candidate = value[key];
+    if (Array.isArray(candidate)) return candidate.filter(isRecord);
+  }
+
+  return Object.values(value).filter(isRecord);
+}
+
+function toInvoiceLineItem(item: Record<string, unknown>, index: number): InvoiceLineItem | null {
+  const amount = firstNumber(item, ['amount', 'total', 'total_amount', 'cost', 'subtotal']);
+  if (amount === null) return null;
+  const name = firstString(item, ['name', 'label', 'title', 'description', 'type']) ?? `账单项 ${index + 1}`;
+  const quantity = firstNumber(item, ['quantity', 'qty', 'count', 'usage']);
+  const unitPrice = firstNumber(item, ['unit_price', 'unitPrice', 'price', 'rate']);
+  const description = firstString(item, ['description', 'remark', 'note', 'memo']) ?? '';
+
+  return {
+    id: firstString(item, ['id', 'key', 'code']) ?? `line-${index}`,
+    name,
+    quantity: quantity === null ? '-' : formatInteger(quantity),
+    unit_price: unitPrice,
+    amount,
+    description: description === name ? '' : description,
+  };
+}
+
+function firstString(item: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  }
+  return null;
+}
+
+function firstNumber(item: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 function toQuotaPolicyInput(draft: QuotaPolicyDraft): UpdateBillingQuotaPolicyInput | null {

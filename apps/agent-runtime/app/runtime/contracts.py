@@ -44,6 +44,15 @@ class RuntimeAgentTeamResumeContext(BaseModel):
     next_round_index: int = 1
 
 
+class RuntimeAgentTeamResumeSignal(BaseModel):
+    approved: bool
+    handoff_id: str | None = None
+    decision_note: str | None = None
+    completed_member_ids: list[str] = Field(default_factory=list)
+    previous_outputs: list[str] = Field(default_factory=list)
+    next_round_index: int = 1
+
+
 class WorkflowStartResponse(BaseModel):
     workflow_id: str
     run_id: str

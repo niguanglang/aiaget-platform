@@ -4,6 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   hasPermission,
   type AgentListItem,
+  type ChannelAccountItem,
+  type ChannelDeliveryItem,
+  type ChannelOperationsListResult,
+  type ChannelProviderItem,
+  type CreateChannelAccountInput,
+  type CreateChannelProviderInput,
+  type CreateChannelRouteRuleInput,
+  type CreateChannelTemplateInput,
   type ChannelPublishApprovalInput,
   type ChannelPublishControl,
   type ChannelPublishRolloutInput,
@@ -31,6 +39,10 @@ import {
   type ChannelReleaseSelfHealingOverview,
   type ChannelReleaseSelfHealingPolicy,
   type ChannelReleaseSelfHealingPolicyInput,
+  type ChannelPublishJobItem,
+  type ChannelReplyItem,
+  type ChannelRouteRuleItem,
+  type ChannelTemplateItem,
   type ChannelRolloutGateOverview,
   type ChannelRolloutGateDecisionReason,
   type ChannelRolloutGateStatus,
@@ -45,6 +57,10 @@ import {
   type PublishChannelListItem,
   type PublishChannelStatus,
   type PublishChannelType,
+  type UpdateChannelAccountInput,
+  type UpdateChannelProviderInput,
+  type UpdateChannelRouteRuleInput,
+  type UpdateChannelTemplateInput,
   type UpdateChannelPublishControlInput,
   type UpdateChannelSenderPolicyInput,
 } from '@aiaget/shared-types';
@@ -56,7 +72,10 @@ import {
   Edit,
   Gauge,
   GitBranch,
+  Inbox,
   ListRestart,
+  MessageSquareReply,
+  Network,
   Plus,
   Power,
   PowerOff,
@@ -77,6 +96,12 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { formatDateTime } from '@/components/agents/agent-status';
 import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import {
+  ChannelAccountForm,
+  ChannelProviderForm,
+  type ChannelAccountFormValues,
+  type ChannelProviderFormValues,
+} from '@/components/channels/channel-provider-account-forms';
+import {
   formatChannelDateTime,
   publishChannelHealthLabel,
   publishChannelHealthStatuses,
@@ -87,6 +112,12 @@ import {
   publishChannelTypeLabel,
   publishChannelTypes,
 } from '@/components/channels/channel-status';
+import {
+  ChannelRouteRuleForm,
+  ChannelTemplateForm,
+  type ChannelRouteRuleFormValues,
+  type ChannelTemplateFormValues,
+} from '@/components/channels/channel-template-route-forms';
 import { parseJsonObjectText, stringifyJson } from '@/components/tools/tool-json';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -97,13 +128,31 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveChannelPublish,
   abortChannelReleaseBatch,
+  cancelChannelPublishJob,
   checkPublishChannel,
+  createChannelAccount,
+  createChannelProvider,
+  createChannelRouteRule,
+  createChannelTemplate,
+  deleteChannelAccount,
+  deleteChannelProvider,
+  deleteChannelRouteRule,
+  deleteChannelTemplate,
+  disableChannelAccount,
+  disableChannelProvider,
+  disableChannelRouteRule,
+  disableChannelTemplate,
   compareChannelReleaseReportSnapshots,
   createChannelReleaseReportSnapshot,
   disablePublishChannel,
+  enableChannelAccount,
+  enableChannelProvider,
+  enableChannelRouteRule,
+  enableChannelTemplate,
   enablePublishChannel,
   evaluateChannelReleaseGate,
   getChannelPublishControl,
+  getChannelPublishJob,
   getChannelReleaseAutomation,
   getChannelReleaseGate,
   getChannelReleasePipeline,
@@ -119,26 +168,38 @@ import {
   getExternalChannelChatEndpoint,
   getExternalChannelStreamEndpoint,
   getPublishChannelOverview,
+  listChannelAccounts,
+  listChannelDeliveries,
+  listChannelProviders,
+  listChannelPublishJobs,
+  listChannelReplies,
+  listChannelRouteRules,
   listChannelReleaseReportSnapshots,
   listAgents,
   listChannelSenderDeliveries,
+  listChannelTemplates,
   rejectChannelPublish,
   requestChannelPublishApproval,
   markChannelReleaseFull,
   rollbackChannelPublish,
   retryChannelSenderDelivery,
+  retryChannelPublishJob,
   runChannelSenderAutoRetry,
   runChannelSenderCleanup,
   runChannelReleaseAutomation,
   runChannelReleaseSchedulerOnce,
   runChannelReleaseSelfHealing,
   startChannelReleaseBatch,
+  updateChannelAccount,
   updateChannelPublishControl,
+  updateChannelProvider,
   updateChannelReleaseAutomation,
   updateChannelReleaseGate,
+  updateChannelRouteRule,
   updateChannelReleaseSelfHealing,
   updateChannelRollout,
   updateChannelSenderPolicy,
+  updateChannelTemplate,
   updatePublishChannel,
   upsertPublishChannel,
   type ApiClientError,
@@ -159,9 +220,60 @@ interface ChannelFormValues {
 }
 
 type ActionKind = 'enable' | 'disable' | 'check';
+type ChannelOperationsModule = 'overview' | 'publish' | 'providers' | 'accounts' | 'templates' | 'route-rules' | 'jobs' | 'deliveries' | 'replies';
+type ChannelOperationsEditableModule = Extract<ChannelOperationsModule, 'providers' | 'accounts' | 'templates' | 'route-rules'>;
+type ChannelOperationsEditMode = 'create' | 'edit' | null;
+type ChannelOperationsItem =
+  | ChannelProviderItem
+  | ChannelAccountItem
+  | ChannelTemplateItem
+  | ChannelRouteRuleItem
+  | ChannelPublishJobItem
+  | ChannelDeliveryItem
+  | ChannelReplyItem;
+type ChannelOperationsSubmitPayload =
+  | {
+      itemId?: string;
+      mode: Exclude<ChannelOperationsEditMode, null>;
+      module: 'providers';
+      values: ChannelProviderFormValues;
+    }
+  | {
+      itemId?: string;
+      mode: Exclude<ChannelOperationsEditMode, null>;
+      module: 'accounts';
+      values: ChannelAccountFormValues;
+    }
+  | {
+      itemId?: string;
+      mode: Exclude<ChannelOperationsEditMode, null>;
+      module: 'templates';
+      values: ChannelTemplateFormValues;
+    }
+  | {
+      itemId?: string;
+      mode: Exclude<ChannelOperationsEditMode, null>;
+      module: 'route-rules';
+      values: ChannelRouteRuleFormValues;
+    };
+type ChannelOperationsItemActionPayload = {
+  itemId: string;
+  module: ChannelOperationsEditableModule;
+};
 
 const channelSenderDeliveryStatuses: ChannelSenderDeliveryStatus[] = ['PENDING', 'SUCCESS', 'FAILED', 'SKIPPED', 'RETRYING'];
 const channelSenderProviders: ChannelCallbackProvider[] = ['WECHAT_WORK', 'DINGTALK', 'FEISHU', 'SLACK', 'CUSTOM_WEBHOOK'];
+const channelOperationsModules: Array<{ description: string; label: string; value: ChannelOperationsModule }> = [
+  { description: '关键指标与运营态势', label: '总览', value: 'overview' },
+  { description: '已发布 Agent 入口', label: '发布渠道', value: 'publish' },
+  { description: '企业微信、飞书等平台', label: '渠道提供方', value: 'providers' },
+  { description: '平台账号与凭证状态', label: '账号', value: 'accounts' },
+  { description: '消息模板与版本', label: '模板', value: 'templates' },
+  { description: '入站/出站匹配规则', label: '路由规则', value: 'route-rules' },
+  { description: '发布与推送任务', label: '发布任务', value: 'jobs' },
+  { description: '统一投递流水', label: '投递记录', value: 'deliveries' },
+  { description: '入站回复与关联链路', label: '回复记录', value: 'replies' },
+];
 
 export function ChannelContent() {
   const queryClient = useQueryClient();
@@ -175,6 +287,12 @@ export function ChannelContent() {
   const [senderProviderFilter, setSenderProviderFilter] = useState('');
   const [senderAllChannels, setSenderAllChannels] = useState(false);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
+  const [operationsModule, setOperationsModule] = useState<ChannelOperationsModule>('overview');
+  const [operationsKeyword, setOperationsKeyword] = useState('');
+  const [operationsStatusFilter, setOperationsStatusFilter] = useState('');
+  const [operationsProviderFilter, setOperationsProviderFilter] = useState('');
+  const [selectedOperationsItemId, setSelectedOperationsItemId] = useState<string | null>(null);
+  const [operationsEditMode, setOperationsEditMode] = useState<ChannelOperationsEditMode>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [baseSnapshotId, setBaseSnapshotId] = useState<string | null>(null);
   const [targetSnapshotId, setTargetSnapshotId] = useState<string | null>(null);
@@ -224,6 +342,11 @@ export function ChannelContent() {
   }, [channels, filteredChannels, selectedChannelId]);
 
   useEffect(() => {
+    setSelectedOperationsItemId(null);
+    setOperationsEditMode(null);
+  }, [operationsKeyword, operationsModule, operationsProviderFilter, operationsStatusFilter, selectedChannel?.id, senderAllChannels]);
+
+  useEffect(() => {
     setSelectedSnapshotId(null);
     setBaseSnapshotId(null);
     setTargetSnapshotId(null);
@@ -257,6 +380,120 @@ export function ChannelContent() {
     queryKey: ['channel-sender-task-overview'],
     queryFn: getChannelSenderTaskOverview,
   });
+
+  const operationsParams = {
+    keyword: operationsKeyword || undefined,
+    status: operationsStatusFilter || undefined,
+    provider: operationsProviderFilter || undefined,
+    channel_id: operationsModule === 'overview' || senderAllChannels ? undefined : selectedChannel?.id,
+    page: 1,
+    page_size: 50,
+  };
+
+  const providersQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-providers', operationsKeyword, operationsStatusFilter, operationsProviderFilter],
+    queryFn: () => listChannelProviders(operationsParams),
+  });
+
+  const accountsQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-accounts', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelAccounts(operationsParams),
+  });
+
+  const templatesQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-templates', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelTemplates(operationsParams),
+  });
+
+  const routeRulesQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-route-rules', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelRouteRules(operationsParams),
+  });
+
+  const publishJobsQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-publish-jobs', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelPublishJobs(operationsParams),
+  });
+
+  const selectedPublishJobId = operationsModule === 'jobs' ? selectedOperationsItemId : null;
+  const selectedPublishJobQuery = useQuery({
+    enabled: Boolean(canView && selectedPublishJobId),
+    queryKey: ['channel-publish-job-detail', selectedPublishJobId ?? 'none'],
+    queryFn: () => getChannelPublishJob(selectedPublishJobId ?? ''),
+  });
+
+  const deliveriesQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-deliveries', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelDeliveries(operationsParams),
+  });
+
+  const repliesQuery = useQuery({
+    enabled: canView,
+    queryKey: ['channel-replies', operationsKeyword, operationsStatusFilter, operationsProviderFilter, senderAllChannels ? 'all' : selectedChannel?.id ?? 'none'],
+    queryFn: () => listChannelReplies(operationsParams),
+  });
+
+  const operationsOverviewItems = [
+    buildOperationsSummaryItem('providers', '渠道提供方', providersQuery.data, providersQuery.isLoading, providersQuery.isError, '平台适配与健康'),
+    buildOperationsSummaryItem('accounts', '账号', accountsQuery.data, accountsQuery.isLoading, accountsQuery.isError, '凭证与归属'),
+    buildOperationsSummaryItem('templates', '模板', templatesQuery.data, templatesQuery.isLoading, templatesQuery.isError, '消息模板版本'),
+    buildOperationsSummaryItem('route-rules', '路由规则', routeRulesQuery.data, routeRulesQuery.isLoading, routeRulesQuery.isError, '匹配与兜底'),
+    buildOperationsSummaryItem('jobs', '发布任务', publishJobsQuery.data, publishJobsQuery.isLoading, publishJobsQuery.isError, '任务执行状态'),
+    buildOperationsSummaryItem('deliveries', '投递记录', deliveriesQuery.data, deliveriesQuery.isLoading, deliveriesQuery.isError, '统一发送流水'),
+    buildOperationsSummaryItem('replies', '回复记录', repliesQuery.data, repliesQuery.isLoading, repliesQuery.isError, '入站回复链路'),
+  ];
+  const activeOperationsResult = getOperationsResult(operationsModule, {
+    accounts: accountsQuery.data,
+    deliveries: deliveriesQuery.data,
+    jobs: publishJobsQuery.data,
+    providers: providersQuery.data,
+    replies: repliesQuery.data,
+    routeRules: routeRulesQuery.data,
+    templates: templatesQuery.data,
+  });
+  const activeOperationsLoading = getOperationsLoading(operationsModule, {
+    accounts: accountsQuery.isLoading,
+    deliveries: deliveriesQuery.isLoading,
+    jobs: publishJobsQuery.isLoading,
+    providers: providersQuery.isLoading,
+    replies: repliesQuery.isLoading,
+    routeRules: routeRulesQuery.isLoading,
+    templates: templatesQuery.isLoading,
+  });
+  const activeOperationsError = getOperationsError(operationsModule, {
+    accounts: accountsQuery.isError,
+    deliveries: deliveriesQuery.isError,
+    jobs: publishJobsQuery.isError,
+    providers: providersQuery.isError,
+    replies: repliesQuery.isError,
+    routeRules: routeRulesQuery.isError,
+    templates: templatesQuery.isError,
+  });
+  const activeOperationsItems = activeOperationsResult?.items ?? [];
+  const activeOperationsSelectedItem =
+    operationsModule === 'jobs' && selectedPublishJobQuery.data
+      ? selectedPublishJobQuery.data
+      : activeOperationsItems.find((item) => item.id === selectedOperationsItemId) ?? activeOperationsItems[0] ?? null;
+  const editableOperationsModule = getEditableOperationsModule(operationsModule);
+  const providerFilterOptions = buildProviderFilterOptions(providersQuery.data?.items ?? []);
+
+  async function refreshOperations() {
+    await Promise.all([
+      providersQuery.refetch(),
+      accountsQuery.refetch(),
+      templatesQuery.refetch(),
+      routeRulesQuery.refetch(),
+      publishJobsQuery.refetch(),
+      deliveriesQuery.refetch(),
+      repliesQuery.refetch(),
+    ]);
+  }
 
   const releaseSchedulerOverviewQuery = useQuery({
     enabled: canView,
@@ -438,6 +675,121 @@ export function ChannelContent() {
         senderDeliveriesQuery.refetch(),
         queryClient.invalidateQueries({ queryKey: ['publish-channel-overview'] }),
       ]);
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const publishJobActionMutation = useMutation({
+    mutationFn: ({ action, jobId }: { action: 'cancel' | 'retry'; jobId: string }) =>
+      action === 'cancel' ? cancelChannelPublishJob(jobId) : retryChannelPublishJob(jobId),
+    onSuccess: async (result) => {
+      setNotice(result.message);
+      setErrorMessage(null);
+      setSelectedOperationsItemId(result.job.id);
+      await Promise.all([
+        publishJobsQuery.refetch(),
+        queryClient.invalidateQueries({ queryKey: ['channel-publish-job-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['publish-channel-overview'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const operationsSubmitMutation = useMutation<ChannelOperationsItem, Error, ChannelOperationsSubmitPayload>({
+    mutationFn: async (payload) => {
+      if (payload.module === 'providers') {
+        const input = normalizeProviderFormValues(payload.values);
+        if (payload.mode === 'edit') {
+          if (!payload.itemId) throw new Error('请选择要编辑的渠道提供方。');
+          return updateChannelProvider(payload.itemId, toUpdateChannelProviderInput(input));
+        }
+
+        return createChannelProvider(input);
+      }
+
+      if (payload.module === 'accounts') {
+        const input = normalizeAccountFormValues(payload.values);
+        if (payload.mode === 'edit') {
+          if (!payload.itemId) throw new Error('请选择要编辑的渠道账号。');
+          return updateChannelAccount(payload.itemId, toUpdateChannelAccountInput(input));
+        }
+
+        return createChannelAccount(input);
+      }
+
+      if (payload.module === 'templates') {
+        const input = normalizeTemplateFormValues(payload.values);
+        if (payload.mode === 'edit') {
+          if (!payload.itemId) throw new Error('请选择要编辑的渠道模板。');
+          return updateChannelTemplate(payload.itemId, toUpdateChannelTemplateInput(input));
+        }
+
+        return createChannelTemplate(input);
+      }
+
+      const input = normalizeRouteRuleFormValues(payload.values);
+      if (payload.mode === 'edit') {
+        if (!payload.itemId) throw new Error('请选择要编辑的路由规则。');
+        return updateChannelRouteRule(payload.itemId, toUpdateChannelRouteRuleInput(input));
+      }
+
+      return createChannelRouteRule(input);
+    },
+    onSuccess: async (item, variables) => {
+      setNotice(`${getOperationsEditableModuleLabel(variables.module)}已${variables.mode === 'edit' ? '保存' : '创建'}。`);
+      setErrorMessage(null);
+      setOperationsEditMode(null);
+      setSelectedOperationsItemId(item.id);
+      await refreshOperations();
+    },
+    onError: (error: Error) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const operationsEnableMutation = useMutation<ChannelOperationsItem, ApiClientError, ChannelOperationsItemActionPayload>({
+    mutationFn: async ({ itemId, module }) => runOperationsStatusAction(module, itemId, 'enable'),
+    onSuccess: async (item, variables) => {
+      setNotice(`${getOperationsEditableModuleLabel(variables.module)}已启用。`);
+      setErrorMessage(null);
+      setSelectedOperationsItemId(item.id);
+      await refreshOperations();
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const operationsDisableMutation = useMutation<ChannelOperationsItem, ApiClientError, ChannelOperationsItemActionPayload>({
+    mutationFn: async ({ itemId, module }) => runOperationsStatusAction(module, itemId, 'disable'),
+    onSuccess: async (item, variables) => {
+      setNotice(`${getOperationsEditableModuleLabel(variables.module)}已停用。`);
+      setErrorMessage(null);
+      setSelectedOperationsItemId(item.id);
+      await refreshOperations();
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const operationsDeleteMutation = useMutation<{ success: boolean }, ApiClientError, ChannelOperationsItemActionPayload>({
+    mutationFn: async ({ itemId, module }) => runOperationsDeleteAction(module, itemId),
+    onSuccess: async (_, variables) => {
+      setNotice(`${getOperationsEditableModuleLabel(variables.module)}已删除。`);
+      setErrorMessage(null);
+      setOperationsEditMode(null);
+      setSelectedOperationsItemId(null);
+      await refreshOperations();
     },
     onError: (error: ApiClientError) => {
       setNotice(null);
@@ -808,6 +1160,80 @@ export function ChannelContent() {
     });
   }
 
+  function openOperationsCreateForm() {
+    if (!editableOperationsModule) return;
+    setOperationsEditMode('create');
+    setSelectedOperationsItemId(null);
+    setNotice(null);
+    setErrorMessage(null);
+  }
+
+  function openOperationsEditForm() {
+    if (!editableOperationsModule || !activeOperationsSelectedItem) return;
+    setOperationsEditMode('edit');
+    setSelectedOperationsItemId(activeOperationsSelectedItem.id);
+    setNotice(null);
+    setErrorMessage(null);
+  }
+
+  function closeOperationsForm() {
+    setOperationsEditMode(null);
+  }
+
+  function submitProviderForm(values: ChannelProviderFormValues) {
+    operationsSubmitMutation.mutate({
+      itemId: activeOperationsSelectedItem?.id,
+      mode: operationsEditMode ?? 'create',
+      module: 'providers',
+      values,
+    });
+  }
+
+  function submitAccountForm(values: ChannelAccountFormValues) {
+    operationsSubmitMutation.mutate({
+      itemId: activeOperationsSelectedItem?.id,
+      mode: operationsEditMode ?? 'create',
+      module: 'accounts',
+      values,
+    });
+  }
+
+  function submitTemplateForm(values: ChannelTemplateFormValues) {
+    operationsSubmitMutation.mutate({
+      itemId: activeOperationsSelectedItem?.id,
+      mode: operationsEditMode ?? 'create',
+      module: 'templates',
+      values,
+    });
+  }
+
+  function submitRouteRuleForm(values: ChannelRouteRuleFormValues) {
+    operationsSubmitMutation.mutate({
+      itemId: activeOperationsSelectedItem?.id,
+      mode: operationsEditMode ?? 'create',
+      module: 'route-rules',
+      values,
+    });
+  }
+
+  function runSelectedOperationsAction(action: 'enable' | 'disable' | 'delete') {
+    if (!editableOperationsModule || !activeOperationsSelectedItem) return;
+    const payload = {
+      itemId: activeOperationsSelectedItem.id,
+      module: editableOperationsModule,
+    };
+    if (action === 'enable') {
+      operationsEnableMutation.mutate(payload);
+      return;
+    }
+    if (action === 'disable') {
+      operationsDisableMutation.mutate(payload);
+      return;
+    }
+
+    operationsDeleteMutation.mutate(payload);
+  }
+
   if (!canView) {
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -884,6 +1310,57 @@ export function ChannelContent() {
           <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
+
+      <ChannelOperationsNav activeModule={operationsModule} modules={channelOperationsModules} onChange={setOperationsModule} />
+
+      <ChannelOperationsPanel
+        accounts={accountsQuery.data?.items ?? []}
+        agents={agents}
+        allChannels={senderAllChannels}
+        canDisable={canDisable}
+        canManage={canManage}
+        editMode={operationsEditMode}
+        error={activeOperationsError}
+        formActionLoading={operationsSubmitMutation.isPending}
+        items={activeOperationsItems}
+        itemActionLoading={operationsEnableMutation.isPending || operationsDisableMutation.isPending || operationsDeleteMutation.isPending}
+        jobActionLoading={publishJobActionMutation.isPending}
+        jobDetailLoading={selectedPublishJobQuery.isLoading}
+        loading={activeOperationsLoading}
+        module={operationsModule}
+        onAllChannelsChange={setSenderAllChannels}
+        onCancelJob={(jobId) => publishJobActionMutation.mutate({ action: 'cancel', jobId })}
+        onCancelOperationsEdit={closeOperationsForm}
+        onCreateOperationsItem={openOperationsCreateForm}
+        onDeleteOperationsItem={() => runSelectedOperationsAction('delete')}
+        onDisableOperationsItem={() => runSelectedOperationsAction('disable')}
+        onEditOperationsItem={openOperationsEditForm}
+        onEnableOperationsItem={() => runSelectedOperationsAction('enable')}
+        onKeywordChange={setOperationsKeyword}
+        onModuleChange={setOperationsModule}
+        onProviderChange={setOperationsProviderFilter}
+        onRefresh={() => void refreshOperations()}
+        onRefreshJob={(jobId) => {
+          setSelectedOperationsItemId(jobId);
+          void queryClient.invalidateQueries({ queryKey: ['channel-publish-job-detail', jobId] });
+        }}
+        onRetryJob={(jobId) => publishJobActionMutation.mutate({ action: 'retry', jobId })}
+        onSelectItem={setSelectedOperationsItemId}
+        onStatusChange={setOperationsStatusFilter}
+        onSubmitAccount={submitAccountForm}
+        onSubmitProvider={submitProviderForm}
+        onSubmitRouteRule={submitRouteRuleForm}
+        onSubmitTemplate={submitTemplateForm}
+        overviewItems={operationsOverviewItems}
+        provider={operationsProviderFilter}
+        providers={providersQuery.data?.items ?? []}
+        providerOptions={providerFilterOptions}
+        selectedChannel={selectedChannel}
+        selectedItem={activeOperationsSelectedItem}
+        status={operationsStatusFilter}
+        keyword={operationsKeyword}
+        total={activeOperationsResult?.total ?? activeOperationsItems.length}
+      />
 
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <Card className="overflow-hidden">
@@ -1033,7 +1510,6 @@ export function ChannelContent() {
       <SenderDeliveryCenter
         allChannels={senderAllChannels}
         canManage={canManage}
-        channels={channels}
         detail={selectedDeliveryQuery.data ?? null}
         detailLoading={selectedDeliveryQuery.isLoading}
         error={senderDeliveriesQuery.isError ? '主动回复投递记录加载失败。' : null}
@@ -4288,7 +4764,6 @@ function SnapshotDiffRow({ item }: { item: ChannelReleaseReportSnapshotCompareRe
 function SenderDeliveryCenter({
   allChannels,
   canManage,
-  channels,
   deliveries,
   detail,
   detailLoading,
@@ -4309,7 +4784,6 @@ function SenderDeliveryCenter({
 }: {
   allChannels: boolean;
   canManage: boolean;
-  channels: PublishChannelListItem[];
   deliveries: ChannelSenderDeliveryListItem[];
   detail: ChannelSenderDeliveryDetail | null;
   detailLoading: boolean;
@@ -4717,6 +5191,684 @@ function RecentEventsPanel({ events }: { events: PlatformEventListItem[] }) {
   );
 }
 
+function ChannelOperationsNav({
+  activeModule,
+  modules,
+  onChange,
+}: {
+  activeModule: ChannelOperationsModule;
+  modules: Array<{ description: string; label: string; value: ChannelOperationsModule }>;
+  onChange: (module: ChannelOperationsModule) => void;
+}) {
+  return (
+    <Card className="overflow-hidden p-2">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-9">
+        {modules.map((module) => (
+          <button
+            className={cn(
+              'grid min-h-20 content-start gap-1 rounded-md border px-3 py-2 text-left transition-colors',
+              activeModule === module.value
+                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                : 'border-transparent bg-transparent text-muted-foreground hover:border-slate-200 hover:bg-slate-50',
+            )}
+            key={module.value}
+            onClick={() => onChange(module.value)}
+            type="button"
+          >
+            <span className="text-sm font-semibold">{module.label}</span>
+            <span className="text-xs leading-5">{module.description}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ChannelOperationsPanel({
+  accounts,
+  agents,
+  allChannels,
+  canDisable,
+  canManage,
+  editMode,
+  error,
+  formActionLoading,
+  items,
+  itemActionLoading,
+  jobActionLoading,
+  jobDetailLoading,
+  keyword,
+  loading,
+  module,
+  onAllChannelsChange,
+  onCancelJob,
+  onCancelOperationsEdit,
+  onCreateOperationsItem,
+  onDeleteOperationsItem,
+  onDisableOperationsItem,
+  onEditOperationsItem,
+  onEnableOperationsItem,
+  onKeywordChange,
+  onModuleChange,
+  onProviderChange,
+  onRefresh,
+  onRefreshJob,
+  onRetryJob,
+  onSelectItem,
+  onStatusChange,
+  onSubmitAccount,
+  onSubmitProvider,
+  onSubmitRouteRule,
+  onSubmitTemplate,
+  overviewItems,
+  provider,
+  providers,
+  providerOptions,
+  selectedChannel,
+  selectedItem,
+  status,
+  total,
+}: {
+  accounts: ChannelAccountItem[];
+  agents: AgentListItem[];
+  allChannels: boolean;
+  canDisable: boolean;
+  canManage: boolean;
+  editMode: ChannelOperationsEditMode;
+  error: boolean;
+  formActionLoading: boolean;
+  items: ChannelOperationsItem[];
+  itemActionLoading: boolean;
+  jobActionLoading: boolean;
+  jobDetailLoading: boolean;
+  keyword: string;
+  loading: boolean;
+  module: ChannelOperationsModule;
+  onAllChannelsChange: (value: boolean) => void;
+  onCancelJob: (jobId: string) => void;
+  onCancelOperationsEdit: () => void;
+  onCreateOperationsItem: () => void;
+  onDeleteOperationsItem: () => void;
+  onDisableOperationsItem: () => void;
+  onEditOperationsItem: () => void;
+  onEnableOperationsItem: () => void;
+  onKeywordChange: (value: string) => void;
+  onModuleChange: (module: ChannelOperationsModule) => void;
+  onProviderChange: (value: string) => void;
+  onRefresh: () => void;
+  onRefreshJob: (jobId: string) => void;
+  onRetryJob: (jobId: string) => void;
+  onSelectItem: (itemId: string) => void;
+  onStatusChange: (value: string) => void;
+  onSubmitAccount: (values: ChannelAccountFormValues) => void;
+  onSubmitProvider: (values: ChannelProviderFormValues) => void;
+  onSubmitRouteRule: (values: ChannelRouteRuleFormValues) => void;
+  onSubmitTemplate: (values: ChannelTemplateFormValues) => void;
+  overviewItems: ChannelOperationsSummaryItem[];
+  provider: string;
+  providers: ChannelProviderItem[];
+  providerOptions: Array<{ label: string; value: string }>;
+  selectedChannel: PublishChannelListItem | null;
+  selectedItem: ChannelOperationsItem | null;
+  status: string;
+  total: number;
+}) {
+  const config = getOperationsModuleConfig(module);
+  const editableModule = getEditableOperationsModule(module);
+  const isEditable = editableModule !== null;
+  const hasSelectedItem = Boolean(selectedItem);
+  const statusValue = selectedItem ? getOperationsItemStatus(selectedItem) : '';
+
+  return (
+    <section className="grid gap-4">
+      <Card className="overflow-hidden border-slate-200/80 bg-white/85 shadow-sm backdrop-blur">
+        <div className="border-b p-4">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="ready">渠道运营</StatusBadge>
+                <StatusBadge tone={error ? 'degraded' : 'healthy'}>{error ? '部分接口待接入' : '管理入口'}</StatusBadge>
+              </div>
+              <h2 className="mt-3 text-base font-semibold">{config.title}</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{config.description}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {isEditable ? (
+                <>
+                  <Button disabled={!canManage || formActionLoading} onClick={onCreateOperationsItem} type="button">
+                    <Plus className="size-4" />
+                    新建
+                  </Button>
+                  <Button
+                    disabled={!canManage || !hasSelectedItem || formActionLoading}
+                    onClick={onEditOperationsItem}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Edit className="size-4" />
+                    编辑
+                  </Button>
+                  <Button
+                    disabled={!canManage || !hasSelectedItem || itemActionLoading || statusValue === 'ACTIVE'}
+                    onClick={onEnableOperationsItem}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Power className="size-4" />
+                    启用
+                  </Button>
+                  <Button
+                    disabled={!canDisable || !hasSelectedItem || itemActionLoading || statusValue === 'DISABLED'}
+                    onClick={onDisableOperationsItem}
+                    type="button"
+                    variant="outline"
+                  >
+                    <PowerOff className="size-4" />
+                    停用
+                  </Button>
+                  <Button
+                    disabled={!canManage || !hasSelectedItem || itemActionLoading}
+                    onClick={onDeleteOperationsItem}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Trash2 className="size-4" />
+                    删除
+                  </Button>
+                </>
+              ) : null}
+              <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
+                <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
+                刷新运营数据
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+            {overviewItems.map((item) => (
+              <button
+                className={cn(
+                  'rounded-lg border bg-background/90 p-4 text-left shadow-sm transition-colors hover:bg-slate-50',
+                  module === item.module && 'border-blue-300 bg-blue-50/70',
+                )}
+                key={item.module}
+                onClick={() => onModuleChange(item.module)}
+                type="button"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">{item.label}</span>
+                  <StatusBadge tone={item.error ? 'degraded' : item.loading ? 'loading' : 'ready'}>
+                    {item.error ? '待接入' : item.loading ? '加载中' : '已接入'}
+                  </StatusBadge>
+                </div>
+                <div className="mt-3 text-2xl font-semibold">{item.loading ? '...' : formatNumber(item.total)}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col justify-between gap-3 rounded-md border bg-slate-50/70 p-3 lg:flex-row lg:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="w-full pl-9 lg:w-72"
+                  onChange={(event) => onKeywordChange(event.target.value)}
+                  placeholder="搜索名称、编号、目标或 Trace"
+                  value={keyword}
+                />
+              </div>
+              <SelectFilter
+                label="状态"
+                onChange={onStatusChange}
+                value={status}
+                values={config.statuses.map((item) => ({ label: channelOperationsStatusLabel(item), value: item }))}
+              />
+              <SelectFilter label="提供方" onChange={onProviderChange} value={provider} values={providerOptions} />
+              <label className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                <input
+                  checked={allChannels}
+                  className="size-4"
+                  onChange={(event) => onAllChannelsChange(event.target.checked)}
+                  type="checkbox"
+                />
+                全部渠道
+              </label>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {allChannels ? '显示全部可见渠道' : `当前渠道：${selectedChannel?.name ?? '未选择'}`}，共 {total} 条。
+            </div>
+          </div>
+
+          {error ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {config.errorMessage}
+            </div>
+          ) : null}
+
+          {module === 'overview' ? (
+            <ChannelOperationsOverview overviewItems={overviewItems} />
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <Card className="overflow-hidden border-slate-200/80">
+                <div className="flex items-center justify-between gap-3 border-b p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">{config.listTitle}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{config.listDescription}</p>
+                  </div>
+                  <StatusBadge tone="mock">{total} 条</StatusBadge>
+                </div>
+                <div className="grid gap-3 p-4">
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-md border bg-muted/30" key={index} />)
+                  ) : items.length === 0 ? (
+                    <EmptyState description={error ? '后端接口返回错误或尚未上线。' : config.emptyDescription} title="暂无记录" />
+                  ) : (
+                    items.map((item) => (
+                      <ChannelOperationsRow
+                        item={item}
+                        key={item.id}
+                        module={module}
+                        onOpen={() => onSelectItem(item.id)}
+                        selected={selectedItem?.id === item.id}
+                      />
+                    ))
+                  )}
+                </div>
+              </Card>
+
+              <Card className="grid gap-4 border-slate-200/80 p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">{editMode ? getOperationsFormTitle(module, editMode) : '详情面板'}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {editMode ? '维护当前运营对象的基础信息、关联关系和扩展 JSON。' : '核对主字段、关联渠道和原始扩展数据。'}
+                  </p>
+                </div>
+                {loading || jobDetailLoading ? (
+                  <div className="grid gap-3">
+                    <div className="h-24 rounded-md border bg-muted/30" />
+                    <div className="h-44 rounded-md border bg-muted/30" />
+                  </div>
+                ) : editMode && editableModule === 'providers' ? (
+                  <ChannelProviderForm
+                    initialValue={editMode === 'edit' ? providerToFormValues(selectedItem as ChannelProviderItem) : null}
+                    loading={formActionLoading}
+                    onCancel={onCancelOperationsEdit}
+                    onSubmit={onSubmitProvider}
+                  />
+                ) : editMode && editableModule === 'accounts' ? (
+                  <ChannelAccountForm
+                    initialValue={editMode === 'edit' ? accountToFormValues(selectedItem as ChannelAccountItem) : null}
+                    loading={formActionLoading}
+                    onCancel={onCancelOperationsEdit}
+                    onSubmit={onSubmitAccount}
+                    providers={providers}
+                  />
+                ) : editMode && editableModule === 'templates' ? (
+                  <ChannelTemplateForm
+                    accounts={accounts}
+                    initialValue={editMode === 'edit' ? templateToFormValues(selectedItem as ChannelTemplateItem) : null}
+                    loading={formActionLoading}
+                    onCancel={onCancelOperationsEdit}
+                    onSubmit={onSubmitTemplate}
+                    providers={providers}
+                  />
+                ) : editMode && editableModule === 'route-rules' ? (
+                  <ChannelRouteRuleForm
+                    accounts={accounts}
+                    agents={agents}
+                    initialValue={editMode === 'edit' ? routeRuleToFormValues(selectedItem as ChannelRouteRuleItem) : null}
+                    loading={formActionLoading}
+                    onCancel={onCancelOperationsEdit}
+                    onSubmit={onSubmitRouteRule}
+                    providers={providers}
+                  />
+                ) : selectedItem ? (
+                  <ChannelOperationsDetail
+                    item={selectedItem}
+                    jobActionLoading={jobActionLoading}
+                    module={module}
+                    onCancelJob={onCancelJob}
+                    onRefreshJob={onRefreshJob}
+                    onRetryJob={onRetryJob}
+                  />
+                ) : (
+                  <EmptyState description="选择左侧记录后查看详情。" title="未选择记录" />
+                )}
+              </Card>
+            </div>
+          )}
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function ChannelOperationsOverview({ overviewItems }: { overviewItems: ChannelOperationsSummaryItem[] }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_0.72fr]">
+      <Card className="border-slate-200/80 p-4">
+        <div className="flex items-center gap-2">
+          <Network className="size-4 text-blue-600" />
+          <h3 className="text-sm font-semibold">运营对象闭环</h3>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {overviewItems.map((item) => (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-white/75 px-3 py-3" key={item.module}>
+              <div>
+                <div className="text-sm font-medium">{item.label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge tone={item.error ? 'degraded' : 'ready'}>{item.error ? '待接入' : `${formatNumber(item.total)} 条`}</StatusBadge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card className="border-slate-200/80 p-4">
+        <div className="flex items-center gap-2">
+          <MessageSquareReply className="size-4 text-blue-600" />
+          <h3 className="text-sm font-semibold">接入策略</h3>
+        </div>
+        <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
+          <p className="leading-6">提供方、账号、模板、路由规则已接入创建、编辑、启用、停用和删除闭环。</p>
+          <p className="leading-6">投递记录仍保留现有 Sender 投递中心的请求/响应详情与失败重试能力。</p>
+          <p className="leading-6">详情面板继续展示 metadata/raw 数据，方便核对第三方平台扩展字段与运行链路。</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ChannelOperationsRow({
+  item,
+  module,
+  onOpen,
+  selected,
+}: {
+  item: ChannelOperationsItem;
+  module: ChannelOperationsModule;
+  onOpen: () => void;
+  selected: boolean;
+}) {
+  const title = getOperationsItemTitle(module, item);
+  const subtitle = getOperationsItemSubtitle(module, item);
+  const status = getOperationsItemStatus(item);
+  const meta = getOperationsItemMeta(module, item);
+
+  if (module === 'jobs') {
+    return <ChannelPublishJobRow item={item as ChannelPublishJobItem} onOpen={onOpen} selected={selected} />;
+  }
+
+  return (
+    <div
+      className={cn(
+        'grid cursor-pointer gap-3 rounded-md border bg-background/90 p-4 text-left shadow-sm transition-colors hover:bg-slate-50/80',
+        selected && 'border-blue-300 bg-blue-50/60',
+      )}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={channelOperationsStatusTone(status)}>{channelOperationsStatusLabel(status)}</StatusBadge>
+            <span className="truncate text-sm font-semibold">{title}</span>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">{subtitle}</div>
+        </div>
+        <Inbox className="size-4 text-muted-foreground" />
+      </div>
+      <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+        {meta.map((entry) => (
+          <span className="truncate" key={entry.label}>{entry.label}：{entry.value}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChannelPublishJobRow({
+  item,
+  onOpen,
+  selected,
+}: {
+  item: ChannelPublishJobItem;
+  onOpen: () => void;
+  selected: boolean;
+}) {
+  const status = getOperationsItemStatus(item);
+  const progress = getPublishJobProgress(item);
+  const payloadSummary = getPublishJobPayloadSummary(item);
+  const resultSummary = getPublishJobResultSummary(item);
+
+  return (
+    <motion.div
+      className={cn(
+        'grid cursor-pointer gap-3 rounded-md border bg-background/90 p-4 text-left shadow-sm transition-colors hover:bg-slate-50/80',
+        selected && 'border-blue-300 bg-blue-50/60',
+      )}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={channelOperationsStatusTone(status)}>{channelOperationsStatusLabel(status)}</StatusBadge>
+            <StatusBadge tone="mock">{getPublishJobTypeLabel(getPublishJobType(item))}</StatusBadge>
+            <span className="truncate text-sm font-semibold">{getOperationsItemTitle('jobs', item)}</span>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            {item.channel_name ?? '未知渠道'} · {item.provider_name ?? '未知提供方'} · {formatChannelDateTime(item.started_at ?? item.scheduled_at ?? item.created_at)}
+          </div>
+        </div>
+        <ClipboardCheck className="size-4 text-muted-foreground" />
+      </div>
+
+      <div className="grid gap-2 rounded-md border bg-slate-50/70 p-3">
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">执行进度</span>
+          <span className="font-medium">{progress.label}</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress.percent}%` }} />
+        </div>
+      </div>
+
+      <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+        <span className="truncate">账号：{item.account_name ?? '-'}</span>
+        <span className="truncate">模板：{item.template_name ?? '-'}</span>
+        <span className="truncate">结束：{formatChannelDateTime(item.finished_at)}</span>
+        <span className="truncate">错误：{item.error_message ?? '-'}</span>
+      </div>
+      <div className="grid gap-2 text-xs md:grid-cols-2">
+        <div className="rounded-md border bg-white/70 p-2">
+          <div className="text-muted-foreground">Payload 摘要</div>
+          <div className="mt-1 line-clamp-2 break-words font-medium">{payloadSummary}</div>
+        </div>
+        <div className="rounded-md border bg-white/70 p-2">
+          <div className="text-muted-foreground">Result 摘要</div>
+          <div className="mt-1 line-clamp-2 break-words font-medium">{resultSummary}</div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function ChannelOperationsDetail({
+  item,
+  jobActionLoading,
+  module,
+  onCancelJob,
+  onRefreshJob,
+  onRetryJob,
+}: {
+  item: ChannelOperationsItem;
+  jobActionLoading: boolean;
+  module: ChannelOperationsModule;
+  onCancelJob: (jobId: string) => void;
+  onRefreshJob: (jobId: string) => void;
+  onRetryJob: (jobId: string) => void;
+}) {
+  if (module === 'jobs') {
+    return (
+      <ChannelPublishJobDetail
+        actionLoading={jobActionLoading}
+        item={item as ChannelPublishJobItem}
+        onCancel={onCancelJob}
+        onRefresh={onRefreshJob}
+        onRetry={onRetryJob}
+      />
+    );
+  }
+
+  const rows = getOperationsDetailRows(module, item);
+  const metadata = getOperationsMetadata(item);
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge tone={channelOperationsStatusTone(getOperationsItemStatus(item))}>
+          {channelOperationsStatusLabel(getOperationsItemStatus(item))}
+        </StatusBadge>
+        <StatusBadge tone="mock">{getOperationsModuleConfig(module).label}</StatusBadge>
+      </div>
+
+      <div className="grid gap-2 rounded-md border bg-slate-50/80 p-3 text-xs">
+        {rows.map((row) => (
+          <DetailRow key={row.label} label={row.label} value={row.value} />
+        ))}
+      </div>
+
+      <div className="grid gap-2">
+        <div className="text-sm font-semibold">扩展数据</div>
+        <pre className="max-h-72 overflow-auto rounded-md border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+{stringifyPretty(metadata)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function ChannelPublishJobDetail({
+  actionLoading,
+  item,
+  onCancel,
+  onRefresh,
+  onRetry,
+}: {
+  actionLoading: boolean;
+  item: ChannelPublishJobItem;
+  onCancel: (jobId: string) => void;
+  onRefresh: (jobId: string) => void;
+  onRetry: (jobId: string) => void;
+}) {
+  const status = getOperationsItemStatus(item);
+  const progress = getPublishJobProgress(item);
+  const rows = getOperationsDetailRows('jobs', item);
+  const metadata = getOperationsMetadata(item);
+  const payload = getPublishJobPayload(item);
+  const result = getPublishJobResult(item);
+  const canCancel = ['PENDING', 'RUNNING', 'RETRYING'].includes(status);
+  const canRetry = ['FAILED', 'CANCELED'].includes(status);
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-col justify-between gap-3 rounded-md border bg-slate-50/80 p-3 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={channelOperationsStatusTone(status)}>{channelOperationsStatusLabel(status)}</StatusBadge>
+            <StatusBadge tone="mock">{getPublishJobTypeLabel(getPublishJobType(item))}</StatusBadge>
+            <StatusBadge tone="loading">{progress.label}</StatusBadge>
+          </div>
+          <h4 className="mt-3 text-sm font-semibold">{getOperationsItemTitle('jobs', item)}</h4>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {item.channel_name ?? '未知渠道'} · {item.provider_name ?? '未知提供方'} · {item.account_name ?? '未关联账号'} · {item.template_name ?? '未关联模板'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={actionLoading} onClick={() => onRefresh(item.id)} size="sm" type="button" variant="outline">
+            <ClipboardCheck className="size-4" />
+            获取
+          </Button>
+          <Button disabled={!canCancel || actionLoading} onClick={() => onCancel(item.id)} size="sm" type="button" variant="outline">
+            <X className="size-4" />
+            取消
+          </Button>
+          <Button disabled={!canRetry || actionLoading} onClick={() => onRetry(item.id)} size="sm" type="button" variant="outline">
+            <RotateCcw className="size-4" />
+            重试
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-2 rounded-md border bg-white/80 p-3">
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">执行进度</span>
+          <span className="font-medium">{progress.label}</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress.percent}%` }} />
+        </div>
+      </div>
+
+      <div className="grid gap-2 rounded-md border bg-slate-50/80 p-3 text-xs md:grid-cols-2">
+        {rows.map((row) => (
+          <DetailRow key={row.label} label={row.label} value={row.value} />
+        ))}
+      </div>
+
+      {item.error_message ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+          {item.error_message}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <JsonSummaryPanel title="Payload 摘要" value={payload} />
+        <JsonSummaryPanel title="Result 摘要" value={result} />
+      </div>
+
+      <div className="grid gap-2">
+        <div className="text-sm font-semibold">扩展数据</div>
+        <pre className="max-h-72 overflow-auto rounded-md border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+{stringifyPretty(metadata)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function JsonSummaryPanel({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div className="grid gap-2">
+      <div className="text-sm font-semibold">{title}</div>
+      <pre className="max-h-48 overflow-auto rounded-md border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+{stringifyPretty(value ?? '暂无数据')}
+      </pre>
+    </div>
+  );
+}
+
 function SelectFilter({
   label,
   onChange,
@@ -4931,6 +6083,749 @@ function schedulerStatusLabel(status: ChannelReleaseSchedulerRunResult['status']
   };
 
   return labels[status] ?? status;
+}
+
+interface ChannelOperationsSummaryItem {
+  error: boolean;
+  helper: string;
+  label: string;
+  loading: boolean;
+  module: ChannelOperationsModule;
+  total: number;
+}
+
+interface ChannelOperationsModuleConfig {
+  description: string;
+  emptyDescription: string;
+  errorMessage: string;
+  label: string;
+  listDescription: string;
+  listTitle: string;
+  statuses: string[];
+  title: string;
+}
+
+function buildOperationsSummaryItem(
+  module: Exclude<ChannelOperationsModule, 'overview' | 'publish'>,
+  label: string,
+  result: ChannelOperationsListResult<ChannelOperationsItem> | undefined,
+  loading: boolean,
+  error: boolean,
+  helper: string,
+): ChannelOperationsSummaryItem {
+  return {
+    error,
+    helper,
+    label,
+    loading,
+    module,
+    total: result?.total ?? result?.items.length ?? 0,
+  };
+}
+
+function getOperationsResult(
+  module: ChannelOperationsModule,
+  queries: {
+    accounts?: ChannelOperationsListResult<ChannelAccountItem>;
+    deliveries?: ChannelOperationsListResult<ChannelDeliveryItem>;
+    jobs?: ChannelOperationsListResult<ChannelPublishJobItem>;
+    providers?: ChannelOperationsListResult<ChannelProviderItem>;
+    replies?: ChannelOperationsListResult<ChannelReplyItem>;
+    routeRules?: ChannelOperationsListResult<ChannelRouteRuleItem>;
+    templates?: ChannelOperationsListResult<ChannelTemplateItem>;
+  },
+): ChannelOperationsListResult<ChannelOperationsItem> | undefined {
+  if (module === 'providers') return queries.providers;
+  if (module === 'accounts') return queries.accounts;
+  if (module === 'templates') return queries.templates;
+  if (module === 'route-rules') return queries.routeRules;
+  if (module === 'jobs') return queries.jobs;
+  if (module === 'deliveries') return queries.deliveries;
+  if (module === 'replies') return queries.replies;
+
+  return undefined;
+}
+
+function getOperationsLoading(
+  module: ChannelOperationsModule,
+  queries: {
+    accounts: boolean;
+    deliveries: boolean;
+    jobs: boolean;
+    providers: boolean;
+    replies: boolean;
+    routeRules: boolean;
+    templates: boolean;
+  },
+) {
+  if (module === 'overview') return Object.values(queries).some(Boolean);
+  if (module === 'providers') return queries.providers;
+  if (module === 'accounts') return queries.accounts;
+  if (module === 'templates') return queries.templates;
+  if (module === 'route-rules') return queries.routeRules;
+  if (module === 'jobs') return queries.jobs;
+  if (module === 'deliveries') return queries.deliveries;
+  if (module === 'replies') return queries.replies;
+
+  return false;
+}
+
+function getOperationsError(
+  module: ChannelOperationsModule,
+  queries: {
+    accounts: boolean;
+    deliveries: boolean;
+    jobs: boolean;
+    providers: boolean;
+    replies: boolean;
+    routeRules: boolean;
+    templates: boolean;
+  },
+) {
+  if (module === 'overview') return Object.values(queries).some(Boolean);
+  if (module === 'providers') return queries.providers;
+  if (module === 'accounts') return queries.accounts;
+  if (module === 'templates') return queries.templates;
+  if (module === 'route-rules') return queries.routeRules;
+  if (module === 'jobs') return queries.jobs;
+  if (module === 'deliveries') return queries.deliveries;
+  if (module === 'replies') return queries.replies;
+
+  return false;
+}
+
+function getOperationsModuleConfig(module: ChannelOperationsModule): ChannelOperationsModuleConfig {
+  const configs: Record<ChannelOperationsModule, ChannelOperationsModuleConfig> = {
+    overview: {
+      description: '汇总 provider、账号、模板、路由、任务、投递和回复接口的接入状态，适合运营巡检。',
+      emptyDescription: '暂无运营数据。',
+      errorMessage: '部分渠道运营接口尚未上线或返回错误，已保留现有发布渠道能力。',
+      label: '总览',
+      listDescription: '查看各运营对象数量与接入状态。',
+      listTitle: '运营对象',
+      statuses: ['ACTIVE', 'DISABLED', 'ERROR'],
+      title: '渠道运营总览',
+    },
+    publish: {
+      description: '已发布 Agent 的渠道入口仍由下方现有发布渠道清单管理。',
+      emptyDescription: '暂无发布渠道。',
+      errorMessage: '发布渠道概览加载失败。',
+      label: '发布渠道',
+      listDescription: '使用下方发布渠道清单管理。',
+      listTitle: '发布渠道',
+      statuses: publishChannelStatuses,
+      title: '发布渠道',
+    },
+    providers: {
+      description: '统一查看企业微信、钉钉、飞书、Slack、自定义 Webhook 等渠道提供方及健康状态。',
+      emptyDescription: '暂无渠道提供方。',
+      errorMessage: '/channels/providers 接口暂不可用，请等待后端 provider 子任务上线。',
+      label: '渠道提供方',
+      listDescription: '平台适配、健康检查和关联对象统计。',
+      listTitle: '提供方清单',
+      statuses: ['ACTIVE', 'DISABLED', 'ERROR', 'DRAFT'],
+      title: '渠道提供方',
+    },
+    accounts: {
+      description: '统一查看渠道账号、凭证环境、归属和最近使用时间。',
+      emptyDescription: '暂无渠道账号。',
+      errorMessage: '/channels/accounts 接口暂不可用，请等待后端 account 子任务上线。',
+      label: '账号',
+      listDescription: '账号凭证、环境与关联渠道。',
+      listTitle: '账号清单',
+      statuses: ['ACTIVE', 'DISABLED', 'ERROR', 'EXPIRED'],
+      title: '渠道账号',
+    },
+    templates: {
+      description: '管理消息模板、版本、语言和审核状态的只读入口。',
+      emptyDescription: '暂无消息模板。',
+      errorMessage: '/channels/templates 接口暂不可用，请等待后端 template 子任务上线。',
+      label: '模板',
+      listDescription: '模板编号、版本、语言和状态。',
+      listTitle: '模板清单',
+      statuses: ['DRAFT', 'ACTIVE', 'DISABLED', 'ERROR', 'APPROVED', 'REJECTED'],
+      title: '渠道模板',
+    },
+    'route-rules': {
+      description: '查看入站或出站消息如何按优先级匹配到渠道、账号、模板或兜底目标。',
+      emptyDescription: '暂无路由规则。',
+      errorMessage: '/channels/route-rules 接口暂不可用，请等待后端 route-rule 子任务上线。',
+      label: '路由规则',
+      listDescription: '规则优先级、匹配条件和目标。',
+      listTitle: '路由规则',
+      statuses: ['ACTIVE', 'DISABLED', 'ERROR', 'DRAFT'],
+      title: '路由规则',
+    },
+    jobs: {
+      description: '查看渠道发布、群发或同步任务的执行状态和错误摘要。',
+      emptyDescription: '暂无发布任务。',
+      errorMessage: '/channels/publish-jobs 接口暂不可用，请等待后端 job 子任务上线。',
+      label: '发布任务',
+      listDescription: '任务编号、渠道、账号、模板和执行时间。',
+      listTitle: '发布任务',
+      statuses: ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'SKIPPED', 'CANCELED'],
+      title: '发布任务',
+    },
+    deliveries: {
+      description: '统一投递流水入口，用于承接新后端 delivery 模型；现有 Sender 投递中心仍提供完整详情与重试。',
+      emptyDescription: '暂无投递记录。',
+      errorMessage: '/channels/deliveries 接口暂不可用，请等待后端 delivery 子任务上线。',
+      label: '投递记录',
+      listDescription: '统一发送状态、响应码、耗时和 Trace。',
+      listTitle: '投递记录',
+      statuses: ['PENDING', 'SUCCESS', 'FAILED', 'SKIPPED', 'RETRYING'],
+      title: '投递记录',
+    },
+    replies: {
+      description: '查看外部会话、消息、回复类型与投递链路，辅助排查入站回复闭环。',
+      emptyDescription: '暂无回复记录。',
+      errorMessage: '/channels/replies 接口暂不可用，请等待后端 reply 子任务上线。',
+      label: '回复记录',
+      listDescription: '外部会话、消息、Trace 和回复状态。',
+      listTitle: '回复记录',
+      statuses: ['PENDING', 'SUCCESS', 'FAILED', 'SKIPPED'],
+      title: '回复记录',
+    },
+  };
+
+  return configs[module];
+}
+
+function buildProviderFilterOptions(items: ChannelProviderItem[]) {
+  return items.map((item) => ({
+    label: item.name || item.code,
+    value: item.code || item.id,
+  }));
+}
+
+function getEditableOperationsModule(module: ChannelOperationsModule): ChannelOperationsEditableModule | null {
+  if (module === 'providers' || module === 'accounts' || module === 'templates' || module === 'route-rules') {
+    return module;
+  }
+
+  return null;
+}
+
+function getOperationsEditableModuleLabel(module: ChannelOperationsEditableModule) {
+  const labels: Record<ChannelOperationsEditableModule, string> = {
+    accounts: '渠道账号',
+    providers: '渠道提供方',
+    'route-rules': '路由规则',
+    templates: '渠道模板',
+  };
+
+  return labels[module];
+}
+
+function getOperationsFormTitle(module: ChannelOperationsModule, editMode: Exclude<ChannelOperationsEditMode, null>) {
+  const editableModule = getEditableOperationsModule(module);
+  if (!editableModule) return '维护运营对象';
+
+  return `${editMode === 'edit' ? '编辑' : '新建'}${getOperationsEditableModuleLabel(editableModule)}`;
+}
+
+function runOperationsStatusAction(module: ChannelOperationsEditableModule, itemId: string, action: 'enable' | 'disable') {
+  if (module === 'providers') return action === 'enable' ? enableChannelProvider(itemId) : disableChannelProvider(itemId);
+  if (module === 'accounts') return action === 'enable' ? enableChannelAccount(itemId) : disableChannelAccount(itemId);
+  if (module === 'templates') return action === 'enable' ? enableChannelTemplate(itemId) : disableChannelTemplate(itemId);
+
+  return action === 'enable' ? enableChannelRouteRule(itemId) : disableChannelRouteRule(itemId);
+}
+
+function runOperationsDeleteAction(module: ChannelOperationsEditableModule, itemId: string) {
+  if (module === 'providers') return deleteChannelProvider(itemId);
+  if (module === 'accounts') return deleteChannelAccount(itemId);
+  if (module === 'templates') return deleteChannelTemplate(itemId);
+
+  return deleteChannelRouteRule(itemId);
+}
+
+function normalizeProviderFormValues(values: ChannelProviderFormValues): CreateChannelProviderInput {
+  return {
+    auth_type: normalizeNullableString(values.auth_type),
+    callback_url: normalizeNullableString(values.callback_url),
+    capabilities: values.capabilities ?? [],
+    code: values.code.trim(),
+    config: values.config ?? null,
+    description: normalizeNullableString(values.description),
+    endpoint_url: normalizeNullableString(values.endpoint_url),
+    name: values.name.trim(),
+    provider_type: values.provider_type?.trim() || undefined,
+    status: values.status as CreateChannelProviderInput['status'],
+  };
+}
+
+function toUpdateChannelProviderInput(input: CreateChannelProviderInput): UpdateChannelProviderInput {
+  return {
+    auth_type: input.auth_type,
+    callback_url: input.callback_url,
+    capabilities: input.capabilities,
+    config: input.config,
+    description: input.description,
+    endpoint_url: input.endpoint_url,
+    name: input.name,
+    provider_type: input.provider_type,
+    status: input.status,
+  };
+}
+
+function normalizeAccountFormValues(values: ChannelAccountFormValues): CreateChannelAccountInput {
+  return {
+    code: values.code.trim(),
+    config: values.config ?? null,
+    description: normalizeNullableString(values.description),
+    external_account_id: normalizeNullableString(values.external_account_id),
+    name: values.name.trim(),
+    provider_id: values.provider_id,
+    secret: normalizeNullableString(values.secret),
+    status: values.status as CreateChannelAccountInput['status'],
+  };
+}
+
+function toUpdateChannelAccountInput(input: CreateChannelAccountInput): UpdateChannelAccountInput {
+  return {
+    config: input.config,
+    description: input.description,
+    external_account_id: input.external_account_id,
+    name: input.name,
+    secret: input.secret,
+    status: input.status,
+  };
+}
+
+function normalizeTemplateFormValues(values: ChannelTemplateFormValues): CreateChannelTemplateInput {
+  return {
+    account_id: normalizeNullableString(values.account_id),
+    body: normalizeNullableString(values.body),
+    code: values.code.trim(),
+    content_schema: values.content_schema ?? null,
+    external_template_id: normalizeNullableString(values.external_template_id),
+    locale: normalizeNullableString(values.locale),
+    name: values.name.trim(),
+    provider_id: normalizeNullableString(values.provider_id),
+    status: values.status,
+    subject: normalizeNullableString(values.subject),
+    template_type: values.template_type?.trim() || undefined,
+    variables: values.variables ?? null,
+    version: values.version,
+  };
+}
+
+function toUpdateChannelTemplateInput(input: CreateChannelTemplateInput): UpdateChannelTemplateInput {
+  return {
+    account_id: input.account_id,
+    body: input.body,
+    content_schema: input.content_schema,
+    external_template_id: input.external_template_id,
+    locale: input.locale,
+    name: input.name,
+    provider_id: input.provider_id,
+    status: input.status,
+    subject: input.subject,
+    template_type: input.template_type,
+    variables: input.variables,
+  };
+}
+
+function normalizeRouteRuleFormValues(values: ChannelRouteRuleFormValues): CreateChannelRouteRuleInput & Pick<UpdateChannelRouteRuleInput, 'clear_agent'> {
+  return {
+    account_id: normalizeNullableString(values.account_id),
+    agent_id: values.clear_agent ? null : normalizeNullableString(values.agent_id),
+    clear_agent: values.clear_agent,
+    code: values.code.trim(),
+    direction: values.direction,
+    match_config: values.match_config ?? null,
+    match_type: values.match_type?.trim() || undefined,
+    name: values.name.trim(),
+    priority: values.priority,
+    provider_id: normalizeNullableString(values.provider_id),
+    status: values.status,
+    target_config: values.target_config ?? null,
+    target_type: values.target_type?.trim() || undefined,
+  };
+}
+
+function toUpdateChannelRouteRuleInput(input: CreateChannelRouteRuleInput & Pick<UpdateChannelRouteRuleInput, 'clear_agent'>): UpdateChannelRouteRuleInput {
+  return {
+    account_id: input.account_id,
+    agent_id: input.agent_id,
+    clear_agent: input.clear_agent,
+    direction: input.direction,
+    match_config: input.match_config,
+    match_type: input.match_type,
+    name: input.name,
+    priority: input.priority,
+    provider_id: input.provider_id,
+    status: input.status,
+    target_config: input.target_config,
+    target_type: input.target_type,
+  };
+}
+
+function providerToFormValues(item: ChannelProviderItem): Partial<ChannelProviderFormValues> {
+  const metadata = getOperationsMetadataRecord(item);
+  return {
+    auth_type: getMetadataString(metadata, 'auth_type'),
+    callback_url: getMetadataString(metadata, 'callback_url'),
+    capabilities: getMetadataStringArray(metadata, 'capabilities'),
+    code: item.code,
+    config: getMetadataRecord(metadata, 'config'),
+    description: getMetadataString(metadata, 'description'),
+    endpoint_url: getMetadataString(metadata, 'endpoint_url'),
+    name: item.name,
+    provider_type: getMetadataString(metadata, 'provider_type') ?? item.type,
+    status: item.status as ChannelProviderFormValues['status'],
+  };
+}
+
+function accountToFormValues(item: ChannelAccountItem): Partial<ChannelAccountFormValues> {
+  const metadata = getOperationsMetadataRecord(item);
+  return {
+    code: item.account_key ?? getMetadataString(metadata, 'code') ?? '',
+    config: getMetadataRecord(metadata, 'config'),
+    description: getMetadataString(metadata, 'description'),
+    external_account_id: getMetadataString(metadata, 'external_account_id'),
+    name: item.account_name,
+    provider_id: item.provider_id ?? '',
+    secret: '',
+    status: item.status as ChannelAccountFormValues['status'],
+  };
+}
+
+function templateToFormValues(item: ChannelTemplateItem): Partial<ChannelTemplateFormValues> {
+  const metadata = getOperationsMetadataRecord(item);
+  return {
+    account_id: getMetadataString(metadata, 'account_id'),
+    body: getMetadataString(metadata, 'body'),
+    code: item.template_code ?? '',
+    content_schema: getMetadataRecord(metadata, 'content_schema'),
+    external_template_id: getMetadataString(metadata, 'external_template_id'),
+    locale: item.language,
+    name: item.name,
+    provider_id: item.provider_id,
+    status: item.status as ChannelTemplateFormValues['status'],
+    subject: getMetadataString(metadata, 'subject'),
+    template_type: item.template_type ?? undefined,
+    variables: getMetadataRecord(metadata, 'variables'),
+    version: normalizeVersionNumber(item.version),
+  };
+}
+
+function routeRuleToFormValues(item: ChannelRouteRuleItem): Partial<ChannelRouteRuleFormValues> {
+  const metadata = getOperationsMetadataRecord(item);
+  return {
+    account_id: getMetadataString(metadata, 'account_id'),
+    agent_id: getMetadataString(metadata, 'agent_id'),
+    clear_agent: false,
+    code: getMetadataString(metadata, 'code') ?? '',
+    direction: getMetadataString(metadata, 'direction') as ChannelRouteRuleFormValues['direction'],
+    match_config: getMetadataRecord(metadata, 'match_config'),
+    match_type: item.match_type ?? undefined,
+    name: item.name,
+    priority: item.priority ?? 100,
+    provider_id: item.provider_id,
+    status: item.status as ChannelRouteRuleFormValues['status'],
+    target_config: getMetadataRecord(metadata, 'target_config'),
+    target_type: item.target_type ?? undefined,
+  };
+}
+
+function getOperationsItemTitle(module: ChannelOperationsModule, item: ChannelOperationsItem) {
+  if (module === 'providers') return (item as ChannelProviderItem).name || (item as ChannelProviderItem).code;
+  if (module === 'accounts') return (item as ChannelAccountItem).account_name;
+  if (module === 'templates') return (item as ChannelTemplateItem).name;
+  if (module === 'route-rules') return (item as ChannelRouteRuleItem).name;
+  if (module === 'jobs') return (item as ChannelPublishJobItem).title || (item as ChannelPublishJobItem).job_no || item.id;
+  if (module === 'deliveries') return (item as ChannelDeliveryItem).delivery_id || item.id;
+  if (module === 'replies') return (item as ChannelReplyItem).reply_id || (item as ChannelReplyItem).external_message_id || item.id;
+
+  return item.id;
+}
+
+function getOperationsItemSubtitle(module: ChannelOperationsModule, item: ChannelOperationsItem) {
+  if (module === 'providers') {
+    const provider = item as ChannelProviderItem;
+    return `${provider.type} · ${provider.health_status ?? '未检查'} · ${formatChannelDateTime(provider.last_checked_at)}`;
+  }
+  if (module === 'accounts') {
+    const account = item as ChannelAccountItem;
+    return `${account.provider_name ?? account.provider_code ?? '未知提供方'} · ${account.environment ?? '默认环境'} · 最近 ${formatChannelDateTime(account.last_used_at)}`;
+  }
+  if (module === 'templates') {
+    const template = item as ChannelTemplateItem;
+    return `${template.provider_name ?? template.provider_code ?? '未知提供方'} · ${template.template_type ?? '默认类型'} · v${template.version ?? '-'}`;
+  }
+  if (module === 'route-rules') {
+    const rule = item as ChannelRouteRuleItem;
+    return `${rule.match_type ?? '匹配'}=${rule.match_value ?? '-'} -> ${rule.target_type ?? '目标'}:${rule.target_id ?? '-'}`;
+  }
+  if (module === 'jobs') {
+    const job = item as ChannelPublishJobItem;
+    return `${job.channel_name ?? '未知渠道'} · ${formatChannelDateTime(job.started_at ?? job.scheduled_at ?? job.created_at)}`;
+  }
+  if (module === 'deliveries') {
+    const delivery = item as ChannelDeliveryItem;
+    return `${delivery.channel_name ?? '未知渠道'} · ${delivery.target ?? '未配置目标'} · ${formatLatency(delivery.latency_ms ?? null)}`;
+  }
+  if (module === 'replies') {
+    const reply = item as ChannelReplyItem;
+    return `${reply.channel_name ?? '未知渠道'} · 外部会话 ${reply.external_conversation_id ?? '-'} · ${formatChannelDateTime(reply.replied_at ?? reply.created_at)}`;
+  }
+
+  return '';
+}
+
+function getOperationsItemMeta(module: ChannelOperationsModule, item: ChannelOperationsItem) {
+  if (module === 'providers') {
+    const provider = item as ChannelProviderItem;
+    return [
+      { label: '账号', value: formatNumber(provider.account_count ?? 0) },
+      { label: '模板', value: formatNumber(provider.template_count ?? 0) },
+      { label: '规则', value: formatNumber(provider.route_rule_count ?? 0) },
+      { label: '24h 投递', value: formatNumber(provider.delivery_count_24h ?? 0) },
+    ];
+  }
+  if (module === 'accounts') {
+    const account = item as ChannelAccountItem;
+    return [
+      { label: '提供方', value: account.provider_name ?? account.provider_code ?? '-' },
+      { label: '渠道', value: account.channel_name ?? '-' },
+      { label: '归属', value: account.owner ?? '-' },
+      { label: '环境', value: account.environment ?? '-' },
+    ];
+  }
+  if (module === 'templates') {
+    const template = item as ChannelTemplateItem;
+    return [
+      { label: '编号', value: template.template_code ?? '-' },
+      { label: '语言', value: template.language ?? '-' },
+      { label: '版本', value: `${template.version ?? '-'}` },
+      { label: '更新', value: formatChannelDateTime(template.updated_at) },
+    ];
+  }
+  if (module === 'route-rules') {
+    const rule = item as ChannelRouteRuleItem;
+    return [
+      { label: '优先级', value: `${rule.priority ?? '-'}` },
+      { label: '渠道', value: rule.channel_name ?? '-' },
+      { label: '目标', value: `${rule.target_type ?? '-'}:${rule.target_id ?? '-'}` },
+      { label: '兜底', value: rule.fallback_target ?? '-' },
+    ];
+  }
+  if (module === 'jobs') {
+    const job = item as ChannelPublishJobItem;
+    return [
+      { label: '任务类型', value: getPublishJobTypeLabel(getPublishJobType(job)) },
+      { label: '任务号', value: job.job_no ?? '-' },
+      { label: '渠道', value: job.channel_name ?? job.channel_id ?? '-' },
+      { label: '提供方', value: job.provider_name ?? job.provider_id ?? '-' },
+      { label: '账号', value: job.account_name ?? '-' },
+      { label: '模板', value: job.template_name ?? '-' },
+      { label: '进度', value: getPublishJobProgress(job).label },
+      { label: '开始', value: formatChannelDateTime(job.started_at ?? job.scheduled_at) },
+      { label: '结束', value: formatChannelDateTime(job.finished_at) },
+    ];
+  }
+  if (module === 'deliveries') {
+    const delivery = item as ChannelDeliveryItem;
+    return [
+      { label: '响应码', value: delivery.response_status === null || delivery.response_status === undefined ? '-' : `${delivery.response_status}` },
+      { label: '重试', value: `${delivery.retry_count ?? 0}` },
+      { label: 'Trace', value: delivery.trace_id ?? '-' },
+      { label: '时间', value: formatChannelDateTime(delivery.delivered_at ?? delivery.created_at) },
+    ];
+  }
+
+  const reply = item as ChannelReplyItem;
+  return [
+    { label: '投递', value: reply.delivery_id ?? '-' },
+    { label: '外部消息', value: reply.external_message_id ?? '-' },
+    { label: 'Trace', value: reply.trace_id ?? '-' },
+    { label: '时间', value: formatChannelDateTime(reply.replied_at ?? reply.created_at) },
+  ];
+}
+
+function getOperationsDetailRows(module: ChannelOperationsModule, item: ChannelOperationsItem) {
+  return [
+    { label: 'ID', value: item.id },
+    { label: '状态', value: channelOperationsStatusLabel(getOperationsItemStatus(item)) },
+    { label: '名称', value: getOperationsItemTitle(module, item) },
+    ...getOperationsItemMeta(module, item),
+    { label: '创建', value: formatChannelDateTime(getOptionalString(item, 'created_at')) },
+    { label: '更新', value: formatChannelDateTime(getOptionalString(item, 'updated_at')) },
+  ];
+}
+
+function getOperationsMetadata(item: ChannelOperationsItem) {
+  return item.metadata ?? item;
+}
+
+function getOperationsMetadataRecord(item: ChannelOperationsItem) {
+  const metadata = getOperationsMetadata(item);
+
+  return isRecord(metadata) ? metadata : {};
+}
+
+function getMetadataString(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+
+  return typeof value === 'string' ? value : null;
+}
+
+function getMetadataRecord(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+
+  return isRecord(value) ? value : null;
+}
+
+function getMetadataStringArray(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  if (!Array.isArray(value)) return [];
+
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function normalizeVersionNumber(value: string | number | null | undefined) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 1;
+}
+
+function getPublishJobMetadata(item: ChannelPublishJobItem): Record<string, unknown> {
+  return {
+    ...(item.metadata ?? {}),
+    ...(item.job_type ? { job_type: item.job_type } : {}),
+    ...(typeof item.progress === 'number' ? { progress_percent: item.progress } : {}),
+    ...(typeof item.progress_percent === 'number' ? { progress_percent: item.progress_percent } : {}),
+    ...(typeof item.completed_count === 'number' ? { completed_count: item.completed_count } : {}),
+    ...(typeof item.total_count === 'number' ? { total_count: item.total_count } : {}),
+    ...(item.payload !== undefined ? { payload: item.payload } : {}),
+    ...(item.result !== undefined ? { result: item.result } : {}),
+  };
+}
+
+function getPublishJobMetadataRecord(item: ChannelPublishJobItem, key: string) {
+  const value = getPublishJobMetadata(item)[key];
+
+  return isRecord(value) ? value : null;
+}
+
+function getPublishJobMetadataString(item: ChannelPublishJobItem, key: string) {
+  const value = getPublishJobMetadata(item)[key];
+
+  return typeof value === 'string' ? value : null;
+}
+
+function getPublishJobMetadataNumber(item: ChannelPublishJobItem, key: string) {
+  const value = getPublishJobMetadata(item)[key];
+
+  return typeof value === 'number' ? value : null;
+}
+
+function getPublishJobType(item: ChannelPublishJobItem) {
+  return getPublishJobMetadataString(item, 'job_type') ?? getPublishJobMetadataString(item, 'type') ?? 'PUBLISH';
+}
+
+function getPublishJobTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    BROADCAST: '群发任务',
+    PUBLISH: '发布任务',
+    RETRY: '重试任务',
+    SYNC: '同步任务',
+  };
+
+  return labels[type] ?? type;
+}
+
+function getPublishJobProgress(item: ChannelPublishJobItem) {
+  const explicitPercent = getPublishJobMetadataNumber(item, 'progress_percent');
+  const total = getPublishJobMetadataNumber(item, 'total_count') ?? getPublishJobMetadataNumber(item, 'total');
+  const completed = getPublishJobMetadataNumber(item, 'completed_count') ?? getPublishJobMetadataNumber(item, 'completed');
+  const status = getOperationsItemStatus(item);
+  let percent = explicitPercent ?? null;
+
+  if (percent === null && total && total > 0 && completed !== null) {
+    percent = Math.round((completed / total) * 100);
+  }
+  if (percent === null) {
+    percent = getPublishJobFallbackProgress(status);
+  }
+
+  const safePercent = clampNumber(percent, 0, 100);
+  const countLabel = total && total > 0 && completed !== null ? ` · ${formatNumber(completed)}/${formatNumber(total)}` : '';
+
+  return {
+    label: `${safePercent}%${countLabel}`,
+    percent: safePercent,
+  };
+}
+
+function getPublishJobFallbackProgress(status: string) {
+  if (status === 'SUCCESS') return 100;
+  if (status === 'FAILED' || status === 'CANCELED' || status === 'SKIPPED') return 100;
+  if (status === 'RUNNING' || status === 'RETRYING') return 50;
+
+  return 0;
+}
+
+function getPublishJobPayload(item: ChannelPublishJobItem) {
+  return getPublishJobMetadataRecord(item, 'payload') ?? getPublishJobMetadataRecord(item, 'request_payload') ?? null;
+}
+
+function getPublishJobResult(item: ChannelPublishJobItem) {
+  return getPublishJobMetadataRecord(item, 'result') ?? getPublishJobMetadataRecord(item, 'response_result') ?? null;
+}
+
+function getPublishJobPayloadSummary(item: ChannelPublishJobItem) {
+  return getRecordSummary(getPublishJobPayload(item));
+}
+
+function getPublishJobResultSummary(item: ChannelPublishJobItem) {
+  return getRecordSummary(getPublishJobResult(item));
+}
+
+function getOperationsItemStatus(item: ChannelOperationsItem) {
+  return getOptionalString(item, 'status') ?? 'UNKNOWN';
+}
+
+function getOptionalString(item: ChannelOperationsItem, key: string) {
+  const value = (item as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function channelOperationsStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ACTIVE: '启用',
+    APPROVED: '已通过',
+    CANCELED: '已取消',
+    DISABLED: '停用',
+    DRAFT: '草稿',
+    ERROR: '异常',
+    EXPIRED: '已过期',
+    FAILED: '失败',
+    PENDING: '待处理',
+    REJECTED: '已拒绝',
+    RETRYING: '重试中',
+    RUNNING: '运行中',
+    SKIPPED: '已跳过',
+    SUCCESS: '成功',
+    UNKNOWN: '未知',
+  };
+
+  return labels[status] ?? status;
+}
+
+function channelOperationsStatusTone(status: string) {
+  if (status === 'ACTIVE' || status === 'SUCCESS' || status === 'APPROVED') return 'healthy' as const;
+  if (status === 'FAILED' || status === 'ERROR' || status === 'EXPIRED') return 'unavailable' as const;
+  if (status === 'PENDING' || status === 'RUNNING' || status === 'RETRYING') return 'degraded' as const;
+  if (status === 'DRAFT') return 'mock' as const;
+
+  return 'planned' as const;
 }
 
 function reportSeverityTone(status: ChannelReleaseReport['summary']['incident_level']) {
@@ -5307,6 +7202,25 @@ function stringifyPretty(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getRecordSummary(value: Record<string, unknown> | null) {
+  if (!value) return '暂无数据';
+
+  const entries = Object.entries(value)
+    .filter(([, entryValue]) => entryValue !== null && entryValue !== undefined && typeof entryValue !== 'object')
+    .slice(0, 3)
+    .map(([key, entryValue]) => `${key}: ${String(entryValue)}`);
+
+  if (entries.length > 0) return entries.join(' · ');
+
+  const keys = Object.keys(value).slice(0, 4);
+
+  return keys.length > 0 ? `包含字段：${keys.join('、')}` : '暂无数据';
+}
+
 async function copyText(value: string) {
   try {
     await navigator.clipboard.writeText(value);
@@ -5317,6 +7231,12 @@ async function copyText(value: string) {
 
 function toNullable(value: string) {
   const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeNullableString(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? '';
 
   return trimmed.length > 0 ? trimmed : null;
 }

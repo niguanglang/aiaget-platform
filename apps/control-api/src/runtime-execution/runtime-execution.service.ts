@@ -192,7 +192,13 @@ export class RuntimeExecutionService {
   }
 
   async runAgentTeamRun(dto: RuntimeAgentTeamRunDto) {
-    const result = await this.agentTeamsService.runWorkflowRun(dto.run_id);
+    const result = await this.agentTeamsService.runWorkflowRun(dto.run_id, {
+      handoffId: dto.handoff_id ?? null,
+      decisionNote: dto.decision_note ?? null,
+      completedMemberIds: dto.completed_member_ids ?? [],
+      previousOutputs: dto.previous_outputs ?? [],
+      nextRoundIndex: dto.next_round_index ?? 1,
+    });
     const run = await this.prisma.agentTeamRun.findFirst({
       where: {
         id: dto.run_id,
@@ -200,6 +206,8 @@ export class RuntimeExecutionService {
       select: {
         tenantId: true,
         teamId: true,
+        requestId: true,
+        traceId: true,
       },
     });
     await this.recordWorkflowEvent({
@@ -208,6 +216,9 @@ export class RuntimeExecutionService {
       resourceId: run?.teamId ?? dto.run_id,
       teamId: run?.teamId ?? null,
       runId: dto.run_id,
+      taskId: dto.run_id,
+      requestId: run?.requestId ?? null,
+      traceId: run?.traceId ?? null,
       eventType: result.status === 'FAILED' ? 'workflow.agent_team_run.failed' : 'workflow.agent_team_run.finished',
       status: result.status,
       severity: result.status === 'FAILED' ? 'ERROR' : result.status === 'WAITING_HUMAN' ? 'WARN' : 'INFO',
@@ -362,6 +373,8 @@ export class RuntimeExecutionService {
       channelId: input.channelId ?? null,
       runId: input.runId ?? null,
       taskId: input.taskId ?? null,
+      requestId: input.requestId ?? null,
+      traceId: input.traceId ?? null,
       eventSource: input.sourceSystem,
       eventType: input.eventType,
       status: input.status,
@@ -647,6 +660,8 @@ interface WorkflowProjectionInput {
   channelId?: string | null;
   runId?: string | null;
   taskId?: string | null;
+  requestId?: string | null;
+  traceId?: string | null;
   eventType: string;
   status: string;
   severity: string;

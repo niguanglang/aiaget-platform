@@ -24,10 +24,22 @@ const RESPONSE_BODY_LIMIT = 2000;
 
 const channelInclude = {
   agent: true,
+  account: {
+    include: {
+      provider: true,
+    },
+  },
 } satisfies Prisma.AgentPublishChannelInclude;
 
+const deliveryInclude = {
+  channel: {
+    include: channelInclude,
+  },
+  agent: true,
+} satisfies Prisma.ChannelSenderDeliveryInclude;
+
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
-type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: { channel: { include: { agent: true } }; agent: true } }>;
+type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: typeof deliveryInclude }>;
 
 export interface ChannelSenderMessage {
   provider: ChannelCallbackProvider;
@@ -140,14 +152,7 @@ export class ExternalChannelSenderService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.channelSenderDelivery.findMany({
         where,
-        include: {
-          channel: {
-            include: {
-              agent: true,
-            },
-          },
-          agent: true,
-        },
+        include: deliveryInclude,
         orderBy: {
           createdAt: 'desc',
         },
@@ -213,13 +218,24 @@ export class ExternalChannelSenderService {
         externalConversationId: delivery.externalConversationId,
         externalMessageId: delivery.externalMessageId,
       },
-      include: {
-        channel: {
-          include: {
-            agent: true,
-          },
-        },
-        agent: true,
+      include: deliveryInclude,
+    });
+    await this.createNormalizedDeliveryRecord({
+      operatorId: currentUser.id,
+      channel: retry.channel,
+      deliveryKey: retry.deliveryId,
+      retryCount: retry.retryCount,
+      requestUrl: retry.requestUrl,
+      requestBody,
+      requestHeaders,
+      target: retry.target,
+      conversationId: retry.conversationId,
+      runId: retry.runId,
+      traceId: retry.traceId,
+      message: {
+        provider: retry.provider as ChannelCallbackProvider,
+        externalConversationId: retry.externalConversationId,
+        externalMessageId: retry.externalMessageId,
       },
     });
 
@@ -281,13 +297,24 @@ export class ExternalChannelSenderService {
         externalConversationId: delivery.externalConversationId,
         externalMessageId: delivery.externalMessageId,
       },
-      include: {
-        channel: {
-          include: {
-            agent: true,
-          },
-        },
-        agent: true,
+      include: deliveryInclude,
+    });
+    await this.createNormalizedDeliveryRecord({
+      operatorId: null,
+      channel: retry.channel,
+      deliveryKey: retry.deliveryId,
+      retryCount: retry.retryCount,
+      requestUrl: retry.requestUrl,
+      requestBody,
+      requestHeaders,
+      target: retry.target,
+      conversationId: retry.conversationId,
+      runId: retry.runId,
+      traceId: retry.traceId,
+      message: {
+        provider: retry.provider as ChannelCallbackProvider,
+        externalConversationId: retry.externalConversationId,
+        externalMessageId: retry.externalMessageId,
       },
     });
 
@@ -354,14 +381,7 @@ export class ExternalChannelSenderService {
         ...where,
         deliveryId,
       },
-      include: {
-        channel: {
-          include: {
-            agent: true,
-          },
-        },
-        agent: true,
-      },
+      include: deliveryInclude,
     });
 
     if (!delivery) {
@@ -654,12 +674,13 @@ export class ExternalChannelSenderService {
     parentDeliveryId: string | null,
     retryCount: number,
   ) {
-    return this.prisma.channelSenderDelivery.create({
+    const deliveryId = `csd_${randomUUID().replaceAll('-', '')}`;
+    const delivery = await this.prisma.channelSenderDelivery.create({
       data: {
         tenantId: input.operator.tenantId,
         channelId: input.channel.id,
         agentId: input.channel.agentId,
-        deliveryId: `csd_${randomUUID().replaceAll('-', '')}`,
+        deliveryId,
         parentDeliveryId,
         provider: plan.provider,
         target: plan.target,
@@ -675,6 +696,23 @@ export class ExternalChannelSenderService {
         externalMessageId: input.message.externalMessageId,
       },
     });
+
+    await this.createNormalizedDeliveryRecord({
+      operatorId: input.operator.id,
+      channel: input.channel,
+      deliveryKey: deliveryId,
+      retryCount,
+      requestUrl: plan.requestUrl,
+      requestBody: plan.requestBody,
+      requestHeaders: plan.requestHeaders,
+      target: plan.target,
+      conversationId: input.conversationId,
+      runId: input.runId,
+      traceId: input.traceId ?? input.request.traceId ?? null,
+      message: input.message,
+    });
+
+    return delivery;
   }
 
   private async updateDeliveryRecord(
@@ -682,7 +720,7 @@ export class ExternalChannelSenderService {
     result: ChannelSenderResult,
     latencyMs: number | null,
   ): Promise<DeliveryRecord> {
-    return this.prisma.channelSenderDelivery.update({
+    const delivery = await this.prisma.channelSenderDelivery.update({
       where: { id },
       data: {
         status: toDeliveryStatus(result.status),
@@ -692,15 +730,95 @@ export class ExternalChannelSenderService {
         errorMessage: result.errorMessage,
         deliveredAt: new Date(),
       },
-      include: {
-        channel: {
-          include: {
-            agent: true,
-          },
-        },
-        agent: true,
-      },
+      include: deliveryInclude,
     });
+
+    await this.updateNormalizedDeliveryRecord(delivery.tenantId, delivery.deliveryId, delivery, result, latencyMs);
+    return delivery;
+  }
+
+  private async createNormalizedDeliveryRecord(input: {
+    operatorId: string | null;
+    channel: ChannelRecord;
+    deliveryKey: string;
+    retryCount: number;
+    requestUrl: string | null;
+    requestBody: unknown;
+    requestHeaders: Record<string, string>;
+    target: string | null;
+    conversationId: string | null;
+    runId: string | null;
+    traceId: string | null;
+    message: Pick<ChannelSenderMessage, 'provider' | 'externalConversationId' | 'externalMessageId'>;
+  }) {
+    try {
+      return await this.prisma.channelDelivery.create({
+        data: {
+          tenantId: input.channel.tenantId,
+          agentId: input.channel.agentId,
+          publishChannelId: input.channel.id,
+          providerId: input.channel.account?.providerId ?? null,
+          accountId: input.channel.accountId,
+          templateId: null,
+          publishJobId: null,
+          deliveryKey: input.deliveryKey,
+          direction: 'OUTBOUND',
+          target: input.target,
+          status: 'PENDING',
+          requestUrl: input.requestUrl,
+          requestBody: input.requestBody === null ? Prisma.JsonNull : toJsonValue(input.requestBody),
+          requestHeaders: toJsonValue(input.requestHeaders),
+          responseStatus: null,
+          responseBody: null,
+          errorMessage: null,
+          retryCount: input.retryCount,
+          latencyMs: null,
+          conversationId: input.conversationId,
+          runId: input.runId,
+          traceId: input.traceId,
+          externalConversationId: input.message.externalConversationId,
+          externalMessageId: input.message.externalMessageId,
+          deliveredAt: null,
+          createdBy: input.operatorId,
+          updatedBy: input.operatorId,
+        },
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private async updateNormalizedDeliveryRecord(
+    tenantId: string,
+    deliveryKey: string,
+    delivery: DeliveryRecord,
+    result: ChannelSenderResult,
+    latencyMs: number | null,
+  ) {
+    try {
+      await this.prisma.channelDelivery.updateMany({
+        where: {
+          tenantId,
+          deliveryKey,
+        },
+        data: {
+          status: toNormalizedDeliveryStatus(result.status),
+          responseStatus: result.responseStatus,
+          responseBody: result.responseBody === null ? null : truncateResponse(result.responseBody),
+          errorMessage: result.errorMessage,
+          retryCount: delivery.retryCount,
+          latencyMs,
+          conversationId: delivery.conversationId,
+          runId: delivery.runId,
+          traceId: delivery.traceId,
+          externalConversationId: delivery.externalConversationId,
+          externalMessageId: delivery.externalMessageId,
+          deliveredAt: new Date(),
+        },
+      });
+    } catch {
+      // best effort only
+    }
   }
 
   private async recordResult(
@@ -1242,6 +1360,13 @@ function isSensitiveKey(key: string) {
 }
 
 function toDeliveryStatus(status: ChannelSenderResult['status']): ChannelSenderDeliveryStatus {
+  if (status === 'SENT') return 'SUCCESS';
+  if (status === 'SKIPPED') return 'SKIPPED';
+
+  return 'FAILED';
+}
+
+function toNormalizedDeliveryStatus(status: ChannelSenderResult['status']) {
   if (status === 'SENT') return 'SUCCESS';
   if (status === 'SKIPPED') return 'SKIPPED';
 

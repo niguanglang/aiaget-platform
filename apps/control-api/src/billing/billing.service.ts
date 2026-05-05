@@ -45,6 +45,7 @@ export class BillingService {
     const since = windowStart(normalizedWindow);
     await this.ensureCommercialDefaults(currentUser);
     const period = currentBillingPeriod();
+    await this.syncCurrentBillingInvoice(currentUser, period);
     const [modelLogs, apiKeys, conversationRuns, plans, subscription, invoices, quotaPolicies, periodUsage, adjustments] = await this.prisma.$transaction([
       this.prisma.modelCallLog.findMany({
         where: {
@@ -376,6 +377,13 @@ export class BillingService {
     return mapAdjustment(adjustment);
   }
 
+  async recalculateCurrentInvoice(currentUser: AuthenticatedUser): Promise<BillingInvoiceItem> {
+    await this.ensureCommercialDefaults(currentUser);
+    const invoice = await this.syncCurrentBillingInvoice(currentUser, currentBillingPeriod(), true);
+    if (!invoice) throw new NotFoundException('Billing invoice not found');
+    return mapInvoice(invoice);
+  }
+
   async updateQuotaPolicy(
     currentUser: AuthenticatedUser,
     id: string,
@@ -606,6 +614,279 @@ export class BillingService {
     }
   }
 
+  private async syncCurrentBillingInvoice(currentUser: AuthenticatedUser, period: { start: Date; end: Date }, forceRebuild = false) {
+    const subscription = await this.prisma.tenantSubscription.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: {
+        plan: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+    if (!subscription) return null;
+
+    const invoiceNo = await this.nextInvoiceNo(currentUser.tenantId, period.start);
+    const existing = await this.prisma.billingInvoice.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        subscriptionId: subscription.id,
+        periodStart: period.start,
+        periodEnd: period.end,
+        deletedAt: null,
+      },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+        invoiceItems: true,
+        adjustments: {
+          where: {
+            deletedAt: null,
+          },
+        },
+      },
+    });
+    if (existing) {
+      return this.rebuildInvoiceItems(currentUser, existing, forceRebuild);
+    }
+
+    const created = await this.prisma.billingInvoice.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        subscriptionId: subscription.id,
+        invoiceNo,
+        status: 'OPEN',
+        currency: subscription.currency,
+        subtotalAmount: new Prisma.Decimal(0),
+        discountAmount: new Prisma.Decimal(0),
+        taxAmount: new Prisma.Decimal(0),
+        totalAmount: new Prisma.Decimal(0),
+        paidAmount: new Prisma.Decimal(0),
+        periodStart: period.start,
+        periodEnd: period.end,
+        dueAt: period.end,
+        lineItems: [],
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+        invoiceItems: true,
+        adjustments: {
+          where: {
+            deletedAt: null,
+          },
+        },
+      },
+    });
+
+    return this.rebuildInvoiceItems(currentUser, created, forceRebuild);
+  }
+
+  private async rebuildInvoiceItems(
+    currentUser: AuthenticatedUser,
+    invoice: BillingInvoiceWithDetailsRecord,
+    forceRebuild = false,
+  ): Promise<BillingInvoiceWithDetailsRecord> {
+    const subscription = invoice.subscription;
+    if (!subscription) return invoice;
+    const [modelUsage, conversationRuns, usageEvents, adjustments] = await this.prisma.$transaction([
+      this.prisma.modelCallLog.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          createdAt: {
+            gte: invoice.periodStart,
+            lt: invoice.periodEnd,
+          },
+        },
+        include: {
+          provider: true,
+          modelConfig: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.conversationRun.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          createdAt: {
+            gte: invoice.periodStart,
+            lt: invoice.periodEnd,
+          },
+        },
+        include: {
+          agent: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.platformUsageEvent.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          occurredAt: {
+            gte: invoice.periodStart,
+            lt: invoice.periodEnd,
+          },
+          billable: true,
+        },
+        orderBy: {
+          occurredAt: 'asc',
+        },
+      }),
+      this.prisma.billingAdjustment.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          deletedAt: null,
+          OR: [
+            {
+              invoiceId: invoice.id,
+            },
+            {
+              invoiceId: null,
+              effectiveAt: {
+                gte: invoice.periodStart,
+                lt: invoice.periodEnd,
+              },
+              status: {
+                in: ['APPROVED', 'APPLIED'],
+              },
+            },
+          ],
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+    ]);
+
+    const lineItems = buildInvoiceLineItems({
+      invoice,
+      subscription,
+      modelUsage,
+      conversationRuns,
+      usageEvents,
+      adjustments,
+    });
+    const financials = summarizeInvoiceLineItems(lineItems);
+    const updatedInvoice = await this.prisma.billingInvoice.update({
+      where: {
+        id: invoice.id,
+      },
+      data: {
+        subtotalAmount: new Prisma.Decimal(financials.subtotalAmount),
+        discountAmount: new Prisma.Decimal(financials.discountAmount),
+        taxAmount: new Prisma.Decimal(financials.taxAmount),
+        totalAmount: new Prisma.Decimal(financials.totalAmount),
+        paidAmount: new Prisma.Decimal(financials.paidAmount),
+        lineItems: {
+          generated_at: new Date().toISOString(),
+          totals: financials,
+          items: lineItems.map((item) => item.metadata),
+        } as Prisma.InputJsonValue,
+        status: forceRebuild ? 'DRAFT' : invoice.status,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.prisma.billingInvoiceLineItem.deleteMany({
+      where: {
+        invoiceId: updatedInvoice.id,
+      },
+    });
+    if (lineItems.length > 0) {
+      await this.prisma.billingInvoiceLineItem.createMany({
+        data: lineItems.map((item, index) => ({
+          tenantId: currentUser.tenantId,
+          invoiceId: updatedInvoice.id,
+          itemNo: item.item_no || `ITEM-${String(index + 1).padStart(4, '0')}`,
+          itemType: item.item_type,
+          title: item.title,
+          description: item.description,
+          sourceType: item.source_type,
+          sourceId: item.source_id,
+          metricType: item.metric_type,
+          quantity: new Prisma.Decimal(item.quantity),
+          unit: item.unit,
+          unitPrice: new Prisma.Decimal(item.unit_price),
+          amount: new Prisma.Decimal(item.amount),
+          currency: item.currency,
+          status: item.status,
+          metadata: item.metadata as Prisma.InputJsonValue,
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        })),
+      });
+    }
+
+    if (forceRebuild) {
+      await this.recordBillingEvent(currentUser, {
+        resourceType: 'BILLING_INVOICE',
+        resourceId: updatedInvoice.id,
+        eventType: 'billing.invoice.recalculated',
+        summary: `账单 ${updatedInvoice.invoiceNo} 已重算。`,
+        payloadJson: {
+          invoice_id: updatedInvoice.id,
+          invoice_no: updatedInvoice.invoiceNo,
+          item_count: lineItems.length,
+          subtotal_amount: financials.subtotalAmount,
+          discount_amount: financials.discountAmount,
+          tax_amount: financials.taxAmount,
+          total_amount: financials.totalAmount,
+        },
+        sourceId: updatedInvoice.id,
+      });
+    }
+
+    return this.loadBillingInvoice(currentUser.tenantId, updatedInvoice.id);
+  }
+
+  private async loadBillingInvoice(tenantId: string, invoiceId: string) {
+    const invoice = await this.prisma.billingInvoice.findFirst({
+      where: {
+        tenantId,
+        id: invoiceId,
+        deletedAt: null,
+      },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+        invoiceItems: {
+          where: {
+            deletedAt: null,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+        adjustments: {
+          where: {
+            deletedAt: null,
+          },
+          include: {
+            invoice: true,
+          },
+        },
+      },
+    });
+    if (!invoice) throw new NotFoundException('Billing invoice not found');
+    return invoice;
+  }
+
   private async nextAdjustmentNo(tenantId: string) {
     const date = new Date();
     const prefix = `ADJ-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
@@ -613,6 +894,20 @@ export class BillingService {
       where: {
         tenantId,
         adjustmentNo: {
+          startsWith: prefix,
+        },
+      },
+    });
+
+    return `${prefix}-${String(count + 1).padStart(4, '0')}`;
+  }
+
+  private async nextInvoiceNo(tenantId: string, periodStart: Date) {
+    const prefix = `INV-${periodStart.getFullYear()}${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
+    const count = await this.prisma.billingInvoice.count({
+      where: {
+        tenantId,
+        invoiceNo: {
           startsWith: prefix,
         },
       },
@@ -638,6 +933,18 @@ type ConversationRunRecord = Prisma.ConversationRunGetPayload<{
 type BillingPlanRecord = Prisma.BillingPlanGetPayload<object>;
 type BillingSubscriptionRecord = Prisma.TenantSubscriptionGetPayload<{ include: { plan: true } }>;
 type BillingInvoiceRecord = Prisma.BillingInvoiceGetPayload<object>;
+type BillingInvoiceWithDetailsRecord = Prisma.BillingInvoiceGetPayload<{
+  include: {
+    subscription: {
+      include: {
+        plan: true;
+      };
+    };
+    invoiceItems: true;
+    adjustments: true;
+  };
+}>;
+type BillingAdjustmentBaseRecord = Prisma.BillingAdjustmentGetPayload<object>;
 type BillingAdjustmentRecord = Prisma.BillingAdjustmentGetPayload<{ include: { invoice: true } }>;
 type BillingQuotaPolicyRecord = Prisma.BillingQuotaPolicyGetPayload<object>;
 
@@ -940,7 +1247,7 @@ function mapInvoice(invoice: BillingInvoiceRecord): BillingInvoiceItem {
     period_end: invoice.periodEnd.toISOString(),
     due_at: invoice.dueAt?.toISOString() ?? null,
     paid_at: invoice.paidAt?.toISOString() ?? null,
-    line_items: normalizeJson(invoice.lineItems),
+    line_items: normalizeInvoiceLineItems(invoice.lineItems),
     created_at: invoice.createdAt.toISOString(),
   };
 }
@@ -1029,6 +1336,17 @@ function normalizeJson(value: Prisma.JsonValue | null) {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
+function normalizeInvoiceLineItems(value: Prisma.JsonValue | null) {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    return { items: value } as Record<string, unknown>;
+  }
+  if (typeof value === 'object') {
+    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  }
+  return null;
+}
+
 function getTrendBucket(buckets: Map<string, BillingCostTrendPoint>, bucket: string) {
   const current = buckets.get(bucket);
   if (current) return current;
@@ -1103,3 +1421,204 @@ function groupBy<T>(items: T[], getKey: (item: T) => string) {
   }
   return output;
 }
+
+function buildInvoiceLineItems(input: {
+  invoice: BillingInvoiceWithDetailsRecord;
+  subscription: BillingSubscriptionRecord;
+  modelUsage: ModelLogRecord[];
+  conversationRuns: ConversationRunRecord[];
+  usageEvents: PlatformUsageEventRecord[];
+  adjustments: BillingAdjustmentBaseRecord[];
+}): PreparedInvoiceLineItem[] {
+  const lineItems: PreparedInvoiceLineItem[] = [];
+  const invoiceCurrency = input.invoice.currency;
+
+  lineItems.push({
+    item_no: 'ITEM-0001',
+    item_type: 'PLAN_BASE',
+    title: `${input.subscription.plan.name} ${input.subscription.billingCycle === 'YEARLY' ? '年费' : '月费'}`,
+    description: `订阅周期 ${input.subscription.currentPeriodStart.toISOString()} - ${input.subscription.currentPeriodEnd.toISOString()}`,
+    source_type: 'TENANT_SUBSCRIPTION',
+    source_id: input.subscription.id,
+    metric_type: 'SUBSCRIPTION_BASE',
+    quantity: 1,
+    unit: 'seat',
+    unit_price: roundMoney(Number(input.subscription.basePrice)),
+    amount: roundMoney(Number(input.subscription.basePrice)),
+    currency: invoiceCurrency,
+    status: 'POSTED',
+    metadata: {
+      kind: 'subscription',
+      subscription_id: input.subscription.id,
+      plan_id: input.subscription.planId,
+      plan_code: input.subscription.plan.code,
+      billing_cycle: input.subscription.billingCycle,
+      current_period_start: input.subscription.currentPeriodStart.toISOString(),
+      current_period_end: input.subscription.currentPeriodEnd.toISOString(),
+      included_monthly_cost: Number(input.subscription.includedMonthlyCost),
+    },
+  });
+
+  const modelGroups = groupBy(input.modelUsage, (log) => `${log.providerId}:${log.modelConfigId ?? log.requestModel}`);
+  let nextItemNo = 2;
+  for (const items of modelGroups.values()) {
+    const first = items[0];
+    const amount = roundMoney(sum(items.map((item) => Number(item.totalCost))));
+    if (amount <= 0) continue;
+    lineItems.push({
+      item_no: `ITEM-${String(nextItemNo++).padStart(4, '0')}`,
+      item_type: 'MODEL_USAGE',
+      title: `模型调用 ${first?.modelConfig?.name ?? first?.requestModel ?? '未知模型'}`,
+      description: `${first?.provider.name ?? '未知供应商'} · ${items.length} 次调用`,
+      source_type: 'MODEL_CALL',
+      source_id: first?.modelConfigId ?? first?.requestModel ?? first?.providerId ?? null,
+      metric_type: 'MODEL_COST',
+      quantity: items.reduce((total, item) => total + item.totalTokens, 0),
+      unit: 'token',
+      unit_price: roundMoney(amount / Math.max(1, items.reduce((total, item) => total + item.totalTokens, 0))),
+      amount,
+      currency: invoiceCurrency,
+      status: 'POSTED',
+      metadata: {
+        kind: 'model_usage',
+        provider_id: first?.providerId ?? null,
+        provider_name: first?.provider.name ?? null,
+        model_config_id: first?.modelConfigId ?? null,
+        model_name: first?.modelConfig?.name ?? null,
+        request_model: first?.requestModel ?? null,
+        call_count: items.length,
+        total_tokens: items.reduce((total, item) => total + item.totalTokens, 0),
+        total_cost: amount,
+      },
+    });
+  }
+
+  const runGroups = groupBy(input.conversationRuns, (run) => run.agentId);
+  for (const items of runGroups.values()) {
+    const first = items[0];
+    const amount = roundMoney(sum(items.map((item) => extractRunStepCost(item.steps))));
+    if (amount <= 0) continue;
+    lineItems.push({
+      item_no: `ITEM-${String(nextItemNo++).padStart(4, '0')}`,
+      item_type: 'RUN_USAGE',
+      title: `对话运行 ${first?.agent.name ?? '未知智能体'}`,
+      description: `${items.length} 次运行`,
+      source_type: 'CONVERSATION_RUN',
+      source_id: first?.agentId ?? null,
+      metric_type: 'RUN_STEP_COST',
+      quantity: items.reduce((total, item) => total + item.totalTokens, 0),
+      unit: 'token',
+      unit_price: roundMoney(amount / Math.max(1, items.reduce((total, item) => total + item.totalTokens, 0))),
+      amount,
+      currency: invoiceCurrency,
+      status: 'POSTED',
+      metadata: {
+        kind: 'conversation_run',
+        agent_id: first?.agentId ?? null,
+        agent_name: first?.agent.name ?? null,
+        run_count: items.length,
+        total_tokens: items.reduce((total, item) => total + item.totalTokens + extractRunStepTokens(item.steps), 0),
+        total_cost: amount,
+      },
+    });
+  }
+
+  const usageGroups = groupBy(input.usageEvents, (event) => `${event.metricType}:${event.resourceType}:${event.sourceSystem ?? 'unknown'}`);
+  for (const items of usageGroups.values()) {
+    const first = items[0];
+    const amount = roundMoney(sum(items.map((item) => Number(item.amount || item.quantity || 0))));
+    if (amount <= 0) continue;
+    lineItems.push({
+      item_no: `ITEM-${String(nextItemNo++).padStart(4, '0')}`,
+      item_type: 'PLATFORM_USAGE',
+      title: `平台用量 ${first?.metricType ?? 'UNKNOWN'}`,
+      description: `${first?.resourceType ?? 'UNKNOWN'} · ${items.length} 条记录`,
+      source_type: first?.sourceSystem ?? 'PLATFORM_USAGE_EVENT',
+      source_id: first?.sourceId ?? first?.eventId ?? null,
+      metric_type: first?.metricType ?? null,
+      quantity: items.reduce((total, item) => total + Number(item.quantity), 0),
+      unit: first?.unit ?? 'unit',
+      unit_price: roundMoney(sum(items.map((item) => Number(item.unitPrice)))),
+      amount,
+      currency: first?.currency ?? invoiceCurrency,
+      status: 'POSTED',
+      metadata: {
+        kind: 'platform_usage',
+        metric_type: first?.metricType ?? null,
+        resource_type: first?.resourceType ?? null,
+        resource_id: first?.resourceId ?? null,
+        source_system: first?.sourceSystem ?? null,
+        source_id: first?.sourceId ?? null,
+        event_count: items.length,
+        quantity_total: items.reduce((total, item) => total + Number(item.quantity), 0),
+        amount_total: amount,
+      },
+    });
+  }
+
+  const adjustmentItems = input.adjustments.filter((item) => item.status === 'APPROVED' || item.status === 'APPLIED');
+  for (const adjustment of adjustmentItems) {
+    const signedAmount = signedAdjustmentAmount(adjustment.type, Number(adjustment.amount));
+    lineItems.push({
+      item_no: `ITEM-${String(nextItemNo++).padStart(4, '0')}`,
+      item_type: 'ADJUSTMENT',
+      title: `调整单 ${adjustment.adjustmentNo}`,
+      description: adjustment.reason,
+      source_type: 'BILLING_ADJUSTMENT',
+      source_id: adjustment.id,
+      metric_type: 'ADJUSTMENT',
+      quantity: 1,
+      unit: 'adj',
+      unit_price: signedAmount,
+      amount: signedAmount,
+      currency: adjustment.currency,
+      status: 'POSTED',
+      metadata: {
+        kind: 'adjustment',
+        adjustment_id: adjustment.id,
+        adjustment_no: adjustment.adjustmentNo,
+        invoice_id: adjustment.invoiceId,
+        type: adjustment.type,
+        status: adjustment.status,
+        signed_amount: signedAmount,
+        reason: adjustment.reason,
+      },
+    });
+  }
+
+  return lineItems;
+}
+
+function summarizeInvoiceLineItems(items: PreparedInvoiceLineItem[]) {
+  const subtotalAmount = roundMoney(sum(items.map((item) => item.amount)));
+  const discountAmount = roundMoney(Math.abs(sum(items.filter((item) => item.item_type === 'ADJUSTMENT' && item.amount < 0).map((item) => item.amount))));
+  const taxAmount = 0;
+  const paidAmount = 0;
+  const totalAmount = roundMoney(Math.max(0, subtotalAmount + taxAmount));
+
+  return {
+    subtotalAmount,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    paidAmount,
+  };
+}
+
+type PlatformUsageEventRecord = Prisma.PlatformUsageEventGetPayload<object>;
+type PreparedInvoiceLineItem = {
+  item_no: string;
+  item_type: string;
+  title: string;
+  description: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  metric_type: string | null;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  amount: number;
+  currency: string;
+  status: 'POSTED';
+  metadata: Prisma.InputJsonValue;
+};

@@ -346,7 +346,9 @@ export function AgentTeamsContent() {
     mutationFn: ({ teamId, objective }: { teamId: string; objective: string }) =>
       startAgentTeamRun(teamId, { objective }),
     onSuccess: async (team) => {
+      queryClient.setQueryData(['agent-team', team.id], team);
       await invalidateTeams(team.id);
+      setSelectedRunId(team.latest_run?.id ?? team.runs[0]?.id ?? null);
       setRunObjective('');
     },
     onError: (error: ApiClientError) => setFormError(error.message),
@@ -1053,7 +1055,7 @@ function RunTraceWorkspace({
   const selectedRunArchives = filterArchivesForRun(archives, selectedRun);
   const teamArchives = filterArchivesForTeam(archives, team.id);
   const teamArchiveApprovals = filterArchiveApprovalsForTeam(archiveApprovals, team.id);
-  const traceHref = selectedRun?.trace_id ? `/monitor?keyword=${encodeURIComponent(selectedRun.trace_id)}` : null;
+  const traceHref = selectedRun?.trace_id ? `/monitor?trace_id=${encodeURIComponent(selectedRun.trace_id)}` : null;
 
   return (
     <Card className="min-w-0 p-5">
@@ -1892,7 +1894,7 @@ function RunSignalPanel({ run, steps }: { run: AgentTeamRunSummary; steps: Agent
   const tokenSteps = steps.filter((step) => step.total_tokens > 0).length;
   const costSteps = steps.filter((step) => step.cost_total > 0).length;
   const modelLikeSteps = steps.filter((step) => step.step_type === 'AGENT_RUN').length;
-  const traceHref = run.trace_id ? `/monitor?keyword=${encodeURIComponent(run.trace_id)}` : null;
+  const traceHref = run.trace_id ? `/monitor?trace_id=${encodeURIComponent(run.trace_id)}` : null;
 
   return (
     <div className="grid gap-3 rounded-md border bg-muted/20 p-4">
@@ -2427,7 +2429,9 @@ function sortStepsAsc(steps: AgentTeamStepItem[]) {
 
 function filterHandoffsForRun(handoffs: AgentTeamHandoffItem[], run: AgentTeamRunSummary | null) {
   if (!run) return [];
-  return [...handoffs].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+  return handoffs
+    .filter((handoff) => handoff.run_id === run.id)
+    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
 function filterFeedbackForRun(feedback: AgentTeamFeedbackItem[], run: AgentTeamRunSummary | null) {

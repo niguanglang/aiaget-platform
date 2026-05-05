@@ -44,14 +44,14 @@ const featureCards = [
 
 function LoginFormFallback() {
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4 sm:gap-5">
       {[0, 1, 2].map((item) => (
         <div className="grid gap-2" key={item}>
-          <div className="h-5 w-24 rounded-full bg-white/45" />
-          <div className="h-[58px] rounded-[14px] border border-white/70 bg-white/60" />
+          <div className="h-5 w-24 rounded-full bg-[#dbe8fb]/60" />
+          <div className="h-12 rounded-lg border border-[#f6fbff]/78 bg-[#f7fbff]/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] sm:h-14" />
         </div>
       ))}
-      <div className="mt-2 h-[54px] rounded-[16px] bg-[#2563f7]/70" />
+      <div className="mt-2 h-12 rounded-lg bg-[#2563f7]/70 sm:h-14" />
     </div>
   );
 }
@@ -69,22 +69,22 @@ function LoginField({
   trailing?: ReactNode;
 }) {
   return (
-    <label className="grid gap-2.5 text-[16px] font-medium text-[#1f2e4d]">
+    <label className="grid gap-2 text-sm font-medium text-[#22365f] sm:gap-2.5 sm:text-[15px] min-[900px]:!gap-[0.65cqw] min-[900px]:!text-[1.04cqw]">
       <span>{label}</span>
       <div className="group relative">
-        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[#7a88a6] transition-colors duration-200 group-focus-within:text-[#2f69f5]">
+        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[#7b8cb1] transition-colors duration-200 group-focus-within:text-[#2f69f5]">
           <Icon className="size-[18px]" />
         </span>
         <Input
           {...props}
           aria-invalid={Boolean(error)}
           className={cn(
-            'h-[58px] w-full rounded-[14px] border border-[#d8e1ef] bg-white/88 pl-11 pr-12 text-[16px] text-[#16233f] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm transition-all duration-200 placeholder:text-[#97a3bb] hover:border-[#bfd0f1] hover:bg-white/96 focus-visible:border-[#5b8dfc] focus-visible:bg-white focus-visible:ring-[3px] focus-visible:ring-[#6a92ff]/15',
+            'h-12 w-full rounded-lg border border-[#cfdcf1]/88 bg-[#f8fbff]/82 pl-11 pr-12 text-[15px] text-[#16233f] shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_10px_26px_rgba(83,121,184,0.07)] backdrop-blur-sm transition-all duration-200 placeholder:text-[#8fa0bf] hover:border-[#b8caea] hover:bg-[#fbfdff]/94 focus-visible:border-[#5b8dfc] focus-visible:bg-white focus-visible:ring-[3px] focus-visible:ring-[#6a92ff]/16 sm:h-14 sm:text-[16px] min-[900px]:!h-[3.78cqw] min-[900px]:!pl-[2.86cqw] min-[900px]:!pr-[3.12cqw] min-[900px]:!text-[1.04cqw]',
             error ? 'border-[#f0b4b4] focus-visible:border-[#ec8b8b] focus-visible:ring-[#f2c0c0]/20' : '',
           )}
         />
         {trailing ? (
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#58709d]">{trailing}</div>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#5b74a1]">{trailing}</div>
         ) : null}
       </div>
       {error ? <span className="text-xs font-normal text-[#d44c4c]">{error}</span> : null}
@@ -130,7 +130,7 @@ function LoginForm() {
   }
 
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit(onSubmit)}>
+    <form className="grid gap-4 sm:gap-5 min-[900px]:!gap-[1.56cqw]" onSubmit={handleSubmit(onSubmit)}>
       <LoginField
         autoComplete="organization"
         error={errors.tenantCode?.message}
@@ -169,21 +169,21 @@ function LoginForm() {
       />
 
       {serverError ? (
-        <div className="flex items-start gap-2 rounded-[14px] border border-[#f3b7b7] bg-[#fff6f6] px-4 py-3 text-sm text-[#d44747] shadow-[0_10px_24px_rgba(212,71,71,0.08)]">
+        <div className="flex items-start gap-2 rounded-lg border border-[#f3b7b7] bg-[#fff6f6]/92 px-4 py-3 text-sm text-[#d44747] shadow-[0_10px_24px_rgba(212,71,71,0.08)] backdrop-blur-sm">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <span className="leading-6">{serverError}</span>
         </div>
       ) : null}
 
       <Button
-        className="h-[66px] w-full rounded-[16px] bg-[linear-gradient(180deg,#3783ff_0%,#225ef5_100%)] text-[20px] font-semibold tracking-[0] text-white shadow-[0_18px_40px_rgba(37,99,235,0.26)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(37,99,235,0.3)]"
+        className="h-12 w-full rounded-lg bg-[linear-gradient(180deg,#3f88ff_0%,#2262f4_100%)] text-base font-semibold tracking-[0] text-white shadow-[0_16px_36px_rgba(44,105,232,0.28),inset_0_1px_0_rgba(255,255,255,0.28)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(44,105,232,0.32),inset_0_1px_0_rgba(255,255,255,0.28)] sm:h-14 sm:text-lg min-[900px]:!h-[3.9cqw] min-[900px]:!text-[1.3cqw]"
         disabled={isSubmitting}
         type="submit"
       >
         {isSubmitting ? '正在登录...' : '登录平台'}
       </Button>
 
-      <div className="flex items-center justify-between pt-1 text-[15px] font-medium">
+      <div className="flex flex-col gap-3 pt-1 text-sm font-medium min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between sm:text-[15px] min-[900px]:!gap-[0.78cqw] min-[900px]:!text-[0.98cqw]">
         <button
           className="text-[#2f69f5] transition-colors duration-200 hover:text-[#1f56e8]"
           type="button"
@@ -198,14 +198,14 @@ function LoginForm() {
         </button>
       </div>
 
-      <div className="flex items-center gap-4 pt-3 text-[#6f7d98]">
-        <span className="h-px flex-1 bg-[#cfd8ea]" />
-        <span className="whitespace-nowrap text-[15px] font-medium">SSO 登录</span>
-        <span className="h-px flex-1 bg-[#cfd8ea]" />
+      <div className="flex items-center gap-4 pt-2 text-[#6f7d98] sm:pt-3 min-[900px]:!gap-[1.04cqw] min-[900px]:!pt-[0.78cqw]">
+        <span className="h-px flex-1 bg-[#c8d6ed]" />
+        <span className="whitespace-nowrap text-[15px] font-medium min-[900px]:!text-[0.98cqw]">SSO 登录</span>
+        <span className="h-px flex-1 bg-[#c8d6ed]" />
       </div>
 
       <Button
-        className="h-[58px] rounded-[14px] border border-[#3d78f8] bg-white/58 text-[16px] font-semibold text-[#2d68f5] shadow-[0_8px_20px_rgba(61,120,248,0.08)] hover:bg-[#f6faff]"
+        className="h-12 rounded-lg border border-[#7fa8fb]/78 bg-[#f8fbff]/58 text-[15px] font-semibold text-[#2d68f5] shadow-[0_10px_24px_rgba(61,120,248,0.10),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-sm hover:border-[#5d8ff7] hover:bg-[#fbfdff]/82 sm:h-[54px] sm:text-[16px] min-[900px]:!h-[3.51cqw] min-[900px]:!text-[1.04cqw]"
         type="button"
         variant="outline"
       >
@@ -224,79 +224,82 @@ function LoginFormBoundary() {
   );
 }
 
-function BrandMark() {
+function BrandMark({ className }: { className?: string }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={cn('flex items-center gap-3', className)}>
       <div
-        className="flex size-[54px] items-center justify-center bg-[linear-gradient(180deg,#377efe_0%,#205bf5_100%)] shadow-[0_8px_18px_rgba(45,104,245,0.22)]"
+        className="flex size-11 shrink-0 items-center justify-center bg-[linear-gradient(180deg,#3f86ff_0%,#235ff1_100%)] shadow-[0_10px_24px_rgba(61,112,221,0.24),inset_0_1px_0_rgba(255,255,255,0.28)] sm:size-12 min-[900px]:size-[3.52cqw]"
         style={{
           clipPath: 'polygon(50% 0%, 92% 24%, 92% 76%, 50% 100%, 8% 76%, 8% 24%)',
         }}
       >
-        <Atom className="size-8 text-white" strokeWidth={1.9} />
+        <Atom className="size-6 text-white sm:size-7 min-[900px]:size-[2.08cqw]" strokeWidth={1.9} />
       </div>
-      <div className="text-[clamp(18px,1.5vw,24px)] font-semibold tracking-[0] text-[#0f1f43]">
+      <div className="text-base font-semibold tracking-[0] text-[#0f1f43] sm:text-lg min-[900px]:text-[1.56cqw]">
         企业 <span className="text-[#2f69f5]">AI</span> Agent 平台
       </div>
     </div>
   );
 }
 
+function FeatureCardGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3 min-[900px]:max-w-none min-[900px]:gap-[0.91cqw]">
+      {featureCards.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <div
+            className="flex min-h-[84px] flex-col items-center justify-center rounded-lg border border-[#f4f9ff]/74 bg-[#f5faff]/54 px-3 py-3 text-center shadow-[0_14px_34px_rgba(95,128,181,0.10),inset_0_1px_0_rgba(255,255,255,0.72)] backdrop-blur-[16px] sm:min-h-[96px] min-[900px]:min-h-[7.94cqw] min-[900px]:px-[0.78cqw] min-[900px]:py-[0.78cqw]"
+            key={item.label}
+          >
+            <Icon className="size-7 text-[#346ef2] sm:size-8 min-[900px]:size-[2.6cqw]" strokeWidth={1.9} />
+            <span className="mt-2 text-[13px] font-semibold tracking-[0] text-[#20345a] sm:text-sm min-[900px]:mt-[0.78cqw] min-[900px]:text-[1.11cqw]">
+              {item.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DesktopLoginLayout() {
   return (
-    <div className="relative hidden min-h-screen overflow-hidden bg-[#f6f8fd] lg:block">
-      <div
-        className="relative mx-auto h-screen w-[min(100vw,calc(100vh*1.5))] overflow-hidden"
-        style={{ maxWidth: '1536px', maxHeight: '1024px' }}
-      >
-        <LoginPageBackground />
+    <div className="relative hidden min-h-dvh overflow-hidden bg-[#d4e2f7] min-[900px]:block">
+      <div className="absolute left-1/2 top-1/2 h-[1024px] w-[1536px] -translate-x-1/2 -translate-y-1/2">
+        <div
+          className="h-[1024px] w-[1536px] origin-center overflow-hidden [container-type:inline-size]"
+          style={{ transform: 'scale(max(calc(100vw / 1536px), calc(100dvh / 1024px)))' }}
+        >
+          <LoginPageBackground />
 
-        <div className="absolute left-[3.1%] top-[4.4%]">
-          <BrandMark />
-        </div>
-
-        <div className="absolute left-[7.1%] top-[19.5%] max-w-[52%]">
-          <h1 className="whitespace-nowrap text-[clamp(50px,4.25vw,66px)] font-semibold leading-[1.08] tracking-[0] text-[#13264c]">
-            让企业智能体安全协同
-          </h1>
-          <p className="mt-5 text-[clamp(22px,1.6vw,28px)] font-medium leading-[1.55] tracking-[0] text-[#5e6f8f]">
-            统一身份认证 · 工作流编排 · 数据权限治理
-          </p>
-        </div>
-
-        <div className="absolute bottom-[7.6%] left-[7.4%]">
-          <div className="flex items-center gap-[14px]">
-            {featureCards.map((item, index) => {
-              const Icon = item.icon;
-              const cardWidths = ['w-[144px]', 'w-[180px]', 'w-[160px]', 'w-[154px]'];
-
-              return (
-                <div
-                  className={cn(
-                    'flex h-[122px] flex-col items-center justify-center rounded-[10px] border border-white/68 bg-white/72 shadow-[0_12px_30px_rgba(129,153,193,0.14)] backdrop-blur-[16px]',
-                    cardWidths[index],
-                  )}
-                  key={item.label}
-                >
-                  <Icon className="size-10 text-[#2f69f5]" strokeWidth={1.9} />
-                  <span className="mt-3 text-[17px] font-semibold tracking-[0] text-[#1b2946]">
-                    {item.label}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="absolute left-[3.4%] top-[4.35%]">
+            <BrandMark />
           </div>
-        </div>
 
-        <div className="absolute bottom-[8.4%] right-[5.1%] top-[8.6%] w-[32.4%] min-w-[496px] max-w-[498px]">
-          <Card className="relative h-full overflow-hidden rounded-[40px] border-[1.5px] border-white/66 bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(247,250,255,0.24)_100%)] px-[clamp(34px,3.3vw,56px)] py-[clamp(60px,4.7vw,68px)] shadow-[0_28px_86px_rgba(125,146,183,0.18)] backdrop-blur-[26px]">
-            <div className="absolute inset-[8px] rounded-[34px] border border-white/30" />
+          <div className="absolute left-[7.1%] top-[19.4%] max-w-[52%]">
+            <h1 className="whitespace-nowrap text-[4.3cqw] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)]">
+              让企业智能体安全协同
+            </h1>
+            <p className="mt-[1.3cqw] text-[1.72cqw] font-medium leading-[1.55] tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)]">
+              统一身份认证 · 工作流编排 · 数据权限治理
+            </p>
+          </div>
+
+          <div className="absolute bottom-[7.4%] left-[7.25%] w-[45%]">
+            <FeatureCardGrid />
+          </div>
+
+          <Card className="absolute bottom-[8.2%] right-[5.1%] top-[8.55%] w-[32.42%] overflow-hidden rounded-lg border border-[#f7fbff]/74 bg-[linear-gradient(145deg,rgba(249,252,255,0.72)_0%,rgba(232,241,255,0.48)_58%,rgba(219,234,255,0.38)_100%)] px-[3.6cqw] py-[3.55cqw] shadow-[0_28px_82px_rgba(77,110,169,0.22),0_2px_12px_rgba(255,255,255,0.42)_inset] backdrop-blur-[28px]">
+            <div className="pointer-events-none absolute inset-2 rounded-md border border-[#ffffff]/48" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0)_100%)]" />
             <div className="relative">
-              <div className="mb-11">
-                <h2 className="text-[clamp(38px,2.4vw,50px)] font-semibold leading-[1.1] tracking-[0] text-[#13264c]">
+              <div className="mb-[2.08cqw]">
+                <h2 className="text-[3.25cqw] font-semibold leading-[1.1] tracking-[0] text-[#13284f]">
                   欢迎登录
                 </h2>
-                <p className="mt-3 text-[clamp(18px,1.2vw,22px)] font-medium leading-[1.35] tracking-[0] text-[#667895]">
+                <p className="mt-[0.78cqw] text-[1.43cqw] font-medium leading-[1.35] text-[#5e7398]">
                   进入企业智能体控制台
                 </p>
               </div>
@@ -311,51 +314,53 @@ function DesktopLoginLayout() {
 
 function MobileLoginLayout() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f6f8fd] px-4 py-6 lg:hidden">
-      <LoginPageBackground />
+    <div className="relative min-h-dvh overflow-x-hidden bg-[#d4e2f7] min-[900px]:hidden">
+      <LoginPageBackground
+        className="opacity-95"
+        imageClassName="scale-110 bg-[position:58%_center] sm:scale-105 md:bg-center lg:scale-100"
+      />
 
-      <div className="relative mx-auto flex max-w-md flex-col">
-        <div className="mb-8">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[1536px] flex-col px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-[clamp(1rem,3.5dvh,2rem)] xl:px-12">
+        <header className="shrink-0">
           <BrandMark />
-        </div>
+        </header>
 
-        <div className="mb-6">
-          <h1 className="max-w-[12ch] text-[clamp(2.25rem,9vw,3.5rem)] font-semibold leading-[1.08] tracking-[0] text-[#13264c]">
-            让企业智能体安全协同
-          </h1>
-          <p className="mt-4 text-[15px] font-medium leading-7 tracking-[0] text-[#5e6f8f]">
-            统一身份认证 · 工作流编排 · 数据权限治理
-          </p>
-        </div>
-
-        <Card className="relative overflow-hidden rounded-[30px] border border-white/66 bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(247,250,255,0.26)_100%)] px-5 py-6 shadow-[0_22px_60px_rgba(125,146,183,0.16)] backdrop-blur-[20px]">
-          <div className="absolute inset-[6px] rounded-[26px] border border-white/35" />
-          <div className="relative">
-            <div className="mb-6">
-              <h2 className="text-[clamp(1.8rem,8vw,2.75rem)] font-semibold leading-[1.1] tracking-[0] text-[#13264c]">
-                欢迎登录
-              </h2>
-              <p className="mt-2 text-sm font-medium text-[#667895]">进入企业智能体控制台</p>
+        <section className="grid flex-1 items-center gap-6 py-6 sm:gap-8 sm:py-8">
+          <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+            <div>
+              <h1 className="max-w-[12ch] text-[clamp(2rem,9vw,3.75rem)] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)] sm:max-w-none">
+                让企业智能体安全协同
+              </h1>
+              <p className="mt-3 max-w-[42rem] text-sm font-medium leading-7 tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)] sm:mt-4 sm:text-base">
+                统一身份认证 · 工作流编排 · 数据权限治理
+              </p>
             </div>
-            <LoginFormBoundary />
+
+            <div className="hidden min-[900px]:block">
+              <FeatureCardGrid />
+            </div>
           </div>
-        </Card>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          {featureCards.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <div
-                className="flex min-h-[104px] flex-col items-center justify-center rounded-[16px] border border-white/68 bg-white/72 px-3 py-3 text-center shadow-[0_12px_28px_rgba(129,153,193,0.12)] backdrop-blur-[14px]"
-                key={item.label}
-              >
-                <Icon className="size-8 text-[#2f69f5]" strokeWidth={1.9} />
-                <span className="mt-2 text-[14px] font-semibold text-[#1b2946]">{item.label}</span>
+          <Card className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-lg border border-[#f7fbff]/74 bg-[linear-gradient(145deg,rgba(249,252,255,0.72)_0%,rgba(232,241,255,0.48)_58%,rgba(219,234,255,0.38)_100%)] p-4 shadow-[0_28px_82px_rgba(77,110,169,0.22),0_2px_12px_rgba(255,255,255,0.42)_inset] backdrop-blur-[28px] sm:p-6 md:p-8">
+            <div className="pointer-events-none absolute inset-[6px] rounded-md border border-[#ffffff]/48 sm:inset-2" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0)_100%)]" />
+            <div className="relative">
+              <div className="mb-5 sm:mb-7">
+                <h2 className="text-[clamp(1.75rem,7vw,2.65rem)] font-semibold leading-[1.1] tracking-[0] text-[#13284f]">
+                  欢迎登录
+                </h2>
+                <p className="mt-2 text-sm font-medium leading-6 text-[#5e7398] sm:text-base">
+                  进入企业智能体控制台
+                </p>
               </div>
-            );
-          })}
-        </div>
+              <LoginFormBoundary />
+            </div>
+          </Card>
+
+          <div className="min-[900px]:hidden">
+            <FeatureCardGrid />
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -364,7 +369,7 @@ function MobileLoginLayout() {
 export default function LoginPage() {
   return (
     <AuthProvider>
-      <main className="relative min-h-screen overflow-hidden text-[#13264c]">
+      <main className="relative min-h-dvh text-[#13264c]">
         <DesktopLoginLayout />
         <MobileLoginLayout />
       </main>

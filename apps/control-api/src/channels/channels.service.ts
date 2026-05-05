@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   expandPermissionCodes,
@@ -62,6 +62,22 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const channelInclude = {
   agent: true,
+  account: {
+    include: {
+      provider: true,
+    },
+  },
+  routeRule: {
+    include: {
+      provider: true,
+      account: {
+        include: {
+          provider: true,
+        },
+      },
+      agent: true,
+    },
+  },
 } satisfies Prisma.AgentPublishChannelInclude;
 
 const runtimeUserInclude = {
@@ -103,6 +119,32 @@ type ReleaseSelfHealingWorkflowContext = {
   workflowBackend?: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
   workflowId?: string | null;
   workflowRunId?: string | null;
+};
+type ChannelPublishJobStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'CANCELED';
+type ChannelPublishJobRelationSummary = {
+  publishChannelId: string;
+  publishChannelName: string | null;
+  providerId: string | null;
+  providerName: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  templateId: string | null;
+  templateName: string | null;
+  routeRuleId: string | null;
+  routeRuleName: string | null;
+};
+type ChannelPublishJobWriteInput = {
+  jobKey: string;
+  jobType: string;
+  title: string;
+  status: ChannelPublishJobStatus;
+  progress?: number;
+  requestPayload?: Record<string, unknown> | null;
+  resultPayload?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  scheduledAt?: Date | null;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
 };
 
 @Injectable()
@@ -179,6 +221,7 @@ export class ChannelsService {
 
   async upsert(currentUser: AuthenticatedUser, input: UpsertPublishChannelInput): Promise<PublishChannelListItem> {
     const agent = await this.ensureAgent(currentUser, input.agent_id);
+    await this.ensureChannelRelations(currentUser, input);
     const data = this.toChannelData(currentUser, input);
     const channel = await this.prisma.agentPublishChannel.upsert({
       where: {
@@ -205,6 +248,18 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'save', input),
+      jobType: 'PUBLISH_SAVE',
+      title: `保存发布渠道 ${channel.name ?? channel.channel}`,
+      status: 'SUCCESS',
+      progress: 100,
+      requestPayload: summarizeChannelInput(input),
+      resultPayload: {
+        channel_status: channel.status,
+        health_status: channel.healthStatus,
+      },
+    });
     await this.recordChannelEvent(currentUser, channel, 'channel.publish.saved', 'SUCCESS', `保存发布渠道 ${channel.name ?? channel.channel}`);
 
     return this.mapChannel(channel);
@@ -212,6 +267,7 @@ export class ChannelsService {
 
   async update(currentUser: AuthenticatedUser, channelId: string, input: UpdatePublishChannelInput): Promise<PublishChannelListItem> {
     await this.ensureChannel(currentUser, channelId);
+    await this.ensureChannelRelations(currentUser, input);
     const data = this.toChannelData(currentUser, input);
     const channel = await this.prisma.agentPublishChannel.update({
       where: {
@@ -224,6 +280,18 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'update', input),
+      jobType: 'PUBLISH_UPDATE',
+      title: `更新发布渠道 ${channel.name ?? channel.channel}`,
+      status: 'SUCCESS',
+      progress: 100,
+      requestPayload: summarizeChannelInput(input),
+      resultPayload: {
+        channel_status: channel.status,
+        health_status: channel.healthStatus,
+      },
+    });
     await this.recordChannelEvent(currentUser, channel, 'channel.publish.updated', 'SUCCESS', `更新发布渠道 ${channel.name ?? channel.channel}`);
 
     return this.mapChannel(channel);
@@ -248,6 +316,17 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'enable'),
+      jobType: 'PUBLISH_ENABLE',
+      title: `启用发布渠道 ${channel.name ?? channel.channel}`,
+      status: 'SUCCESS',
+      progress: 100,
+      resultPayload: {
+        channel_status: channel.status,
+        health_status: channel.healthStatus,
+      },
+    });
     await this.recordChannelEvent(currentUser, channel, 'channel.publish.enabled', 'SUCCESS', `启用发布渠道 ${channel.name ?? channel.channel}`);
 
     return this.mapChannel(channel);
@@ -266,6 +345,17 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'disable'),
+      jobType: 'PUBLISH_DISABLE',
+      title: `停用发布渠道 ${channel.name ?? channel.channel}`,
+      status: 'CANCELED',
+      progress: 100,
+      resultPayload: {
+        channel_status: channel.status,
+      },
+      errorMessage: '渠道已停用，发布生命周期已取消。',
+    });
     await this.recordChannelEvent(currentUser, channel, 'channel.publish.disabled', 'SUCCESS', `停用发布渠道 ${channel.name ?? channel.channel}`);
 
     return this.mapChannel(channel);
@@ -288,6 +378,19 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'health_check', hourlyJobWindow(channel.lastCheckedAt ?? new Date())),
+      jobType: 'PUBLISH_HEALTH_CHECK',
+      title: `检查发布渠道 ${channel.name ?? channel.channel}`,
+      status: health.status === 'UNAVAILABLE' ? 'FAILED' : 'SUCCESS',
+      progress: 100,
+      resultPayload: {
+        health_status: health.status,
+        health_message: health.message,
+        channel_status: channel.status,
+      },
+      errorMessage: health.status === 'UNAVAILABLE' ? health.message : null,
+    });
     await this.recordChannelEvent(currentUser, channel, 'channel.publish.health_checked', health.status === 'UNAVAILABLE' ? 'FAILED' : 'SUCCESS', health.message);
 
     return this.mapChannel(channel);
@@ -739,6 +842,21 @@ export class ChannelsService {
       workflow_id: null,
     });
     const saved = await this.storeReleaseSelfHealingRun(currentUser, channel.id, result);
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'release_self_healing_dispatch_failed', message),
+      jobType: 'RELEASE_SELF_HEALING',
+      title: `渠道发布自愈工作流派发失败 ${channel.name ?? channel.channel}`,
+      status: 'FAILED',
+      progress: 100,
+      resultPayload: {
+        run: saved,
+        evaluation,
+      },
+      errorMessage: message,
+      startedAt,
+    }, {
+      workflow_backend: 'TEMPORAL',
+    });
     await this.recordChannelEvent(
       currentUser,
       channel,
@@ -772,6 +890,21 @@ export class ChannelsService {
       workflow_id: null,
     });
     const saved = await this.storeReleaseAutomationRun(currentUser, channel.id, result);
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'release_automation_dispatch_failed', message),
+      jobType: 'RELEASE_AUTOMATION',
+      title: `渠道自动推进工作流派发失败 ${channel.name ?? channel.channel}`,
+      status: 'FAILED',
+      progress: 100,
+      resultPayload: {
+        run: saved,
+        gate,
+      },
+      errorMessage: message,
+      startedAt,
+    }, {
+      workflow_backend: 'TEMPORAL',
+    });
     await this.recordChannelEvent(
       currentUser,
       channel,
@@ -812,6 +945,26 @@ export class ChannelsService {
       recent_batches: [batch, ...pipeline.recent_batches].slice(0, 8),
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'release_batch_start', batch.batch_id),
+      jobType: 'RELEASE_BATCH_START',
+      title: `创建渠道发布批次 ${batch.title}`,
+      status: 'PENDING',
+      progress: 10,
+      requestPayload: {
+        batch_id: batch.batch_id,
+        target_rollout_percentage: batch.target_rollout_percentage,
+        note: batch.note,
+      },
+      resultPayload: {
+        batch_status: batch.status,
+      },
+      scheduledAt: new Date(batch.started_at),
+      startedAt: new Date(batch.started_at),
+      finishedAt: null,
+    }, {
+      batch_id: batch.batch_id,
+    });
     await this.recordChannelEvent(
       currentUser,
       updated,
@@ -862,6 +1015,25 @@ export class ChannelsService {
       publish_control: nextControl,
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'release_batch_full', batch.batch_id),
+      jobType: 'RELEASE_BATCH_FULL',
+      title: `渠道发布批次全量 ${batch.title}`,
+      status: 'SUCCESS',
+      progress: 100,
+      requestPayload: {
+        batch_id: batch.batch_id,
+        note: batch.note,
+      },
+      resultPayload: {
+        batch_status: batch.status,
+        rollout_percentage: 100,
+      },
+      startedAt: new Date(batch.started_at),
+      finishedAt: batch.completed_at ? new Date(batch.completed_at) : new Date(),
+    }, {
+      batch_id: batch.batch_id,
+    });
     await this.recordChannelEvent(
       currentUser,
       updated,
@@ -899,6 +1071,25 @@ export class ChannelsService {
       recent_batches: replaceReleaseBatch(pipeline.recent_batches, batch),
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'release_batch_abort', batch.batch_id),
+      jobType: 'RELEASE_BATCH_ABORT',
+      title: `终止渠道发布批次 ${batch.title}`,
+      status: 'CANCELED',
+      progress: 100,
+      requestPayload: {
+        batch_id: batch.batch_id,
+        note: batch.note,
+      },
+      resultPayload: {
+        batch_status: batch.status,
+      },
+      errorMessage: '发布批次已终止。',
+      startedAt: new Date(batch.started_at),
+      finishedAt: batch.aborted_at ? new Date(batch.aborted_at) : new Date(),
+    }, {
+      batch_id: batch.batch_id,
+    });
     await this.recordChannelEvent(
       currentUser,
       updated,
@@ -940,6 +1131,24 @@ export class ChannelsService {
       next,
     );
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'publish_control_update', {
+        approval_required: next.approval_required,
+        approval_status: next.approval_status,
+      }),
+      jobType: 'PUBLISH_CONTROL_UPDATE',
+      title: `更新渠道发布控制 ${updated.name ?? updated.channel}`,
+      status: 'SUCCESS',
+      progress: 100,
+      requestPayload: {
+        approval_required: input.approval_required,
+        approval_note: input.approval_note,
+      },
+      resultPayload: {
+        approval_required: next.approval_required,
+        approval_status: next.approval_status,
+      },
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.updated', 'SUCCESS', `更新渠道发布控制 ${updated.name ?? updated.channel}`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -970,6 +1179,24 @@ export class ChannelsService {
     });
     const updated = await this.updatePublishControlConfig(currentUser, channel, next);
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'approval_request', next.requested_at ?? new Date().toISOString()),
+      jobType: 'PUBLISH_APPROVAL_REQUEST',
+      title: `发起渠道发布审批 ${updated.name ?? updated.channel}`,
+      status: 'PENDING',
+      progress: 25,
+      requestPayload: {
+        note: input.note,
+      },
+      resultPayload: {
+        approval_status: next.approval_status,
+        requested_at: next.requested_at,
+        requested_by: next.requested_by,
+      },
+      scheduledAt: next.requested_at ? new Date(next.requested_at) : new Date(),
+      startedAt: next.requested_at ? new Date(next.requested_at) : new Date(),
+      finishedAt: null,
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.approval_requested', 'SUCCESS', `发起渠道发布审批 ${updated.name ?? updated.channel}`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -1010,6 +1237,23 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'approval_approve', next.reviewed_at ?? new Date().toISOString()),
+      jobType: 'PUBLISH_APPROVAL_APPROVE',
+      title: `通过渠道发布审批 ${updated.name ?? updated.channel}`,
+      status: 'SUCCESS',
+      progress: 55,
+      requestPayload: {
+        note: input.note,
+      },
+      resultPayload: {
+        approval_status: next.approval_status,
+        reviewed_at: next.reviewed_at,
+        reviewed_by: next.reviewed_by,
+        channel_status: updated.status,
+      },
+      startedAt: next.reviewed_at ? new Date(next.reviewed_at) : new Date(),
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.approved', 'SUCCESS', `通过渠道发布审批 ${updated.name ?? updated.channel}`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -1049,6 +1293,24 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'approval_reject', next.reviewed_at ?? new Date().toISOString()),
+      jobType: 'PUBLISH_APPROVAL_REJECT',
+      title: `拒绝渠道发布审批 ${updated.name ?? updated.channel}`,
+      status: 'FAILED',
+      progress: 100,
+      requestPayload: {
+        note: input.note,
+      },
+      resultPayload: {
+        approval_status: next.approval_status,
+        reviewed_at: next.reviewed_at,
+        reviewed_by: next.reviewed_by,
+        channel_status: updated.status,
+      },
+      errorMessage: next.decision_note ?? '发布审批已拒绝。',
+      startedAt: next.reviewed_at ? new Date(next.reviewed_at) : new Date(),
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.rejected', 'FAILED', `拒绝渠道发布审批 ${updated.name ?? updated.channel}`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -1084,6 +1346,27 @@ export class ChannelsService {
       next,
     );
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'rollout_update', {
+        percentage: next.rollout_percentage,
+        enabled: next.rollout_enabled,
+        status: next.rollout_status,
+      }),
+      jobType: 'PUBLISH_ROLLOUT_UPDATE',
+      title: `更新渠道灰度比例 ${next.rollout_percentage}%`,
+      status: next.rollout_enabled ? (next.rollout_status === 'FULL' ? 'SUCCESS' : 'RUNNING') : 'SKIPPED',
+      progress: next.rollout_enabled ? Math.max(next.rollout_percentage, 60) : 100,
+      requestPayload: {
+        rollout_enabled: input.rollout_enabled,
+        rollout_percentage: input.rollout_percentage,
+      },
+      resultPayload: {
+        rollout_enabled: next.rollout_enabled,
+        rollout_percentage: next.rollout_percentage,
+        rollout_status: next.rollout_status,
+      },
+      finishedAt: next.rollout_status === 'GRAY' ? null : new Date(),
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.rollout_updated', 'SUCCESS', `更新渠道灰度比例 ${next.rollout_percentage}%`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -1129,6 +1412,23 @@ export class ChannelsService {
       include: channelInclude,
     });
 
+    await this.recordPublishJob(currentUser, updated, {
+      jobKey: buildPublishJobKey(channel.id, 'rollback', next.last_rollback_at ?? new Date().toISOString()),
+      jobType: 'PUBLISH_ROLLBACK',
+      title: `回滚渠道发布 ${updated.name ?? updated.channel}`,
+      status: 'SUCCESS',
+      progress: 100,
+      requestPayload: {
+        note: input.note,
+      },
+      resultPayload: {
+        rollback_at: next.last_rollback_at,
+        rollback_by: next.last_rollback_by,
+        channel_status: updated.status,
+        rollout_status: next.rollout_status,
+      },
+      startedAt: next.last_rollback_at ? new Date(next.last_rollback_at) : new Date(),
+    });
     await this.recordChannelEvent(currentUser, updated, 'channel.publish_control.rollback', 'SUCCESS', `回滚渠道发布 ${updated.name ?? updated.channel}`);
 
     return readPublishControl(updated.config, updated.updatedAt);
@@ -1181,10 +1481,36 @@ export class ChannelsService {
     return channel;
   }
 
+  private async ensureChannelRelations(currentUser: AuthenticatedUser, input: UpdatePublishChannelInput | UpsertPublishChannelInput) {
+    if (input.account_id) {
+      const account = await this.prisma.channelAccount.findFirst({
+        where: {
+          tenantId: currentUser.tenantId,
+          id: input.account_id,
+          deletedAt: null,
+        },
+      });
+      if (!account) throw new NotFoundException('Channel account not found');
+    }
+
+    if (input.route_rule_id) {
+      const routeRule = await this.prisma.channelRouteRule.findFirst({
+        where: {
+          tenantId: currentUser.tenantId,
+          id: input.route_rule_id,
+          deletedAt: null,
+        },
+      });
+      if (!routeRule) throw new NotFoundException('Channel route rule not found');
+    }
+  }
+
   private toChannelData(currentUser: AuthenticatedUser, input: UpdatePublishChannelInput | UpsertPublishChannelInput) {
     const secret = input.secret?.trim();
 
     return {
+      ...(input.account_id !== undefined ? { accountId: input.account_id || null } : {}),
+      ...(input.route_rule_id !== undefined ? { routeRuleId: input.route_rule_id || null } : {}),
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.description !== undefined ? { description: input.description?.trim() || null } : {}),
       ...(input.endpoint_url !== undefined ? { endpointUrl: input.endpoint_url?.trim() || null } : {}),
@@ -1619,6 +1945,33 @@ export class ChannelsService {
 
     const saved = await this.storeReleaseSelfHealingRun(currentUser, channel.id, result);
     const eventStatus = saved.decision === 'FAILED' ? 'FAILED' : 'SUCCESS';
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'release_self_healing_run', saved.run_id),
+      jobType: 'RELEASE_SELF_HEALING',
+      title: `执行渠道发布自愈 ${channel.name ?? channel.channel}`,
+      status: saved.decision === 'FAILED' ? 'FAILED' : saved.decision === 'SKIPPED' || saved.decision === 'DISABLED' || saved.decision === 'HEALTHY' || saved.decision === 'OBSERVE' || saved.decision === 'ROLLBACK_RECOMMENDED' ? 'SKIPPED' : 'SUCCESS',
+      progress: 100,
+      requestPayload: {
+        policy: withoutReleaseSelfHealingUpdatedAt(policy),
+        workflow_backend: workflowContext.workflowBackend ?? null,
+        workflow_id: workflowContext.workflowId ?? null,
+      },
+      resultPayload: {
+        run: saved,
+        evaluation: {
+          decision: evaluation.decision,
+          reason: evaluation.reason,
+          rollback_recommended: evaluation.rollback_recommended,
+          rollback_available: evaluation.rollback_available,
+          metrics: evaluation.metrics,
+        },
+      },
+      errorMessage: saved.error_message ?? null,
+      startedAt,
+      finishedAt: saved.finished_at ? new Date(saved.finished_at) : new Date(),
+    }, {
+      batch_id: saved.batch_id ?? null,
+    });
     await this.recordChannelEvent(
       currentUser,
       channel,
@@ -1716,6 +2069,33 @@ export class ChannelsService {
 
     const saved = await this.storeReleaseAutomationRun(currentUser, channel.id, result);
     const eventStatus = saved.decision === 'PROMOTED' || saved.decision === 'SKIPPED' || saved.decision === 'DISABLED' ? 'SUCCESS' : 'FAILED';
+    await this.recordPublishJob(currentUser, channel, {
+      jobKey: buildPublishJobKey(channel.id, 'release_automation_run', saved.run_id),
+      jobType: 'RELEASE_AUTOMATION',
+      title: `执行渠道自动推进 ${channel.name ?? channel.channel}`,
+      status: eventStatus === 'FAILED' ? 'FAILED' : saved.decision === 'PROMOTED' ? 'SUCCESS' : 'SKIPPED',
+      progress: 100,
+      requestPayload: {
+        mode,
+        policy: withoutReleaseAutomationUpdatedAt(policy),
+        workflow_backend: workflowContext.workflowBackend ?? null,
+        workflow_id: workflowContext.workflowId ?? null,
+      },
+      resultPayload: {
+        run: saved,
+        gate: {
+          decision: gate.decision,
+          reason: gate.reason,
+          eligible_for_full_release: gate.eligible_for_full_release,
+          metrics: gate.metrics,
+        },
+      },
+      errorMessage: saved.error_message ?? (eventStatus === 'FAILED' ? saved.reason : null),
+      startedAt,
+      finishedAt: saved.finished_at ? new Date(saved.finished_at) : new Date(),
+    }, {
+      batch_id: saved.batch_id ?? null,
+    });
     await this.recordChannelEvent(
       currentUser,
       {
@@ -1998,6 +2378,103 @@ export class ChannelsService {
       sourceSystem: 'agent_publish_channel',
       sourceId: channel.id,
     });
+  }
+
+  private async recordPublishJob(
+    currentUser: AuthenticatedUser,
+    channel: ChannelRecord,
+    input: ChannelPublishJobWriteInput,
+    context: Record<string, unknown> = {},
+  ) {
+    const relation = this.buildPublishJobRelation(channel);
+    const now = new Date();
+    const startedAt = input.startedAt ?? (input.status === 'RUNNING' ? now : now);
+    const finishedAt = input.finishedAt ?? (input.status === 'RUNNING' ? null : now);
+    const normalizedProgress = typeof input.progress === 'number' ? clampInteger(input.progress, 0, 100, input.progress) : null;
+    const payload = {
+      title: input.title,
+      progress: normalizedProgress,
+      progress_percent: normalizedProgress,
+      requestPayload: input.requestPayload ?? null,
+      request_payload: input.requestPayload ?? null,
+      completed_count: normalizedProgress === null ? null : normalizedProgress,
+      total_count: normalizedProgress === null ? null : 100,
+      context,
+      relations: relation,
+    };
+    const result = {
+      title: input.title,
+      progress: normalizedProgress,
+      progress_percent: normalizedProgress,
+      resultPayload: input.resultPayload ?? null,
+      response_result: input.resultPayload ?? null,
+      context,
+      relations: relation,
+    };
+
+    await this.prisma.channelPublishJob.upsert({
+      where: {
+        tenantId_jobKey: {
+          tenantId: currentUser.tenantId,
+          jobKey: input.jobKey,
+        },
+      },
+      create: {
+        tenantId: currentUser.tenantId,
+        agentId: channel.agentId,
+        publishChannelId: relation.publishChannelId,
+        providerId: relation.providerId,
+        accountId: relation.accountId,
+        templateId: relation.templateId,
+        jobKey: input.jobKey,
+        jobType: input.jobType,
+        status: input.status,
+        payload: toJsonInput(payload),
+        result: toJsonInput(result),
+        errorMessage: input.errorMessage ?? null,
+        scheduledAt: input.scheduledAt ?? null,
+        startedAt,
+        finishedAt,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+      update: {
+        agentId: channel.agentId,
+        publishChannelId: relation.publishChannelId,
+        providerId: relation.providerId,
+        accountId: relation.accountId,
+        templateId: relation.templateId,
+        jobType: input.jobType,
+        status: input.status,
+        payload: toJsonInput(payload),
+        result: toJsonInput(result),
+        errorMessage: input.errorMessage ?? null,
+        scheduledAt: input.scheduledAt ?? null,
+        startedAt,
+        finishedAt,
+        deletedAt: null,
+        updatedBy: currentUser.id,
+      },
+    });
+  }
+
+  private buildPublishJobRelation(channel: ChannelRecord): ChannelPublishJobRelationSummary {
+    const provider = channel.routeRule?.provider ?? channel.account?.provider ?? channel.account?.provider ?? null;
+    const account = channel.account ?? channel.routeRule?.account ?? null;
+    const routeRule = channel.routeRule ?? null;
+
+    return {
+      publishChannelId: channel.id,
+      publishChannelName: channel.name ?? defaultChannelName(channel.channel as PublishChannelType),
+      providerId: provider?.id ?? null,
+      providerName: provider?.name ?? null,
+      accountId: account?.id ?? null,
+      accountName: account?.name ?? null,
+      templateId: null,
+      templateName: null,
+      routeRuleId: routeRule?.id ?? null,
+      routeRuleName: routeRule?.name ?? null,
+    };
   }
 }
 
@@ -3104,6 +3581,32 @@ function normalizeReleaseBatchStatus(value: unknown): ChannelReleaseBatchStatus 
 
 function createReleaseBatchId() {
   return `rel_${randomUUID().replaceAll('-', '').slice(0, 18)}`;
+}
+
+function buildPublishJobKey(channelId: string, action: string, discriminator?: unknown) {
+  const suffix = discriminator === undefined ? 'default' : createHash('sha256').update(JSON.stringify(discriminator)).digest('hex').slice(0, 16);
+
+  return `${channelId}:${action}:${suffix}`.slice(0, 160);
+}
+
+function summarizeChannelInput(input: UpdatePublishChannelInput | UpsertPublishChannelInput) {
+  return {
+    agent_id: 'agent_id' in input ? input.agent_id : undefined,
+    account_id: input.account_id ?? null,
+    route_rule_id: input.route_rule_id ?? null,
+    channel: 'channel' in input ? input.channel : undefined,
+    name: input.name,
+    description: input.description,
+    endpoint_url: input.endpoint_url,
+    callback_url: input.callback_url,
+    status: input.status,
+    config: input.config ?? null,
+    secret_provided: Boolean(input.secret?.trim()),
+  };
+}
+
+function hourlyJobWindow(date: Date) {
+  return date.toISOString().slice(0, 13);
 }
 
 function isReleaseBatchClosed(status: ChannelReleaseBatchStatus) {

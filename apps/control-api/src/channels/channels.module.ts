@@ -8,14 +8,17 @@ import { ChannelReleaseAutomationWorkflowService } from './channel-release-autom
 import { ChannelReleaseSchedulerService } from './channel-release-scheduler.service';
 import { ChannelReleaseSelfHealingWorkflowService } from './channel-release-self-healing-workflow.service';
 import { ChannelSenderTaskService } from './channel-sender-task.service';
+import { ChannelOperationsController } from './channel-operations.controller';
+import { ChannelOperationsService } from './channel-operations.service';
 import { ChannelsController } from './channels.controller';
 import { ChannelsService } from './channels.service';
 
 @Module({
   imports: [AuthModule, PrismaModule, PlatformEventsModule, ExternalApiModule],
-  controllers: [ChannelsController],
+  controllers: [ChannelsController, ChannelOperationsController],
   providers: [
     ChannelsService,
+    ChannelOperationsService,
     ChannelSenderTaskService,
     ChannelReleaseAutomationWorkflowService,
     ChannelReleaseSelfHealingWorkflowService,

@@ -8,12 +8,8 @@ import urllib.request
 from typing import Any
 
 from app.core.settings import settings
-from app.workflows.agent_team_runs import (
-    AgentTeamRunResumeSignal,
-    AgentTeamRunWorkflow,
-    AgentTeamRunWorkflowInput,
-    run_agent_team_run_activity,
-)
+from app.runtime.contracts import RuntimeAgentTeamResumeSignal
+from app.workflows.agent_team_runs import AgentTeamRunWorkflow, AgentTeamRunWorkflowInput, run_agent_team_run_activity
 from app.workflows.channel_release_automation import (
     ChannelReleaseAutomationWorkflow,
     ChannelReleaseAutomationWorkflowInput,
@@ -100,11 +96,21 @@ async def resume_agent_team_run_workflow(
     approved: bool,
     handoff_id: str | None = None,
     decision_note: str | None = None,
+    completed_member_ids: list[str] | None = None,
+    previous_outputs: list[str] | None = None,
+    next_round_index: int | None = None,
 ) -> dict[str, str]:
     workflow_id = f"agent-team-run-{run_id}"
     if not settings.temporal_enabled:
         if approved:
-            schedule_agent_team_local_fallback(run_id)
+            schedule_agent_team_local_fallback(
+                run_id,
+                handoff_id,
+                decision_note,
+                completed_member_ids or [],
+                previous_outputs or [],
+                next_round_index or 1,
+            )
         return {
             "workflow_id": workflow_id,
             "run_id": "local-fallback",
@@ -119,10 +125,13 @@ async def resume_agent_team_run_workflow(
     handle = client.get_workflow_handle(workflow_id)
     await handle.signal(
         AgentTeamRunWorkflow.resume_after_handoff,
-        AgentTeamRunResumeSignal(
+        RuntimeAgentTeamResumeSignal(
             approved=approved,
             handoff_id=handoff_id,
             decision_note=decision_note,
+            completed_member_ids=completed_member_ids or [],
+            previous_outputs=previous_outputs or [],
+            next_round_index=next_round_index or 1,
         ),
     )
     return {
@@ -218,8 +227,26 @@ async def run_control_api_knowledge_task(task_id: str) -> None:
     await asyncio.to_thread(post_control_api_json, "/api/v1/runtime/internal/knowledge-tasks/run", {"task_id": task_id})
 
 
-async def run_control_api_agent_team_run(run_id: str) -> str:
-    response = await asyncio.to_thread(post_control_api_json, "/api/v1/runtime/internal/agent-team-runs/run", {"run_id": run_id})
+async def run_control_api_agent_team_run(
+    run_id: str,
+    handoff_id: str | None = None,
+    decision_note: str | None = None,
+    completed_member_ids: list[str] | None = None,
+    previous_outputs: list[str] | None = None,
+    next_round_index: int | None = None,
+) -> str:
+    response = await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/agent-team-runs/run",
+        {
+            "run_id": run_id,
+            "handoff_id": handoff_id,
+            "decision_note": decision_note,
+            "completed_member_ids": completed_member_ids or [],
+            "previous_outputs": previous_outputs or [],
+            "next_round_index": next_round_index or 1,
+        },
+    )
     status = response.get("status")
     return status if isinstance(status, str) else "SUCCESS"
 
@@ -269,8 +296,24 @@ def schedule_local_fallback(task_id: str) -> None:
     task.add_done_callback(lambda completed: log_background_task_error(task_id, completed))
 
 
-def schedule_agent_team_local_fallback(run_id: str) -> None:
-    task = asyncio.create_task(run_control_api_agent_team_run(run_id))
+def schedule_agent_team_local_fallback(
+    run_id: str,
+    handoff_id: str | None = None,
+    decision_note: str | None = None,
+    completed_member_ids: list[str] | None = None,
+    previous_outputs: list[str] | None = None,
+    next_round_index: int | None = None,
+) -> None:
+    task = asyncio.create_task(
+        run_control_api_agent_team_run(
+            run_id,
+            handoff_id,
+            decision_note,
+            completed_member_ids,
+            previous_outputs,
+            next_round_index,
+        )
+    )
     task.add_done_callback(lambda completed: log_background_task_error(run_id, completed))
 
 

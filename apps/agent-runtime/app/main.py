@@ -134,6 +134,9 @@ async def resume_agent_team_run_workflow_endpoint(
         request.approved,
         request.handoff_id,
         request.decision_note,
+        request.completed_member_ids,
+        request.previous_outputs,
+        request.next_round_index,
     )
     return WorkflowSignalResponse(**result)
 

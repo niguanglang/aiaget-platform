@@ -13,6 +13,7 @@ import type {
   AgentCategoryItem,
   AgentTeamDetail,
   AgentTeamListItem,
+  AgentTeamFeedbackItem,
   AgentTeamOverview,
   AgentTeamRunReportArchiveApprovalItem,
   AgentTeamRunReportArchiveListResult,
@@ -20,6 +21,7 @@ import type {
   AgentListItem,
   BillingOverview,
   BillingAdjustmentItem,
+  BillingInvoiceItem,
   BillingQuotaPolicyItem,
   BillingSubscriptionItem,
   BillingWindow,
@@ -50,6 +52,26 @@ import type {
   CreateUserInput,
   CreateAgentInput,
   CreateAgentVersionInput,
+  ChannelAccountItem,
+  ChannelDeliveryItem,
+  ChannelOperationsListParams,
+  ChannelOperationsListResult,
+  ChannelAccountOperationStatus,
+  ChannelProviderItem,
+  ChannelProviderOperationStatus,
+  CreateChannelAccountInput,
+  CreateChannelProviderInput,
+  CreateChannelRouteRuleInput,
+  CreateChannelTemplateInput,
+  ChannelPublishJobActionResult,
+  ChannelPublishJobDetail,
+  ChannelPublishJobItem,
+  ChannelReplyItem,
+  ChannelRouteRuleDirection,
+  ChannelRouteRuleItem,
+  ChannelRouteRuleOperationStatus,
+  ChannelTemplateItem,
+  ChannelTemplateOperationStatus,
   ChannelSenderDeliveryDetail,
   ChannelRolloutGateOverview,
   ChannelSenderPolicy,
@@ -133,6 +155,7 @@ import type {
   PluginMarketItem,
   PluginMenuBindingItem,
   PluginOverview,
+  CreatePluginInstallationInput,
   PublishChannelListItem,
   PublishChannelOverview,
   PublishPromptInput,
@@ -261,6 +284,10 @@ import type {
   UpdatePublishChannelInput,
   UpdateChannelPublishControlInput,
   UpdateChannelSenderPolicyInput,
+  UpdateChannelAccountInput,
+  UpdateChannelProviderInput,
+  UpdateChannelRouteRuleInput,
+  UpdateChannelTemplateInput,
   UpdatePluginHookInput,
   UpdatePluginInstallationInput,
   UpdatePluginMenuBindingInput,
@@ -308,6 +335,33 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   skipAuth?: boolean;
 }
+
+export type {
+  ChannelAccountItem,
+  ChannelDeliveryItem,
+  ChannelOperationsListParams,
+  ChannelOperationsListResult,
+  ChannelAccountOperationStatus,
+  ChannelProviderItem,
+  ChannelProviderOperationStatus,
+  CreateChannelAccountInput,
+  CreateChannelProviderInput,
+  CreateChannelRouteRuleInput,
+  CreateChannelTemplateInput,
+  ChannelPublishJobActionResult,
+  ChannelPublishJobDetail,
+  ChannelPublishJobItem,
+  ChannelReplyItem,
+  ChannelRouteRuleDirection,
+  ChannelRouteRuleItem,
+  ChannelRouteRuleOperationStatus,
+  ChannelTemplateItem,
+  ChannelTemplateOperationStatus,
+  UpdateChannelAccountInput,
+  UpdateChannelProviderInput,
+  UpdateChannelRouteRuleInput,
+  UpdateChannelTemplateInput,
+};
 
 function createRequestId() {
   return `req_${crypto.randomUUID().replaceAll('-', '')}`;
@@ -914,6 +968,178 @@ export function getPublishChannelOverview() {
   return request<PublishChannelOverview>('/channels/overview');
 }
 
+export function listChannelProviders(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelProviderItem>>(`/channels/providers?${toSearchParams(params)}`);
+}
+
+export function createChannelProvider(input: CreateChannelProviderInput) {
+  return request<ChannelProviderItem>('/channels/providers', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateChannelProvider(providerId: string, input: UpdateChannelProviderInput) {
+  return request<ChannelProviderItem>(`/channels/providers/${providerId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enableChannelProvider(providerId: string) {
+  return request<ChannelProviderItem>(`/channels/providers/${providerId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableChannelProvider(providerId: string) {
+  return request<ChannelProviderItem>(`/channels/providers/${providerId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function deleteChannelProvider(providerId: string) {
+  return request<{ success: boolean }>(`/channels/providers/${providerId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listChannelAccounts(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelAccountItem>>(`/channels/accounts?${toSearchParams(params)}`);
+}
+
+export function createChannelAccount(input: CreateChannelAccountInput) {
+  return request<ChannelAccountItem>('/channels/accounts', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateChannelAccount(accountId: string, input: UpdateChannelAccountInput) {
+  return request<ChannelAccountItem>(`/channels/accounts/${accountId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enableChannelAccount(accountId: string) {
+  return request<ChannelAccountItem>(`/channels/accounts/${accountId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableChannelAccount(accountId: string) {
+  return request<ChannelAccountItem>(`/channels/accounts/${accountId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function deleteChannelAccount(accountId: string) {
+  return request<{ success: boolean }>(`/channels/accounts/${accountId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listChannelTemplates(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelTemplateItem>>(`/channels/templates?${toSearchParams(params)}`);
+}
+
+export function createChannelTemplate(input: CreateChannelTemplateInput) {
+  return request<ChannelTemplateItem>('/channels/templates', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateChannelTemplate(templateId: string, input: UpdateChannelTemplateInput) {
+  return request<ChannelTemplateItem>(`/channels/templates/${templateId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enableChannelTemplate(templateId: string) {
+  return request<ChannelTemplateItem>(`/channels/templates/${templateId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableChannelTemplate(templateId: string) {
+  return request<ChannelTemplateItem>(`/channels/templates/${templateId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function deleteChannelTemplate(templateId: string) {
+  return request<{ success: boolean }>(`/channels/templates/${templateId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listChannelRouteRules(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelRouteRuleItem>>(`/channels/route-rules?${toSearchParams(params)}`);
+}
+
+export function createChannelRouteRule(input: CreateChannelRouteRuleInput) {
+  return request<ChannelRouteRuleItem>('/channels/route-rules', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function updateChannelRouteRule(routeRuleId: string, input: UpdateChannelRouteRuleInput) {
+  return request<ChannelRouteRuleItem>(`/channels/route-rules/${routeRuleId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enableChannelRouteRule(routeRuleId: string) {
+  return request<ChannelRouteRuleItem>(`/channels/route-rules/${routeRuleId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableChannelRouteRule(routeRuleId: string) {
+  return request<ChannelRouteRuleItem>(`/channels/route-rules/${routeRuleId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function deleteChannelRouteRule(routeRuleId: string) {
+  return request<{ success: boolean }>(`/channels/route-rules/${routeRuleId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listChannelPublishJobs(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelPublishJobItem>>(`/channels/publish-jobs?${toSearchParams(params)}`);
+}
+
+export function getChannelPublishJob(jobId: string) {
+  return request<ChannelPublishJobDetail>(`/channels/publish-jobs/${jobId}`);
+}
+
+export function cancelChannelPublishJob(jobId: string) {
+  return request<ChannelPublishJobActionResult>(`/channels/publish-jobs/${jobId}/cancel`, {
+    method: 'POST',
+  });
+}
+
+export function retryChannelPublishJob(jobId: string) {
+  return request<ChannelPublishJobActionResult>(`/channels/publish-jobs/${jobId}/retry`, {
+    method: 'POST',
+  });
+}
+
+export function listChannelDeliveries(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelDeliveryItem>>(`/channels/deliveries?${toSearchParams(params)}`);
+}
+
+export function listChannelReplies(params: ChannelOperationsListParams = {}) {
+  return request<ChannelOperationsListResult<ChannelReplyItem>>(`/channels/replies?${toSearchParams(params)}`);
+}
+
 export function listChannelSenderDeliveries(params: {
   channel_id?: string;
   status?: string;
@@ -1361,7 +1587,7 @@ export function rejectAgentTeamHandoff(handoffId: string, input: ReviewAgentTeam
 }
 
 export function createAgentTeamFeedback(runId: string, input: CreateAgentTeamFeedbackInput) {
-  return request<unknown>(`/agent-teams/runs/${runId}/feedback`, {
+  return request<AgentTeamFeedbackItem>(`/agent-teams/runs/${runId}/feedback`, {
     method: 'POST',
     body: input,
   });
@@ -1782,19 +2008,23 @@ export function getPluginInstallation(pluginId: string) {
   return request<PluginInstallationDetail>(`/plugins/${pluginId}`);
 }
 
-export function installPlugin(input: PluginMarketItem) {
+export function installPlugin(input: PluginMarketItem | CreatePluginInstallationInput) {
+  const body = isPluginMarketItem(input)
+    ? {
+        code: input.code,
+        name: input.name,
+        provider: input.provider,
+        description: input.description,
+        latest_version: input.latest_version,
+        source_type: 'MARKET' as const,
+        permission_preview: input.permission_codes,
+        risk_level: input.risk_level,
+      }
+    : input;
+
   return request<PluginInstallationDetail>('/plugins/install', {
     method: 'POST',
-    body: {
-      code: input.code,
-      name: input.name,
-      provider: input.provider,
-      description: input.description,
-      latest_version: input.latest_version,
-      source_type: 'MARKET',
-      permission_preview: input.permission_codes,
-      risk_level: input.risk_level,
-    },
+    body,
   });
 }
 
@@ -2252,6 +2482,12 @@ export function createBillingAdjustment(input: CreateBillingAdjustmentInput) {
   return request<BillingAdjustmentItem>('/billing/adjustments', {
     method: 'POST',
     body: input,
+  });
+}
+
+export function recalculateCurrentBillingInvoice() {
+  return request<BillingInvoiceItem>('/billing/invoices/current/recalculate', {
+    method: 'POST',
   });
 }
 
@@ -2961,16 +3197,20 @@ export function listSecurityPolicyEvaluations(params: {
   );
 }
 
-function toSearchParams(params: Record<string, string | number | boolean | undefined>) {
+function toSearchParams(params: object) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') {
+    if ((typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') && value !== '') {
       searchParams.set(key, value.toString());
     }
   });
 
   return searchParams.toString();
+}
+
+function isPluginMarketItem(input: PluginMarketItem | CreatePluginInstallationInput): input is PluginMarketItem {
+  return 'plugin_id' in input && 'permission_codes' in input;
 }
 
 function parseSseEvent(rawEvent: string): ConversationStreamEvent | null {

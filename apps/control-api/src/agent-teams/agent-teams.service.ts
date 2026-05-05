@@ -1207,7 +1207,16 @@ export class AgentTeamsService {
     };
   }
 
-  async runWorkflowRun(runId: string): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {
+  async runWorkflowRun(
+    runId: string,
+    resumeContext?: {
+      handoffId?: string | null;
+      decisionNote?: string | null;
+      completedMemberIds?: string[];
+      previousOutputs?: string[];
+      nextRoundIndex?: number;
+    },
+  ): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {
     const run = await this.prisma.agentTeamRun.findFirst({
       where: {
         id: runId,
@@ -1223,7 +1232,7 @@ export class AgentTeamsService {
     }
 
     const actor = await this.resolveRunActor(run);
-      await this.executeRuntimeTeamRun(actor, run.id);
+    await this.executeRuntimeTeamRun(actor, run.id, resumeContext ?? null);
     const updatedRun = await this.prisma.agentTeamRun.findUnique({
       where: {
         id: run.id,
@@ -1254,13 +1263,31 @@ export class AgentTeamsService {
     }
   }
 
-  private async executeRuntimeTeamRun(currentUser: AuthenticatedUser, runId: string) {
+  private async executeRuntimeTeamRun(
+    currentUser: AuthenticatedUser,
+    runId: string,
+    resumeContextInput: {
+      handoffId?: string | null;
+      decisionNote?: string | null;
+      completedMemberIds?: string[];
+      previousOutputs?: string[];
+      nextRoundIndex?: number;
+    } | null = null,
+  ) {
     const run = await this.findExecutableRun(currentUser.tenantId, runId);
     const team = await this.findTeam(currentUser.tenantId, run.teamId);
     const activeMembers = team.members.filter((member) => member.status === 'ACTIVE');
     const startedAt = run.startedAt ?? new Date();
-    const resumeContext = run.totalSteps > 0 || run.status === 'WAITING_HUMAN'
-      ? await this.buildTeamResumeContext(currentUser.tenantId, run.id, null, null)
+    const resumeContext = resumeContextInput
+      ? {
+          handoffId: resumeContextInput.handoffId ?? null,
+          decisionNote: resumeContextInput.decisionNote ?? null,
+          completedMemberIds: resumeContextInput.completedMemberIds ?? [],
+          previousOutputs: resumeContextInput.previousOutputs ?? [],
+          nextRoundIndex: resumeContextInput.nextRoundIndex ?? 1,
+        }
+      : run.totalSteps > 0 || run.status === 'WAITING_HUMAN'
+        ? await this.buildTeamResumeContext(currentUser.tenantId, run.id, null, null)
       : null;
     const traceContext = resolveTeamTraceContext({
       ...currentUser,
@@ -1269,7 +1296,7 @@ export class AgentTeamsService {
     });
 
     try {
-    const runtimePayload = await this.buildRuntimeTeamRequest(
+      const runtimePayload = await this.buildRuntimeTeamRequest(
         currentUser,
         team,
         activeMembers,
@@ -1557,7 +1584,13 @@ export class AgentTeamsService {
         stepType: true,
       },
     });
-    const completedMemberIds = Array.from(new Set(steps.filter((step) => step.memberId).map((step) => step.memberId as string)));
+    const completedMemberIds = Array.from(
+      new Set(
+        steps
+          .filter((step) => step.stepType === 'AGENT_RUN' && step.memberId)
+          .map((step) => step.memberId as string),
+      ),
+    );
     const previousOutputs = steps
       .filter((step) => step.stepType === 'AGENT_RUN' && step.outputSummary)
       .map((step) => step.outputSummary as string)
@@ -1771,6 +1804,16 @@ export class AgentTeamsService {
       });
     }
 
+    await this.recordRuntimeTeamStepEvents(
+      currentUser,
+      teamId,
+      runId,
+      enrichedSteps,
+      options.appendExisting ? 'agent_team_run_resume' : 'agent_team_run',
+      null,
+      runtimeResponse.trace_id,
+    );
+
     await Promise.all(
       runtimeResponse.member_results
         .map((memberResult) => memberResult.model_call)
@@ -1874,7 +1917,7 @@ export class AgentTeamsService {
         totalCost: new Prisma.Decimal(options.totalCost ?? sumStepNumbers(steps, 'costTotal', 'cost_total')),
         latencyMs: options.latencyMs,
         errorMessage: options.errorMessage ?? null,
-        endedAt: now,
+        endedAt: options.status === 'WAITING_HUMAN' ? null : now,
         updatedBy: currentUser.id,
         steps: {
           create: steps.map((step) => mapTeamStepCreateInput(currentUser.tenantId, teamId, step, startedAt, options.traceId)),
@@ -2435,7 +2478,7 @@ export class AgentTeamsService {
     const status = dto.status ?? 'PENDING';
     const decided = status === 'APPROVED' || status === 'REJECTED' || status === 'AUTO';
 
-    await this.prisma.agentTeamHandoff.create({
+    const createdHandoff = await this.prisma.agentTeamHandoff.create({
       data: {
         tenantId: currentUser.tenantId,
         teamId: run.teamId,
@@ -2452,6 +2495,36 @@ export class AgentTeamsService {
         createdBy: currentUser.id,
         updatedBy: currentUser.id,
       },
+    });
+
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'AGENT_TEAM',
+      resourceId: run.teamId,
+      teamId: run.teamId,
+      runId,
+      requestId: run.requestId ?? currentUser.requestId ?? null,
+      traceId: run.traceId ?? currentUser.traceId ?? null,
+      eventSource: 'AGENT_TEAM',
+      eventType: 'agent.team.handoff.created',
+      status,
+      severity: status === 'PENDING' ? 'INFO' : 'WARN',
+      billable: false,
+      summary: dto.reason.trim(),
+      payloadJson: {
+        handoff_status: status,
+        from_member_id: dto.from_member_id ?? null,
+        to_member_id: dto.to_member_id ?? null,
+        from_agent_id: dto.from_agent_id ?? null,
+        to_agent_id: dto.to_agent_id ?? null,
+        decision_note: dto.decision_note?.trim() || null,
+      },
+      sourceSystem: 'agent_team_handoff',
+      sourceId: createdHandoff.id,
+      dedupeKey: `agent_team_handoff_created:${createdHandoff.id}`,
     });
 
     if (status === 'PENDING') {
@@ -2516,7 +2589,16 @@ export class AgentTeamsService {
       }
     }
 
-    await this.recordHandoffDecisionEvent(currentUser, handoff.teamId, handoff.runId, handoff.id, 'APPROVED', decisionNote);
+    await this.recordHandoffDecisionEvent(
+      currentUser,
+      handoff.teamId,
+      handoff.runId,
+      handoff.id,
+      'APPROVED',
+      decisionNote,
+      handoff.run.requestId ?? currentUser.requestId ?? null,
+      handoff.run.traceId ?? currentUser.traceId ?? null,
+    );
     await this.touchTeam(handoff.teamId, currentUser.id);
     return this.get(currentUser, handoff.teamId);
   }
@@ -2584,7 +2666,16 @@ export class AgentTeamsService {
       });
     }
 
-    await this.recordHandoffDecisionEvent(currentUser, handoff.teamId, handoff.runId, handoff.id, 'REJECTED', decisionNote);
+    await this.recordHandoffDecisionEvent(
+      currentUser,
+      handoff.teamId,
+      handoff.runId,
+      handoff.id,
+      'REJECTED',
+      decisionNote,
+      run?.requestId ?? currentUser.requestId ?? null,
+      run?.traceId ?? currentUser.traceId ?? null,
+    );
     await this.touchTeam(handoff.teamId, currentUser.id);
     return this.get(currentUser, handoff.teamId);
   }
@@ -2618,6 +2709,32 @@ export class AgentTeamsService {
       include: {
         author: true,
       },
+    });
+
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'AGENT_TEAM',
+      resourceId: run.teamId,
+      teamId: run.teamId,
+      runId,
+      requestId: run.requestId ?? currentUser.requestId ?? null,
+      traceId: run.traceId ?? currentUser.traceId ?? null,
+      eventSource: 'AGENT_TEAM',
+      eventType: 'agent.team.feedback.created',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      billable: false,
+      summary: '已提交团队反馈。',
+      payloadJson: {
+        rating: dto.rating,
+        comment: dto.comment?.trim() || null,
+      },
+      sourceSystem: 'agent_team_feedback',
+      sourceId: feedback.id,
+      dedupeKey: `agent_team_feedback_created:${feedback.id}`,
     });
 
     await this.touchTeam(run.teamId, currentUser.id);
@@ -2658,6 +2775,8 @@ export class AgentTeamsService {
     handoffId: string,
     status: 'APPROVED' | 'REJECTED',
     decisionNote: string,
+    requestId?: string | null,
+    traceId?: string | null,
   ) {
     await this.platformEvents.recordEvent({
       tenantId: currentUser.tenantId,
@@ -2668,8 +2787,8 @@ export class AgentTeamsService {
       resourceId: teamId,
       teamId,
       runId,
-      requestId: currentUser.requestId ?? null,
-      traceId: currentUser.traceId ?? null,
+      requestId: requestId ?? currentUser.requestId ?? null,
+      traceId: traceId ?? currentUser.traceId ?? null,
       eventSource: 'AGENT_TEAM',
       eventType: status === 'APPROVED' ? 'agent.team.handoff.approved' : 'agent.team.handoff.rejected',
       status,
@@ -3058,6 +3177,7 @@ export class AgentTeamsService {
   ): AgentTeamHandoffItem {
     return {
       id: handoff.id,
+      run_id: handoff.runId,
       from_member_id: handoff.fromMemberId,
       to_member_id: handoff.toMemberId,
       from_agent_id: handoff.fromAgentId,
@@ -3072,6 +3192,70 @@ export class AgentTeamsService {
       created_at: handoff.createdAt.toISOString(),
       created_by: null,
     };
+  }
+
+  private async recordRuntimeTeamStepEvents(
+    currentUser: AuthenticatedUser,
+    teamId: string,
+    runId: string,
+    steps: Array<BuiltStep | RuntimeAgentTeamStepResult>,
+    sourceSystem: string,
+    requestId: string | null,
+    traceId: string | null,
+  ) {
+    if (steps.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      steps.map((step) => {
+        const memberId = stepString(step, 'memberId', 'member_id');
+        const agentId = stepString(step, 'agentId', 'agent_id');
+        const stepType = stepString(step, 'stepType', 'step_type') ?? 'AGENT_RUN';
+        const inputSummary = stepString(step, 'inputSummary', 'input_summary');
+        const outputSummary = stepString(step, 'outputSummary', 'output_summary');
+        const stepTraceId = stepString(step, 'traceId', 'trace_id') ?? traceId;
+        const parentSpanId = stepString(step, 'parentSpanId', 'parent_span_id');
+        const stepSourceId = memberId ?? agentId ?? `${runId}:${stepType}`;
+
+        return this.platformEvents.recordEvent({
+          tenantId: currentUser.tenantId,
+          departmentId: currentUser.departmentId ?? null,
+          userId: currentUser.id,
+          actorType: 'RUNTIME',
+          resourceType: 'AGENT_TEAM',
+          resourceId: teamId,
+          teamId,
+          runId,
+          requestId,
+          traceId: stepTraceId,
+          parentTraceId: parentSpanId,
+          eventSource: 'AGENT_TEAM',
+          eventType: `agent.team.step.${stepType.toLowerCase()}.${step.status.toLowerCase()}`,
+          status: step.status,
+          severity: step.status === 'FAILED' ? 'ERROR' : step.status === 'SUCCESS' ? 'INFO' : 'WARN',
+          billable: false,
+          summary: step.title ?? outputSummary ?? '团队步骤已记录。',
+          payloadJson: {
+            step_id: `${runId}:${stepSourceId}:${stepType}`,
+            member_id: memberId,
+            agent_id: agentId,
+            step_type: stepType,
+            input_summary: inputSummary,
+            output_summary: outputSummary,
+            duration_ms: stepNumber(step, 'durationMs', 'duration_ms'),
+            prompt_tokens: stepNumber(step, 'promptTokens', 'prompt_tokens'),
+            completion_tokens: stepNumber(step, 'completionTokens', 'completion_tokens'),
+            total_tokens: stepNumber(step, 'totalTokens', 'total_tokens'),
+            cost_total: stepNumber(step, 'costTotal', 'cost_total'),
+            error_message: stepString(step, 'errorMessage', 'error_message'),
+          },
+          sourceSystem,
+          sourceId: stepSourceId,
+          dedupeKey: `${sourceSystem}:${runId}:${stepSourceId}:${step.status}`,
+        });
+      }),
+    );
   }
 
   private mapFeedback(

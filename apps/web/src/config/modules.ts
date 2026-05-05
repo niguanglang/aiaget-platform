@@ -126,7 +126,7 @@ export const moduleSpecs: ModuleSpec[] = [
     href: '/plugins',
     description: '管理插件市场、安装实例、启停、升级、菜单注入、Hook 和审计轨迹。',
     permission: 'plugin:center:view',
-    status: 'planned',
+    status: 'ready',
     primaryAction: '查看插件市场',
     metrics: [
       { label: '插件', value: '0', helper: '市场与安装' },

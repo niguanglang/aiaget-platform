@@ -18,10 +18,22 @@ const TASK_REQUEST_ID_PREFIX = 'channel_sender_task';
 
 const channelInclude = {
   agent: true,
+  account: {
+    include: {
+      provider: true,
+    },
+  },
 } satisfies Prisma.AgentPublishChannelInclude;
 
+const deliveryInclude = {
+  channel: {
+    include: channelInclude,
+  },
+  agent: true,
+} satisfies Prisma.ChannelSenderDeliveryInclude;
+
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
-type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: { channel: { include: { agent: true } }; agent: true } }>;
+type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: typeof deliveryInclude }>;
 
 @Injectable()
 export class ChannelSenderTaskService implements OnModuleInit, OnModuleDestroy {
@@ -157,14 +169,7 @@ export class ChannelSenderTaskService implements OnModuleInit, OnModuleDestroy {
 
     const deliveries = await this.prisma.channelSenderDelivery.findMany({
       where,
-      include: {
-        channel: {
-          include: {
-            agent: true,
-          },
-        },
-        agent: true,
-      },
+      include: deliveryInclude,
       orderBy: {
         createdAt: 'asc',
       },

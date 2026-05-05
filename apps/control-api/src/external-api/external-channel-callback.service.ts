@@ -36,6 +36,11 @@ const callbackChannelTypes = new Set<PublishChannelType>([
 
 const channelInclude = {
   agent: true,
+  account: {
+    include: {
+      provider: true,
+    },
+  },
 } satisfies Prisma.AgentPublishChannelInclude;
 
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
@@ -78,6 +83,7 @@ interface CallbackExecutionContext {
   operator: AuthenticatedUser;
   parsed: ParsedCallbackMessage;
   receivedEventId: string;
+  replyId: string;
 }
 
 @Injectable()
@@ -145,6 +151,7 @@ export class ExternalChannelCallbackService {
     request.user = operator;
 
     const parsed = parseCallbackMessage(provider, normalizedBody);
+    const reply = await this.createReplyRecord(request, channel, parsed, normalizedBody, 'RECEIVED');
     const gateDecision = await this.rolloutGate.evaluateForCallback(request, operator, channel, {
       source: 'channel_callback',
       stableKey: callbackStableKey(parsed),
@@ -172,6 +179,12 @@ export class ExternalChannelCallbackService {
       };
 
       await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_ignored');
+      await this.updateReplyRecord(reply.id, {
+        status: 'IGNORED',
+        conversationId: null,
+        messageId: null,
+        traceId: result.trace_id ?? request.traceId ?? null,
+      });
       return {
         result,
         response: buildProviderResponse(provider, result),
@@ -194,6 +207,12 @@ export class ExternalChannelCallbackService {
       };
 
       await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_rollout_blocked');
+      await this.updateReplyRecord(reply.id, {
+        status: 'IGNORED',
+        conversationId: null,
+        messageId: null,
+        traceId: result.trace_id ?? request.traceId ?? null,
+      });
       return {
         result,
         response: buildProviderResponse(provider, result),
@@ -222,6 +241,7 @@ export class ExternalChannelCallbackService {
         operator,
         parsed,
         receivedEventId: receivedEvent.id,
+        replyId: reply.id,
       });
       await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_async_accepted');
 
@@ -238,6 +258,7 @@ export class ExternalChannelCallbackService {
         operator,
         parsed,
         receivedEventId: receivedEvent.id,
+        replyId: reply.id,
       });
 
       return {
@@ -270,6 +291,12 @@ export class ExternalChannelCallbackService {
         },
       });
       await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_failed');
+      await this.updateReplyRecord(reply.id, {
+        status: 'FAILED',
+        conversationId: null,
+        messageId: null,
+        traceId: request.traceId ?? null,
+      });
       await this.updateChannelHealth(channel.id, false, `最近回调失败：${message}`);
 
       throw error;
@@ -277,7 +304,7 @@ export class ExternalChannelCallbackService {
   }
 
   private async executeCallbackTurn(context: CallbackExecutionContext): Promise<ChannelCallbackResult> {
-    const { request, channel, operator, parsed, receivedEventId } = context;
+    const { request, channel, operator, parsed, receivedEventId, replyId } = context;
     if (!parsed.text) {
       throw new BadRequestException('Channel callback text is empty');
     }
@@ -346,6 +373,13 @@ export class ExternalChannelCallbackService {
         traceId: result.trace_id,
       });
     }
+
+    await this.updateReplyRecord(replyId, {
+      status: 'PROCESSED',
+      conversationId: response.conversation_id,
+      messageId: response.message_id,
+      traceId: result.trace_id,
+    });
 
     return result;
   }
@@ -706,6 +740,65 @@ export class ExternalChannelCallbackService {
     });
   }
 
+  private async createReplyRecord(
+    request: RequestWithContext,
+    channel: ChannelRecord,
+    parsed: ParsedCallbackMessage,
+    payload: unknown,
+    status: 'RECEIVED' | 'PROCESSED' | 'IGNORED' | 'FAILED',
+  ) {
+    return this.prisma.channelReply.create({
+      data: {
+        tenantId: channel.tenantId,
+        agentId: channel.agentId,
+        publishChannelId: channel.id,
+        providerId: channel.account?.providerId ?? null,
+        accountId: channel.accountId,
+        deliveryId: null,
+        replyKey: `cr_${request.requestId ?? request.traceId ?? `${channel.id}_${Date.now()}`}_${parsed.externalMessageId ?? parsed.externalConversationId ?? parsed.senderId ?? 'inbound'}`,
+        direction: 'INBOUND',
+        sender: parsed.senderId,
+        recipient: channel.name ?? channel.channel,
+        contentType: parsed.text ? 'TEXT' : 'EVENT',
+        content: parsed.text,
+        payload: payload === null ? Prisma.JsonNull : toJsonValue(payload),
+        status,
+        conversationId: null,
+        messageId: null,
+        traceId: request.traceId ?? null,
+        externalConversationId: parsed.externalConversationId,
+        externalMessageId: parsed.externalMessageId,
+        receivedAt: new Date(),
+        processedAt: status === 'RECEIVED' ? null : new Date(),
+        createdBy: request.user?.id ?? null,
+        updatedBy: request.user?.id ?? null,
+      },
+    });
+  }
+
+  private async updateReplyRecord(
+    replyId: string,
+    input: {
+      status: 'PROCESSED' | 'IGNORED' | 'FAILED';
+      conversationId: string | null;
+      messageId: string | null;
+      traceId: string | null;
+    },
+  ) {
+    await this.prisma.channelReply.update({
+      where: {
+        id: replyId,
+      },
+      data: {
+        status: input.status,
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        traceId: input.traceId,
+        processedAt: new Date(),
+      },
+    });
+  }
+
   private async updateChannelHealth(channelId: string, success: boolean, message: string) {
     await this.prisma.agentPublishChannel.update({
       where: {
@@ -1059,6 +1152,14 @@ function pickFirstString(...values: unknown[]) {
   }
 
   return null;
+}
+
+function toJsonValue(value: unknown): Prisma.InputJsonValue {
+  if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+    return value as Prisma.InputJsonValue;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function parseMaybeJsonObject(value: unknown): Record<string, unknown> | null {

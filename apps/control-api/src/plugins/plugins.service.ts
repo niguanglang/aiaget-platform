@@ -1,5 +1,6 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'crypto';
 
 import type {
   CreatePluginInstallationInput,
@@ -45,6 +46,62 @@ type PluginMarketRecord = Prisma.PluginGetPayload<{
     };
   };
 }>;
+
+interface NormalizedPluginManifestMenu {
+  code: string;
+  name: string;
+  type: 'DIRECTORY' | 'MENU' | 'BUTTON';
+  path: string | null;
+  component: string | null;
+  icon: string | null;
+  permissionCode: string | null;
+  sortOrder: number;
+  visible: boolean;
+  enabled: boolean;
+  parentCode: string | null;
+}
+
+interface NormalizedPluginManifestHook {
+  code: string;
+  name: string;
+  hookType: string;
+  target: string;
+  method: string;
+  status: PluginHookStatus;
+  configJson: Record<string, unknown> | null;
+}
+
+interface NormalizedPluginManifestTool {
+  code: string;
+  name: string;
+  method: string;
+  url: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  timeoutMs: number;
+  requireApproval: boolean;
+  headers: Record<string, string> | null;
+  authType: string;
+  authConfig: Record<string, unknown> | null;
+  inputSchema: Record<string, unknown> | null;
+  outputSchema: Record<string, unknown> | null;
+  status: 'ACTIVE' | 'DISABLED';
+  description: string | null;
+}
+
+interface NormalizedPluginManifest {
+  raw: Record<string, unknown>;
+  code: string;
+  name: string;
+  provider: string;
+  version: string;
+  description: string | null;
+  riskLevel: PluginRiskLevel;
+  permissions: string[];
+  menus: NormalizedPluginManifestMenu[];
+  hooks: NormalizedPluginManifestHook[];
+  tools: NormalizedPluginManifestTool[];
+  config: Record<string, unknown> | null;
+}
 
 @Injectable()
 export class PluginsService {
@@ -204,26 +261,27 @@ export class PluginsService {
   }
 
   async install(currentUser: AuthenticatedUser, dto: CreatePluginInstallationInput): Promise<PluginInstallationDetail> {
+    const manifest = normalizePluginManifest(dto);
     const plugin = await this.prisma.plugin.upsert({
       where: {
         tenantId_code: {
           tenantId: currentUser.tenantId,
-          code: dto.code.trim(),
+          code: manifest.code,
         },
       },
       create: {
         tenantId: currentUser.tenantId,
         ownerId: currentUser.id,
-        code: dto.code.trim(),
-        name: dto.name?.trim() || dto.code.trim(),
-        provider: dto.provider?.trim() || '平台插件市场',
-        description: dto.description ?? null,
+        code: manifest.code,
+        name: manifest.name,
+        provider: manifest.provider,
+        description: manifest.description,
         sourceType: dto.source_type ?? 'MARKET',
-        latestVersion: dto.latest_version?.trim() || '1.0.0',
-        riskLevel: dto.risk_level ?? 'MEDIUM',
-        manifestJson: toJsonInput(dto.manifest_json),
-        configJson: toJsonInput(dto.config_json),
-        permissionPreview: toJsonInput(Array.isArray(dto.permission_preview) ? dto.permission_preview : null),
+        latestVersion: manifest.version,
+        riskLevel: manifest.riskLevel,
+        manifestJson: toJsonInput(manifest.raw),
+        configJson: toJsonInput(manifest.config),
+        permissionPreview: toJsonInput(manifest.permissions),
         status: 'INSTALLED',
         runtimeStatus: 'STOPPED',
         installedAt: new Date(),
@@ -232,20 +290,29 @@ export class PluginsService {
       },
       update: {
         ownerId: currentUser.id,
-        name: dto.name?.trim() || dto.code.trim(),
-        provider: dto.provider?.trim() || '平台插件市场',
-        description: dto.description ?? null,
+        name: manifest.name,
+        provider: manifest.provider,
+        description: manifest.description,
         sourceType: dto.source_type ?? 'MARKET',
-        latestVersion: dto.latest_version?.trim() || '1.0.0',
-        riskLevel: dto.risk_level ?? 'MEDIUM',
-        manifestJson: toJsonInput(dto.manifest_json),
-        configJson: toJsonInput(dto.config_json),
-        permissionPreview: toJsonInput(Array.isArray(dto.permission_preview) ? dto.permission_preview : null),
+        latestVersion: manifest.version,
+        riskLevel: manifest.riskLevel,
+        manifestJson: toJsonInput(manifest.raw),
+        configJson: toJsonInput(manifest.config),
+        permissionPreview: toJsonInput(manifest.permissions),
         status: 'INSTALLED',
         runtimeStatus: 'STOPPED',
         deletedAt: null,
         updatedBy: currentUser.id,
       },
+    });
+
+    await this.upsertPluginVersionSnapshot({
+      tenantId: currentUser.tenantId,
+      pluginId: plugin.id,
+      version: plugin.latestVersion,
+      manifestJson: plugin.manifestJson,
+      changeNote: '插件安装后的初始版本快照。',
+      createdBy: currentUser.id,
     });
 
     await this.prisma.pluginInstallation.upsert({
@@ -288,7 +355,26 @@ export class PluginsService {
       },
     });
 
-    await this.recordAudit(currentUser, plugin.id, 'INSTALL', '安装插件', `已安装插件 ${plugin.name}。`, 'INFO');
+    const syncSummary = await this.syncPluginManifest(currentUser, plugin.id, manifest);
+    await this.recordAudit(
+      currentUser,
+      plugin.id,
+      'INSTALL',
+      '安装插件',
+      `已安装插件 ${plugin.name}，同步 ${syncSummary.hooks} 个 Hook、${syncSummary.menus} 个菜单、${syncSummary.tools} 个工具。`,
+      'INFO',
+      {
+        manifest_code: manifest.code,
+        version: manifest.version,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+        permissions: manifest.permissions,
+        risk_level: manifest.riskLevel,
+        source_type: dto.source_type ?? 'MARKET',
+      },
+      manifest.riskLevel,
+    );
     await this.platformEvents.recordEvent({
       tenantId: currentUser.tenantId,
       departmentId: currentUser.departmentId ?? null,
@@ -301,7 +387,15 @@ export class PluginsService {
       status: 'SUCCESS',
       severity: 'INFO',
       billable: false,
-      summary: `插件 ${plugin.code} 已安装`,
+      summary: `插件 ${plugin.code} 已安装并同步 Manifest`,
+      payloadJson: {
+        plugin_code: plugin.code,
+        manifest_code: manifest.code,
+        version: manifest.version,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+      },
     });
 
     return this.getInstallation(currentUser, plugin.id);
@@ -309,13 +403,14 @@ export class PluginsService {
 
   async update(currentUser: AuthenticatedUser, pluginId: string, dto: UpdatePluginInstallationInput): Promise<PluginInstallationDetail> {
     const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
+    const nextLatestVersion = dto.latest_version?.trim() || undefined;
 
     await this.prisma.plugin.update({
       where: { id: installation.pluginId },
       data: {
         name: dto.name?.trim() ?? undefined,
         description: dto.description === undefined ? undefined : dto.description,
-        latestVersion: dto.latest_version?.trim() ?? undefined,
+        latestVersion: nextLatestVersion,
         riskLevel: dto.risk_level ?? undefined,
         status: dto.status ?? undefined,
         runtimeStatus: dto.runtime_status ?? undefined,
@@ -327,8 +422,8 @@ export class PluginsService {
     await this.prisma.pluginInstallation.update({
       where: { id: installation.id },
       data: {
-        installedVersion: dto.latest_version?.trim() ?? installation.installedVersion,
-        latestVersion: dto.latest_version?.trim() ?? installation.latestVersion,
+        installedVersion: nextLatestVersion ?? installation.installedVersion,
+        latestVersion: nextLatestVersion ?? installation.latestVersion,
         riskLevel: dto.risk_level ?? installation.riskLevel,
         status: dto.status ?? installation.status,
         runtimeStatus: dto.runtime_status ?? installation.runtimeStatus,
@@ -336,6 +431,17 @@ export class PluginsService {
         updatedBy: currentUser.id,
       },
     });
+
+    if (nextLatestVersion && nextLatestVersion !== installation.latestVersion) {
+      await this.upsertPluginVersionSnapshot({
+        tenantId: currentUser.tenantId,
+        pluginId,
+        version: nextLatestVersion,
+        manifestJson: installation.manifestJson,
+        changeNote: '控制台调整后生成的版本快照。',
+        createdBy: currentUser.id,
+      });
+    }
 
     await this.recordAudit(currentUser, pluginId, 'UPDATE', '更新插件', `已更新插件 ${pluginId} 的配置和运行状态。`, 'INFO');
     await this.platformEvents.recordEvent({
@@ -389,6 +495,15 @@ export class PluginsService {
         lastUpgradedAt: new Date(),
         updatedBy: currentUser.id,
       },
+    });
+
+    await this.upsertPluginVersionSnapshot({
+      tenantId: currentUser.tenantId,
+      pluginId,
+      version: nextVersion,
+      manifestJson: installation.manifestJson,
+      changeNote: `插件升级至 ${nextVersion}。`,
+      createdBy: currentUser.id,
     });
 
     await this.recordAudit(currentUser, pluginId, 'UPGRADE', '升级插件', `插件版本升级至 ${nextVersion}。`, 'INFO');
@@ -564,6 +679,350 @@ export class PluginsService {
     return installation;
   }
 
+  private async syncPluginManifest(
+    currentUser: AuthenticatedUser,
+    pluginId: string,
+    manifest: NormalizedPluginManifest,
+  ) {
+    const [permissions, hooks, menus, tools] = await Promise.all([
+      this.syncPluginPermissions(currentUser, manifest),
+      this.syncPluginHooks(currentUser, pluginId, manifest.hooks),
+      this.syncPluginMenus(currentUser, pluginId, manifest.menus, manifest.code),
+      this.syncPluginTools(currentUser, manifest),
+    ]);
+
+    await this.prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        hookCount: hooks,
+        menuCount: menus,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.recordAudit(
+      currentUser,
+      pluginId,
+      'MANIFEST_SYNC',
+      '同步 Manifest',
+      `已同步 ${permissions} 个权限、${hooks} 个 Hook、${menus} 个菜单、${tools} 个工具。`,
+      'SUCCESS',
+      {
+        permissions,
+        hooks,
+        menus,
+        tools,
+        plugin_code: manifest.code,
+        version: manifest.version,
+      },
+      manifest.riskLevel,
+    );
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      pluginId,
+      eventSource: 'CONTROL_API',
+      eventType: 'plugin.manifest.synced',
+      status: 'SUCCESS',
+      severity: manifest.riskLevel === 'CRITICAL' || manifest.riskLevel === 'HIGH' ? 'WARN' : 'INFO',
+      billable: false,
+      summary: `插件 ${manifest.code} Manifest 已同步`,
+      payloadJson: {
+        permissions,
+        hooks,
+        menus,
+        tools,
+        version: manifest.version,
+      },
+    });
+
+    return {
+      permissions,
+      hooks,
+      menus,
+      tools,
+    };
+  }
+
+  private async syncPluginPermissions(currentUser: AuthenticatedUser, manifest: NormalizedPluginManifest) {
+    let synced = 0;
+
+    for (const code of manifest.permissions) {
+      const parsed = parsePermissionCode(code);
+      await this.prisma.permission.upsert({
+        where: {
+          tenantId_code: {
+            tenantId: currentUser.tenantId,
+            code,
+          },
+        },
+        create: {
+          tenantId: currentUser.tenantId,
+          code,
+          name: `${manifest.name} ${parsed.actionLabel}`,
+          module: parsed.module,
+          resource: parsed.resource,
+          action: parsed.action,
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        },
+        update: {
+          name: `${manifest.name} ${parsed.actionLabel}`,
+          module: parsed.module,
+          resource: parsed.resource,
+          action: parsed.action,
+          deletedAt: null,
+          updatedBy: currentUser.id,
+        },
+      });
+      synced += 1;
+    }
+
+    return synced;
+  }
+
+  private async syncPluginHooks(
+    currentUser: AuthenticatedUser,
+    pluginId: string,
+    hooks: NormalizedPluginManifestHook[],
+  ) {
+    let synced = 0;
+
+    for (const hook of hooks) {
+      await this.prisma.pluginHook.upsert({
+        where: {
+          tenantId_pluginId_code: {
+            tenantId: currentUser.tenantId,
+            pluginId,
+            code: hook.code,
+          },
+        },
+        create: {
+          tenantId: currentUser.tenantId,
+          pluginId,
+          code: hook.code,
+          name: hook.name,
+          hookType: hook.hookType,
+          target: hook.target,
+          method: hook.method,
+          status: hook.status,
+          configJson: toJsonInput(hook.configJson),
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        },
+        update: {
+          name: hook.name,
+          hookType: hook.hookType,
+          target: hook.target,
+          method: hook.method,
+          status: hook.status,
+          configJson: toJsonInput(hook.configJson),
+          deletedAt: null,
+          updatedBy: currentUser.id,
+        },
+      });
+      synced += 1;
+    }
+
+    return synced;
+  }
+
+  private async syncPluginMenus(
+    currentUser: AuthenticatedUser,
+    pluginId: string,
+    menus: NormalizedPluginManifestMenu[],
+    pluginCode: string,
+  ) {
+    let synced = 0;
+    const menuIdByRawCode = new Map<string, string>();
+
+    for (const menu of menus) {
+      const menuCode = buildPluginMenuCode(pluginCode, menu.code);
+      const menuRecord = await this.prisma.menu.upsert({
+        where: {
+          tenantId_code: {
+            tenantId: currentUser.tenantId,
+            code: menuCode,
+          },
+        },
+        create: {
+          tenantId: currentUser.tenantId,
+          parentId: null,
+          name: menu.name,
+          code: menuCode,
+          type: menu.type,
+          path: menu.path,
+          component: menu.component,
+          icon: menu.icon,
+          permissionCode: menu.permissionCode,
+          sortOrder: menu.sortOrder,
+          visible: menu.visible,
+          enabled: menu.enabled,
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        },
+        update: {
+          parentId: null,
+          name: menu.name,
+          type: menu.type,
+          path: menu.path,
+          component: menu.component,
+          icon: menu.icon,
+          permissionCode: menu.permissionCode,
+          sortOrder: menu.sortOrder,
+          visible: menu.visible,
+          enabled: menu.enabled,
+          deletedAt: null,
+          updatedBy: currentUser.id,
+        },
+      });
+      menuIdByRawCode.set(menu.code, menuRecord.id);
+    }
+
+    for (const menu of menus) {
+      const menuId = menuIdByRawCode.get(menu.code);
+      if (!menuId) {
+        throw new BadRequestException(`Manifest menu ${menu.code} 同步失败，未生成菜单记录`);
+      }
+
+      if (menu.parentCode) {
+      const parentId =
+        menuIdByRawCode.get(menu.parentCode)
+        ?? (await this.findMenuIdByCode(currentUser.tenantId, buildPluginMenuCode(pluginCode, menu.parentCode)))
+        ?? (await this.findMenuIdByCode(currentUser.tenantId, menu.parentCode));
+        if (!parentId) {
+          throw new BadRequestException(`Manifest menu ${menu.code} 的父菜单 ${menu.parentCode} 不存在`);
+        }
+
+        const menuCode = buildPluginMenuCode(pluginCode, menu.code);
+        await this.prisma.menu.update({
+          where: {
+            tenantId_code: {
+              tenantId: currentUser.tenantId,
+              code: menuCode,
+            },
+          },
+          data: {
+            parentId,
+            updatedBy: currentUser.id,
+          },
+        });
+      }
+
+      await this.prisma.pluginMenuBinding.upsert({
+        where: {
+          tenantId_pluginId_menuId: {
+            tenantId: currentUser.tenantId,
+            pluginId,
+            menuId,
+          },
+        },
+        create: {
+          tenantId: currentUser.tenantId,
+          pluginId,
+          menuId,
+          enabled: menu.enabled,
+          visible: menu.visible,
+          sortOrder: menu.sortOrder,
+          status: menu.enabled ? 'ACTIVE' : 'DISABLED',
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        },
+        update: {
+          enabled: menu.enabled,
+          visible: menu.visible,
+          sortOrder: menu.sortOrder,
+          status: menu.enabled ? 'ACTIVE' : 'DISABLED',
+          deletedAt: null,
+          updatedBy: currentUser.id,
+        },
+      });
+      synced += 1;
+    }
+
+    return synced;
+  }
+
+  private async findMenuIdByCode(tenantId: string, code: string) {
+    const menu = await this.prisma.menu.findFirst({
+      where: {
+        tenantId,
+        code,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return menu?.id ?? null;
+  }
+
+  private async syncPluginTools(currentUser: AuthenticatedUser, manifest: NormalizedPluginManifest) {
+    let synced = 0;
+
+    for (const tool of manifest.tools) {
+      const toolCode = buildPluginToolCode(manifest.code, tool.code);
+      const toolDescription = [
+        tool.description,
+        `来源插件：${manifest.name}（${manifest.code}）`,
+      ].filter(Boolean).join('\n');
+      const requireApproval = tool.requireApproval || tool.riskLevel === 'HIGH';
+      await this.prisma.tool.upsert({
+        where: {
+          tenantId_code: {
+            tenantId: currentUser.tenantId,
+            code: toolCode,
+          },
+        },
+        create: {
+          tenantId: currentUser.tenantId,
+          name: tool.name,
+          code: toolCode,
+          description: toolDescription,
+          toolType: 'HTTP',
+          method: tool.method,
+          url: tool.url,
+          status: tool.status,
+          riskLevel: tool.riskLevel,
+          timeoutMs: tool.timeoutMs,
+          requireApproval,
+          headers: toJsonInput(tool.headers),
+          authType: tool.authType,
+          authConfig: toJsonInput(tool.authConfig),
+          inputSchema: toJsonInput(tool.inputSchema),
+          outputSchema: toJsonInput(tool.outputSchema),
+          createdBy: currentUser.id,
+          updatedBy: currentUser.id,
+        },
+        update: {
+          name: tool.name,
+          description: toolDescription,
+          toolType: 'HTTP',
+          method: tool.method,
+          url: tool.url,
+          status: tool.status,
+          riskLevel: tool.riskLevel,
+          timeoutMs: tool.timeoutMs,
+          requireApproval,
+          headers: toJsonInput(tool.headers),
+          authType: tool.authType,
+          authConfig: toJsonInput(tool.authConfig),
+          inputSchema: toJsonInput(tool.inputSchema),
+          outputSchema: toJsonInput(tool.outputSchema),
+          deletedAt: null,
+          updatedBy: currentUser.id,
+        },
+      });
+      synced += 1;
+    }
+
+    return synced;
+  }
+
   private async recordAudit(
     currentUser: AuthenticatedUser,
     pluginId: string,
@@ -571,6 +1030,8 @@ export class PluginsService {
     title: string,
     summary: string,
     status: string,
+    payload?: Record<string, unknown> | null,
+    riskLevel: PluginRiskLevel = 'LOW',
   ) {
     await this.prisma.pluginAuditLog.create({
       data: {
@@ -580,7 +1041,8 @@ export class PluginsService {
         title,
         summary,
         status,
-        riskLevel: 'LOW',
+        riskLevel,
+        payloadJson: payload === undefined ? Prisma.JsonNull : toJsonInput(payload),
         createdBy: currentUser.id,
       },
     });
@@ -591,6 +1053,45 @@ export class PluginsService {
           increment: 1,
         },
         updatedBy: currentUser.id,
+      },
+    });
+  }
+
+  private async upsertPluginVersionSnapshot(params: {
+    tenantId: string;
+    pluginId: string;
+    version: string;
+    manifestJson: Prisma.JsonValue | null;
+    changeNote: string;
+    createdBy: string;
+  }) {
+    const now = new Date();
+
+    await this.prisma.pluginVersion.upsert({
+      where: {
+        tenantId_pluginId_version: {
+          tenantId: params.tenantId,
+          pluginId: params.pluginId,
+          version: params.version,
+        },
+      },
+      create: {
+        tenantId: params.tenantId,
+        pluginId: params.pluginId,
+        version: params.version,
+        status: 'PUBLISHED',
+        manifestJson: toJsonInput(params.manifestJson),
+        changeNote: params.changeNote,
+        publishedAt: now,
+        createdBy: params.createdBy,
+      },
+      update: {
+        status: 'PUBLISHED',
+        manifestJson: toJsonInput(params.manifestJson),
+        changeNote: params.changeNote,
+        publishedAt: now,
+        createdBy: params.createdBy,
+        deletedAt: null,
       },
     });
   }
@@ -706,6 +1207,7 @@ export class PluginsService {
       plugin_id: version.pluginId,
       version: version.version,
       status: version.status as PluginVersionItem['status'],
+      manifest_json: normalizeJson(version.manifestJson),
       change_note: version.changeNote,
       published_at: version.publishedAt?.toISOString() ?? null,
       created_at: version.createdAt.toISOString(),
@@ -746,4 +1248,384 @@ function toJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJso
   if (value === undefined || value === null || value === Prisma.JsonNull) return Prisma.JsonNull;
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizePluginManifest(dto: CreatePluginInstallationInput): NormalizedPluginManifest {
+  const rawManifest = isPlainRecord(dto.manifest_json) ? dto.manifest_json : {};
+  const manifestPermissions = getStringArray(rawManifest, ['permissions', 'permission_codes', 'permission_preview']);
+  const permissions = uniqueStrings([
+    ...manifestPermissions,
+    ...(Array.isArray(dto.permission_preview) ? dto.permission_preview : []),
+  ]);
+  const menus = getManifestObjectArray(rawManifest, ['menus', 'menu_bindings', 'menu_entries']).map((item, index) =>
+    normalizeManifestMenu(item, index),
+  );
+  const hooks = getManifestObjectArray(rawManifest, ['hooks']).map((item, index) => normalizeManifestHook(item, index));
+  const tools = getManifestObjectArray(rawManifest, ['tools', 'actions', 'capabilities']).map((item, index) =>
+    normalizeManifestTool(item, index),
+  );
+  const config = isPlainRecord(dto.config_json)
+    ? dto.config_json
+    : getRecord(rawManifest, ['config', 'config_json']);
+  const version = normalizeVersion(
+    getString(rawManifest, ['version', 'latest_version'])
+    ?? dto.latest_version
+    ?? '1.0.0',
+  );
+  const riskLevel = normalizePluginRiskLevel(
+    getString(rawManifest, ['risk_level', 'risk'])
+    ?? dto.risk_level
+    ?? null,
+  );
+  const code = normalizeManifestCode(getString(rawManifest, ['code', 'plugin_code']) ?? dto.code);
+  const name = normalizeOptionalText(getString(rawManifest, ['name', 'plugin_name']) ?? dto.name ?? null) ?? code;
+  const provider =
+    normalizeOptionalText(getString(rawManifest, ['provider', 'vendor']) ?? dto.provider ?? null) ?? '平台插件市场';
+  const description = normalizeOptionalText(
+    getString(rawManifest, ['description', 'summary'])
+    ?? dto.description
+    ?? null,
+  );
+
+  return {
+    raw: {
+      ...rawManifest,
+      code,
+      name,
+      provider,
+      version,
+      description,
+      risk_level: riskLevel,
+      permissions,
+      config,
+      menus,
+      hooks,
+      tools,
+    },
+    code,
+    name,
+    provider,
+    version,
+    description,
+    riskLevel,
+    permissions,
+    menus,
+    hooks,
+    tools,
+    config,
+  };
+}
+
+function normalizeManifestMenu(value: Record<string, unknown>, index: number): NormalizedPluginManifestMenu {
+  const code = normalizeManifestCode(getString(value, ['code', 'menu_code']) ?? `menu_${index + 1}`);
+  const name = normalizeText(getString(value, ['name', 'menu_name']) ?? code);
+  const path = normalizeOptionalText(getString(value, ['path', 'route']) ?? null);
+  const component = normalizeOptionalText(getString(value, ['component', 'view']) ?? null);
+  const icon = normalizeOptionalText(getString(value, ['icon']) ?? null);
+  const permissionCode = normalizeOptionalText(getString(value, ['permission_code', 'permissionCode']) ?? null);
+  const sortOrder = normalizeNumber(value.sort_order ?? value.sortOrder, 0);
+  const visible = normalizeBoolean(value.visible, true);
+  const enabled = normalizeBoolean(value.enabled, true);
+  const parentCode = normalizeOptionalText(getString(value, ['parent_code', 'parentCode']) ?? null);
+  const type = normalizeMenuType(getString(value, ['type', 'menu_type']) ?? null);
+
+  return {
+    code,
+    name,
+    path,
+    component,
+    icon,
+    permissionCode,
+    sortOrder,
+    visible,
+    enabled,
+    parentCode,
+    type,
+  };
+}
+
+function normalizeManifestHook(value: Record<string, unknown>, index: number): NormalizedPluginManifestHook {
+  const code = normalizeManifestCode(getString(value, ['code', 'hook_code']) ?? `hook_${index + 1}`);
+  const name = normalizeText(getString(value, ['name', 'hook_name']) ?? code);
+  const hookType = normalizeText(getString(value, ['hook_type', 'type']) ?? 'EVENT');
+  const target = normalizeText(getString(value, ['target', 'event', 'topic']) ?? code);
+  const method = normalizeHookMethod(getString(value, ['method']) ?? null);
+  const status = normalizeHookStatus(getString(value, ['status']) ?? null);
+  const configJson = getRecord(value, ['config', 'config_json']);
+
+  return {
+    code,
+    name,
+    hookType,
+    target,
+    method,
+    status,
+    configJson,
+  };
+}
+
+function normalizeManifestTool(value: Record<string, unknown>, index: number): NormalizedPluginManifestTool {
+  const rawCode = normalizeManifestCode(getString(value, ['code', 'tool_code']) ?? `tool_${index + 1}`);
+  const name = normalizeText(getString(value, ['name', 'tool_name']) ?? rawCode);
+  const method = normalizeToolMethod(getString(value, ['method']) ?? 'POST');
+  const url = normalizeUrl(getString(value, ['url', 'endpoint']) ?? '');
+  const riskLevel = normalizeToolRiskLevel(getString(value, ['risk_level', 'risk']) ?? null);
+  const timeoutMs = normalizeNumber(value.timeout_ms ?? value.timeoutMs, 10000);
+  const requireApproval = riskLevel === 'HIGH'
+    ? true
+    : normalizeBoolean(value.require_approval ?? value.requireApproval, false);
+  const headers = normalizeStringRecord(value.headers);
+  const authType = normalizeToolAuthType(getString(value, ['auth_type', 'authType']) ?? null);
+  const authConfig = getRecord(value, ['auth_config', 'authConfig']);
+  const inputSchema = getRecord(value, ['input_schema', 'inputSchema']) ?? defaultPermissiveObjectSchema();
+  const outputSchema = getRecord(value, ['output_schema', 'outputSchema']) ?? defaultPermissiveObjectSchema();
+  const status = normalizeToolStatus(getString(value, ['status']) ?? null);
+  const description = normalizeOptionalText(getString(value, ['description', 'summary']) ?? null);
+
+  if (!url) {
+    throw new BadRequestException(`Manifest tool ${rawCode} 缺少有效 url`);
+  }
+
+  return {
+    code: rawCode,
+    name,
+    method,
+    url,
+    riskLevel,
+    timeoutMs,
+    requireApproval,
+    headers,
+    authType,
+    authConfig,
+    inputSchema,
+    outputSchema,
+    status,
+    description,
+  };
+}
+
+function parsePermissionCode(code: string) {
+  const normalized = normalizeText(code);
+  const segments = normalized.split(':').map((item) => item.trim()).filter(Boolean);
+  const module = normalizeManifestCode(segments[0] ?? 'plugin');
+  const resource = normalizeManifestCode(segments[1] ?? module);
+  const action = normalizeManifestCode(segments.slice(2).join(':') || 'use');
+  const actionLabel = segments.length >= 3 ? segments[segments.length - 1] : action;
+
+  return {
+    module,
+    resource,
+    action,
+    actionLabel,
+  };
+}
+
+function buildPluginMenuCode(pluginCode: string, rawCode: string) {
+  return buildNamespacedCode('plugin', pluginCode, rawCode, 100);
+}
+
+function buildPluginToolCode(pluginCode: string, rawCode: string) {
+  return buildNamespacedCode('plugin_tool', pluginCode, rawCode, 100);
+}
+
+function buildNamespacedCode(prefix: string, namespace: string, rawCode: string, maxLength: number) {
+  const parts = [prefix, namespace, rawCode].map((part) => normalizeManifestCode(part)).filter(Boolean);
+  const base = parts.join('_');
+  if (base.length <= maxLength && /^[a-z]/.test(base)) {
+    return base;
+  }
+
+  const hash = createHash('sha1').update(base).digest('hex').slice(0, 8);
+  const trimLength = Math.max(3, maxLength - hash.length - 1);
+  const trimmed = base.slice(0, trimLength).replace(/_+$/g, '');
+  const candidate = `${trimmed}_${hash}`.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+  return candidate.slice(0, maxLength);
+}
+
+function normalizeManifestCode(value: string) {
+  const normalized = normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return normalized || 'item';
+}
+
+function normalizeText(value: string) {
+  return value.trim();
+}
+
+function normalizeOptionalText(value: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeVersion(value: string) {
+  const trimmed = value.trim();
+  return trimmed || '1.0.0';
+}
+
+function normalizePluginRiskLevel(value: string | null): PluginRiskLevel {
+  if (value === 'LOW' || value === 'MEDIUM' || value === 'HIGH' || value === 'CRITICAL') return value;
+
+  return 'MEDIUM';
+}
+
+function normalizeToolRiskLevel(value: string | null): 'LOW' | 'MEDIUM' | 'HIGH' {
+  if (value === 'LOW' || value === 'MEDIUM') return value;
+  return 'HIGH';
+}
+
+function normalizeToolMethod(value: string) {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === 'GET' || normalized === 'POST' || normalized === 'PUT' || normalized === 'PATCH' || normalized === 'DELETE') {
+    return normalized;
+  }
+  return 'POST';
+}
+
+function normalizeToolStatus(value: string | null) {
+  if (value === 'ACTIVE' || value === 'DISABLED') return value;
+  return 'ACTIVE';
+}
+
+function normalizeHookMethod(value: string | null) {
+  const normalized = normalizeOptionalText(value);
+  return normalized ? normalized.toUpperCase() : 'ASYNC';
+}
+
+function normalizeHookStatus(value: string | null): PluginHookStatus {
+  if (value === 'ACTIVE' || value === 'DISABLED' || value === 'DELETED') return value;
+  return 'ACTIVE';
+}
+
+function normalizeMenuType(value: string | null) {
+  const normalized = normalizeOptionalText(value)?.toUpperCase();
+  if (normalized === 'DIRECTORY' || normalized === 'MENU' || normalized === 'BUTTON') {
+    return normalized;
+  }
+
+  return 'MENU';
+}
+
+function normalizeToolAuthType(value: string | null) {
+  const normalized = normalizeOptionalText(value)?.toUpperCase();
+  if (
+    normalized === 'NONE'
+    || normalized === 'BEARER'
+    || normalized === 'API_KEY_HEADER'
+    || normalized === 'API_KEY_QUERY'
+    || normalized === 'BASIC'
+  ) {
+    return normalized;
+  }
+
+  return 'NONE';
+}
+
+function normalizeUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  try {
+    return new URL(trimmed).toString();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeNumber(value: unknown, fallback: number) {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+
+  return fallback;
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> | null {
+  if (value === undefined || value === null) return null;
+  if (!isPlainRecord(value)) {
+    throw new BadRequestException('headers must be a JSON object');
+  }
+
+  const output: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== 'string') {
+      throw new BadRequestException(`headers.${key} must be a string`);
+    }
+    output[key] = entry;
+  }
+
+  return output;
+}
+
+function getString(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const entry = value[key];
+    if (typeof entry === 'string') {
+      const trimmed = entry.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+
+  return null;
+}
+
+function getRecord(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const entry = value[key];
+    if (isPlainRecord(entry)) {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
+function getManifestObjectArray(manifest: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = manifest[key];
+    if (Array.isArray(value)) {
+      return value.filter(isPlainRecord);
+    }
+  }
+
+  return [];
+}
+
+function getStringArray(manifest: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = manifest[key];
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (typeof item === 'string' ? item.trim() : null))
+        .filter((item): item is string => Boolean(item));
+    }
+  }
+
+  return [];
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map((item) => item.trim()).filter(Boolean)));
+}
+
+function defaultPermissiveObjectSchema() {
+  return {
+    type: 'object',
+    additionalProperties: true,
+  } as const;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

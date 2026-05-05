@@ -6,6 +6,14 @@ export class UpsertPublishChannelDto {
   @IsUUID('4')
   agent_id!: string;
 
+  @IsOptional()
+  @IsUUID('4')
+  account_id?: string | null;
+
+  @IsOptional()
+  @IsUUID('4')
+  route_rule_id?: string | null;
+
   @IsIn(['WEB_WIDGET', 'OPEN_API', 'WECHAT_WORK', 'DINGTALK', 'FEISHU', 'SLACK', 'CUSTOM_WEBHOOK'] satisfies PublishChannelType[])
   channel!: PublishChannelType;
 

@@ -450,8 +450,7 @@ export function SecurityPolicyContent() {
 
   const canViewApprovals = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:view') ||
-      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:handle'),
+      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:view'),
   );
 
   const canHandleApprovals = Boolean(
@@ -2196,7 +2195,23 @@ function SecurityApprovalWorkbenchDetailPanel({
   onReview: (approvalId: string, decision: 'APPROVE' | 'REJECT') => void;
   reviewing: boolean;
 }) {
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const current = detail ?? fallback;
+
+  async function copyValue(label: string, value: string | null) {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyMessage(`${label}已复制。`);
+    } catch {
+      setCopyMessage(`${label}复制失败。`);
+    }
+  }
+
+  useEffect(() => {
+    setCopyMessage(null);
+  }, [current?.id]);
 
   if (loading && !current) {
     return <div className="p-6 text-sm text-muted-foreground">正在加载审批详情...</div>;
@@ -2261,6 +2276,17 @@ function SecurityApprovalWorkbenchDetailPanel({
           <span className="truncate">request_id：{current.request_id ?? '-'}</span>
           <span className="truncate">trace_id：{current.trace_id ?? '-'}</span>
         </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button disabled={!current.request_id} onClick={() => void copyValue('请求 ID', current.request_id)} size="sm" type="button" variant="outline">
+            <Copy className="size-4" />
+            复制请求 ID
+          </Button>
+          <Button disabled={!current.trace_id} onClick={() => void copyValue('Trace ID', current.trace_id)} size="sm" type="button" variant="outline">
+            <Copy className="size-4" />
+            复制 Trace ID
+          </Button>
+        </div>
+        {copyMessage ? <div className="mt-2 text-xs text-muted-foreground">{copyMessage}</div> : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.request_id ? (
             <Button asChild size="sm" type="button" variant="outline">

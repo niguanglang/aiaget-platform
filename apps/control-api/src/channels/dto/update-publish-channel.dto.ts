@@ -1,8 +1,16 @@
-import { IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 import type { PublishChannelStatus } from '@aiaget/shared-types';
 
 export class UpdatePublishChannelDto {
+  @IsOptional()
+  @IsUUID('4')
+  account_id?: string | null;
+
+  @IsOptional()
+  @IsUUID('4')
+  route_rule_id?: string | null;
+
   @IsOptional()
   @IsString()
   @MaxLength(160)

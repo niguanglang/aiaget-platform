@@ -1134,6 +1134,7 @@ export interface PluginVersionItem {
   plugin_id: string;
   version: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  manifest_json: Record<string, unknown> | null;
   change_note: string | null;
   published_at: string | null;
   created_at: string;
@@ -3250,6 +3251,8 @@ export interface PublishChannelOverview {
 
 export interface UpsertPublishChannelInput {
   agent_id: string;
+  account_id?: string | null;
+  route_rule_id?: string | null;
   channel: PublishChannelType;
   name: string;
   description?: string | null;
@@ -3261,6 +3264,8 @@ export interface UpsertPublishChannelInput {
 }
 
 export interface UpdatePublishChannelInput {
+  account_id?: string | null;
+  route_rule_id?: string | null;
   name?: string;
   description?: string | null;
   endpoint_url?: string | null;
@@ -3268,6 +3273,310 @@ export interface UpdatePublishChannelInput {
   secret?: string | null;
   config?: Record<string, unknown> | null;
   status?: PublishChannelStatus;
+}
+
+export interface ChannelOperationsListParams {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  status?: string;
+  provider?: string;
+  channel_id?: string;
+  account_id?: string;
+}
+
+export interface ChannelOperationsListResult<TItem> {
+  items: TItem[];
+  total: number;
+  page?: number;
+  page_size?: number;
+  generated_at?: string;
+}
+
+export type ChannelProviderOperationStatus = 'ACTIVE' | 'DISABLED' | 'ERROR' | 'DRAFT';
+export type ChannelAccountOperationStatus = 'ACTIVE' | 'DISABLED' | 'ERROR' | 'EXPIRED';
+export type ChannelTemplateOperationStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ERROR' | 'APPROVED' | 'REJECTED';
+export type ChannelRouteRuleOperationStatus = 'ACTIVE' | 'DISABLED' | 'ERROR' | 'DRAFT';
+export type ChannelRouteRuleDirection = 'INBOUND' | 'OUTBOUND';
+
+export interface CreateChannelProviderInput {
+  name: string;
+  code: string;
+  provider_type?: string;
+  endpoint_url?: string | null;
+  callback_url?: string | null;
+  capabilities?: string[];
+  auth_type?: string | null;
+  config?: Record<string, unknown> | null;
+  description?: string | null;
+  status?: ChannelProviderOperationStatus;
+}
+
+export interface UpdateChannelProviderInput {
+  name?: string;
+  provider_type?: string;
+  endpoint_url?: string | null;
+  callback_url?: string | null;
+  capabilities?: string[];
+  auth_type?: string | null;
+  config?: Record<string, unknown> | null;
+  description?: string | null;
+  status?: ChannelProviderOperationStatus;
+}
+
+export interface CreateChannelAccountInput {
+  provider_id: string;
+  code: string;
+  name: string;
+  external_account_id?: string | null;
+  secret?: string | null;
+  config?: Record<string, unknown> | null;
+  description?: string | null;
+  status?: ChannelAccountOperationStatus;
+}
+
+export interface UpdateChannelAccountInput {
+  name?: string;
+  external_account_id?: string | null;
+  secret?: string | null;
+  config?: Record<string, unknown> | null;
+  description?: string | null;
+  status?: ChannelAccountOperationStatus;
+}
+
+export interface CreateChannelTemplateInput {
+  provider_id?: string | null;
+  account_id?: string | null;
+  code: string;
+  name: string;
+  template_type?: string;
+  locale?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  variables?: Record<string, unknown> | null;
+  content_schema?: Record<string, unknown> | null;
+  external_template_id?: string | null;
+  version?: number;
+  status?: ChannelTemplateOperationStatus;
+}
+
+export interface UpdateChannelTemplateInput {
+  provider_id?: string | null;
+  account_id?: string | null;
+  name?: string;
+  template_type?: string;
+  locale?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  variables?: Record<string, unknown> | null;
+  content_schema?: Record<string, unknown> | null;
+  external_template_id?: string | null;
+  status?: ChannelTemplateOperationStatus;
+}
+
+export interface CreateChannelRouteRuleInput {
+  agent_id?: string | null;
+  provider_id?: string | null;
+  account_id?: string | null;
+  code: string;
+  name: string;
+  priority?: number;
+  status?: ChannelRouteRuleOperationStatus;
+  direction?: ChannelRouteRuleDirection;
+  match_type?: string;
+  match_config?: Record<string, unknown> | null;
+  target_type?: string;
+  target_config?: Record<string, unknown> | null;
+}
+
+export interface UpdateChannelRouteRuleInput {
+  agent_id?: string | null;
+  provider_id?: string | null;
+  account_id?: string | null;
+  name?: string;
+  priority?: number;
+  status?: ChannelRouteRuleOperationStatus;
+  direction?: ChannelRouteRuleDirection;
+  match_type?: string;
+  match_config?: Record<string, unknown> | null;
+  target_type?: string;
+  target_config?: Record<string, unknown> | null;
+  clear_agent?: boolean;
+}
+
+export type ChannelPublishJobStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'CANCELED'
+  | 'RETRYING';
+
+export interface ChannelProviderItem {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  status: string;
+  health_status?: string | null;
+  account_count?: number;
+  template_count?: number;
+  route_rule_count?: number;
+  delivery_count_24h?: number;
+  success_rate_24h?: number;
+  last_checked_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelAccountItem {
+  id: string;
+  provider_id?: string | null;
+  provider_code?: string | null;
+  provider_name?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  account_name: string;
+  account_key?: string | null;
+  status: string;
+  owner?: string | null;
+  environment?: string | null;
+  last_used_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelTemplateItem {
+  id: string;
+  provider_id?: string | null;
+  provider_code?: string | null;
+  provider_name?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  name: string;
+  template_code?: string | null;
+  template_type?: string | null;
+  language?: string | null;
+  version?: string | number | null;
+  status: string;
+  updated_at?: string;
+  created_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelRouteRuleItem {
+  id: string;
+  name: string;
+  status: string;
+  priority?: number | null;
+  provider_id?: string | null;
+  provider_name?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  match_type?: string | null;
+  match_value?: string | null;
+  target_type?: string | null;
+  target_id?: string | null;
+  fallback_target?: string | null;
+  updated_at?: string;
+  created_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelPublishJobItem {
+  id: string;
+  job_no?: string | null;
+  title?: string | null;
+  status: string;
+  job_type?: string | null;
+  progress?: number | null;
+  progress_percent?: number | null;
+  completed_count?: number | null;
+  total_count?: number | null;
+  provider_id?: string | null;
+  provider_name?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  account_id?: string | null;
+  account_name?: string | null;
+  template_id?: string | null;
+  template_name?: string | null;
+  retry_count?: number;
+  scheduled_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  error_message?: string | null;
+  payload?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  result?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  created_at?: string;
+  updated_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelPublishJobTimelineItem {
+  label: string;
+  status: ChannelPublishJobStatus | string;
+  occurred_at?: string | null;
+  description?: string | null;
+}
+
+export interface ChannelPublishJobDetail extends ChannelPublishJobItem {
+  payload?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  result?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  timeline?: ChannelPublishJobTimelineItem[];
+}
+
+export interface ChannelPublishJobActionResult {
+  action: 'CANCEL' | 'RETRY';
+  message: string;
+  job: ChannelPublishJobDetail;
+}
+
+export interface ChannelDeliveryItem {
+  id: string;
+  delivery_id?: string | null;
+  status: string;
+  provider?: string | null;
+  provider_name?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  account_id?: string | null;
+  account_name?: string | null;
+  target?: string | null;
+  response_status?: number | null;
+  latency_ms?: number | null;
+  retry_count?: number;
+  trace_id?: string | null;
+  error_message?: string | null;
+  delivered_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelReplyItem {
+  id: string;
+  reply_id?: string | null;
+  status: string;
+  provider?: string | null;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  delivery_id?: string | null;
+  external_conversation_id?: string | null;
+  external_message_id?: string | null;
+  conversation_id?: string | null;
+  run_id?: string | null;
+  trace_id?: string | null;
+  reply_type?: string | null;
+  content_preview?: string | null;
+  error_message?: string | null;
+  replied_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export type ChannelPublishApprovalStatus = 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -3952,6 +4261,7 @@ export interface AgentTeamStepItem {
 
 export interface AgentTeamHandoffItem {
   id: string;
+  run_id: string;
   from_member_id: string | null;
   to_member_id: string | null;
   from_agent_id: string | null;

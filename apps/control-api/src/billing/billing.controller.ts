@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import type { BillingAdjustmentItem, BillingOverview, BillingQuotaPolicyItem, BillingSubscriptionItem } from '@aiaget/shared-types';
+import type { BillingAdjustmentItem, BillingInvoiceItem, BillingOverview, BillingQuotaPolicyItem, BillingSubscriptionItem } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -39,6 +39,13 @@ export class BillingController {
     @Body() dto: CreateBillingAdjustmentDto,
   ): Promise<BillingAdjustmentItem> {
     return this.billingService.createAdjustment(currentUser, dto);
+  }
+
+  @Post('invoices/current/recalculate')
+  @Permissions('billing:adjustment:manage')
+  @ApiOkResponse({ description: 'Recalculate current billing period invoice' })
+  async recalculateCurrentInvoice(@CurrentUser() currentUser: AuthenticatedUser): Promise<BillingInvoiceItem> {
+    return this.billingService.recalculateCurrentInvoice(currentUser);
   }
 
   @Patch('subscription')

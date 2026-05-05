@@ -15,6 +15,12 @@ import type {
 
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser, RequestWithContext } from '../common/types/request-context';
+import {
+  redactChannelAuditHeaders,
+  redactChannelAuditText,
+  redactChannelAuditUrl,
+  redactChannelAuditValue,
+} from '../channels/channel-audit-redaction';
 import { decryptSecret } from '../models/model-secrets';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -180,6 +186,9 @@ export class ExternalChannelSenderService {
     if (!delivery.requestUrl) {
       throw new BadRequestException('Channel sender delivery request URL is unavailable');
     }
+    if (hasRedactedAuditCredential(delivery.requestUrl, delivery.requestHeaders, delivery.requestBody)) {
+      throw new BadRequestException('Channel sender delivery audit credentials are redacted and cannot be retried safely');
+    }
     const policy = readSenderPolicy(delivery.channel.config);
     if (!policy.manual_retry_enabled) {
       throw new BadRequestException('当前渠道策略已关闭手动重试');
@@ -198,6 +207,9 @@ export class ExternalChannelSenderService {
     const retryDeliveryId = `csd_${randomUUID().replaceAll('-', '')}`;
     const requestHeaders = parseHeaders(delivery.requestHeaders);
     const requestBody = normalizeJson(delivery.requestBody);
+    const auditRequestUrl = redactChannelAuditUrl(delivery.requestUrl);
+    const auditRequestBody = redactChannelAuditValue(requestBody);
+    const auditRequestHeaders = redactChannelAuditHeaders(requestHeaders);
     const retry = await this.prisma.channelSenderDelivery.create({
       data: {
         tenantId: currentUser.tenantId,
@@ -207,9 +219,9 @@ export class ExternalChannelSenderService {
         parentDeliveryId: delivery.id,
         provider: delivery.provider,
         target: delivery.target,
-        requestUrl: delivery.requestUrl,
-        requestBody: toNullableJsonInput(requestBody),
-        requestHeaders: requestHeaders as Prisma.InputJsonValue,
+        requestUrl: auditRequestUrl,
+        requestBody: toNullableJsonInput(auditRequestBody),
+        requestHeaders: auditRequestHeaders as Prisma.InputJsonValue,
         status: 'RETRYING',
         retryCount: delivery.retryCount + 1,
         conversationId: delivery.conversationId,
@@ -225,9 +237,9 @@ export class ExternalChannelSenderService {
       channel: retry.channel,
       deliveryKey: retry.deliveryId,
       retryCount: retry.retryCount,
-      requestUrl: retry.requestUrl,
-      requestBody,
-      requestHeaders,
+      requestUrl: auditRequestUrl,
+      requestBody: auditRequestBody,
+      requestHeaders: auditRequestHeaders,
       target: retry.target,
       conversationId: retry.conversationId,
       runId: retry.runId,
@@ -273,10 +285,20 @@ export class ExternalChannelSenderService {
         error_message: '投递记录状态或请求地址不满足自动重试条件。',
       });
     }
+    if (hasRedactedAuditCredential(delivery.requestUrl, delivery.requestHeaders, delivery.requestBody)) {
+      return buildTaskResult('AUTO_RETRY', startedAt, {
+        scanned_count: 1,
+        skipped_count: 1,
+        error_message: '投递审计凭据已脱敏，不能安全自动重试。',
+      });
+    }
 
     const retryDeliveryId = `csd_${randomUUID().replaceAll('-', '')}`;
     const requestHeaders = parseHeaders(delivery.requestHeaders);
     const requestBody = normalizeJson(delivery.requestBody);
+    const auditRequestUrl = redactChannelAuditUrl(delivery.requestUrl);
+    const auditRequestBody = redactChannelAuditValue(requestBody);
+    const auditRequestHeaders = redactChannelAuditHeaders(requestHeaders);
     const retry = await this.prisma.channelSenderDelivery.create({
       data: {
         tenantId: delivery.tenantId,
@@ -286,9 +308,9 @@ export class ExternalChannelSenderService {
         parentDeliveryId: delivery.id,
         provider: delivery.provider,
         target: delivery.target,
-        requestUrl: delivery.requestUrl,
-        requestBody: toNullableJsonInput(requestBody),
-        requestHeaders: requestHeaders as Prisma.InputJsonValue,
+        requestUrl: auditRequestUrl,
+        requestBody: toNullableJsonInput(auditRequestBody),
+        requestHeaders: auditRequestHeaders as Prisma.InputJsonValue,
         status: 'RETRYING',
         retryCount: delivery.retryCount + 1,
         conversationId: delivery.conversationId,
@@ -304,9 +326,9 @@ export class ExternalChannelSenderService {
       channel: retry.channel,
       deliveryKey: retry.deliveryId,
       retryCount: retry.retryCount,
-      requestUrl: retry.requestUrl,
-      requestBody,
-      requestHeaders,
+      requestUrl: auditRequestUrl,
+      requestBody: auditRequestBody,
+      requestHeaders: auditRequestHeaders,
       target: retry.target,
       conversationId: retry.conversationId,
       runId: retry.runId,
@@ -675,6 +697,9 @@ export class ExternalChannelSenderService {
     retryCount: number,
   ) {
     const deliveryId = `csd_${randomUUID().replaceAll('-', '')}`;
+    const auditRequestUrl = redactChannelAuditUrl(plan.requestUrl);
+    const auditRequestBody = redactChannelAuditValue(plan.requestBody);
+    const auditRequestHeaders = redactChannelAuditHeaders(plan.requestHeaders);
     const delivery = await this.prisma.channelSenderDelivery.create({
       data: {
         tenantId: input.operator.tenantId,
@@ -684,10 +709,10 @@ export class ExternalChannelSenderService {
         parentDeliveryId,
         provider: plan.provider,
         target: plan.target,
-        requestUrl: plan.requestUrl,
+        requestUrl: auditRequestUrl,
         status: 'PENDING',
-        requestBody: plan.requestBody === null ? Prisma.JsonNull : toJsonValue(plan.requestBody),
-        requestHeaders: plan.requestHeaders as Prisma.InputJsonValue,
+        requestBody: plan.requestBody === null ? Prisma.JsonNull : toJsonValue(auditRequestBody),
+        requestHeaders: auditRequestHeaders as Prisma.InputJsonValue,
         retryCount,
         conversationId: input.conversationId,
         runId: input.runId,
@@ -702,9 +727,9 @@ export class ExternalChannelSenderService {
       channel: input.channel,
       deliveryKey: deliveryId,
       retryCount,
-      requestUrl: plan.requestUrl,
-      requestBody: plan.requestBody,
-      requestHeaders: plan.requestHeaders,
+      requestUrl: auditRequestUrl,
+      requestBody: auditRequestBody,
+      requestHeaders: auditRequestHeaders,
       target: plan.target,
       conversationId: input.conversationId,
       runId: input.runId,
@@ -863,7 +888,7 @@ export class ExternalChannelSenderService {
         provider: result.provider,
         target: result.target,
         response_status: result.responseStatus,
-        response_body: result.responseBody === null ? null : toJsonValue(sanitizeResponse(result.responseBody)),
+        response_body: result.responseBody === null ? null : toJsonValue(redactChannelAuditValue(result.responseBody)),
         error_message: result.errorMessage,
         external_conversation_id: input.message.externalConversationId,
         external_message_id: input.message.externalMessageId,
@@ -1285,12 +1310,7 @@ function sanitizeResponse(value: unknown) {
   const record = asRecord(value);
   if (Object.keys(record).length === 0) return value;
 
-  return Object.fromEntries(
-    Object.entries(record).map(([key, entry]) => [
-      key,
-      isSensitiveKey(key) ? '[REDACTED]' : entry,
-    ]),
-  );
+  return redactChannelAuditValue(record);
 }
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
@@ -1313,36 +1333,26 @@ function normalizeJson(value: Prisma.JsonValue | null) {
   return JSON.parse(JSON.stringify(value)) as unknown;
 }
 
+function hasRedactedAuditCredential(...values: unknown[]) {
+  return values.some((value) => JSON.stringify(value)?.includes('REDACTED'));
+}
+
 function truncate(value: string, limit: number) {
   return value.length <= limit ? value : `${value.slice(0, limit)}...`;
 }
 
 function truncateResponse(value: unknown) {
-  if (typeof value === 'string') return truncate(value, RESPONSE_BODY_LIMIT);
+  if (typeof value === 'string') return truncate(redactChannelAuditText(value) ?? '', RESPONSE_BODY_LIMIT);
 
   return truncate(JSON.stringify(sanitizeResponse(value)), RESPONSE_BODY_LIMIT);
 }
 
 function redactUrl(value: string | null) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    for (const key of Array.from(url.searchParams.keys())) {
-      if (isSensitiveKey(key)) {
-        url.searchParams.set(key, '***');
-      }
-    }
-
-    return url.toString();
-  } catch {
-    return value;
-  }
+  return redactChannelAuditUrl(value);
 }
 
 function maskHeaders(headers: Record<string, string>) {
-  return Object.fromEntries(
-    Object.entries(headers).map(([key, value]) => [key, isSensitiveKey(key) ? '[REDACTED]' : value]),
-  );
+  return redactChannelAuditHeaders(headers);
 }
 
 function parseHeaders(value: Prisma.JsonValue | null): Record<string, string> {
@@ -1358,7 +1368,6 @@ function isSensitiveKey(key: string) {
 
   return normalized.includes('token') || normalized.includes('key') || normalized.includes('secret') || normalized.includes('authorization') || normalized.includes('sign');
 }
-
 function toDeliveryStatus(status: ChannelSenderResult['status']): ChannelSenderDeliveryStatus {
   if (status === 'SENT') return 'SUCCESS';
   if (status === 'SKIPPED') return 'SKIPPED';
@@ -1404,9 +1413,9 @@ function mapDeliveryListItem(delivery: DeliveryRecord): ChannelSenderDeliveryLis
 function mapDeliveryDetail(delivery: DeliveryRecord): ChannelSenderDeliveryDetail {
   return {
     ...mapDeliveryListItem(delivery),
-    request_body: normalizeJson(delivery.requestBody),
+    request_body: redactChannelAuditValue(normalizeJson(delivery.requestBody)),
     request_headers: maskHeaders(parseHeaders(delivery.requestHeaders)),
-    response_body: delivery.responseBody,
+    response_body: redactChannelAuditText(delivery.responseBody),
     updated_at: delivery.updatedAt.toISOString(),
   };
 }

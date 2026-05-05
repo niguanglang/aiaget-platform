@@ -39,6 +39,7 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
       'plugin:center:enable',
       'plugin:center:disable',
       'plugin:center:upgrade',
+      'plugin:center:uninstall',
       'plugin:center:audit',
     ],
   },

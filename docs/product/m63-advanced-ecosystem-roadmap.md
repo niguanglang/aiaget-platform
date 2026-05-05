@@ -156,6 +156,8 @@ plugin_audit_log
 
 - 市场、已安装、详情、启停、升级、Hook、菜单绑定、权限预览、审计记录
 - 安装前确认向导
+- Manifest 后端校验接口和安装前门禁：自定义插件必须声明包来源、sha256 和签名元数据，失败写 `plugin.manifest.validation_failed`
+- Manifest 工具预览会给出 Tool Gateway 绑定编码，安装后插件工具同步到 Tool Center 并继续复用统一工具网关
 - 版本快照写入与版本对比
 - 审计视图前端权限收口
 

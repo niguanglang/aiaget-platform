@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type {
   PluginInstallationDetail,
   PluginInstallationItem,
+  PluginManifestValidationResult,
   PluginMarketItem,
   PluginOverview,
   PluginUninstallResult,
@@ -83,6 +84,13 @@ export class PluginsController {
     @Body() dto: CreatePluginInstallationDto,
   ): Promise<PluginInstallationDetail> {
     return this.pluginsService.install(currentUser, dto);
+  }
+
+  @Post('manifest/validate')
+  @Permissions('plugin:center:install')
+  @ApiOkResponse({ description: 'Validate plugin manifest and preview generated tool/menu bindings' })
+  async validateManifest(@Body() dto: CreatePluginInstallationDto): Promise<PluginManifestValidationResult> {
+    return this.pluginsService.validateManifest(dto);
   }
 
   @Patch(':pluginId')

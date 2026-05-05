@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -16,7 +17,7 @@ const validEnv = {
   RUNTIME_BASE_URL: 'http://agent-runtime:8000',
   CONTROL_API_INTERNAL_BASE_URL: 'http://control-api:3001',
   AGENT_RUNTIME_EXECUTION_MODE: 'runtime_first',
-  KNOWLEDGE_WORKFLOW_MODE: 'runtime_first',
+  KNOWLEDGE_WORKFLOW_MODE: 'temporal_first',
   AGENT_TEAM_WORKFLOW_MODE: 'runtime_first',
   CHANNEL_RELEASE_WORKFLOW_MODE: 'runtime_first',
   CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: 'runtime_first',
@@ -55,6 +56,17 @@ const validEnv = {
   TOOL_GATEWAY_RATE_LIMIT_PER_MINUTE: '120',
   TOOL_GATEWAY_MAX_RETRIES: '1',
   TOOL_GATEWAY_MAX_RESPONSE_CHARS: '20000',
+  OTEL_SERVICE_NAMESPACE: 'aiaget',
+  OTEL_DEPLOYMENT_ENVIRONMENT: 'production',
+  OTEL_EXPORTER_OTLP_ENDPOINT: 'http://otel-collector.example.com:4318',
+  OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+  OTEL_TRACES_EXPORTER: 'otlp',
+  OTEL_METRICS_EXPORTER: 'otlp',
+  OTEL_LOGS_EXPORTER: 'otlp',
+  OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment=production,service.namespace=aiaget',
+  OTEL_PROPAGATORS: 'tracecontext,baggage',
+  OTEL_TRACES_SAMPLER: 'parentbased_traceidratio',
+  OTEL_TRACES_SAMPLER_ARG: '1.0',
 };
 
 test('parseEnvText ignores comments and strips matching quotes', () => {
@@ -108,5 +120,81 @@ test('collectProductionEnvIssues validates modes and URL-shaped values', () => {
   assert.deepEqual(collectProductionEnvIssues(env), [
     'NEXT_PUBLIC_CONTROL_API_BASE_URL must start with http:// or https://',
     'AGENT_RUNTIME_EXECUTION_MODE must be one of runtime_first, runtime_only, control_first',
+  ]);
+});
+
+test('collectProductionEnvIssues rejects legacy knowledge workflow runtime modes', () => {
+  const env = {
+    ...validEnv,
+    KNOWLEDGE_WORKFLOW_MODE: 'runtime_first',
+  };
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'KNOWLEDGE_WORKFLOW_MODE must be one of local, temporal_first, temporal',
+  ]);
+});
+
+test('collectProductionEnvIssues allows disabled search backends without URLs', () => {
+  const env = {
+    ...validEnv,
+    QDRANT_ENABLED: 'false',
+    OPENSEARCH_ENABLED: 'false',
+  };
+  delete env.QDRANT_URL;
+  delete env.OPENSEARCH_URL;
+
+  assert.deepEqual(collectProductionEnvIssues(env), []);
+});
+
+test('collectProductionEnvIssues requires search backend URLs when enabled', () => {
+  const env = {
+    ...validEnv,
+    QDRANT_ENABLED: 'true',
+    OPENSEARCH_ENABLED: 'true',
+  };
+  delete env.QDRANT_URL;
+  delete env.OPENSEARCH_URL;
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'QDRANT_URL is required when QDRANT_ENABLED=true',
+    'OPENSEARCH_URL is required when OPENSEARCH_ENABLED=true',
+  ]);
+});
+
+test('production env template uses a recognized knowledge workflow mode', () => {
+  const template = parseEnvText(readFileSync(new URL('../../.env.production.example', import.meta.url), 'utf8'));
+
+  assert.ok(['local', 'temporal_first', 'temporal'].includes(template.KNOWLEDGE_WORKFLOW_MODE));
+});
+
+test('production compose default uses a recognized knowledge workflow mode', () => {
+  const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
+  const match = compose.match(/KNOWLEDGE_WORKFLOW_MODE:\s*\$\{KNOWLEDGE_WORKFLOW_MODE:-([^}]+)}/);
+
+  assert.ok(match);
+  assert.ok(['local', 'temporal_first', 'temporal'].includes(match[1] ?? ''));
+});
+
+test('production compose does not require disabled search backend URLs during interpolation', () => {
+  const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(compose, /QDRANT_URL:\s*\$\{QDRANT_URL:\?/);
+  assert.doesNotMatch(compose, /OPENSEARCH_URL:\s*\$\{OPENSEARCH_URL:\?/);
+});
+
+test('collectProductionEnvIssues requires a complete OTEL exporter contract', () => {
+  const env = { ...validEnv };
+  delete env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  env.OTEL_EXPORTER_OTLP_PROTOCOL = 'jaeger';
+  env.OTEL_TRACES_EXPORTER = 'none';
+  env.OTEL_PROPAGATORS = 'b3';
+  env.OTEL_TRACES_SAMPLER_ARG = '2';
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'OTEL_EXPORTER_OTLP_ENDPOINT is required',
+    'OTEL_EXPORTER_OTLP_PROTOCOL must be one of http/protobuf, grpc',
+    'OTEL_TRACES_EXPORTER must include otlp for production trace export',
+    'OTEL_PROPAGATORS must include tracecontext',
+    'OTEL_TRACES_SAMPLER_ARG must be between 0 and 1',
   ]);
 });

@@ -1066,6 +1066,45 @@ export type PluginInstallationStatus = 'PENDING_REVIEW' | 'INSTALLED' | 'ACTIVE'
 export type PluginRuntimeStatus = 'RUNNING' | 'STOPPED' | 'UPGRADING' | 'BLOCKED' | 'ERROR';
 export type PluginRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type PluginHookStatus = 'ACTIVE' | 'DISABLED' | 'DELETED';
+export type PluginManifestValidationStatus = 'PASSED' | 'FAILED';
+
+export interface PluginManifestValidationIssue {
+  code: string;
+  severity: 'ERROR' | 'WARN';
+  path: string;
+  message: string;
+}
+
+export interface PluginToolBindingPreview {
+  code: string;
+  name: string;
+  generated_tool_code: string;
+  gateway: 'TOOL_GATEWAY';
+  method: string;
+  url: string | null;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+  require_approval: boolean;
+  status: 'ACTIVE' | 'DISABLED';
+}
+
+export interface PluginManifestValidationResult {
+  status: PluginManifestValidationStatus;
+  can_install: boolean;
+  source_type: PluginSourceType;
+  manifest_code: string;
+  version: string;
+  risk_level: PluginRiskLevel;
+  package_source: string | null;
+  package_sha256: string | null;
+  signature_present: boolean;
+  permission_codes: string[];
+  menu_codes: string[];
+  hook_codes: string[];
+  tool_bindings: PluginToolBindingPreview[];
+  errors: PluginManifestValidationIssue[];
+  warnings: PluginManifestValidationIssue[];
+  summary: string;
+}
 
 export interface PluginMarketItem {
   plugin_id: string;

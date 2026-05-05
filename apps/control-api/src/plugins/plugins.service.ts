@@ -26,7 +26,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { buildPluginGeneratedCodes, buildPluginManifestPolicy } from './plugin-policy';
+import { buildPluginGeneratedCodes, buildPluginManifestPolicy, validatePluginManifestInput } from './plugin-policy';
 
 type PluginRecord = Prisma.PluginGetPayload<{
   include: {
@@ -196,6 +196,10 @@ export class PluginsService {
     return records.map((item) => this.mapInstallationItem(item));
   }
 
+  validateManifest(dto: CreatePluginInstallationInput) {
+    return validatePluginManifestInput(dto);
+  }
+
   private async buildPluginWhere(currentUser: AuthenticatedUser): Promise<Prisma.PluginWhereInput> {
     const where: Prisma.PluginWhereInput = {
       tenantId: currentUser.tenantId,
@@ -263,6 +267,25 @@ export class PluginsService {
   }
 
   async install(currentUser: AuthenticatedUser, dto: CreatePluginInstallationInput): Promise<PluginInstallationDetail> {
+    const validation = validatePluginManifestInput(dto);
+    if (!validation.can_install) {
+      await this.platformEvents.recordEvent({
+        tenantId: currentUser.tenantId,
+        departmentId: currentUser.departmentId ?? null,
+        userId: currentUser.id,
+        resourceType: 'PLUGIN',
+        resourceId: validation.manifest_code,
+        eventSource: 'CONTROL_API',
+        eventType: 'plugin.manifest.validation_failed',
+        status: 'FAILED',
+        severity: 'WARN',
+        billable: false,
+        summary: validation.summary,
+        payloadJson: JSON.parse(JSON.stringify(validation)) as Prisma.InputJsonValue,
+      });
+      throw new BadRequestException(validation.summary);
+    }
+
     const manifest = normalizePluginManifest(dto);
     const plugin = await this.prisma.plugin.upsert({
       where: {

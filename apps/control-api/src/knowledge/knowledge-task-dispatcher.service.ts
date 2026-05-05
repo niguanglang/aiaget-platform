@@ -3,9 +3,9 @@ import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { requireEnv } from '../common/env';
+import { normalizeWorkflowMode } from '../runtime-execution/runtime-workflow-status';
 
 type KnowledgeTaskRunner = (taskId: string) => Promise<void>;
-type KnowledgeWorkflowMode = 'local' | 'temporal_first' | 'temporal';
 type RuntimeWorkflowBackend = 'TEMPORAL' | 'LOCAL_FALLBACK';
 
 const RUNNABLE_TASK_TYPES = ['PROCESS', 'REBUILD'];
@@ -226,14 +226,6 @@ export class KnowledgeTaskDispatcherService implements OnModuleDestroy {
 
 function toJson(value: Record<string, unknown>): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
-}
-
-function normalizeWorkflowMode(value: string | undefined): KnowledgeWorkflowMode {
-  if (value === 'temporal' || value === 'temporal_first' || value === 'local') {
-    return value;
-  }
-
-  return 'local';
 }
 
 async function safeJson(response: Response): Promise<unknown> {

@@ -17,12 +17,12 @@
 | P0-3 项目状态与验收矩阵 | 本文完成 | 否 | 需要随后续 P0 子任务持续更新 | 每个 P0 子任务完成后更新矩阵 |
 | P0-4 Runtime 策略与执行闭环 | 未完成 | 是 | Runtime 内部 RAG / Tool / Model 调用仍需完全复用统一安全策略、Data Scope、Resource ACL 和平台事件投影 | P0-5 契约后串行执行 |
 | P0-5 统一事件与用量全来源投影 | 部分完成 | 是 | 已有平台事件/用量表、查询、Rollup 和部分来源投影；仍需定死 P0 事件/metric 命名、必填字段和各来源最低写入清单 | 先完成契约，再并行接入模块 |
-| P0-6 生产可观测性部署闭环 | 未完成 | 是 | 当前有 trace id 和监控页面，缺少 Prometheus/Grafana/Loki/Otel Collector 的生产部署方案和验收 Runbook | 可与业务模块并行，任何中间件/container 动作先确认 |
+| P0-6 生产可观测性部署闭环 | 已完成 | 否 | 已补 OTEL exporter env、operator 托管 Prometheus/Grafana/Loki/Collector 最小模板、离线模板校验、trace id 贯通探针和失败验证 Runbook；仍不在应用 compose 中启动中间件容器 | 上线时由运维接入真实 collector/dashboard 并运行探针 |
 | P0-7 多 Agent 协作生产验收 | 基本完成 | 否 | 多 Agent 已有 Runtime 编排、Supervisor、预算、步骤子事件、报告导出/归档；需要端到端验收和少量文档状态修正 | 可作为并行验收任务，不宜先大改 |
-| P0-8 插件生态生产闭环 | 基本完成 | 否 | 需复核 manifest 校验、安装包来源/验签、Hook 执行风险和升级回滚审计是否满足 P0 | 可并行执行 |
-| P0-9 全渠道发布生产闭环 | 部分完成 | 是 | 异步 ACK 后台执行不持久；多实例自动重试/巡检缺少锁；投递审计可能泄露 webhook token；外网回调验签强制性不足；渠道 workflow 失败恢复入口不完整 | 拆成持久化任务、调度锁、凭据脱敏、强制验签、workflow 恢复五个子任务 |
+| P0-8 插件生态生产闭环 | 已完成 | 否 | 已补 Manifest 静态校验、自定义插件来源/sha256/签名元数据门禁、Tool Gateway 绑定预览、安装失败事件和卸载权限闭环；真实包下载、hash 计算和在线验签留到后续增强 | 后续如启用执行型 Hook，单独接插件沙箱或受控异步执行器 |
+| P0-9 全渠道发布生产闭环 | 部分完成 | 是 | 投递审计凭据脱敏和外网回调强制验签已完成；仍剩异步 ACK 后台执行不持久、多实例自动重试/巡检缺少锁、渠道 workflow 失败恢复入口不完整 | 继续执行 P0-9A、P0-9B、P0-9E |
 | P0-10 复杂计费与额度强执行 | 部分完成 | 是 | 已有套餐、订阅、账单、额度、调账和用量 Rollup；仍需把团队、插件、渠道、知识库、Runtime 的 P0 用量口径统一后强执行 | P0-5 和业务来源稳定后执行 |
-| P0-11 知识库生产增强 | 部分完成 | 是 | 工作流模式配置和代码枚举不一致；恢复重试绕过 Runtime/Temporal；Qdrant/OpenSearch 禁用时仍可能强制 env；删除/归档知识库后仍有召回风险；缺端到端回归 | 可并行执行，但避免和 P0-4 同时改 Runtime 策略文件 |
+| P0-11 知识库生产增强 | 部分完成 | 是 | 工作流模式配置、搜索后端禁用 fallback 和删除/归档知识库召回隔离已完成；仍剩恢复重试回到 Runtime/Temporal、端到端回归测试 | 继续执行 P0-11B、P0-11E |
 | P0-12 生产验收与发布 Runbook | 未完成 | 是 | 缺少最终 smoke test、迁移/seed 验证、备份恢复、回滚、健康检查、交付文档 | 最后执行 |
 
 ## 可并行分组
@@ -47,18 +47,18 @@
 | --- | --- | --- | --- |
 | P0-9A 异步 ACK 持久化 | 可与 P0-9C/P0-9D 并行 | `apps/control-api/src/external-api`、必要任务表/事件 | 快速 ACK 后执行任务可恢复，不因进程重启丢失 |
 | P0-9B 调度锁与重复扫描治理 | 不和 P0-9A 同时改任务调度核心 | `apps/control-api/src/channels/channel-sender-task.service.ts`、`channel-release-scheduler.service.ts` | 多实例下不会重复重试、重复巡检或重复自动推进 |
-| P0-9C 投递审计凭据脱敏 | 可并行 | `external-channel-sender.service.ts`、渠道 DTO/前端展示 | URL、Header、Webhook token 存储和返回均脱敏 |
-| P0-9D 外网回调强制验签 | 可并行 | `external-channel-callback.service.ts`、渠道配置校验 | 企业微信、钉钉、飞书、Slack、自定义 Webhook 生产启用时必须具备校验材料 |
+| P0-9C 投递审计凭据脱敏 | 已完成 | `external-channel-sender.service.ts`、`channel-audit-redaction.ts`、渠道审计输出 | URL query、Header、Body、响应摘要、Webhook token 存储和返回均脱敏，已脱敏审计凭据不再用于重试 |
+| P0-9D 外网回调强制验签 | 已完成 | `external-channel-callback.service.ts`、渠道配置校验 | Slack 原生签名强制校验；配置了签名/secret/encrypt key 的渠道回调不能静默跳过验签 |
 | P0-9E 渠道 workflow 失败恢复 | 依赖 P0-5 契约 | `runtime-execution`、`channels` workflow 服务、监控入口 | 自动推进/自愈失败可在监控中心查看并重放 |
 
 ## P0-11 知识库生产增强拆分
 
 | 子任务 | 可并行 | 写入范围 | 验收点 |
 | --- | --- | --- | --- |
-| P0-11A workflow 模式配置修正 | 可立即执行 | `.env.production.example`、`deploy/docker-compose.production.yml`、`knowledge-task-dispatcher.service.ts` | 生产默认模式和代码枚举一致，未知值不静默退回 local |
+| P0-11A workflow 模式配置修正 | 已完成 | `.env.production.example`、`deploy/docker-compose.production.yml`、`knowledge-task-dispatcher.service.ts` | 生产默认模式和代码枚举一致，旧 runtime 模式兼容映射但生产校验拒绝 |
 | P0-11B 恢复重试回到 Runtime/Temporal | 不与 P0-11A 冲突 | `runtime-execution.service.ts`、`knowledge-task-dispatcher.service.ts` | retry 在 `temporal_first/temporal` 下重新派发 Runtime/Temporal |
-| P0-11C 搜索后端禁用 fallback 闭合 | 可并行 | `qdrant.service.ts`、`opensearch.service.ts` | `*_ENABLED=false` 时不要求 URL 环境变量，PostgreSQL fallback 可启动 |
-| P0-11D 删除/归档知识库召回隔离 | 可并行 | `knowledge.service.ts` 检索查询 | 已删除、归档或停用知识库不再被 Runtime 检索召回 |
+| P0-11C 搜索后端禁用 fallback 闭合 | 已完成 | `qdrant.service.ts`、`opensearch.service.ts` | `*_ENABLED=false` 时不要求 URL 环境变量，PostgreSQL fallback 可启动；启用但缺 URL 抛清晰错误 |
+| P0-11D 删除/归档知识库召回隔离 | 已完成 | `knowledge.service.ts` 检索查询 | 已删除、归档或停用知识库不再被 Runtime 检索召回，segment 查询层再次加关系过滤 |
 | P0-11E 端到端回归测试 | 依赖 A-D | tests/docs | 覆盖上传、workflow、索引、检索、持久化和删除隔离 |
 
 ### 第二批串行或半串行

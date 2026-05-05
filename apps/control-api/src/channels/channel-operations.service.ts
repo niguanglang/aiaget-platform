@@ -22,6 +22,7 @@ import { encryptSecret, maskApiKey } from '../models/model-secrets';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
+import { redactChannelAuditText, redactChannelAuditUrl, redactChannelAuditValue } from './channel-audit-redaction';
 import type {
   CreateChannelAccountDto,
   CreateChannelProviderDto,
@@ -1110,12 +1111,12 @@ function mapDelivery(delivery: DeliveryRecord): ChannelDeliveryItem {
     channel_name: delivery.publishChannel?.name ?? null,
     account_id: delivery.accountId,
     account_name: delivery.account?.name ?? null,
-    target: delivery.target,
+    target: redactChannelAuditUrl(delivery.target),
     response_status: delivery.responseStatus,
     latency_ms: delivery.latencyMs,
     retry_count: delivery.retryCount,
     trace_id: delivery.traceId,
-    error_message: delivery.errorMessage,
+    error_message: redactChannelAuditText(delivery.errorMessage),
     delivered_at: delivery.deliveredAt?.toISOString() ?? null,
     created_at: delivery.createdAt.toISOString(),
     updated_at: delivery.updatedAt.toISOString(),
@@ -1124,10 +1125,10 @@ function mapDelivery(delivery: DeliveryRecord): ChannelDeliveryItem {
       template_id: delivery.templateId,
       publish_job_id: delivery.publishJobId,
       direction: delivery.direction,
-      request_url: delivery.requestUrl,
-      request_body: normalizeJson(delivery.requestBody),
-      request_headers: normalizeJson(delivery.requestHeaders),
-      response_body: delivery.responseBody,
+      request_url: redactChannelAuditUrl(delivery.requestUrl),
+      request_body: redactChannelAuditValue(normalizeJson(delivery.requestBody)),
+      request_headers: redactChannelAuditValue(normalizeJson(delivery.requestHeaders)),
+      response_body: redactChannelAuditText(delivery.responseBody),
       conversation_id: delivery.conversationId,
       run_id: delivery.runId,
       external_conversation_id: delivery.externalConversationId,
@@ -1165,7 +1166,7 @@ function mapReply(reply: ReplyRecord): ChannelReplyItem {
       sender: reply.sender,
       recipient: reply.recipient,
       content: reply.content,
-      payload: normalizeJson(reply.payload),
+      payload: redactChannelAuditValue(normalizeJson(reply.payload)),
       message_id: reply.messageId,
       received_at: reply.receivedAt?.toISOString() ?? null,
       processed_at: reply.processedAt?.toISOString() ?? null,

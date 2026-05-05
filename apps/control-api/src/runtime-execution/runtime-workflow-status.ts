@@ -44,6 +44,10 @@ export function normalizeWorkflowMode(value: string | undefined): WorkflowMode {
     return value;
   }
 
+  if (value === 'runtime_first' || value === 'runtime_only') {
+    return 'temporal_first';
+  }
+
   return 'local';
 }
 

@@ -41,13 +41,22 @@ const requiredKeys = [
   'MINIO_ROOT_PASSWORD',
   'MINIO_BUCKET',
   'MINIO_REGION',
-  'QDRANT_URL',
   'QDRANT_COLLECTION_PREFIX',
-  'OPENSEARCH_URL',
   'OPENSEARCH_INDEX_PREFIX',
   'TOOL_GATEWAY_RATE_LIMIT_PER_MINUTE',
   'TOOL_GATEWAY_MAX_RETRIES',
   'TOOL_GATEWAY_MAX_RESPONSE_CHARS',
+  'OTEL_SERVICE_NAMESPACE',
+  'OTEL_DEPLOYMENT_ENVIRONMENT',
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_EXPORTER_OTLP_PROTOCOL',
+  'OTEL_TRACES_EXPORTER',
+  'OTEL_METRICS_EXPORTER',
+  'OTEL_LOGS_EXPORTER',
+  'OTEL_RESOURCE_ATTRIBUTES',
+  'OTEL_PROPAGATORS',
+  'OTEL_TRACES_SAMPLER',
+  'OTEL_TRACES_SAMPLER_ARG',
 ];
 
 const urlKeys = [
@@ -62,6 +71,7 @@ const urlKeys = [
   'MINIO_CONSOLE',
   'QDRANT_URL',
   'OPENSEARCH_URL',
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
 ];
 
 const portKeys = ['CONTROL_API_PORT', 'RUNTIME_PORT', 'POSTGRES_PORT'];
@@ -81,7 +91,6 @@ const productionSecretKeys = [
   'MINIO_ROOT_PASSWORD',
 ];
 const workflowModeKeys = [
-  'KNOWLEDGE_WORKFLOW_MODE',
   'AGENT_TEAM_WORKFLOW_MODE',
   'CHANNEL_RELEASE_WORKFLOW_MODE',
   'CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE',
@@ -157,6 +166,58 @@ export function collectProductionEnvIssues(env) {
     issues.push('RUNTIME_TEMPORAL_ENABLED must be true or false');
   }
 
+  if (hasValue(env.QDRANT_ENABLED) && !['true', 'false'].includes(env.QDRANT_ENABLED)) {
+    issues.push('QDRANT_ENABLED must be true or false');
+  }
+
+  if (hasValue(env.OPENSEARCH_ENABLED) && !['true', 'false'].includes(env.OPENSEARCH_ENABLED)) {
+    issues.push('OPENSEARCH_ENABLED must be true or false');
+  }
+
+  if (env.QDRANT_ENABLED !== 'false' && !hasValue(env.QDRANT_URL)) {
+    issues.push('QDRANT_URL is required when QDRANT_ENABLED=true');
+  }
+
+  if (env.OPENSEARCH_ENABLED !== 'false' && !hasValue(env.OPENSEARCH_URL)) {
+    issues.push('OPENSEARCH_URL is required when OPENSEARCH_ENABLED=true');
+  }
+
+  if (hasValue(env.KNOWLEDGE_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.KNOWLEDGE_WORKFLOW_MODE)) {
+    issues.push('KNOWLEDGE_WORKFLOW_MODE must be one of local, temporal_first, temporal');
+  }
+
+  if (hasValue(env.OTEL_EXPORTER_OTLP_PROTOCOL) && !['http/protobuf', 'grpc'].includes(env.OTEL_EXPORTER_OTLP_PROTOCOL)) {
+    issues.push('OTEL_EXPORTER_OTLP_PROTOCOL must be one of http/protobuf, grpc');
+  }
+
+  for (const key of ['OTEL_TRACES_EXPORTER', 'OTEL_METRICS_EXPORTER', 'OTEL_LOGS_EXPORTER']) {
+    if (hasValue(env[key]) && !listValueIncludes(env[key], 'otlp')) {
+      const signalName = key === 'OTEL_TRACES_EXPORTER' ? 'trace' : key.replace('OTEL_', '').replace('_EXPORTER', '').toLowerCase();
+      issues.push(`${key} must include otlp for production ${signalName} export`);
+    }
+  }
+
+  if (hasValue(env.OTEL_PROPAGATORS) && !listValueIncludes(env.OTEL_PROPAGATORS, 'tracecontext')) {
+    issues.push('OTEL_PROPAGATORS must include tracecontext');
+  }
+
+  if (hasValue(env.OTEL_TRACES_SAMPLER) && !['always_on', 'always_off', 'traceidratio', 'parentbased_traceidratio'].includes(env.OTEL_TRACES_SAMPLER)) {
+    issues.push('OTEL_TRACES_SAMPLER must be one of always_on, always_off, traceidratio, parentbased_traceidratio');
+  }
+
+  if (hasValue(env.OTEL_TRACES_SAMPLER_ARG) && !isRatio(env.OTEL_TRACES_SAMPLER_ARG)) {
+    issues.push('OTEL_TRACES_SAMPLER_ARG must be between 0 and 1');
+  }
+
+  if (hasValue(env.OTEL_RESOURCE_ATTRIBUTES)) {
+    if (!resourceAttributesInclude(env.OTEL_RESOURCE_ATTRIBUTES, 'deployment.environment')) {
+      issues.push('OTEL_RESOURCE_ATTRIBUTES must include deployment.environment');
+    }
+    if (!resourceAttributesInclude(env.OTEL_RESOURCE_ATTRIBUTES, 'service.namespace')) {
+      issues.push('OTEL_RESOURCE_ATTRIBUTES must include service.namespace');
+    }
+  }
+
   if (hasValue(env.DATABASE_URL) && !env.DATABASE_URL.startsWith('postgresql://')) {
     issues.push('DATABASE_URL must start with postgresql://');
   }
@@ -211,6 +272,25 @@ function isPort(value) {
 function isNonNegativeInteger(value) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0;
+}
+
+function isRatio(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1;
+}
+
+function listValueIncludes(value, expected) {
+  return String(value)
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .includes(expected);
+}
+
+function resourceAttributesInclude(value, expectedKey) {
+  return String(value)
+    .split(',')
+    .map((item) => item.trim().split('=')[0])
+    .includes(expectedKey);
 }
 
 function isPlaceholder(value) {

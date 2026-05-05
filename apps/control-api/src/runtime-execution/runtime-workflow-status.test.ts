@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveWorkflowBackendStatus } from './runtime-workflow-status';
+import { normalizeWorkflowMode, resolveWorkflowBackendStatus } from './runtime-workflow-status';
 
 test('reports dispatch failed when the latest workflow event is a dispatch failure', () => {
   const status = resolveWorkflowBackendStatus('temporal', {
@@ -32,4 +32,9 @@ test('reports local backend for local workflow mode without events', () => {
 
   assert.equal(status.backend, 'LOCAL');
   assert.equal(status.status, 'READY');
+});
+
+test('normalizes legacy runtime knowledge workflow modes to temporal_first', () => {
+  assert.equal(normalizeWorkflowMode('runtime_first'), 'temporal_first');
+  assert.equal(normalizeWorkflowMode('runtime_only'), 'temporal_first');
 });

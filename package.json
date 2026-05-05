@@ -12,9 +12,10 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "validate:prod-env": "node scripts/validate-production-env.mjs .env.production",
-    "test": "pnpm --filter @aiaget/shared-types build && node --test scripts/tests/*.test.mjs && pnpm --filter @aiaget/control-api exec tsx --test src/plugins/plugin-policy.test.ts src/runtime-execution/runtime-workflow-status.test.ts",
+    "test": "pnpm --filter @aiaget/shared-types build && node --test scripts/tests/*.test.mjs && pnpm --filter @aiaget/control-api exec tsx --test src/external-api/external-channel-security.test.ts src/channels/channel-operations-security.test.ts src/plugins/plugin-policy.test.ts src/plugins/plugins.service.test.ts src/plugins/plugins.controller.test.ts src/runtime-execution/runtime-workflow-status.test.ts src/knowledge/search-backends.test.ts src/knowledge/knowledge-retrieval.test.ts",
     "typecheck": "pnpm --filter @aiaget/shared-types build && pnpm -r --if-present typecheck",
-    "verify:prod-template": "docker compose -f deploy/docker-compose.production.yml --env-file .env.production.example config >/dev/null",
+    "verify:observability-template": "node scripts/verify-observability-template.mjs",
+    "verify:prod-template": "docker compose -f deploy/docker-compose.production.yml --env-file .env.production.example config >/dev/null && pnpm verify:observability-template",
     "verify:prod": "pnpm validate:prod-env && docker compose -f deploy/docker-compose.production.yml --env-file .env.production config >/dev/null && pnpm typecheck && pnpm test && python3 -m compileall apps/agent-runtime/app"
   },
   "devDependencies": {

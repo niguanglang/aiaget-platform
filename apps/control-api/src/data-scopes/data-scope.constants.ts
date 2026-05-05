@@ -58,6 +58,7 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
       'plugin:center:enable',
       'plugin:center:disable',
       'plugin:center:upgrade',
+      'plugin:center:uninstall',
       'plugin:center:audit',
     ],
   },

@@ -1,0 +1,492 @@
+import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
+import test from 'node:test';
+
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+
+import type { RequestWithContext } from '../common/types/request-context';
+import { encryptSecret } from '../models/model-secrets';
+
+process.env.RUNTIME_BASE_URL ??= 'http://runtime.example.test';
+process.env.CONTROL_API_INTERNAL_BASE_URL ??= 'http://control-api.example.test';
+process.env.RUNTIME_INTERNAL_TOKEN ??= 'test-runtime-internal-token';
+
+const tenantId = '00000000-0000-0000-0000-000000000001';
+const userId = '00000000-0000-0000-0000-000000000002';
+const agentId = '00000000-0000-0000-0000-000000000003';
+const channelId = '00000000-0000-0000-0000-000000000004';
+
+test('redacts callback payload secrets before persisting channel reply audit', async () => {
+  const secret = 'callback-signing-secret';
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    secretEncrypted: encryptSecret(secret),
+  });
+  const { service, replyCreates } = await createCallbackService(channel);
+  const body = {
+    event: 'message.received',
+    response_url: 'https://hooks.example.test/reply?token=callback-token&signature=callback-signature&ok=1',
+    payload: {
+      access_token: 'nested-access-token',
+      authorization: 'Bearer nested-authorization',
+      headers: {
+        Cookie: 'sid=nested-cookie',
+        'x-aiaget-signature': 'nested-signature',
+      },
+      nested: {
+        signing_secret: 'nested-signing-secret',
+        visible: 'keep-me',
+      },
+    },
+  };
+  const rawBody = JSON.stringify(body);
+
+  await service.handle(
+    buildRequest({
+      rawBody,
+      headers: {
+        'x-aiaget-signature': `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`,
+      },
+    }),
+    channelId,
+    body,
+  );
+
+  assert.equal(replyCreates.length, 1);
+  const replyCreate = replyCreates[0];
+  assert.ok(replyCreate);
+  const persisted = JSON.stringify(replyCreate.data.payload);
+  assert.doesNotMatch(persisted, /callback-token|callback-signature|nested-access-token|nested-authorization|nested-cookie|nested-signature|nested-signing-secret/);
+  assert.match(persisted, /keep-me/);
+  assert.match(persisted, /\[REDACTED\]/);
+});
+
+test('redacts sender request and response secrets before persisting delivery audits', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    ok: true,
+    cookie: 'response-cookie',
+    data: {
+      access_token: 'response-access-token',
+      nested: {
+        signing_key: 'response-signing-key',
+      },
+    },
+  }), { status: 200 });
+
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    config: {
+      webhook_url: 'https://hooks.example.test/sender?token=sender-token&signature=sender-signature&plain=1',
+    },
+    secretEncrypted: encryptSecret(JSON.stringify({ sender_secret: 'sender-signing-secret' })),
+  });
+  const { service, senderCreates, senderUpdates, normalizedCreates, normalizedUpdates } = await createSenderService(channel);
+
+  await service.sendReply({
+    request: buildRequest(),
+    channel: channel as never,
+    operator: buildOperator(),
+    message: {
+      provider: 'CUSTOM_WEBHOOK',
+      text: 'incoming',
+      externalConversationId: 'external-conversation-1',
+      externalMessageId: 'external-message-1',
+      senderId: 'sender-1',
+      responseUrl: null,
+    },
+    answer: 'answer',
+    conversationId: 'conversation-1',
+    runId: 'run-1',
+    traceId: 'trace-1',
+  });
+
+  assert.equal(senderCreates.length, 1);
+  assert.equal(normalizedCreates.length, 1);
+  const senderCreateInput = senderCreates[0];
+  const normalizedCreateInput = normalizedCreates[0];
+  assert.ok(senderCreateInput);
+  assert.ok(normalizedCreateInput);
+  const senderCreate = JSON.stringify(senderCreateInput.data);
+  const normalizedCreate = JSON.stringify(normalizedCreateInput.data);
+  assert.doesNotMatch(senderCreate, /sender-token|sender-signature|x-aiaget-signature":"sha256=/);
+  assert.doesNotMatch(normalizedCreate, /sender-token|sender-signature|x-aiaget-signature":"sha256=/);
+  assert.match(senderCreate, /plain=1/);
+
+  assert.equal(senderUpdates.length, 1);
+  assert.equal(normalizedUpdates.length, 1);
+  const senderUpdateInput = senderUpdates[0];
+  const normalizedUpdateInput = normalizedUpdates[0];
+  assert.ok(senderUpdateInput);
+  assert.ok(normalizedUpdateInput);
+  const senderUpdate = JSON.stringify(senderUpdateInput.data);
+  const normalizedUpdate = JSON.stringify(normalizedUpdateInput.data);
+  assert.doesNotMatch(senderUpdate, /response-cookie|response-access-token|response-signing-key/);
+  assert.doesNotMatch(normalizedUpdate, /response-cookie|response-access-token|response-signing-key/);
+  assert.match(senderUpdate, /\[REDACTED\]/);
+});
+
+test('rejects sender retry when persisted audit credentials are already redacted', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true }), { status: 200 });
+
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    config: {},
+  });
+  const delivery = buildFailedSenderDelivery(channel, {
+    requestUrl: 'https://hooks.example.test/sender?token=%5BREDACTED%5D&plain=1',
+    requestHeaders: { 'x-aiaget-signature': '[REDACTED]' },
+  });
+  const { service, senderCreates } = await createSenderRetryService(delivery);
+
+  await assert.rejects(
+    () => service.retryDelivery(buildOperator(), 'delivery-1'),
+    (error) => {
+      assert.ok(error instanceof BadRequestException);
+      assert.match(error.message, /redacted/i);
+      return true;
+    },
+  );
+  assert.equal(senderCreates.length, 0);
+});
+
+test('rejects Slack callback when signing secret is not configured', async () => {
+  const channel = buildChannel({
+    channel: 'SLACK',
+    secretEncrypted: null,
+  });
+  const { service } = await createCallbackService(channel);
+  const body = { event: { type: 'message' }, event_id: 'evt-1' };
+  const rawBody = JSON.stringify(body);
+
+  await assert.rejects(
+    () => service.handle(buildRequest({ rawBody }), channelId, body),
+    (error) => {
+      assert.ok(error instanceof UnauthorizedException);
+      assert.match(error.message, /Slack callback signing secret is not configured/);
+      return true;
+    },
+  );
+});
+
+test('rejects callback when explicit aiaget signature requirement is skipped', async () => {
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    config: {
+      require_aiaget_signature: true,
+      skip_signature_check: true,
+    },
+    secretEncrypted: encryptSecret('callback-signing-secret'),
+  });
+  const { service } = await createCallbackService(channel);
+  const body = { event: 'message.received', message: 'hello', id: 'msg-1' };
+
+  await assert.rejects(
+    () => service.handle(buildRequest({ rawBody: JSON.stringify(body) }), channelId, body),
+    (error) => {
+      assert.ok(error instanceof UnauthorizedException);
+      assert.match(error.message, /Missing channel callback signature/);
+      return true;
+    },
+  );
+});
+
+test('rejects Feishu callback when configured encrypt key has no native signature', async () => {
+  const channel = buildChannel({
+    channel: 'FEISHU',
+    config: {
+      feishu_encrypt_key: 'feishu-encrypt-key',
+    },
+  });
+  const { service } = await createCallbackService(channel);
+  const body = { event: { message: { content: '{"text":"hello"}' } }, header: { event_id: 'evt-1' } };
+
+  await assert.rejects(
+    () => service.handle(buildRequest({ rawBody: JSON.stringify(body) }), channelId, body),
+    (error) => {
+      assert.ok(error instanceof UnauthorizedException);
+      assert.match(error.message, /Missing Feishu callback signature/);
+      return true;
+    },
+  );
+});
+
+test('rejects Slack callback when configured native signature is invalid', async () => {
+  const channel = buildChannel({
+    channel: 'SLACK',
+    secretEncrypted: encryptSecret(JSON.stringify({ slack_signing_secret: 'slack-signing-secret' })),
+  });
+  const { service } = await createCallbackService(channel);
+  const body = { event: { type: 'message' }, event_id: 'evt-1' };
+  const rawBody = JSON.stringify(body);
+
+  await assert.rejects(
+    () => service.handle(
+      buildRequest({
+        rawBody,
+        headers: {
+          'x-slack-request-timestamp': Math.floor(Date.now() / 1000).toString(),
+          'x-slack-signature': 'v0=invalid-signature',
+        },
+      }),
+      channelId,
+      body,
+    ),
+    (error) => {
+      assert.ok(error instanceof UnauthorizedException);
+      assert.match(error.message, /Invalid Slack callback signature/);
+      return true;
+    },
+  );
+});
+
+async function createCallbackService(channel: Record<string, unknown>) {
+  const { ExternalChannelCallbackService } = await import('./external-channel-callback.service');
+  const replyCreates: Array<{ data: Record<string, unknown> }> = [];
+  const prisma = {
+    agentPublishChannel: {
+      findFirst: async () => channel,
+      update: async () => ({}),
+    },
+    user: {
+      findFirst: async () => ({
+        id: userId,
+        tenantId,
+        departmentId: null,
+        email: 'callback@example.test',
+        userRoles: [],
+      }),
+    },
+    channelReply: {
+      create: async (input: { data: Record<string, unknown> }) => {
+        replyCreates.push(input);
+        return { id: 'reply-1', ...input.data };
+      },
+      update: async () => ({}),
+    },
+  };
+  const platformEvents = {
+    recordEvent: async () => ({ id: 'event-1' }),
+    recordUsage: async () => ({}),
+  };
+  const rolloutGate = {
+    evaluateForCallback: async () => ({ allowed: true, rollout_percentage: 100, trace_id: null }),
+  };
+
+  return {
+    replyCreates,
+    service: new ExternalChannelCallbackService(
+      prisma as never,
+      {} as never,
+      platformEvents as never,
+      rolloutGate as never,
+      {} as never,
+    ),
+  };
+}
+
+async function createSenderRetryService(delivery: Record<string, unknown>) {
+  const { ExternalChannelSenderService } = await import('./external-channel-sender.service');
+  const senderCreates: Array<{ data: Record<string, unknown> }> = [];
+  const prisma = {
+    channelSenderDelivery: {
+      findFirst: () => Promise.resolve(delivery),
+      create: async (input: { data: Record<string, unknown> }) => {
+        senderCreates.push(input);
+        return {
+          id: 'retry-row-1',
+          ...input.data,
+          channel: delivery.channel,
+          agent: delivery.agent,
+          responseStatus: null,
+          responseBody: null,
+          errorMessage: null,
+          latencyMs: null,
+          deliveredAt: null,
+          createdAt: new Date('2026-05-05T00:00:00.000Z'),
+          updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+        };
+      },
+      update: async (input: { where: { id: string }; data: Record<string, unknown> }) => ({
+        ...delivery,
+        id: input.where.id,
+        ...input.data,
+        updatedAt: new Date('2026-05-05T00:00:01.000Z'),
+      }),
+    },
+    channelDelivery: {
+      create: async () => ({}),
+      updateMany: async () => ({ count: 1 }),
+    },
+    operationLog: {
+      create: async () => ({}),
+    },
+  };
+  const platformEvents = {
+    recordEvent: async () => ({ id: 'event-1' }),
+    recordUsage: async () => ({}),
+  };
+  const dataScopeQuery = {
+    buildWhere: async () => ({ where: {} }),
+  };
+
+  return {
+    senderCreates,
+    service: new ExternalChannelSenderService(prisma as never, platformEvents as never, dataScopeQuery as never),
+  };
+}
+
+async function createSenderService(channel: Record<string, unknown>) {
+  const { ExternalChannelSenderService } = await import('./external-channel-sender.service');
+  const senderCreates: Array<{ data: Record<string, unknown> }> = [];
+  const senderUpdates: Array<{ data: Record<string, unknown> }> = [];
+  const normalizedCreates: Array<{ data: Record<string, unknown> }> = [];
+  const normalizedUpdates: Array<{ data: Record<string, unknown> }> = [];
+  const prisma = {
+    channelSenderDelivery: {
+      create: async (input: { data: Record<string, unknown> }) => {
+        senderCreates.push(input);
+        return {
+          id: 'sender-row-1',
+          ...input.data,
+          channel,
+          agent: channel.agent,
+          responseStatus: null,
+          responseBody: null,
+          errorMessage: null,
+          latencyMs: null,
+          deliveredAt: null,
+          createdAt: new Date('2026-05-05T00:00:00.000Z'),
+          updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+        };
+      },
+      update: async (input: { where: { id: string }; data: Record<string, unknown> }) => {
+        senderUpdates.push(input);
+        const senderCreate = senderCreates[0];
+        if (!senderCreate) throw new Error('Sender delivery update called before create');
+        return {
+          id: input.where.id,
+          ...senderCreate.data,
+          ...input.data,
+          channel,
+          agent: channel.agent,
+          createdAt: new Date('2026-05-05T00:00:00.000Z'),
+          updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+        };
+      },
+    },
+    channelDelivery: {
+      create: async (input: { data: Record<string, unknown> }) => {
+        normalizedCreates.push(input);
+        return { id: 'normalized-row-1', ...input.data };
+      },
+      updateMany: async (input: { data: Record<string, unknown> }) => {
+        normalizedUpdates.push(input);
+        return { count: 1 };
+      },
+    },
+  };
+  const platformEvents = {
+    recordEvent: async () => ({ id: 'event-1' }),
+    recordUsage: async () => ({}),
+  };
+
+  return {
+    senderCreates,
+    senderUpdates,
+    normalizedCreates,
+    normalizedUpdates,
+    service: new ExternalChannelSenderService(prisma as never, platformEvents as never, {} as never),
+  };
+}
+
+function buildChannel(overrides: Record<string, unknown> = {}) {
+  return {
+    id: channelId,
+    tenantId,
+    agentId,
+    accountId: null,
+    channel: 'CUSTOM_WEBHOOK',
+    name: 'Test channel',
+    status: 'ACTIVE',
+    config: {},
+    callbackUrl: null,
+    secretEncrypted: null,
+    createdBy: userId,
+    agent: {
+      id: agentId,
+      tenantId,
+      ownerId: userId,
+      createdBy: userId,
+      name: 'Test agent',
+      status: 'PUBLISHED',
+      deletedAt: null,
+    },
+    account: null,
+    ...overrides,
+  };
+}
+
+function buildFailedSenderDelivery(channel: Record<string, unknown>, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'sender-row-1',
+    tenantId,
+    channelId,
+    agentId,
+    deliveryId: 'delivery-1',
+    parentDeliveryId: null,
+    provider: 'CUSTOM_WEBHOOK',
+    target: 'https://hooks.example.test/sender?token=%5BREDACTED%5D&plain=1',
+    requestUrl: 'https://hooks.example.test/sender?token=%5BREDACTED%5D&plain=1',
+    requestBody: { text: 'answer' },
+    requestHeaders: { 'x-aiaget-signature': '[REDACTED]' },
+    status: 'FAILED',
+    responseStatus: 500,
+    responseBody: null,
+    errorMessage: 'failed',
+    retryCount: 0,
+    latencyMs: 100,
+    conversationId: 'conversation-1',
+    runId: 'run-1',
+    traceId: 'trace-1',
+    externalConversationId: 'external-conversation-1',
+    externalMessageId: 'external-message-1',
+    deliveredAt: new Date('2026-05-05T00:00:00.000Z'),
+    createdAt: new Date('2026-05-05T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+    channel,
+    agent: channel.agent,
+    ...overrides,
+  };
+}
+
+function buildRequest(input: Partial<RequestWithContext> = {}): RequestWithContext {
+  return {
+    requestId: 'request-1',
+    traceId: 'trace-1',
+    headers: {},
+    query: {},
+    ...input,
+  } as RequestWithContext;
+}
+
+function buildOperator() {
+  return {
+    id: userId,
+    tenantId,
+    departmentId: null,
+    email: 'operator@example.test',
+    roles: [],
+    roleIds: [],
+    permissions: [],
+    requestId: 'request-1',
+    traceId: 'trace-1',
+  };
+}

@@ -140,6 +140,7 @@ channel.release_self_healing.rolled_back
 
 ```text
 plugin.installed
+plugin.manifest.validation_failed
 plugin.enabled
 plugin.disabled
 plugin.upgraded

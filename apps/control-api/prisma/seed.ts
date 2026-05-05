@@ -1327,6 +1327,7 @@ async function seedResourceAcls(
       PERMISSION_CODES.pluginCenterEnable,
       PERMISSION_CODES.pluginCenterDisable,
       PERMISSION_CODES.pluginCenterUpgrade,
+      PERMISSION_CODES.pluginCenterUninstall,
       PERMISSION_CODES.pluginCenterAudit,
     ].map((permissionCode) => ({
       resourceType: 'PLUGIN',

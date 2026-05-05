@@ -19,6 +19,7 @@ import type {
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser, RequestWithContext } from '../common/types/request-context';
+import { redactChannelAuditValue } from '../channels/channel-audit-redaction';
 import { ConversationsService } from '../conversations/conversations.service';
 import { decryptSecret } from '../models/model-secrets';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
@@ -124,6 +125,9 @@ export class ExternalChannelCallbackService {
     request.externalChannelId = channel.id;
     const normalizedBody = this.normalizeIncomingBody(provider, channel, request, body);
 
+    this.ensureCallbackAvailable(channel);
+    this.verifySignatureIfRequired(channel, request, normalizedBody);
+
     const challengeResponse = buildChallengeResponse(provider, normalizedBody);
     if (challengeResponse) {
       return {
@@ -143,9 +147,6 @@ export class ExternalChannelCallbackService {
         response: challengeResponse,
       };
     }
-
-    this.ensureCallbackAvailable(channel);
-    this.verifySignatureIfRequired(channel, request, normalizedBody);
 
     const operator = await this.resolveCallbackUser(channel, request);
     request.user = operator;
@@ -452,13 +453,15 @@ export class ExternalChannelCallbackService {
 
   private verifySignatureIfRequired(channel: ChannelRecord, request: RequestWithContext, body: unknown) {
     const provider = normalizeProvider(channel.channel);
-    const skipSignatureCheck = readConfigBoolean(channel.config, 'skip_signature_check');
     const requireAiagetSignature = provider === 'CUSTOM_WEBHOOK' || readConfigBoolean(channel.config, 'require_aiaget_signature');
     if (provider === 'DINGTALK') {
-      this.verifyDingTalkSignatureIfConfigured(channel, request);
+      this.verifyDingTalkSignature(channel, request);
+    }
+    if (provider === 'SLACK') {
+      this.verifySlackSignature(channel, request);
     }
 
-    if (!requireAiagetSignature || skipSignatureCheck) return;
+    if (!requireAiagetSignature) return;
     if (!channel.secretEncrypted) {
       throw new UnauthorizedException('Channel callback secret is not configured');
     }
@@ -484,12 +487,11 @@ export class ExternalChannelCallbackService {
   }
 
   private verifyWechatWorkSignature(channel: ChannelRecord, request: RequestWithContext, encrypted: string) {
-    const skipSignatureCheck = readConfigBoolean(channel.config, 'skip_signature_check');
-    if (skipSignatureCheck) return;
-
     const credential = readChannelCredential(channel);
     const token = credential.wechat_work_token ?? readConfigString(channel.config, 'wechat_work_token');
-    if (!token) return;
+    if (!token) {
+      throw new UnauthorizedException('WeChat Work callback token is not configured');
+    }
 
     const signature = pickFirstString(request.query.msg_signature, request.query.signature);
     const timestamp = pickFirstString(request.query.timestamp);
@@ -545,6 +547,10 @@ export class ExternalChannelCallbackService {
   private verifyFeishuTokenIfConfigured(channel: ChannelRecord, body: Record<string, unknown>) {
     const credential = readChannelCredential(channel);
     const verificationToken = credential.feishu_verification_token ?? readConfigString(channel.config, 'feishu_verification_token');
+    const encryptKey = credential.feishu_encrypt_key ?? readConfigString(channel.config, 'feishu_encrypt_key');
+    if (!verificationToken && !encryptKey) {
+      throw new UnauthorizedException('Feishu callback verification token or encrypt key is not configured');
+    }
     if (!verificationToken) return;
 
     const token = pickFirstString(body.token, nested(body, 'header.token'));
@@ -557,7 +563,10 @@ export class ExternalChannelCallbackService {
     const credential = readChannelCredential(channel);
     const encryptKey = credential.feishu_encrypt_key ?? readConfigString(channel.config, 'feishu_encrypt_key');
     const signature = pickFirstString(request.headers['x-lark-signature']);
-    if (!encryptKey || !signature) return;
+    if (!encryptKey) return;
+    if (!signature) {
+      throw new UnauthorizedException('Missing Feishu callback signature');
+    }
 
     const timestamp = pickFirstString(request.headers['x-lark-request-timestamp']);
     const nonce = pickFirstString(request.headers['x-lark-request-nonce']);
@@ -593,10 +602,12 @@ export class ExternalChannelCallbackService {
     return parsed;
   }
 
-  private verifyDingTalkSignatureIfConfigured(channel: ChannelRecord, request: RequestWithContext) {
+  private verifyDingTalkSignature(channel: ChannelRecord, request: RequestWithContext) {
     const credential = readChannelCredential(channel);
     const secret = credential.dingtalk_sign_secret ?? readConfigString(channel.config, 'dingtalk_sign_secret');
-    if (!secret || readConfigBoolean(channel.config, 'skip_signature_check')) return;
+    if (!secret) {
+      throw new UnauthorizedException('DingTalk callback signing secret is not configured');
+    }
 
     const timestamp = pickFirstString(request.query.timestamp, request.headers.timestamp, request.headers['x-dingtalk-timestamp']);
     const signature = pickFirstString(request.query.sign, request.headers.sign, request.headers['x-dingtalk-signature']);
@@ -608,6 +619,31 @@ export class ExternalChannelCallbackService {
     const decodedSignature = decodeURIComponent(signature);
     if (!timingSafeCompare(expected, decodedSignature)) {
       throw new UnauthorizedException('Invalid DingTalk callback signature');
+    }
+  }
+
+  private verifySlackSignature(channel: ChannelRecord, request: RequestWithContext) {
+    const credential = readChannelCredential(channel);
+    const secret = credential.slack_signing_secret ?? readConfigString(channel.config, 'slack_signing_secret');
+    if (!secret) {
+      throw new UnauthorizedException('Slack callback signing secret is not configured');
+    }
+
+    const timestamp = pickFirstString(request.headers['x-slack-request-timestamp']);
+    const signature = pickFirstString(request.headers['x-slack-signature']);
+    const rawBody = request.rawBody;
+    if (!timestamp || !signature || !rawBody) {
+      throw new UnauthorizedException('Missing Slack callback signature context');
+    }
+
+    const timestampSeconds = Number(timestamp);
+    if (!Number.isFinite(timestampSeconds) || Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) > 300) {
+      throw new UnauthorizedException('Invalid Slack callback timestamp');
+    }
+
+    const expected = `v0=${createHmac('sha256', secret).update(`v0:${timestamp}:${rawBody}`).digest('hex')}`;
+    if (!timingSafeCompare(expected, signature)) {
+      throw new UnauthorizedException('Invalid Slack callback signature');
     }
   }
 
@@ -761,7 +797,7 @@ export class ExternalChannelCallbackService {
         recipient: channel.name ?? channel.channel,
         contentType: parsed.text ? 'TEXT' : 'EVENT',
         content: parsed.text,
-        payload: payload === null ? Prisma.JsonNull : toJsonValue(payload),
+        payload: payload === null ? Prisma.JsonNull : toJsonValue(redactChannelAuditValue(payload)),
         status,
         conversationId: null,
         messageId: null,

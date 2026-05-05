@@ -33,11 +33,11 @@ export interface OpenSearchSearchResult {
 
 @Injectable()
 export class OpenSearchService {
-  private readonly baseUrl = trimTrailingSlash(requireEnv('OPENSEARCH_URL'));
+  private readonly enabled = process.env.OPENSEARCH_ENABLED !== 'false';
+  private readonly baseUrl = resolveBaseUrl('OPENSEARCH_URL', this.enabled);
   private readonly username = process.env.OPENSEARCH_USERNAME?.trim() || null;
   private readonly password = process.env.OPENSEARCH_PASSWORD?.trim() || null;
   private readonly indexPrefix = sanitizeIndexName(process.env.OPENSEARCH_INDEX_PREFIX ?? DEFAULT_INDEX_PREFIX);
-  private readonly enabled = process.env.OPENSEARCH_ENABLED !== 'false' && Boolean(this.baseUrl);
   private readonly indexCache = new Set<string>();
 
   async indexSegments(documents: OpenSearchSegmentDocument[]): Promise<OpenSearchWriteResult> {
@@ -273,6 +273,10 @@ export class OpenSearchService {
   }
 
   private async request<T = unknown>(path: string, init: RequestInit): Promise<T> {
+    if (!this.baseUrl) {
+      throw new Error('OPENSEARCH_URL is required when OPENSEARCH_ENABLED=true');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const headers = new Headers(init.headers);
@@ -305,14 +309,15 @@ export class OpenSearchService {
   }
 }
 
-function requireEnv(name: string) {
+function resolveBaseUrl(name: string, enabled: boolean) {
   const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`${name} is required for OpenSearch configuration`);
+    if (!enabled) return null;
+    throw new Error(`${name} is required when OPENSEARCH_ENABLED=true`);
   }
 
-  return value;
+  return trimTrailingSlash(value);
 }
 
 class OpenSearchHttpError extends Error {

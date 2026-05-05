@@ -34,10 +34,10 @@ export interface QdrantWriteResult {
 
 @Injectable()
 export class QdrantService {
-  private readonly baseUrl = trimTrailingSlash(requireEnv('QDRANT_URL'));
+  private readonly enabled = process.env.QDRANT_ENABLED !== 'false';
+  private readonly baseUrl = resolveBaseUrl('QDRANT_URL', this.enabled);
   private readonly apiKey = process.env.QDRANT_API_KEY?.trim() || null;
   private readonly collectionPrefix = sanitizeCollectionName(process.env.QDRANT_COLLECTION_PREFIX ?? DEFAULT_COLLECTION_PREFIX);
-  private readonly enabled = process.env.QDRANT_ENABLED !== 'false' && Boolean(this.baseUrl);
   private readonly collectionCache = new Set<string>();
 
   async upsertSegments(points: QdrantSegmentPoint[]): Promise<QdrantWriteResult> {
@@ -231,6 +231,10 @@ export class QdrantService {
   }
 
   private async request<T = unknown>(path: string, init: RequestInit): Promise<T> {
+    if (!this.baseUrl) {
+      throw new Error('QDRANT_URL is required when QDRANT_ENABLED=true');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const headers = new Headers(init.headers);
@@ -258,14 +262,15 @@ export class QdrantService {
   }
 }
 
-function requireEnv(name: string) {
+function resolveBaseUrl(name: string, enabled: boolean) {
   const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`${name} is required for Qdrant configuration`);
+    if (!enabled) return null;
+    throw new Error(`${name} is required when QDRANT_ENABLED=true`);
   }
 
-  return value;
+  return trimTrailingSlash(value);
 }
 
 class QdrantHttpError extends Error {

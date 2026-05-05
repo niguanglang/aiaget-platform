@@ -13,7 +13,6 @@ import type {
   KnowledgeOverview,
   KnowledgeOverviewDocumentItem,
   KnowledgeOverviewRecallItem,
-  KnowledgeOverviewSummary,
   KnowledgeOverviewTaskItem,
   KnowledgeRecallLogItem,
   KnowledgeRecallResultItem,
@@ -367,6 +366,30 @@ export class KnowledgeService implements OnModuleInit {
       };
     }
 
+    const activeKnowledgeBases = await this.prisma.knowledgeBase.findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: {
+          in: bindings.map((binding) => binding.knowledgeId),
+        },
+        deletedAt: null,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+      },
+    });
+    const activeKnowledgeIds = new Set(activeKnowledgeBases.map((knowledgeBase) => knowledgeBase.id));
+
+    if (activeKnowledgeIds.size === 0) {
+      return {
+        references: [],
+        mode: 'HYBRID',
+        latency_ms: 0,
+        cost_total: 0,
+      };
+    }
+
     const references: Array<{
       segment: ScoredSegment;
       reference: ConversationReferenceItem;
@@ -377,11 +400,17 @@ export class KnowledgeService implements OnModuleInit {
     const startedAt = Date.now();
 
     for (const binding of bindings) {
+      if (!activeKnowledgeIds.has(binding.knowledgeId)) continue;
+
       const segments = await this.prisma.knowledgeSegment.findMany({
         where: {
           tenantId: currentUser.tenantId,
           knowledgeId: binding.knowledgeId,
           deletedAt: null,
+          knowledge: {
+            deletedAt: null,
+            status: 'ACTIVE',
+          },
         },
         include: {
           document: true,

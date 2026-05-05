@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildPluginManifestPolicy, buildPluginGeneratedCodes } from './plugin-policy';
+import { DATA_SCOPE_RESOURCE_DEFINITIONS } from '../data-scopes/data-scope.constants';
+import { RESOURCE_ACL_RESOURCE_DEFINITIONS } from '../resource-acls/resource-acl.constants';
+import { buildPluginManifestPolicy, buildPluginGeneratedCodes, validatePluginManifestInput } from './plugin-policy';
 
 test('blocks high risk plugin enablement until review is approved', () => {
   const policy = buildPluginManifestPolicy({
@@ -44,4 +46,74 @@ test('extracts generated plugin menu and tool codes for uninstall cleanup', () =
 
   assert.deepEqual(codes.menuCodes, ['plugin_ops-suite_root', 'plugin_ops-suite_incident-board']);
   assert.deepEqual(codes.toolCodes, ['plugin_tool_ops-suite_restart-service', 'plugin_tool_ops-suite_create-ticket']);
+});
+
+test('plugin permission catalogs include uninstall for the full production lifecycle', () => {
+  const dataScopePlugin = DATA_SCOPE_RESOURCE_DEFINITIONS.find((item) => item.resource_type === 'PLUGIN');
+  const resourceAclPlugin = RESOURCE_ACL_RESOURCE_DEFINITIONS.find((item) => item.resource_type === 'PLUGIN');
+
+  assert.ok(dataScopePlugin?.permission_codes.includes('plugin:center:uninstall'));
+  assert.ok(resourceAclPlugin?.permission_codes.includes('plugin:center:uninstall'));
+});
+
+test('blocks custom plugin manifests without package source integrity metadata', () => {
+  const validation = validatePluginManifestInput({
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.status, 'FAILED');
+  assert.equal(validation.can_install, false);
+  assert.deepEqual(
+    validation.errors.map((issue) => issue.code),
+    ['PACKAGE_SOURCE_REQUIRED', 'PACKAGE_SHA256_REQUIRED', 'PACKAGE_SIGNATURE_REQUIRED'],
+  );
+});
+
+test('previews plugin tool center binding for valid custom manifests', () => {
+  const validation = validatePluginManifestInput({
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      package: {
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        signature: 'sigstore-bundle-placeholder',
+      },
+      permissions: ['plugin:ticket:create'],
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+          risk_level: 'HIGH',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.status, 'PASSED');
+  assert.equal(validation.can_install, true);
+  assert.equal(validation.package_source, 'https://plugins.example.com/ticket-suite-1.2.0.tgz');
+  assert.equal(validation.tool_bindings.length, 1);
+  assert.equal(validation.tool_bindings[0]?.generated_tool_code, 'plugin_tool_ticket-suite_create-ticket');
+  assert.equal(validation.tool_bindings[0]?.gateway, 'TOOL_GATEWAY');
+  assert.equal(validation.tool_bindings[0]?.require_approval, true);
 });

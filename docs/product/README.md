@@ -148,4 +148,5 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)
 - [P0-5 统一事件与用量投影契约](./p0-5-event-usage-contract.md)
+- [P0-8 插件生态生产闭环](./p0-8-plugin-production-closure.md)
 - [P0 并行执行计划](./p0-parallel-execution-plan.md)

@@ -61,6 +61,7 @@ Production deployment is described in [docs/architecture/production-deployment.m
 cp .env.production.example .env.production
 node scripts/validate-production-env.mjs .env.production
 docker compose -f deploy/docker-compose.production.yml --env-file .env.production config
+node scripts/verify-observability-template.mjs
 ```
 
 Useful verification commands:
@@ -69,10 +70,21 @@ Useful verification commands:
 pnpm build:prod
 pnpm test
 pnpm verify:prod-template
+pnpm verify:observability-template
 python3 -m compileall apps/agent-runtime/app
 ```
 
 Do not start or add middleware/container services without explicit operator approval.
+
+Production observability templates live in [deploy/monitoring](./deploy/monitoring/README.md). The production application Compose file only passes OTEL exporter environment variables to existing application services; Prometheus, Grafana, Loki, and OpenTelemetry Collector remain operator-managed services.
+
+After a production environment is already running, verify trace propagation without starting containers:
+
+```bash
+node scripts/verify-trace-propagation.mjs \
+  --control-api https://api.example.com/api/v1 \
+  --runtime https://runtime.example.com/runtime
+```
 
 Apply Control API database migration and seed:
 

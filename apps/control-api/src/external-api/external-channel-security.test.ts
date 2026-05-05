@@ -247,9 +247,80 @@ test('rejects Slack callback when configured native signature is invalid', async
   );
 });
 
-async function createCallbackService(channel: Record<string, unknown>) {
+test('async ACK persists the callback reply and schedules the durable reply scanner', async () => {
+  const secret = 'callback-signing-secret';
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    secretEncrypted: encryptSecret(secret),
+    config: {
+      ack_immediately: true,
+    },
+  });
+  const { service, replyCreates, replyFindManyInputs } = await createCallbackService(channel);
+  const body = { event: 'message.received', message: 'hello from callback', id: 'msg-async-1' };
+  const rawBody = JSON.stringify(body);
+
+  const handled = await service.handle(
+    buildRequest({
+      rawBody,
+      headers: {
+        'x-aiaget-signature': `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`,
+      },
+    }),
+    channelId,
+    body,
+  );
+
+  assert.equal(handled.result.async_accepted, true);
+  assert.equal(replyCreates.length, 1);
+  assert.equal(replyCreates[0]?.data.status, 'RECEIVED');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(replyFindManyInputs.length, 1);
+});
+
+test('processes pending async callback replies from persisted channel replies', async () => {
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    config: {
+      ack_immediately: true,
+    },
+  });
+  const pendingReply = buildPendingReply(channel, {
+    id: 'reply-pending-1',
+    content: 'recover me',
+    payload: {
+      event: 'message.received',
+      message: 'recover me',
+      id: 'msg-recover-1',
+      sender_id: 'sender-1',
+      response_url: 'https://hooks.example.test/reply',
+    },
+    externalConversationId: 'external-conversation-1',
+    externalMessageId: 'msg-recover-1',
+    sender: 'sender-1',
+  });
+  const { service, conversationCreates, replyUpdates, replyFindManyInputs } = await createCallbackService(channel, {
+    pendingReplies: [pendingReply],
+  });
+
+  const result = await service.processPendingAsyncCallbackReplies({ limit: 10 });
+
+  assert.equal(result.scanned_count, 1);
+  assert.equal(result.processed_count, 1);
+  assert.equal(result.failed_count, 0);
+  assert.equal(conversationCreates.length, 1);
+  assert.equal(conversationCreates[0]?.message, 'recover me');
+  assert.equal(replyUpdates.at(-1)?.data.status, 'PROCESSED');
+  assert.equal(replyFindManyInputs.length, 1);
+});
+
+async function createCallbackService(channel: Record<string, unknown>, options: { pendingReplies?: Array<Record<string, unknown>> } = {}) {
   const { ExternalChannelCallbackService } = await import('./external-channel-callback.service');
   const replyCreates: Array<{ data: Record<string, unknown> }> = [];
+  const replyUpdates: Array<{ where: { id: string }; data: Record<string, unknown> }> = [];
+  const replyFindManyInputs: Array<Record<string, unknown>> = [];
+  const conversationCreates: Array<{ message: string; title?: string }> = [];
+  const replySends: Array<Record<string, unknown>> = [];
   const prisma = {
     agentPublishChannel: {
       findFirst: async () => channel,
@@ -269,7 +340,20 @@ async function createCallbackService(channel: Record<string, unknown>) {
         replyCreates.push(input);
         return { id: 'reply-1', ...input.data };
       },
-      update: async () => ({}),
+      findMany: async (input: Record<string, unknown>) => {
+        replyFindManyInputs.push(input);
+        return options.pendingReplies ?? [];
+      },
+      update: async (input: { where: { id: string }; data: Record<string, unknown> }) => {
+        replyUpdates.push(input);
+        return { id: input.where.id, ...input.data };
+      },
+    },
+  };
+  const conversations = {
+    create: async (_operator: unknown, input: { message: string; title?: string }) => {
+      conversationCreates.push(input);
+      return buildConversation(input.message);
     },
   };
   const platformEvents = {
@@ -279,16 +363,58 @@ async function createCallbackService(channel: Record<string, unknown>) {
   const rolloutGate = {
     evaluateForCallback: async () => ({ allowed: true, rollout_percentage: 100, trace_id: null }),
   };
+  const channelSender = {
+    sendReply: async (input: Record<string, unknown>) => {
+      replySends.push(input);
+      return { status: 'SENT' };
+    },
+  };
 
   return {
     replyCreates,
+    replyUpdates,
+    replyFindManyInputs,
+    conversationCreates,
+    replySends,
     service: new ExternalChannelCallbackService(
       prisma as never,
-      {} as never,
+      conversations as never,
       platformEvents as never,
       rolloutGate as never,
-      {} as never,
+      channelSender as never,
     ),
+  };
+}
+
+function buildConversation(message: string) {
+  return {
+    id: 'conversation-1',
+    agent_id: agentId,
+    agent_name: 'Test agent',
+    agent_code: 'test-agent',
+    messages: [
+      {
+        id: 'message-1',
+        role: 'ASSISTANT',
+        content: `answer: ${message}`,
+        references: [],
+        tool_calls: [],
+        created_at: '2026-05-05T00:00:00.000Z',
+      },
+    ],
+    runs: [
+      {
+        id: 'run-1',
+        trace_id: 'trace-recovered-1',
+        status: 'SUCCESS',
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+        latency_ms: 10,
+        cost_total: 0,
+        created_at: '2026-05-05T00:00:00.000Z',
+      },
+    ],
   };
 }
 
@@ -430,6 +556,48 @@ function buildChannel(overrides: Record<string, unknown> = {}) {
       deletedAt: null,
     },
     account: null,
+    ...overrides,
+  };
+}
+
+function buildPendingReply(channel: Record<string, unknown>, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'reply-pending-1',
+    tenantId,
+    agentId,
+    publishChannelId: channel.id,
+    providerId: null,
+    accountId: channel.accountId ?? null,
+    deliveryId: null,
+    replyKey: 'cr_request-1_msg-recover-1',
+    direction: 'INBOUND',
+    sender: 'sender-1',
+    recipient: channel.name,
+    contentType: 'TEXT',
+    content: 'recover me',
+    payload: {
+      event: 'message.received',
+      message: 'recover me',
+      id: 'msg-recover-1',
+    },
+    status: 'RECEIVED',
+    conversationId: null,
+    messageId: null,
+    traceId: 'trace-pending-1',
+    externalConversationId: 'external-conversation-1',
+    externalMessageId: 'msg-recover-1',
+    receivedAt: new Date('2026-05-05T00:00:00.000Z'),
+    processedAt: null,
+    createdAt: new Date('2026-05-05T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+    deletedAt: null,
+    createdBy: userId,
+    updatedBy: userId,
+    publishChannel: channel,
+    agent: channel.agent,
+    account: channel.account ?? null,
+    provider: null,
+    delivery: null,
     ...overrides,
   };
 }

@@ -15,6 +15,10 @@ import { PrismaService } from '../prisma/prisma.service';
 const TASK_INTERVAL_MS = Number(process.env.CHANNEL_SENDER_TASK_INTERVAL_MS ?? 60_000);
 const TASK_BATCH_SIZE = Math.min(Math.max(Number(process.env.CHANNEL_SENDER_TASK_BATCH_SIZE ?? 10), 1), 50);
 const TASK_REQUEST_ID_PREFIX = 'channel_sender_task';
+const TASK_LOCK_TTL_MS = Math.max(TASK_INTERVAL_MS, 30_000);
+const TASK_LOCK_EVENT_TYPE = 'channel.sender_task.scheduled_lock_acquired';
+const TASK_LOCK_SOURCE_SYSTEM = 'channel_sender_task_lock';
+const TASK_LOCK_RESOURCE_TYPE = 'CHANNEL_SENDER_TASK_LOCK';
 
 const channelInclude = {
   agent: true,
@@ -34,6 +38,14 @@ const deliveryInclude = {
 
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
 type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: typeof deliveryInclude }>;
+
+interface ScheduledTaskLockResult {
+  acquired: boolean;
+  lock_key: string;
+  ttl_ms: number;
+  locked_at: string | null;
+  request_id: string | null;
+}
 
 @Injectable()
 export class ChannelSenderTaskService implements OnModuleInit, OnModuleDestroy {
@@ -151,12 +163,125 @@ export class ChannelSenderTaskService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const tenant of tenants) {
-        this.lastAutoRetryResult = await this.runAutoRetryForTenant(tenant.id, buildRequestId('scheduled_retry'));
-        this.lastCleanupResult = await this.runCleanupForTenant(tenant.id, buildRequestId('scheduled_cleanup'));
+        this.lastAutoRetryResult = await this.runScheduledAutoRetryForTenant(tenant.id, buildRequestId('scheduled_retry'));
+        this.lastCleanupResult = await this.runScheduledCleanupForTenant(tenant.id, buildRequestId('scheduled_cleanup'));
       }
     } finally {
       this.running = false;
     }
+  }
+
+  private async runScheduledAutoRetryForTenant(tenantId: string, requestId: string): Promise<ChannelSenderTaskRunResult> {
+    const startedAt = new Date();
+    const lock = await this.acquireScheduledTaskLock(tenantId, 'AUTO_RETRY', requestId, startedAt);
+    if (!lock.acquired) {
+      const result = buildLockedTaskResult('AUTO_RETRY', startedAt, '渠道自动重试已由其他实例处理，跳过本轮扫描。');
+      await this.recordScheduledTaskLockedEvent(tenantId, 'channel.sender_task.scheduled_auto_retry_locked', result, requestId, lock);
+
+      return this.storeAutoRetryResult(result);
+    }
+
+    return this.runAutoRetryForTenant(tenantId, requestId);
+  }
+
+  private async runScheduledCleanupForTenant(tenantId: string, requestId: string): Promise<ChannelSenderTaskRunResult> {
+    const startedAt = new Date();
+    const lock = await this.acquireScheduledTaskLock(tenantId, 'CLEANUP', requestId, startedAt);
+    if (!lock.acquired) {
+      const result = buildLockedTaskResult('CLEANUP', startedAt, '渠道投递清理已由其他实例处理，跳过本轮扫描。');
+      await this.recordScheduledTaskLockedEvent(tenantId, 'channel.sender_task.scheduled_cleanup_locked', result, requestId, lock);
+
+      return this.storeCleanupResult(result);
+    }
+
+    return this.runCleanupForTenant(tenantId, requestId);
+  }
+
+  private async acquireScheduledTaskLock(
+    tenantId: string,
+    task: ChannelSenderTaskRunResult['task'],
+    requestId: string,
+    startedAt: Date,
+  ): Promise<ScheduledTaskLockResult> {
+    const lockKey = buildTaskLockKey(tenantId, task);
+    const windowStartedAt = new Date(startedAt.getTime() - TASK_LOCK_TTL_MS);
+
+    return this.prisma.$transaction(async (tx) => {
+      const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(hashtextextended(${lockKey}, 0)) AS locked
+      `;
+      if (lockRows[0]?.locked !== true) {
+        return {
+          acquired: false,
+          lock_key: lockKey,
+          ttl_ms: TASK_LOCK_TTL_MS,
+          locked_at: null,
+          request_id: null,
+        };
+      }
+
+      const existing = await tx.platformEvent.findFirst({
+        where: {
+          tenantId,
+          eventSource: 'CHANNEL_SENDER_TASK',
+          eventType: TASK_LOCK_EVENT_TYPE,
+          sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+          sourceId: lockKey,
+          occurredAt: {
+            gte: windowStartedAt,
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        select: {
+          occurredAt: true,
+          requestId: true,
+        },
+      });
+      if (existing) {
+        return {
+          acquired: false,
+          lock_key: lockKey,
+          ttl_ms: TASK_LOCK_TTL_MS,
+          locked_at: existing.occurredAt.toISOString(),
+          request_id: existing.requestId,
+        };
+      }
+
+      await tx.platformEvent.create({
+        data: {
+          tenantId,
+          actorType: 'SYSTEM',
+          resourceType: TASK_LOCK_RESOURCE_TYPE,
+          requestId,
+          eventSource: 'CHANNEL_SENDER_TASK',
+          eventType: TASK_LOCK_EVENT_TYPE,
+          status: 'LOCKED',
+          severity: 'INFO',
+          billable: false,
+          summary: taskLockSummary(task, TASK_LOCK_TTL_MS),
+          payloadJson: {
+            task,
+            lock_key: lockKey,
+            ttl_ms: TASK_LOCK_TTL_MS,
+            window_started_at: windowStartedAt.toISOString(),
+          } satisfies Prisma.InputJsonObject,
+          occurredAt: startedAt,
+          sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+          sourceId: lockKey,
+          dedupeKey: buildTaskLockDedupeKey(tenantId, task, startedAt),
+        },
+      });
+
+      return {
+        acquired: true,
+        lock_key: lockKey,
+        ttl_ms: TASK_LOCK_TTL_MS,
+        locked_at: startedAt.toISOString(),
+        request_id: requestId,
+      };
+    });
   }
 
   private async runAutoRetryForTenant(tenantId: string, requestId: string): Promise<ChannelSenderTaskRunResult> {
@@ -301,6 +426,35 @@ export class ChannelSenderTaskService implements OnModuleInit, OnModuleDestroy {
       sourceId: result.task.toLowerCase(),
     });
   }
+
+  private async recordScheduledTaskLockedEvent(
+    tenantId: string,
+    eventType: string,
+    result: ChannelSenderTaskRunResult,
+    requestId: string,
+    lock: ScheduledTaskLockResult,
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId,
+      userId: null,
+      actorType: 'SYSTEM',
+      resourceType: TASK_LOCK_RESOURCE_TYPE,
+      requestId,
+      eventSource: 'CHANNEL_SENDER_TASK',
+      eventType,
+      status: 'LOCKED',
+      severity: 'INFO',
+      billable: false,
+      summary: taskLockedSummary(result.task),
+      payloadJson: {
+        ...result,
+        lock: scheduledTaskLockPayload(lock),
+      } satisfies Prisma.InputJsonObject,
+      sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+      sourceId: lock.lock_key,
+      dedupeKey: `${requestId}:locked`,
+    });
+  }
 }
 
 function isSchedulerEnabled() {
@@ -428,6 +582,26 @@ function buildTaskResult(
   };
 }
 
+function buildLockedTaskResult(
+  task: ChannelSenderTaskRunResult['task'],
+  startedAt: Date,
+  message: string,
+): ChannelSenderTaskRunResult {
+  return {
+    task,
+    status: 'SKIPPED',
+    started_at: startedAt.toISOString(),
+    finished_at: new Date().toISOString(),
+    scanned_count: 0,
+    retried_count: 0,
+    success_count: 0,
+    failed_count: 0,
+    skipped_count: 1,
+    deleted_count: 0,
+    error_message: message,
+  };
+}
+
 function taskSummary(result: ChannelSenderTaskRunResult) {
   if (result.task === 'AUTO_RETRY') {
     return `渠道自动重试完成：扫描 ${result.scanned_count} 条，重试 ${result.retried_count} 条，成功 ${result.success_count} 条，失败 ${result.failed_count} 条。`;
@@ -438,4 +612,34 @@ function taskSummary(result: ChannelSenderTaskRunResult) {
 
 function buildRequestId(source: string) {
   return `${TASK_REQUEST_ID_PREFIX}_${source}_${Date.now()}`;
+}
+
+function buildTaskLockKey(tenantId: string, task: ChannelSenderTaskRunResult['task']) {
+  return `${TASK_REQUEST_ID_PREFIX}:${tenantId}:${task}`;
+}
+
+function buildTaskLockDedupeKey(tenantId: string, task: ChannelSenderTaskRunResult['task'], startedAt: Date) {
+  return `${buildTaskLockKey(tenantId, task)}:${Math.floor(startedAt.getTime() / TASK_LOCK_TTL_MS)}`;
+}
+
+function taskLockSummary(task: ChannelSenderTaskRunResult['task'], ttlMs: number) {
+  const taskName = task === 'AUTO_RETRY' ? '渠道自动重试' : '渠道投递清理';
+
+  return `${taskName} scheduled 锁已获取，TTL ${Math.ceil(ttlMs / 1000)} 秒。`;
+}
+
+function taskLockedSummary(task: ChannelSenderTaskRunResult['task']) {
+  return task === 'AUTO_RETRY'
+    ? '渠道自动重试 scheduled 锁已被其他实例持有，本轮跳过。'
+    : '渠道投递清理 scheduled 锁已被其他实例持有，本轮跳过。';
+}
+
+function scheduledTaskLockPayload(lock: ScheduledTaskLockResult): Prisma.InputJsonObject {
+  return {
+    acquired: lock.acquired,
+    lock_key: lock.lock_key,
+    ttl_ms: lock.ttl_ms,
+    locked_at: lock.locked_at,
+    request_id: lock.request_id,
+  };
 }

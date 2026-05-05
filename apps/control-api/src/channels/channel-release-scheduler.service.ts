@@ -18,12 +18,24 @@ import { ChannelReleaseSelfHealingWorkflowService } from './channel-release-self
 const TASK_INTERVAL_MS = Math.max(Number(process.env.CHANNEL_RELEASE_SCHEDULER_INTERVAL_MS ?? 120_000), 30_000);
 const TASK_BATCH_SIZE = Math.min(Math.max(Number(process.env.CHANNEL_RELEASE_SCHEDULER_BATCH_SIZE ?? 10), 1), 50);
 const DEFAULT_REQUEST_ID_PREFIX = 'channel_release_scheduler';
+const TASK_LOCK_TTL_MS = Math.max(TASK_INTERVAL_MS, 30_000);
+const TASK_LOCK_EVENT_TYPE = 'channel.release_scheduler.scheduled_lock_acquired';
+const TASK_LOCK_SOURCE_SYSTEM = 'channel_release_scheduler_lock';
+const TASK_LOCK_RESOURCE_TYPE = 'CHANNEL_RELEASE_SCHEDULER_LOCK';
 
 const channelInclude = {
   agent: true,
 } satisfies Prisma.AgentPublishChannelInclude;
 
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
+
+interface ScheduledReleaseLockResult {
+  acquired: boolean;
+  lock_key: string;
+  ttl_ms: number;
+  locked_at: string | null;
+  request_id: string | null;
+}
 
 @Injectable()
 export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -100,11 +112,111 @@ export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDes
       });
 
       for (const tenant of tenants) {
-        this.lastRun = await this.runForTenant(tenant.id, buildRequestId('scheduled'), null);
+        this.lastRun = await this.runScheduledForTenant(tenant.id, buildRequestId('scheduled'));
       }
     } finally {
       this.running = false;
     }
+  }
+
+  private async runScheduledForTenant(tenantId: string, requestId: string): Promise<ChannelReleaseSchedulerRunResult> {
+    const startedAt = new Date();
+    const lock = await this.acquireScheduledRunLock(tenantId, requestId, startedAt);
+    if (!lock.acquired) {
+      const result = buildLockedSchedulerResult(startedAt, '渠道发布巡检已由其他实例处理，跳过本轮扫描。');
+      this.lastRun = result;
+      await this.recordSchedulerLockedEvent(tenantId, requestId, result, lock);
+
+      return result;
+    }
+
+    return this.runForTenant(tenantId, requestId, null);
+  }
+
+  private async acquireScheduledRunLock(
+    tenantId: string,
+    requestId: string,
+    startedAt: Date,
+  ): Promise<ScheduledReleaseLockResult> {
+    const lockKey = buildReleaseLockKey(tenantId);
+    const windowStartedAt = new Date(startedAt.getTime() - TASK_LOCK_TTL_MS);
+
+    return this.prisma.$transaction(async (tx) => {
+      const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(hashtextextended(${lockKey}, 0)) AS locked
+      `;
+      if (lockRows[0]?.locked !== true) {
+        return {
+          acquired: false,
+          lock_key: lockKey,
+          ttl_ms: TASK_LOCK_TTL_MS,
+          locked_at: null,
+          request_id: null,
+        };
+      }
+
+      const existing = await tx.platformEvent.findFirst({
+        where: {
+          tenantId,
+          eventSource: 'CHANNEL_RELEASE_SCHEDULER',
+          eventType: TASK_LOCK_EVENT_TYPE,
+          sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+          sourceId: lockKey,
+          occurredAt: {
+            gte: windowStartedAt,
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        select: {
+          occurredAt: true,
+          requestId: true,
+        },
+      });
+      if (existing) {
+        return {
+          acquired: false,
+          lock_key: lockKey,
+          ttl_ms: TASK_LOCK_TTL_MS,
+          locked_at: existing.occurredAt.toISOString(),
+          request_id: existing.requestId,
+        };
+      }
+
+      await tx.platformEvent.create({
+        data: {
+          tenantId,
+          actorType: 'SYSTEM',
+          resourceType: TASK_LOCK_RESOURCE_TYPE,
+          requestId,
+          eventSource: 'CHANNEL_RELEASE_SCHEDULER',
+          eventType: TASK_LOCK_EVENT_TYPE,
+          status: 'LOCKED',
+          severity: 'INFO',
+          billable: false,
+          summary: `渠道发布巡检 scheduled 锁已获取，TTL ${Math.ceil(TASK_LOCK_TTL_MS / 1000)} 秒。`,
+          payloadJson: {
+            task: 'POLL',
+            lock_key: lockKey,
+            ttl_ms: TASK_LOCK_TTL_MS,
+            window_started_at: windowStartedAt.toISOString(),
+          } satisfies Prisma.InputJsonObject,
+          occurredAt: startedAt,
+          sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+          sourceId: lockKey,
+          dedupeKey: buildReleaseLockDedupeKey(tenantId, startedAt),
+        },
+      });
+
+      return {
+        acquired: true,
+        lock_key: lockKey,
+        ttl_ms: TASK_LOCK_TTL_MS,
+        locked_at: startedAt.toISOString(),
+        request_id: requestId,
+      };
+    });
   }
 
   private async runForTenant(
@@ -250,6 +362,31 @@ export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDes
       sourceId: result.run_id,
     });
   }
+
+  private async recordSchedulerLockedEvent(
+    tenantId: string,
+    requestId: string,
+    result: ChannelReleaseSchedulerRunResult,
+    lock: ScheduledReleaseLockResult,
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId,
+      userId: null,
+      actorType: 'SYSTEM',
+      resourceType: TASK_LOCK_RESOURCE_TYPE,
+      requestId,
+      eventSource: 'CHANNEL_RELEASE_SCHEDULER',
+      eventType: 'channel.release_scheduler.scheduled_run_locked',
+      status: 'LOCKED',
+      severity: 'INFO',
+      billable: false,
+      summary: '渠道发布巡检 scheduled 锁已被其他实例持有，本轮跳过。',
+      payloadJson: scheduledReleaseLockedPayload(result, lock),
+      sourceSystem: TASK_LOCK_SOURCE_SYSTEM,
+      sourceId: lock.lock_key,
+      dedupeKey: `${requestId}:locked`,
+    });
+  }
 }
 
 function isSchedulerEnabled() {
@@ -328,6 +465,74 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function buildLockedSchedulerResult(startedAt: Date, message: string): ChannelReleaseSchedulerRunResult {
+  return {
+    run_id: `release_sched_${randomUUID().replaceAll('-', '').slice(0, 16)}`,
+    task: 'POLL',
+    status: 'SKIPPED',
+    started_at: startedAt.toISOString(),
+    finished_at: new Date().toISOString(),
+    scanned_channel_count: 0,
+    automation_candidate_count: 0,
+    self_healing_candidate_count: 0,
+    dispatched_count: 0,
+    success_count: 0,
+    failed_count: 0,
+    skipped_count: 1,
+    error_message: message,
+    results: [],
+  };
+}
+
 function schedulerSummary(result: ChannelReleaseSchedulerRunResult) {
   return `渠道发布巡检完成：扫描 ${result.scanned_channel_count} 个渠道，派发 ${result.dispatched_count} 个任务，成功 ${result.success_count}，失败 ${result.failed_count}。`;
+}
+
+function buildReleaseLockKey(tenantId: string) {
+  return `${DEFAULT_REQUEST_ID_PREFIX}:${tenantId}:POLL`;
+}
+
+function buildReleaseLockDedupeKey(tenantId: string, startedAt: Date) {
+  return `${buildReleaseLockKey(tenantId)}:${Math.floor(startedAt.getTime() / TASK_LOCK_TTL_MS)}`;
+}
+
+function scheduledReleaseLockPayload(lock: ScheduledReleaseLockResult): Prisma.InputJsonObject {
+  return {
+    acquired: lock.acquired,
+    lock_key: lock.lock_key,
+    ttl_ms: lock.ttl_ms,
+    locked_at: lock.locked_at,
+    request_id: lock.request_id,
+  };
+}
+
+function scheduledReleaseLockedPayload(
+  result: ChannelReleaseSchedulerRunResult,
+  lock: ScheduledReleaseLockResult,
+): Prisma.InputJsonObject {
+  return {
+    run_id: result.run_id,
+    task: result.task,
+    status: result.status,
+    started_at: result.started_at,
+    finished_at: result.finished_at,
+    scanned_channel_count: result.scanned_channel_count,
+    automation_candidate_count: result.automation_candidate_count,
+    self_healing_candidate_count: result.self_healing_candidate_count,
+    dispatched_count: result.dispatched_count,
+    success_count: result.success_count,
+    failed_count: result.failed_count,
+    skipped_count: result.skipped_count,
+    error_message: result.error_message,
+    results: result.results.map((item) => ({
+      channel_id: item.channel_id,
+      channel_name: item.channel_name,
+      task: item.task,
+      status: item.status,
+      decision: item.decision,
+      workflow_backend: item.workflow_backend,
+      error_message: item.error_message,
+    })),
+    lock: scheduledReleaseLockPayload(lock),
+  };
 }

@@ -35,6 +35,9 @@ const callbackChannelTypes = new Set<PublishChannelType>([
   'CUSTOM_WEBHOOK',
 ]);
 
+const DEFAULT_PENDING_ASYNC_CALLBACK_REPLY_LIMIT = 20;
+const MAX_PENDING_ASYNC_CALLBACK_REPLY_LIMIT = 100;
+
 const channelInclude = {
   agent: true,
   account: {
@@ -45,6 +48,13 @@ const channelInclude = {
 } satisfies Prisma.AgentPublishChannelInclude;
 
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
+const asyncCallbackReplyInclude = {
+  publishChannel: {
+    include: channelInclude,
+  },
+} satisfies Prisma.ChannelReplyInclude;
+
+type AsyncCallbackReplyRecord = Prisma.ChannelReplyGetPayload<{ include: typeof asyncCallbackReplyInclude }>;
 type CallbackUserRecord = Prisma.UserGetPayload<{
   include: {
     userRoles: {
@@ -87,8 +97,25 @@ interface CallbackExecutionContext {
   replyId: string;
 }
 
+export interface ProcessPendingAsyncCallbackRepliesOptions {
+  limit?: number;
+  replyId?: string;
+  requestId?: string;
+  traceId?: string;
+}
+
+export interface ProcessPendingAsyncCallbackRepliesResult {
+  scanned_count: number;
+  processed_count: number;
+  failed_count: number;
+  skipped_count: number;
+  error_message: string | null;
+}
+
 @Injectable()
 export class ExternalChannelCallbackService {
+  private readonly asyncCallbackContextOverrides = new Map<string, CallbackExecutionContext>();
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ConversationsService) private readonly conversations: ConversationsService,
@@ -236,7 +263,7 @@ export class ExternalChannelCallbackService {
         external_message_id: parsed.externalMessageId,
       };
 
-      void this.executeCallbackTurn({
+      this.asyncCallbackContextOverrides.set(reply.id, {
         request: cloneRequestContext(request),
         channel,
         operator,
@@ -245,6 +272,16 @@ export class ExternalChannelCallbackService {
         replyId: reply.id,
       });
       await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_async_accepted');
+      void this.processPendingAsyncCallbackReplies({
+        replyId: reply.id,
+        limit: 1,
+        requestId: request.requestId,
+        traceId: request.traceId,
+      })
+        .catch(() => undefined)
+        .finally(() => {
+          this.asyncCallbackContextOverrides.delete(reply.id);
+        });
 
       return {
         result,
@@ -267,31 +304,140 @@ export class ExternalChannelCallbackService {
         response: buildProviderResponse(provider, result),
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : '渠道回调执行失败。';
-      const result: ChannelCallbackResult = {
-        success: false,
-        ignored: false,
-        provider,
-        channel_id: channel.id,
-        agent_id: channel.agentId,
-        conversation_id: null,
-        run_id: null,
-        trace_id: request.traceId ?? null,
-        answer: null,
-        message,
-        external_message_id: parsed.externalMessageId,
-      };
+      await this.recordCallbackTurnFailure({
+        request,
+        channel,
+        operator,
+        parsed,
+        receivedEventId: receivedEvent.id,
+        replyId: reply.id,
+      }, error, 'channel.callback.failed');
 
-      await this.recordCallbackEvent(request, operator, channel, parsed, {
-        eventType: 'channel.callback.failed',
-        status: 'FAILED',
-        severity: 'WARN',
-        summary: `渠道回调失败：${message}`,
+      throw error;
+    }
+  }
+
+  async processPendingAsyncCallbackReplies(
+    input: ProcessPendingAsyncCallbackRepliesOptions = {},
+  ): Promise<ProcessPendingAsyncCallbackRepliesResult> {
+    const replies = await this.prisma.channelReply.findMany({
+      where: {
+        ...(input.replyId ? { id: input.replyId } : {}),
+        status: 'RECEIVED',
+        direction: 'INBOUND',
+        processedAt: null,
+        deletedAt: null,
+        publishChannel: {
+          is: pendingAsyncCallbackChannelWhere(),
+        },
+      },
+      include: asyncCallbackReplyInclude,
+      orderBy: [
+        { receivedAt: 'asc' },
+        { createdAt: 'asc' },
+      ],
+      take: normalizePendingAsyncCallbackReplyLimit(input.limit),
+    });
+
+    let processedCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
+    let errorMessage: string | null = null;
+
+    for (const reply of replies) {
+      const outcome = await this.processPendingAsyncCallbackReply(reply, input);
+      if (outcome.status === 'processed') processedCount += 1;
+      if (outcome.status === 'failed') failedCount += 1;
+      if (outcome.status === 'skipped') skippedCount += 1;
+      errorMessage ??= outcome.errorMessage ?? null;
+    }
+
+    return {
+      scanned_count: replies.length,
+      processed_count: processedCount,
+      failed_count: failedCount,
+      skipped_count: skippedCount,
+      error_message: errorMessage,
+    };
+  }
+
+  private async processPendingAsyncCallbackReply(
+    reply: AsyncCallbackReplyRecord,
+    input: ProcessPendingAsyncCallbackRepliesOptions,
+  ): Promise<{ status: 'processed' | 'failed' | 'skipped'; errorMessage?: string | null }> {
+    const override = this.asyncCallbackContextOverrides.get(reply.id);
+    if (override) {
+      try {
+        await this.executeCallbackTurn(override);
+        return { status: 'processed' };
+      } catch (error) {
+        const result = await this.recordCallbackTurnFailure(override, error, 'channel.callback.async_failed');
+        return { status: 'failed', errorMessage: result.message };
+      } finally {
+        this.asyncCallbackContextOverrides.delete(reply.id);
+      }
+    }
+
+    const channel = reply.publishChannel;
+    if (!channel || !shouldAckImmediately(channel)) {
+      return { status: 'skipped' };
+    }
+
+    const request = buildRecoveredRequestContext(reply, input);
+    request.externalChannelId = channel.id;
+    const provider = normalizeProvider(channel.channel);
+    const parsed = parsePersistedCallbackReply(provider, reply);
+    if (!parsed.text) {
+      await this.updateReplyRecord(reply.id, {
+        status: 'IGNORED',
+        conversationId: null,
+        messageId: null,
+        traceId: request.traceId ?? null,
+      });
+      return { status: 'skipped' };
+    }
+
+    let operator: AuthenticatedUser | null = null;
+    let recoveredEventId: string | null = null;
+    try {
+      this.ensureCallbackAvailable(channel);
+      operator = await this.resolveCallbackUser(channel, request);
+      request.user = operator;
+      const recoveredEvent = await this.recordCallbackEvent(request, operator, channel, parsed, {
+        eventType: 'channel.callback.async_recovered',
+        status: 'SUCCESS',
+        severity: 'INFO',
+        summary: `恢复${callbackProviderLabel(provider)}渠道异步回调`,
         payload: {
-          error_message: message,
+          reply_id: reply.id,
+          reply_key: reply.replyKey,
         },
       });
-      await this.recordCallbackUsage(request, operator, channel, receivedEvent.id, result, 1, 'channel_callback_failed');
+      recoveredEventId = recoveredEvent.id;
+      await this.executeCallbackTurn({
+        request,
+        channel,
+        operator,
+        parsed,
+        receivedEventId: recoveredEvent.id,
+        replyId: reply.id,
+      });
+
+      return { status: 'processed' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '渠道异步回调恢复执行失败。';
+      if (operator && recoveredEventId) {
+        const result = await this.recordCallbackTurnFailure({
+          request,
+          channel,
+          operator,
+          parsed,
+          receivedEventId: recoveredEventId,
+          replyId: reply.id,
+        }, error, 'channel.callback.async_failed');
+        return { status: 'failed', errorMessage: result.message };
+      }
+
       await this.updateReplyRecord(reply.id, {
         status: 'FAILED',
         conversationId: null,
@@ -300,8 +446,50 @@ export class ExternalChannelCallbackService {
       });
       await this.updateChannelHealth(channel.id, false, `最近回调失败：${message}`);
 
-      throw error;
+      return { status: 'failed', errorMessage: message };
     }
+  }
+
+  private async recordCallbackTurnFailure(
+    context: CallbackExecutionContext,
+    error: unknown,
+    eventType: string,
+  ): Promise<ChannelCallbackResult> {
+    const { request, channel, operator, parsed, receivedEventId, replyId } = context;
+    const message = error instanceof Error ? error.message : '渠道回调执行失败。';
+    const result: ChannelCallbackResult = {
+      success: false,
+      ignored: false,
+      provider: parsed.provider,
+      channel_id: channel.id,
+      agent_id: channel.agentId,
+      conversation_id: null,
+      run_id: null,
+      trace_id: request.traceId ?? null,
+      answer: null,
+      message,
+      external_message_id: parsed.externalMessageId,
+    };
+
+    await this.recordCallbackEvent(request, operator, channel, parsed, {
+      eventType,
+      status: 'FAILED',
+      severity: 'WARN',
+      summary: `渠道回调失败：${message}`,
+      payload: {
+        error_message: message,
+      },
+    });
+    await this.recordCallbackUsage(request, operator, channel, receivedEventId, result, 1, 'channel_callback_failed');
+    await this.updateReplyRecord(replyId, {
+      status: 'FAILED',
+      conversationId: null,
+      messageId: null,
+      traceId: request.traceId ?? null,
+    });
+    await this.updateChannelHealth(channel.id, false, `最近回调失败：${message}`);
+
+    return result;
   }
 
   private async executeCallbackTurn(context: CallbackExecutionContext): Promise<ChannelCallbackResult> {
@@ -1051,6 +1239,74 @@ function buildAckResponse(provider: ChannelCallbackProvider, result: ChannelCall
   }
 
   return result;
+}
+
+function parsePersistedCallbackReply(provider: ChannelCallbackProvider, reply: AsyncCallbackReplyRecord): ParsedCallbackMessage {
+  const payload = normalizePersistedJson(reply.payload);
+  const parsed = parseCallbackMessage(provider, payload);
+
+  return {
+    provider,
+    text: parsed.text ?? normalizeMessage(reply.content),
+    externalConversationId: parsed.externalConversationId ?? reply.externalConversationId,
+    externalMessageId: parsed.externalMessageId ?? reply.externalMessageId,
+    senderId: parsed.senderId ?? reply.sender,
+    responseUrl: parsed.responseUrl,
+    eventType: parsed.eventType,
+  };
+}
+
+function buildRecoveredRequestContext(
+  reply: AsyncCallbackReplyRecord,
+  input: ProcessPendingAsyncCallbackRepliesOptions,
+): RequestWithContext {
+  return {
+    requestId: input.requestId ?? `channel-callback-recovery:${reply.id}`,
+    traceId: input.traceId ?? reply.traceId ?? undefined,
+    headers: {},
+    query: {},
+  } as RequestWithContext;
+}
+
+function pendingAsyncCallbackChannelWhere(): Prisma.AgentPublishChannelWhereInput {
+  return {
+    deletedAt: null,
+    status: 'ACTIVE',
+    channel: {
+      in: Array.from(callbackChannelTypes),
+    },
+    agent: {
+      status: 'PUBLISHED',
+      deletedAt: null,
+    },
+    OR: [
+      {
+        config: {
+          path: ['ack_immediately'],
+          equals: true,
+        },
+      },
+      {
+        config: {
+          path: ['reply_mode'],
+          equals: 'ASYNC',
+        },
+      },
+    ],
+  };
+}
+
+function normalizePendingAsyncCallbackReplyLimit(value: number | undefined) {
+  const limit = Math.trunc(Number(value ?? DEFAULT_PENDING_ASYNC_CALLBACK_REPLY_LIMIT));
+  if (!Number.isFinite(limit) || limit <= 0) return DEFAULT_PENDING_ASYNC_CALLBACK_REPLY_LIMIT;
+
+  return Math.min(limit, MAX_PENDING_ASYNC_CALLBACK_REPLY_LIMIT);
+}
+
+function normalizePersistedJson(value: Prisma.JsonValue | null) {
+  if (value === null) return null;
+
+  return value;
 }
 
 function buildConversationTitle(channel: ChannelRecord, message: ParsedCallbackMessage) {

@@ -13,6 +13,6 @@ import { QdrantService } from './qdrant.service';
   imports: [AuthModule, PrismaModule, StorageModule],
   controllers: [KnowledgeController],
   providers: [KnowledgeService, KnowledgeTaskDispatcherService, OpenSearchService, QdrantService],
-  exports: [KnowledgeService],
+  exports: [KnowledgeService, KnowledgeTaskDispatcherService],
 })
 export class KnowledgeModule {}

@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { DataScopeQueryService } from '../common/services/data-scope-query.service';
 import { ResourceAccessService } from '../common/services/resource-access.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { KnowledgeTaskDispatcherService } from '../knowledge/knowledge-task-dispatcher.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToolsService } from '../tools/tools.service';
@@ -37,6 +38,7 @@ export class RuntimeExecutionService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(KnowledgeService) private readonly knowledgeService: KnowledgeService,
+    @Inject(KnowledgeTaskDispatcherService) private readonly knowledgeTaskDispatcher: KnowledgeTaskDispatcherService,
     @Inject(ToolsService) private readonly toolsService: ToolsService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
     @Inject(ResourceAccessService) private readonly resourceAccess: ResourceAccessService,
@@ -309,9 +311,7 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: task.id,
     });
-    setImmediate(() => {
-      void this.knowledgeService.runWorkflowTask(task.id).catch(() => undefined);
-    });
+    this.knowledgeTaskDispatcher.enqueue(task.id);
 
     return {
       task_type: 'knowledge_task',

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
@@ -15,6 +16,7 @@ import type {
   PluginInstallationItem,
   PluginMarketItem,
   PluginOverview,
+  PluginUninstallResult,
 } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -130,6 +132,18 @@ export class PluginsController {
     @Param('pluginId') pluginId: string,
   ): Promise<PluginInstallationDetail> {
     return this.pluginsService.upgrade(currentUser, pluginId);
+  }
+
+  @Delete(':pluginId')
+  @Permissions('plugin:center:uninstall')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:uninstall' })
+  @ApiOkResponse({ description: 'Uninstall plugin and clean generated control-plane artifacts' })
+  async uninstall(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+  ): Promise<PluginUninstallResult> {
+    return this.pluginsService.uninstall(currentUser, pluginId);
   }
 
   @Patch(':pluginId/hooks/:hookId')

@@ -5,7 +5,9 @@ import {
   hasPermission,
   type AgentListItem,
   type ChannelAccountItem,
+  type ChannelAdapterReadiness,
   type ChannelDeliveryItem,
+  type ChannelCredentialRotationMetadata,
   type ChannelOperationsListResult,
   type ChannelProviderItem,
   type CreateChannelAccountInput,
@@ -6583,6 +6585,8 @@ function getOperationsItemMeta(module: ChannelOperationsModule, item: ChannelOpe
       { label: '模板', value: formatNumber(provider.template_count ?? 0) },
       { label: '规则', value: formatNumber(provider.route_rule_count ?? 0) },
       { label: '24h 投递', value: formatNumber(provider.delivery_count_24h ?? 0) },
+      { label: '适配器', value: channelReadinessLabel(provider.readiness) },
+      { label: '凭据', value: credentialRotationLabel(provider.credential_rotation) },
     ];
   }
   if (module === 'accounts') {
@@ -6592,6 +6596,8 @@ function getOperationsItemMeta(module: ChannelOperationsModule, item: ChannelOpe
       { label: '渠道', value: account.channel_name ?? '-' },
       { label: '归属', value: account.owner ?? '-' },
       { label: '环境', value: account.environment ?? '-' },
+      { label: '适配器', value: channelReadinessLabel(account.readiness) },
+      { label: '凭据', value: credentialRotationLabel(account.credential_rotation) },
     ];
   }
   if (module === 'templates') {
@@ -6651,8 +6657,25 @@ function getOperationsDetailRows(module: ChannelOperationsModule, item: ChannelO
     { label: '状态', value: channelOperationsStatusLabel(getOperationsItemStatus(item)) },
     { label: '名称', value: getOperationsItemTitle(module, item) },
     ...getOperationsItemMeta(module, item),
+    ...getChannelAdapterStateRows(item),
     { label: '创建', value: formatChannelDateTime(getOptionalString(item, 'created_at')) },
     { label: '更新', value: formatChannelDateTime(getOptionalString(item, 'updated_at')) },
+  ];
+}
+
+function getChannelAdapterStateRows(item: ChannelOperationsItem) {
+  const state = item as ChannelProviderItem | ChannelAccountItem;
+  const readiness = 'readiness' in state ? state.readiness : null;
+  const rotation = 'credential_rotation' in state ? state.credential_rotation : null;
+  if (!readiness && !rotation) return [];
+
+  return [
+    { label: '适配器就绪', value: channelReadinessLabel(readiness ?? null) },
+    { label: '就绪说明', value: readiness?.message ?? '-' },
+    { label: '缺失配置', value: readiness?.missing_fields?.length ? readiness.missing_fields.join(', ') : '无' },
+    { label: '凭据轮换', value: credentialRotationLabel(rotation ?? null) },
+    { label: '最近轮换', value: formatChannelDateTime(rotation?.last_rotated_at) },
+    { label: '下次轮换', value: formatChannelDateTime(rotation?.next_rotation_at) },
   ];
 }
 
@@ -6817,6 +6840,32 @@ function channelOperationsStatusLabel(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function channelReadinessLabel(readiness: ChannelAdapterReadiness | null | undefined) {
+  const labels: Record<ChannelAdapterReadiness['status'], string> = {
+    READY: '已就绪',
+    DEGRADED: '部分就绪',
+    BLOCKED: '已阻断',
+    UNCONFIGURED: '未配置',
+  };
+
+  return readiness ? labels[readiness.status] ?? readiness.status : '-';
+}
+
+function credentialRotationLabel(rotation: ChannelCredentialRotationMetadata | null | undefined) {
+  const labels: Record<ChannelCredentialRotationMetadata['status'], string> = {
+    CURRENT: '当前有效',
+    ROTATION_DUE: '待轮换',
+    ROTATING: '轮换中',
+    EXPIRED: '已过期',
+    UNKNOWN: '未知',
+  };
+
+  if (!rotation) return '-';
+  const configuredLabel = rotation.secret_configured ? '已配置' : '未配置';
+
+  return `${labels[rotation.status] ?? rotation.status} · ${configuredLabel}`;
 }
 
 function channelOperationsStatusTone(status: string) {

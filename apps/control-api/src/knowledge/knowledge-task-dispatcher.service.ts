@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { requireEnv } from '../common/env';
@@ -79,6 +80,13 @@ export class KnowledgeTaskDispatcherService implements OnModuleDestroy {
 
       if (WORKFLOW_MODE === 'temporal_first') {
         this.logger.warn(`Temporal dispatch failed for knowledge task ${taskId}; falling back to local runner: ${message}`);
+        await this.recordDispatchEvent(taskId, {
+          status: 'FAILED',
+          backend: null,
+          workflowId: null,
+          runId: null,
+          errorMessage: `Temporal workflow dispatch failed: ${message}`,
+        });
         await this.runLocal(taskId);
         return;
       }
@@ -131,6 +139,12 @@ export class KnowledgeTaskDispatcherService implements OnModuleDestroy {
     this.logger.log(
       `Dispatched knowledge task ${taskId} to ${workflow.backend} workflow ${workflow.workflowId ?? 'unknown'}`,
     );
+    await this.recordDispatchEvent(taskId, {
+      status: 'SUCCESS',
+      backend: workflow.backend,
+      workflowId: workflow.workflowId,
+      runId: workflow.runId,
+    });
   }
 
   private async markTemporalDispatchFailed(taskId: string, message: string) {
@@ -147,7 +161,71 @@ export class KnowledgeTaskDispatcherService implements OnModuleDestroy {
         errorMessage: `Temporal workflow dispatch failed: ${message}`,
       },
     });
+    await this.recordDispatchEvent(taskId, {
+      status: 'FAILED',
+      backend: null,
+      workflowId: null,
+      runId: null,
+      errorMessage: `Temporal workflow dispatch failed: ${message}`,
+    });
   }
+
+  private async recordDispatchEvent(taskId: string, input: {
+    status: 'SUCCESS' | 'FAILED';
+    backend: RuntimeWorkflowBackend | null;
+    workflowId: string | null;
+    runId: string | null;
+    errorMessage?: string | null;
+  }) {
+    const task = await this.prisma.knowledgeEmbeddingTask.findUnique({
+      where: { id: taskId },
+      select: {
+        tenantId: true,
+        knowledgeId: true,
+        documentId: true,
+      },
+    });
+
+    if (!task) return;
+
+    const eventType = input.status === 'FAILED' ? 'workflow.knowledge_task.dispatch_failed' : 'workflow.knowledge_task.dispatched';
+    const summary = input.status === 'FAILED'
+      ? `知识库后台任务 ${taskId} 工作流派发失败：${input.errorMessage ?? 'unknown error'}`
+      : `知识库后台任务 ${taskId} 已派发到 ${input.backend ?? 'UNKNOWN'}。`;
+    await this.prisma.platformEvent.create({
+      data: {
+        tenantId: task.tenantId,
+        actorType: 'RUNTIME',
+        resourceType: 'KNOWLEDGE_TASK',
+        resourceId: taskId,
+        taskId,
+        eventSource: 'runtime_workflow',
+        eventType,
+        status: input.status,
+        severity: input.status === 'FAILED' ? 'ERROR' : 'INFO',
+        securityLevel: 'INTERNAL',
+        billable: false,
+        summary,
+        payloadJson: toJson({
+          task_id: taskId,
+          workflow_backend: input.backend,
+          workflow_mode: WORKFLOW_MODE,
+          workflow_id: input.workflowId,
+          workflow_run_id: input.runId,
+          knowledge_base_id: task.knowledgeId,
+          document_id: task.documentId,
+          error_message: input.errorMessage ?? null,
+        }),
+        sourceSystem: 'runtime_workflow',
+        sourceId: taskId,
+        dedupeKey: `runtime_workflow:${taskId}:${eventType}:${Date.now()}`,
+      },
+    });
+  }
+}
+
+function toJson(value: Record<string, unknown>): Prisma.InputJsonValue {
+  return value as Prisma.InputJsonValue;
 }
 
 function normalizeWorkflowMode(value: string | undefined): KnowledgeWorkflowMode {

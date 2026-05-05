@@ -12,6 +12,8 @@ import type {
   BillingInvoiceItem,
   BillingModelCostItem,
   BillingOverview,
+  BillingQuotaEnforcementInput,
+  BillingQuotaEnforcementResult,
   BillingPlanItem,
   BillingProviderCostItem,
   BillingQuotaAction,
@@ -25,6 +27,7 @@ import type {
   BillingSubscriptionStatus,
   BillingWindow,
   CreateBillingAdjustmentInput,
+  UpdateBillingInvoiceStatusInput,
   UpdateBillingQuotaPolicyInput,
   UpdateBillingSubscriptionInput,
 } from '@aiaget/shared-types';
@@ -377,11 +380,253 @@ export class BillingService {
     return mapAdjustment(adjustment);
   }
 
+  async approveAdjustment(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: { reason?: string | null },
+  ): Promise<BillingAdjustmentItem> {
+    const existing = await this.findAdjustment(currentUser, id);
+    if (existing.status !== 'PENDING') {
+      throw new BadRequestException('Only pending billing adjustments can be approved');
+    }
+
+    const updated = await this.prisma.billingAdjustment.update({
+      where: {
+        id: existing.id,
+      },
+      data: {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: currentUser.id,
+        updatedBy: currentUser.id,
+        metadata: mergeMetadata(existing.metadata, {
+          approved_reason: dto.reason?.trim() || null,
+        }),
+      },
+      include: {
+        invoice: true,
+      },
+    });
+
+    await this.recordAdjustmentEvent(currentUser, updated, 'billing.adjustment.approved', `调账单 ${updated.adjustmentNo} 已审批通过。`, dto.reason);
+
+    return mapAdjustment(updated);
+  }
+
+  async applyAdjustment(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: { reason?: string | null },
+  ): Promise<BillingAdjustmentItem> {
+    const existing = await this.findAdjustment(currentUser, id);
+    if (existing.status !== 'APPROVED') {
+      throw new BadRequestException('Only approved billing adjustments can be applied');
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.billingAdjustment.update({
+      where: {
+        id: existing.id,
+      },
+      data: {
+        status: 'APPLIED',
+        effectiveAt: existing.effectiveAt ?? now,
+        updatedBy: currentUser.id,
+        metadata: mergeMetadata(existing.metadata, {
+          applied_reason: dto.reason?.trim() || null,
+        }),
+      },
+      include: {
+        invoice: true,
+      },
+    });
+
+    await this.rebuildInvoiceForAdjustment(currentUser, updated);
+    await this.recordAdjustmentEvent(currentUser, updated, 'billing.adjustment.applied', `调账单 ${updated.adjustmentNo} 已应用到账单。`, dto.reason);
+
+    return mapAdjustment(updated);
+  }
+
+  async voidAdjustment(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: { reason: string },
+  ): Promise<BillingAdjustmentItem> {
+    const reason = dto.reason?.trim();
+    if (!reason) throw new BadRequestException('Void reason is required');
+
+    const existing = await this.findAdjustment(currentUser, id);
+    if (existing.status === 'VOID') {
+      return mapAdjustment(existing);
+    }
+    if (existing.status === 'APPLIED') {
+      throw new BadRequestException('Applied billing adjustments cannot be voided');
+    }
+
+    const updated = await this.prisma.billingAdjustment.update({
+      where: {
+        id: existing.id,
+      },
+      data: {
+        status: 'VOID',
+        updatedBy: currentUser.id,
+        metadata: mergeMetadata(existing.metadata, {
+          void_reason: reason,
+        }),
+      },
+      include: {
+        invoice: true,
+      },
+    });
+
+    await this.recordAdjustmentEvent(currentUser, updated, 'billing.adjustment.voided', `调账单 ${updated.adjustmentNo} 已作废。`, reason);
+
+    return mapAdjustment(updated);
+  }
+
   async recalculateCurrentInvoice(currentUser: AuthenticatedUser): Promise<BillingInvoiceItem> {
     await this.ensureCommercialDefaults(currentUser);
     const invoice = await this.syncCurrentBillingInvoice(currentUser, currentBillingPeriod(), true);
     if (!invoice) throw new NotFoundException('Billing invoice not found');
     return mapInvoice(invoice);
+  }
+
+  async lockInvoice(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateBillingInvoiceStatusInput,
+  ): Promise<BillingInvoiceItem> {
+    const invoice = await this.findInvoice(currentUser, id);
+    if (invoice.status !== 'DRAFT') {
+      throw new BadRequestException('Only draft billing invoices can be locked');
+    }
+
+    return this.updateInvoiceStatus(currentUser, invoice, 'OPEN', dto, 'billing.invoice.locked', `账单 ${invoice.invoiceNo} 已锁账。`);
+  }
+
+  async markInvoicePaid(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateBillingInvoiceStatusInput,
+  ): Promise<BillingInvoiceItem> {
+    const invoice = await this.findInvoice(currentUser, id);
+    if (invoice.status !== 'OPEN' && invoice.status !== 'OVERDUE') {
+      throw new BadRequestException('Only open or overdue billing invoices can be marked paid');
+    }
+
+    return this.updateInvoiceStatus(currentUser, invoice, 'PAID', dto, 'billing.invoice.paid', `账单 ${invoice.invoiceNo} 已标记为已支付。`);
+  }
+
+  async voidInvoice(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateBillingInvoiceStatusInput,
+  ): Promise<BillingInvoiceItem> {
+    const invoice = await this.findInvoice(currentUser, id);
+    if (invoice.status === 'PAID') {
+      throw new BadRequestException('Paid billing invoices cannot be voided');
+    }
+    if (invoice.status === 'VOID') {
+      return mapInvoice(invoice);
+    }
+
+    return this.updateInvoiceStatus(currentUser, invoice, 'VOID', dto, 'billing.invoice.voided', `账单 ${invoice.invoiceNo} 已作废。`);
+  }
+
+  async markInvoiceOverdue(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateBillingInvoiceStatusInput,
+  ): Promise<BillingInvoiceItem> {
+    const invoice = await this.findInvoice(currentUser, id);
+    if (invoice.status !== 'OPEN') {
+      throw new BadRequestException('Only open billing invoices can be marked overdue');
+    }
+
+    return this.updateInvoiceStatus(currentUser, invoice, 'OVERDUE', dto, 'billing.invoice.overdue', `账单 ${invoice.invoiceNo} 已标记逾期。`);
+  }
+
+  async enforceQuota(
+    currentUser: AuthenticatedUser,
+    dto: BillingQuotaEnforcementInput,
+  ): Promise<BillingQuotaEnforcementResult> {
+    await this.ensureCommercialDefaults(currentUser);
+    const period = quotaPeriodRange(dto.period ?? 'MONTH');
+    const usage = await this.calculateQuotaUsage(currentUser, dto, period);
+    const currentUsage = roundMoney(usage + (dto.usage_delta ?? 0));
+    const policy = await this.prisma.billingQuotaPolicy.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        subjectType: dto.subject_type,
+        subjectId: dto.subject_id ?? null,
+        metricType: dto.metric_type,
+        period: dto.period ?? 'MONTH',
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    }) ?? await this.prisma.billingQuotaPolicy.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        subjectType: dto.subject_type,
+        subjectId: null,
+        metricType: dto.metric_type,
+        period: dto.period ?? 'MONTH',
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    if (!policy) {
+      return {
+        allow: true,
+        block: false,
+        reason: 'No active billing quota policy matched',
+        current_usage: currentUsage,
+        limit: null,
+        action: null,
+        policy_id: null,
+        policy_name: null,
+        usage_rate: null,
+      };
+    }
+
+    await this.prisma.billingQuotaPolicy.update({
+      where: {
+        id: policy.id,
+      },
+      data: {
+        lastEvaluatedAt: new Date(),
+      },
+    });
+
+    const limit = Number(policy.limitValue);
+    const usageRate = limit <= 0 ? null : Number(((currentUsage / limit) * 100).toFixed(1));
+    const hardThreshold = Number(policy.hardThreshold);
+    const action = policy.action as BillingQuotaAction;
+    const block = usageRate !== null && usageRate >= hardThreshold && (action === 'BLOCK' || action === 'REQUIRE_APPROVAL');
+    const reason = block
+      ? `Quota ${policy.name} reached ${usageRate}% and requires ${action}`
+      : usageRate !== null && usageRate >= Number(policy.warnThreshold)
+        ? `Quota ${policy.name} reached warning threshold ${usageRate}%`
+        : `Quota ${policy.name} allows current usage`;
+
+    return {
+      allow: !block,
+      block,
+      reason,
+      current_usage: currentUsage,
+      limit,
+      action,
+      policy_id: policy.id,
+      policy_name: policy.name,
+      usage_rate: usageRate,
+    };
   }
 
   async updateQuotaPolicy(
@@ -439,6 +684,141 @@ export class BillingService {
     });
 
     return mapQuotaPolicy(updated, { cost: 0, tokens: 0, calls: 0 });
+  }
+
+  private async findAdjustment(currentUser: AuthenticatedUser, id: string): Promise<BillingAdjustmentRecord> {
+    const adjustment = await this.prisma.billingAdjustment.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id,
+        deletedAt: null,
+      },
+      include: {
+        invoice: true,
+      },
+    });
+    if (!adjustment) throw new NotFoundException('Billing adjustment not found');
+    return adjustment;
+  }
+
+  private async findInvoice(currentUser: AuthenticatedUser, id: string): Promise<BillingInvoiceRecord> {
+    const invoice = await this.prisma.billingInvoice.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id,
+        deletedAt: null,
+      },
+    });
+    if (!invoice) throw new NotFoundException('Billing invoice not found');
+    return invoice;
+  }
+
+  private async updateInvoiceStatus(
+    currentUser: AuthenticatedUser,
+    invoice: BillingInvoiceRecord,
+    status: BillingInvoiceItem['status'],
+    dto: UpdateBillingInvoiceStatusInput,
+    eventType: string,
+    summary: string,
+  ): Promise<BillingInvoiceItem> {
+    const paidAmount = status === 'PAID' ? dto.paid_amount ?? Number(invoice.totalAmount) : undefined;
+    const updated = await this.prisma.billingInvoice.update({
+      where: {
+        id: invoice.id,
+      },
+      data: {
+        status,
+        paidAmount: paidAmount === undefined ? undefined : new Prisma.Decimal(paidAmount),
+        paidAt: status === 'PAID' ? (dto.paid_at ? new Date(dto.paid_at) : new Date()) : status === 'VOID' ? null : undefined,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.recordBillingEvent(currentUser, {
+      resourceType: 'BILLING_INVOICE',
+      resourceId: updated.id,
+      eventType,
+      summary,
+      payloadJson: {
+        invoice_id: updated.id,
+        invoice_no: updated.invoiceNo,
+        previous_status: invoice.status,
+        status: updated.status,
+        reason: dto.reason?.trim() || null,
+        total_amount: Number(updated.totalAmount),
+        paid_amount: Number(updated.paidAmount),
+      },
+      sourceId: updated.id,
+    });
+
+    return mapInvoice(updated);
+  }
+
+  private async rebuildInvoiceForAdjustment(currentUser: AuthenticatedUser, adjustment: BillingAdjustmentRecord) {
+    if (adjustment.invoiceId) {
+      const invoice = await this.loadBillingInvoice(currentUser.tenantId, adjustment.invoiceId);
+      await this.rebuildInvoiceItems(currentUser, invoice, false);
+      return;
+    }
+
+    await this.syncCurrentBillingInvoice(currentUser, currentBillingPeriod(), false);
+  }
+
+  private async recordAdjustmentEvent(
+    currentUser: AuthenticatedUser,
+    adjustment: BillingAdjustmentRecord,
+    eventType: string,
+    summary: string,
+    reason?: string | null,
+  ) {
+    await this.recordBillingEvent(currentUser, {
+      resourceType: 'BILLING_ADJUSTMENT',
+      resourceId: adjustment.id,
+      eventType,
+      summary,
+      sourceId: adjustment.id,
+      payloadJson: {
+        adjustment_id: adjustment.id,
+        adjustment_no: adjustment.adjustmentNo,
+        invoice_id: adjustment.invoiceId,
+        invoice_no: adjustment.invoice?.invoiceNo ?? null,
+        type: adjustment.type,
+        status: adjustment.status,
+        amount: Number(adjustment.amount),
+        signed_amount: signedAdjustmentAmount(adjustment.type, Number(adjustment.amount)),
+        reason: reason?.trim() || null,
+      },
+    });
+  }
+
+  private async calculateQuotaUsage(
+    currentUser: AuthenticatedUser,
+    dto: BillingQuotaEnforcementInput,
+    period: { start: Date; end: Date },
+  ) {
+    const where: Prisma.PlatformUsageEventWhereInput = {
+      tenantId: currentUser.tenantId,
+      subjectType: dto.subject_type,
+      metricType: dto.metric_type,
+      occurredAt: {
+        gte: period.start,
+        lt: period.end,
+      },
+    };
+    if (dto.subject_id !== undefined) {
+      where.subjectId = dto.subject_id;
+    }
+
+    const usage = await this.prisma.platformUsageEvent.aggregate({
+      where,
+      _sum: {
+        quantity: true,
+        amount: true,
+      },
+    });
+
+    if (dto.metric_type === 'COST') return Number(usage._sum.amount ?? 0);
+    return Number(usage._sum.quantity ?? 0);
   }
 
   private async recordBillingEvent(
@@ -1057,6 +1437,19 @@ function currentBillingPeriod() {
   return { start, end };
 }
 
+function currentDailyPeriod() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}
+
+function quotaPeriodRange(period: BillingQuotaPeriod) {
+  return period === 'DAY' ? currentDailyPeriod() : currentBillingPeriod();
+}
+
 function windowStart(window: BillingWindow) {
   const now = new Date();
   if (window === '7d') {
@@ -1334,6 +1727,14 @@ function signedAdjustmentAmount(type: string, amount: number) {
 function normalizeJson(value: Prisma.JsonValue | null) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function mergeMetadata(value: Prisma.JsonValue | null, patch: Record<string, unknown>): Prisma.InputJsonValue {
+  const current = normalizeJson(value) ?? {};
+  return JSON.parse(JSON.stringify({
+    ...current,
+    ...patch,
+  })) as Prisma.InputJsonValue;
 }
 
 function normalizeInvoiceLineItems(value: Prisma.JsonValue | null) {

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type TestToolResult } from '@aiaget/shared-types';
+import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type TestToolResult } from '@aiaget/shared-types';
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { buildTraceparent, createSpanId, type TraceContext } from '../common/tracing/trace-context';
@@ -18,6 +18,7 @@ import type { RuntimeKnowledgeTaskDto } from './dto/runtime-knowledge-task.dto';
 import type { RuntimeAgentTeamRunDto } from './dto/runtime-agent-team-run.dto';
 import type { RuntimeRetrieveDto } from './dto/runtime-retrieve.dto';
 import type { RuntimeToolCallDto } from './dto/runtime-tool-call.dto';
+import { normalizeWorkflowBackend, normalizeWorkflowMode, resolveWorkflowBackendStatus } from './runtime-workflow-status';
 
 export interface RuntimeToolCallSummary {
   tool_id: string;
@@ -189,6 +190,135 @@ export class RuntimeExecutionService {
       sourceId: dto.task_id,
     });
     return result;
+  }
+
+  async getWorkflowStatus(currentUser: AuthenticatedUser): Promise<RuntimeWorkflowStatusOverview> {
+    const mode = normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
+    const [latestEvent, failedTasks] = await this.prisma.$transaction([
+      this.prisma.platformEvent.findFirst({
+        where: {
+          tenantId: currentUser.tenantId,
+          eventSource: 'runtime_workflow',
+          OR: [
+            { eventType: { in: ['workflow.knowledge_task.dispatched', 'workflow.knowledge_task.dispatch_failed'] } },
+            { eventType: { startsWith: 'workflow.channel_release_' } },
+          ],
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+      }),
+      this.prisma.knowledgeEmbeddingTask.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'FAILED',
+          taskType: {
+            in: ['PROCESS', 'REBUILD'],
+          },
+          knowledge: {
+            deletedAt: null,
+          },
+        },
+        include: {
+          knowledge: true,
+          document: true,
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
+        take: 5,
+      }),
+    ]);
+    const payload = jsonObjectOrNull(latestEvent?.payloadJson);
+    const backendStatus = resolveWorkflowBackendStatus(mode, latestEvent ? {
+      eventType: latestEvent.eventType,
+      workflowBackend: normalizeWorkflowBackend(payload?.workflow_backend),
+      errorMessage: latestEvent.summary ?? stringValue(payload?.error_message),
+    } : null);
+
+    return {
+      generated_at: new Date().toISOString(),
+      workflow_mode: mode,
+      workflow_backend: backendStatus.backend,
+      backend_status: backendStatus.status,
+      latest_failure: backendStatus.latest_failure ? {
+        task_type: 'knowledge_task',
+        task_id: latestEvent?.taskId ?? latestEvent?.resourceId ?? null,
+        error_message: backendStatus.latest_failure.error_message,
+        occurred_at: latestEvent?.occurredAt.toISOString() ?? null,
+      } : null,
+      recoverable_tasks: failedTasks.map((task) => ({
+        task_type: 'knowledge_task',
+        task_id: task.id,
+        workflow_task_type: task.taskType,
+        status: task.status,
+        title: task.document?.title ?? task.knowledge.name,
+        knowledge_base_id: task.knowledgeId,
+        document_id: task.documentId,
+        error_message: task.errorMessage,
+        updated_at: task.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  async retryWorkflowTask(currentUser: AuthenticatedUser, taskId: string): Promise<RuntimeWorkflowRetryResult> {
+    const task = await this.prisma.knowledgeEmbeddingTask.findFirst({
+      where: {
+        id: taskId,
+        tenantId: currentUser.tenantId,
+      },
+      include: {
+        knowledge: true,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Workflow task not found');
+    }
+
+    if (task.taskType !== 'PROCESS' && task.taskType !== 'REBUILD') {
+      throw new BadRequestException(`Unsupported workflow task type: ${task.taskType}`);
+    }
+
+    await this.prisma.knowledgeEmbeddingTask.update({
+      where: { id: task.id },
+      data: {
+        status: 'PENDING',
+        startedAt: null,
+        endedAt: null,
+        errorMessage: null,
+      },
+    });
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'KNOWLEDGE_TASK',
+      resourceId: task.id,
+      taskId: task.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.knowledge_task.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `知识库后台任务 ${task.id} 已请求恢复重试。`,
+      payloadJson: {
+        task_id: task.id,
+        workflow_task_type: task.taskType,
+        knowledge_base_id: task.knowledgeId,
+        document_id: task.documentId ?? null,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: task.id,
+    });
+    setImmediate(() => {
+      void this.knowledgeService.runWorkflowTask(task.id).catch(() => undefined);
+    });
+
+    return {
+      task_type: 'knowledge_task',
+      task_id: task.id,
+      status: 'QUEUED',
+      message: '知识任务已重置为待处理，运行时恢复任务会重新调度。',
+    };
   }
 
   async runAgentTeamRun(dto: RuntimeAgentTeamRunDto) {
@@ -708,4 +838,12 @@ function createOutputPreview(value: unknown) {
   if (value === undefined || value === null || value === Prisma.JsonNull) return null;
   const serialized = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
   return serialized.length > 280 ? `${serialized.slice(0, 280)}...` : serialized;
+}
+
+function jsonObjectOrNull(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }

@@ -67,6 +67,7 @@ import {
   updatePluginHook,
   updatePluginInstallation,
   updatePluginMenuBinding,
+  uninstallPlugin,
   upgradePlugin,
   type ApiClientError,
 } from '@/lib/api-client';
@@ -94,7 +95,7 @@ export function PluginContent() {
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
   const [installCandidate, setInstallCandidate] = useState<PluginMarketItem | null>(null);
   const [customInstallOpen, setCustomInstallOpen] = useState(false);
-  const [archiveCandidate, setArchiveCandidate] = useState<PluginInstallationDetail | null>(null);
+  const [uninstallCandidate, setUninstallCandidate] = useState<PluginInstallationDetail | null>(null);
   const [editingPlugin, setEditingPlugin] = useState<PluginInstallationDetail | null>(null);
   const [editForm, setEditForm] = useState<EditPluginForm | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -109,6 +110,7 @@ export function PluginContent() {
   const canEnable = isTenantAdmin || hasPermission(permissions, 'plugin:center:enable');
   const canDisable = isTenantAdmin || hasPermission(permissions, 'plugin:center:disable');
   const canUpgrade = isTenantAdmin || hasPermission(permissions, 'plugin:center:upgrade');
+  const canUninstall = isTenantAdmin || hasPermission(permissions, 'plugin:center:uninstall');
   const canAudit = isTenantAdmin || hasPermission(permissions, 'plugin:center:audit');
 
   const overviewQuery = useQuery({
@@ -225,17 +227,14 @@ export function PluginContent() {
     },
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: (pluginId: string) =>
-      updatePluginInstallation(pluginId, {
-        status: 'ARCHIVED',
-        runtime_status: 'STOPPED',
-      }),
-    onSuccess: async (detail) => {
-      setNotice(`${detail.name} 已归档。`);
+  const uninstallMutation = useMutation({
+    mutationFn: uninstallPlugin,
+    onSuccess: async (result) => {
+      setNotice(`${result.message} 清理菜单 ${result.cleanup.menus} 个、Hook ${result.cleanup.hooks} 个、工具 ${result.cleanup.tools} 个。`);
       setActionError(null);
-      setArchiveCandidate(null);
-      await refreshPlugins(detail.plugin_id);
+      setUninstallCandidate(null);
+      await refreshPlugins(result.plugin_id);
+      setSelectedPluginId(null);
     },
     onError: (error: ApiClientError) => {
       setNotice(null);
@@ -524,15 +523,15 @@ export function PluginContent() {
           canDisable={canDisable}
           canEnable={canEnable}
           canAudit={canAudit}
-          canArchive={canManage}
+          canUninstall={canUninstall}
           canManage={canManage}
           canUpgrade={canUpgrade}
           detail={selectedPlugin}
           detailError={detailQuery.error}
           isLoading={detailQuery.isLoading}
-          isMutating={runtimeMutation.isPending || upgradeMutation.isPending || archiveMutation.isPending || hookMutation.isPending || menuBindingMutation.isPending}
+          isMutating={runtimeMutation.isPending || upgradeMutation.isPending || uninstallMutation.isPending || hookMutation.isPending || menuBindingMutation.isPending}
           onDisable={(pluginId) => runtimeMutation.mutate({ pluginId, action: 'disable' })}
-          onArchive={(plugin) => setArchiveCandidate(plugin)}
+          onUninstall={(plugin) => setUninstallCandidate(plugin)}
           onEdit={openEditPlugin}
           onEnable={(pluginId) => runtimeMutation.mutate({ pluginId, action: 'enable' })}
           onToggleHook={(hook, enabled) => hookMutation.mutate({ hook, enabled })}
@@ -556,13 +555,13 @@ export function PluginContent() {
         />
       ) : null}
 
-      {archiveCandidate ? (
+      {uninstallCandidate ? (
         <ConfirmDialog
-          body={`确认将插件「${archiveCandidate.name}」归档？归档后运行态会停止，但版本、审计和菜单绑定记录会保留。`}
-          onCancel={() => setArchiveCandidate(null)}
-          onConfirm={() => archiveMutation.mutate(archiveCandidate.plugin_id)}
-          pending={archiveMutation.isPending}
-          title="归档插件"
+          body={`确认卸载插件「${uninstallCandidate.name}」？卸载会停止运行态，并软删除该插件生成的菜单绑定、Hook 和工具，审计与版本记录会保留。`}
+          onCancel={() => setUninstallCandidate(null)}
+          onConfirm={() => uninstallMutation.mutate(uninstallCandidate.plugin_id)}
+          pending={uninstallMutation.isPending}
+          title="卸载插件"
         />
       ) : null}
 
@@ -721,7 +720,7 @@ function PluginDetailPanel({
   canDisable,
   canEnable,
   canAudit,
-  canArchive,
+  canUninstall,
   canManage,
   canUpgrade,
   detail,
@@ -729,7 +728,7 @@ function PluginDetailPanel({
   isLoading,
   isMutating,
   onDisable,
-  onArchive,
+  onUninstall,
   onEdit,
   onEnable,
   onToggleHook,
@@ -739,7 +738,7 @@ function PluginDetailPanel({
   canDisable: boolean;
   canEnable: boolean;
   canAudit: boolean;
-  canArchive: boolean;
+  canUninstall: boolean;
   canManage: boolean;
   canUpgrade: boolean;
   detail: PluginInstallationDetail | null;
@@ -747,7 +746,7 @@ function PluginDetailPanel({
   isLoading: boolean;
   isMutating: boolean;
   onDisable: (pluginId: string) => void;
-  onArchive: (plugin: PluginInstallationDetail) => void;
+  onUninstall: (plugin: PluginInstallationDetail) => void;
   onEdit: (plugin: PluginInstallationDetail) => void;
   onEnable: (pluginId: string) => void;
   onToggleHook: (hook: PluginHookItem, enabled: boolean) => void;
@@ -804,14 +803,14 @@ function PluginDetailPanel({
                 停用
               </Button>
             ) : (
-              <Button disabled={!canEnable || isMutating} onClick={() => onEnable(detail.plugin_id)} size="sm" type="button" variant="outline">
+              <Button disabled={!canEnable || isMutating || detail.security_preview.can_enable === false} onClick={() => onEnable(detail.plugin_id)} size="sm" type="button" variant="outline">
                 <Power className="size-4" />
                 启用
               </Button>
             )}
-            <Button disabled={!canArchive || isMutating || detail.status === 'ARCHIVED'} onClick={() => onArchive(detail)} size="sm" type="button" variant="outline">
+            <Button disabled={!canUninstall || isMutating || detail.status === 'ARCHIVED'} onClick={() => onUninstall(detail)} size="sm" type="button" variant="outline">
               <Archive className="size-4" />
-              {detail.status === 'ARCHIVED' ? '已归档' : '归档'}
+              {detail.status === 'ARCHIVED' ? '已卸载' : '卸载'}
             </Button>
             <Button disabled={!canUpgrade || isMutating} onClick={() => onUpgrade(detail.plugin_id)} size="sm" type="button">
               <UploadCloud className="size-4" />
@@ -1425,12 +1424,18 @@ function DetailList({ children, subtitle, title }: { children: React.ReactNode; 
 }
 
 function SecurityReviewPanel({ detail }: { detail: PluginInstallationDetail }) {
-  const blockedHighRisk = detail.risk_level === 'HIGH' || detail.risk_level === 'CRITICAL';
+  const reviewRequired = detail.security_preview.review_required ?? (detail.risk_level === 'HIGH' || detail.risk_level === 'CRITICAL');
+  const canEnable = detail.security_preview.can_enable ?? true;
+  const reviewStatus = detail.security_preview.review_status ?? null;
+  const blockReason = detail.security_preview.block_reason ?? null;
   const reviewSignals = [
     { label: '风险等级', value: pluginRiskLabel(detail.risk_level), tone: pluginRiskTone(detail.risk_level) },
     { label: '权限声明', value: `${detail.permission_preview.length} 项`, tone: detail.permission_preview.length > 0 ? 'ready' : 'healthy' },
     { label: '菜单绑定', value: `${detail.menu_bindings.length} 项`, tone: detail.menu_bindings.length > 0 ? 'ready' : 'healthy' },
     { label: 'Hook 绑定', value: `${detail.hooks.length} 项`, tone: detail.hooks.length > 0 ? 'ready' : 'healthy' },
+    { label: '审核要求', value: reviewRequired ? '需要审核' : '无需审核', tone: reviewRequired ? 'degraded' : 'healthy' },
+    { label: '审核状态', value: formatPluginReviewStatus(reviewStatus), tone: pluginReviewStatusTone(reviewStatus) },
+    { label: '启用准入', value: canEnable ? '允许启用' : '已阻断', tone: canEnable ? 'healthy' : 'unavailable' },
   ] as const;
 
   return (
@@ -1440,9 +1445,15 @@ function SecurityReviewPanel({ detail }: { detail: PluginInstallationDetail }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold">安全审查</h3>
-            <StatusBadge tone={blockedHighRisk ? 'degraded' : 'healthy'}>{blockedHighRisk ? '需要复核' : '已通过预览'}</StatusBadge>
+            <StatusBadge tone={canEnable ? 'healthy' : 'unavailable'}>{canEnable ? '允许启用' : '启用阻断'}</StatusBadge>
+            <StatusBadge tone={reviewRequired ? 'degraded' : 'planned'}>{reviewRequired ? '需要审核' : '无需审核'}</StatusBadge>
           </div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{detail.security_preview.summary}</p>
+          {blockReason ? (
+            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              阻断原因：{blockReason}
+            </div>
+          ) : null}
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             {reviewSignals.map((signal) => (
               <div className="rounded-md border bg-background px-3 py-2" key={signal.label}>
@@ -1470,6 +1481,27 @@ function SecurityReviewPanel({ detail }: { detail: PluginInstallationDetail }) {
       </div>
     </section>
   );
+}
+
+function formatPluginReviewStatus(value: string | null) {
+  if (!value) return '未提交';
+
+  const labels: Record<string, string> = {
+    APPROVED: '已通过',
+    PENDING: '审核中',
+    REJECTED: '已拒绝',
+    WAIVED: '已豁免',
+  };
+
+  return labels[value] ?? value;
+}
+
+function pluginReviewStatusTone(value: string | null) {
+  if (value === 'APPROVED' || value === 'WAIVED') return 'healthy' as const;
+  if (value === 'PENDING') return 'degraded' as const;
+  if (value === 'REJECTED') return 'unavailable' as const;
+
+  return 'planned' as const;
 }
 
 function SummaryItem({ label, value }: { label: string; value: string }) {

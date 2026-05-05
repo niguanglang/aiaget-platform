@@ -3,7 +3,9 @@ import { Prisma } from '@prisma/client';
 
 import type {
   ChannelAccountItem,
+  ChannelAdapterReadiness,
   ChannelDeliveryItem,
+  ChannelCredentialRotationMetadata,
   ChannelOperationsListResult,
   ChannelProviderItem,
   ChannelPublishJobActionResult,
@@ -19,6 +21,7 @@ import type {
 import { encryptSecret, maskApiKey } from '../models/model-secrets';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import type {
   CreateChannelAccountDto,
   CreateChannelProviderDto,
@@ -117,7 +120,10 @@ type ReplyRecord = Prisma.ChannelReplyGetPayload<{ include: typeof replyInclude 
 
 @Injectable()
 export class ChannelOperationsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+  ) {}
 
   async listProviders(currentUser: AuthenticatedUser, query: ListChannelOperationsDto): Promise<ChannelOperationsListResult<ChannelProviderItem>> {
     const { page, pageSize } = getPagination(query);
@@ -269,6 +275,7 @@ export class ChannelOperationsService {
     await this.ensureProvider(currentUser.tenantId, dto.provider_id);
     try {
       const secret = dto.secret?.trim();
+      const config = updateCredentialRotationConfig(dto.config ?? null, secret, currentUser.id);
       const account = await this.prisma.channelAccount.create({
         data: {
           tenantId: currentUser.tenantId,
@@ -278,13 +285,21 @@ export class ChannelOperationsService {
           status: dto.status ?? 'ACTIVE',
           externalAccountId: nullableText(dto.external_account_id),
           ...(secret ? { secretEncrypted: encryptSecret(secret), secretMasked: maskApiKey(secret) } : {}),
-          config: dto.config === undefined ? undefined : toJsonInput(dto.config),
+          config: dto.config === undefined && !secret ? undefined : toJsonInput(config),
           description: nullableText(dto.description),
           createdBy: currentUser.id,
           updatedBy: currentUser.id,
         },
         include: accountInclude,
       });
+
+      if (secret) {
+        await this.recordCredentialRotationEvent(currentUser, 'CHANNEL_ACCOUNT', account.id, account.name, {
+          provider_id: account.providerId,
+          secret_masked: account.secretMasked,
+          credential_rotation: buildCredentialRotation(account.config, account.secretMasked),
+        });
+      }
 
       return mapAccount(account);
     } catch (error) {
@@ -294,8 +309,10 @@ export class ChannelOperationsService {
   }
 
   async updateAccount(currentUser: AuthenticatedUser, id: string, dto: UpdateChannelAccountDto): Promise<ChannelAccountItem> {
-    await this.ensureAccount(currentUser.tenantId, id);
     const secret = dto.secret?.trim();
+    const currentAccount = await this.ensureAccount(currentUser.tenantId, id);
+    const baseConfig = dto.config !== undefined ? dto.config : currentAccount.config;
+    const nextConfig = updateCredentialRotationConfig(baseConfig, secret, currentUser.id);
     const account = await this.prisma.channelAccount.update({
       where: { id },
       data: {
@@ -303,12 +320,20 @@ export class ChannelOperationsService {
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.external_account_id !== undefined ? { externalAccountId: nullableText(dto.external_account_id) } : {}),
         ...(secret ? { secretEncrypted: encryptSecret(secret), secretMasked: maskApiKey(secret) } : {}),
-        ...(dto.config !== undefined ? { config: toJsonInput(dto.config) } : {}),
+        ...(dto.config !== undefined || secret ? { config: toJsonInput(nextConfig) } : {}),
         ...(dto.description !== undefined ? { description: nullableText(dto.description) } : {}),
         updatedBy: currentUser.id,
       },
       include: accountInclude,
     });
+
+    if (secret) {
+      await this.recordCredentialRotationEvent(currentUser, 'CHANNEL_ACCOUNT', account.id, account.name, {
+        provider_id: account.providerId,
+        secret_masked: account.secretMasked,
+        credential_rotation: buildCredentialRotation(account.config, account.secretMasked),
+      });
+    }
 
     return mapAccount(account);
   }
@@ -836,9 +861,38 @@ export class ChannelOperationsService {
 
     return result;
   }
+
+  private async recordCredentialRotationEvent(
+    currentUser: AuthenticatedUser,
+    resourceType: string,
+    resourceId: string,
+    resourceName: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType,
+      resourceId,
+      eventSource: 'CONTROL_API',
+      eventType: 'channel.credential.rotated',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      billable: false,
+      summary: `渠道凭据已轮换：${resourceName}`,
+      payloadJson: JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue,
+      sourceSystem: 'channel_operations',
+      sourceId: resourceId,
+    });
+  }
 }
 
 function mapProvider(provider: ProviderRecord, deliveryCount24h: number): ChannelProviderItem {
+  const readiness = buildProviderReadiness(provider);
+  const credentialRotation = buildCredentialRotation(provider.config, null);
+
   return {
     id: provider.id,
     code: provider.code,
@@ -851,6 +905,8 @@ function mapProvider(provider: ProviderRecord, deliveryCount24h: number): Channe
     route_rule_count: provider.routeRules.length,
     delivery_count_24h: deliveryCount24h,
     success_rate_24h: 0,
+    readiness,
+    credential_rotation: credentialRotation,
     last_checked_at: null,
     created_at: provider.createdAt.toISOString(),
     updated_at: provider.updatedAt.toISOString(),
@@ -862,12 +918,17 @@ function mapProvider(provider: ProviderRecord, deliveryCount24h: number): Channe
       auth_type: provider.authType,
       description: provider.description,
       config: normalizeJson(provider.config),
+      readiness,
+      credential_rotation: credentialRotation,
     },
   };
 }
 
 function mapAccount(account: AccountRecord): ChannelAccountItem {
   const channel = account.publishChannels[0];
+  const readiness = buildAccountReadiness(account);
+  const credentialRotation = buildCredentialRotation(account.config, account.secretMasked);
+
   return {
     id: account.id,
     provider_id: account.providerId,
@@ -880,6 +941,8 @@ function mapAccount(account: AccountRecord): ChannelAccountItem {
     status: account.status,
     owner: channel?.agent?.name ?? null,
     environment: readConfigString(account.config, 'environment') ?? readConfigString(account.config, 'env') ?? '默认环境',
+    readiness,
+    credential_rotation: credentialRotation,
     last_used_at: account.lastVerifiedAt?.toISOString() ?? null,
     created_at: account.createdAt.toISOString(),
     updated_at: account.updatedAt.toISOString(),
@@ -889,6 +952,8 @@ function mapAccount(account: AccountRecord): ChannelAccountItem {
       secret_masked: account.secretMasked,
       description: account.description,
       config: normalizeJson(account.config),
+      readiness,
+      credential_rotation: credentialRotation,
     },
   };
 }
@@ -1152,6 +1217,85 @@ function toJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJso
   if (value === undefined || value === null || value === Prisma.JsonNull) return Prisma.JsonNull;
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function updateCredentialRotationConfig(value: unknown, secret: string | undefined, rotatedBy: string): Record<string, unknown> | null {
+  const record = normalizeUnknownRecord(value);
+  if (!secret) return record;
+
+  const existing = normalizeUnknownRecord(record?.credential_rotation) ?? {};
+  const version = typeof existing.credential_version === 'number' ? existing.credential_version + 1 : 1;
+
+  return {
+    ...(record ?? {}),
+    credential_rotation: {
+      ...existing,
+      status: 'CURRENT',
+      last_rotated_at: new Date().toISOString(),
+      next_rotation_at: typeof existing.next_rotation_at === 'string' ? existing.next_rotation_at : null,
+      rotated_by: rotatedBy,
+      credential_version: version,
+    },
+  };
+}
+
+function buildProviderReadiness(provider: ProviderRecord): ChannelAdapterReadiness {
+  const requiredFields = ['endpoint_url'];
+  const missingFields = provider.endpointUrl ? [] : requiredFields;
+
+  return {
+    status: provider.status === 'ACTIVE' && missingFields.length === 0 ? 'READY' : provider.status === 'ERROR' ? 'BLOCKED' : 'UNCONFIGURED',
+    message: missingFields.length > 0 ? '缺少渠道适配器调用地址。' : provider.status === 'ACTIVE' ? '适配器已就绪。' : '适配器未启用。',
+    checked_at: provider.updatedAt.toISOString(),
+    required_fields: requiredFields,
+    missing_fields: missingFields,
+  };
+}
+
+function buildAccountReadiness(account: AccountRecord): ChannelAdapterReadiness {
+  const requiredFields = ['provider', 'secret'];
+  const missingFields = [account.provider ? null : 'provider', account.secretMasked ? null : 'secret'].filter((item): item is string => Boolean(item));
+
+  return {
+    status: account.status === 'ACTIVE' && missingFields.length === 0 ? 'READY' : account.status === 'ERROR' ? 'BLOCKED' : 'UNCONFIGURED',
+    message: missingFields.length > 0 ? '缺少渠道账号凭据。' : account.status === 'ACTIVE' ? '账号凭据可用于投递。' : '账号未启用。',
+    checked_at: account.lastVerifiedAt?.toISOString() ?? account.updatedAt.toISOString(),
+    required_fields: requiredFields,
+    missing_fields: missingFields,
+  };
+}
+
+function buildCredentialRotation(config: Prisma.JsonValue | null | undefined, secretMasked: string | null): ChannelCredentialRotationMetadata {
+  const record = normalizeRecord(config);
+  const rotation = normalizeUnknownRecord(record?.credential_rotation) ?? normalizeUnknownRecord(record?.credentialRotation) ?? {};
+  const status = readRotationStatus(rotation.status, secretMasked);
+
+  return {
+    status,
+    last_rotated_at: readUnknownString(rotation.last_rotated_at) ?? readUnknownString(rotation.lastRotatedAt),
+    next_rotation_at: readUnknownString(rotation.next_rotation_at) ?? readUnknownString(rotation.nextRotationAt),
+    rotated_by: readUnknownString(rotation.rotated_by) ?? readUnknownString(rotation.rotatedBy),
+    credential_version: typeof rotation.credential_version === 'number' ? rotation.credential_version : typeof rotation.credentialVersion === 'number' ? rotation.credentialVersion : null,
+    secret_configured: Boolean(secretMasked),
+    secret_masked: secretMasked,
+  };
+}
+
+function readRotationStatus(value: unknown, secretMasked: string | null): ChannelCredentialRotationMetadata['status'] {
+  if (value === 'CURRENT' || value === 'ROTATION_DUE' || value === 'ROTATING' || value === 'EXPIRED') return value;
+  if (!secretMasked) return 'UNKNOWN';
+
+  return 'CURRENT';
+}
+
+function normalizeUnknownRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function readUnknownString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : null;
 }
 
 function readConfigString(config: Prisma.JsonValue | null, key: string) {

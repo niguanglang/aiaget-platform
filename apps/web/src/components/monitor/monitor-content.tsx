@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   MonitorErrorSampleItem,
   MonitorEventDetail,
@@ -15,12 +15,14 @@ import type {
   MonitorTraceSummaryItem,
   MonitorTrendPoint,
   MonitorWindow,
+  RuntimeWorkflowStatusOverview,
 } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { Activity, AlertTriangle, Copy, GitBranch, Layers3, Search } from 'lucide-react';
+import { Activity, AlertTriangle, Copy, GitBranch, Layers3, RotateCcw, Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
+import { useAuth } from '@/components/auth/auth-provider';
 import { ServiceHealthCard } from '@/components/dashboard/service-health-card';
 import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
 import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
@@ -47,6 +49,7 @@ const modules: MonitorModule[] = ['agent', 'prompt', 'model', 'knowledge', 'tool
 const statuses: MonitorEventStatus[] = ['SUCCESS', 'DEGRADED', 'FAILED'];
 const sourceTypes: MonitorEventSourceType[] = ['operation', 'model_call', 'tool_call', 'knowledge_recall', 'conversation_run', 'conversation_step'];
 const stepTypes: MonitorRunStepType[] = ['prompt', 'tool', 'knowledge', 'model', 'response'];
+const controlApiBaseUrl = process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http://localhost:3001/api/v1';
 
 function parseWindowParam(value: string | null): MonitorWindow {
   return windows.includes(value as MonitorWindow) ? (value as MonitorWindow) : '24h';
@@ -57,6 +60,8 @@ function parseFilterParam<TValue extends string>(value: string | null, allowed: 
 }
 
 export function MonitorContent() {
+  const queryClient = useQueryClient();
+  const { session } = useAuth();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
   const [windowValue, setWindowValue] = useState<MonitorWindow>(() => parseWindowParam(searchParams.get('window')));
@@ -104,6 +109,19 @@ export function MonitorContent() {
   const observabilityQuery = useQuery({
     queryKey: ['monitor-observability', windowValue],
     queryFn: () => getMonitorObservabilityOverview({ window: windowValue }),
+  });
+  const workflowQuery = useQuery({
+    enabled: Boolean(session?.accessToken),
+    queryKey: ['runtime-workflow-status'],
+    queryFn: () => getRuntimeWorkflowStatus(session?.accessToken ?? ''),
+  });
+  const retryWorkflowMutation = useMutation({
+    mutationFn: (input: { task_type: 'knowledge_task'; task_id: string }) => retryRuntimeWorkflowTask(session?.accessToken ?? '', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['runtime-workflow-status'] });
+      void eventsQuery.refetch();
+      void overviewQuery.refetch();
+    },
   });
 
   useEffect(() => {
@@ -166,6 +184,7 @@ export function MonitorContent() {
           void selectedEventQuery.refetch();
           void traceQuery.refetch();
           void observabilityQuery.refetch();
+          void workflowQuery.refetch();
         }} type="button" variant="outline">
           刷新数据
         </Button>
@@ -182,6 +201,15 @@ export function MonitorContent() {
 
       <PlatformEventUsagePanel
         windowValue={windowValue}
+      />
+
+      <WorkflowBackendCard
+        loading={workflowQuery.isLoading}
+        onRefresh={() => void workflowQuery.refetch()}
+        onRetry={(taskId) => retryWorkflowMutation.mutate({ task_type: 'knowledge_task', task_id: taskId })}
+        pendingTaskId={retryWorkflowMutation.variables?.task_id ?? null}
+        retrying={retryWorkflowMutation.isPending}
+        workflow={workflowQuery.data ?? null}
       />
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -717,6 +745,85 @@ function ErrorCard({
   );
 }
 
+function WorkflowBackendCard({
+  loading,
+  onRefresh,
+  onRetry,
+  pendingTaskId,
+  retrying,
+  workflow,
+}: {
+  loading: boolean;
+  onRefresh: () => void;
+  onRetry: (taskId: string) => void;
+  pendingTaskId: string | null;
+  retrying: boolean;
+  workflow: RuntimeWorkflowStatusOverview | null;
+}) {
+  const latestFailure = workflow?.latest_failure ?? null;
+  const tasks = workflow?.recoverable_tasks ?? [];
+
+  return (
+    <Card className="grid gap-4 p-5">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <GitBranch className="size-4 text-sky-600" />
+            工作流后端
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <StatusBadge tone={workflow?.backend_status === 'DISPATCH_FAILED' ? 'unavailable' : 'healthy'}>
+              {workflow ? workflowBackendStatusLabel(workflow.backend_status) : '待加载'}
+            </StatusBadge>
+            <StatusBadge tone="ready">{workflow ? workflowBackendLabel(workflow.workflow_backend) : '-'}</StatusBadge>
+            <StatusBadge tone="planned">{workflow ? workflowModeLabel(workflow.workflow_mode) : '-'}</StatusBadge>
+          </div>
+        </div>
+        <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
+          刷新工作流
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-muted-foreground">正在加载工作流状态...</div>
+      ) : latestFailure ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
+          <div className="font-medium">最近派发失败</div>
+          <p className="mt-1 leading-6 text-muted-foreground">{latestFailure.error_message}</p>
+          <div className="mt-1 text-xs text-muted-foreground">{latestFailure.occurred_at ? formatDateTime(latestFailure.occurred_at) : '-'}</div>
+        </div>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <EmptyState description="当前没有可恢复的知识任务。" title="暂无恢复项" />
+      ) : (
+        <div className="grid gap-3">
+          {tasks.map((task) => {
+            const pending = retrying && pendingTaskId === task.task_id;
+
+            return (
+              <div className="grid gap-3 rounded-md border bg-muted/20 px-3 py-3 md:grid-cols-[1fr_auto] md:items-center" key={task.task_id}>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="truncate text-sm font-medium">{task.title}</div>
+                    <StatusBadge tone="degraded">{task.workflow_task_type}</StatusBadge>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.error_message ?? '任务失败，等待恢复。'}</p>
+                  <div className="mt-1 font-mono text-xs text-muted-foreground">{task.task_id}</div>
+                </div>
+                <Button disabled={pending} onClick={() => onRetry(task.task_id)} type="button" variant="outline">
+                  <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />
+                  恢复重试
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function TraceDetailPanel({
   loading,
   trace,
@@ -1056,6 +1163,65 @@ function JsonCard({ title, value }: { title: string; value: unknown }) {
 function formatInteger(value: number | null | undefined) {
   if (value === null || value === undefined) return '-';
   return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function workflowBackendLabel(value: RuntimeWorkflowStatusOverview['workflow_backend']) {
+  if (value === 'TEMPORAL') return 'Temporal';
+  if (value === 'LOCAL_FALLBACK') return '本地兜底';
+  if (value === 'LOCAL') return '本地执行';
+  return '未确认后端';
+}
+
+function workflowModeLabel(value: RuntimeWorkflowStatusOverview['workflow_mode']) {
+  const labels: Record<RuntimeWorkflowStatusOverview['workflow_mode'], string> = {
+    local: '本地模式',
+    temporal_first: 'Temporal 优先',
+    temporal: '仅 Temporal',
+  };
+
+  return labels[value];
+}
+
+function workflowBackendStatusLabel(value: RuntimeWorkflowStatusOverview['backend_status']) {
+  return value === 'DISPATCH_FAILED' ? '派发失败' : '可用';
+}
+
+async function getRuntimeWorkflowStatus(accessToken: string) {
+  const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/status`, {
+    headers: buildWorkflowHeaders(accessToken),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Workflow status request failed with HTTP ${response.status}`);
+  }
+
+  return (await response.json()) as RuntimeWorkflowStatusOverview;
+}
+
+async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: 'knowledge_task'; task_id: string }) {
+  const headers = buildWorkflowHeaders(accessToken);
+  headers.set('content-type', 'application/json');
+  const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/retry`, {
+    body: JSON.stringify(input),
+    headers,
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Workflow retry request failed with HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function buildWorkflowHeaders(accessToken: string) {
+  const headers = new Headers();
+  headers.set('accept', 'application/json');
+  headers.set('x-request-id', `req_${crypto.randomUUID().replaceAll('-', '')}`);
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`);
+  }
+  return headers;
 }
 
 function shortTraceId(value: string) {

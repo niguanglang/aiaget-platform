@@ -64,6 +64,7 @@ export const PERMISSION_CODES = {
   pluginCenterEnable: 'plugin:center:enable',
   pluginCenterDisable: 'plugin:center:disable',
   pluginCenterUpgrade: 'plugin:center:upgrade',
+  pluginCenterUninstall: 'plugin:center:uninstall',
   pluginCenterAudit: 'plugin:center:audit',
   channelPublishView: 'channel:publish:view',
   channelPublishManage: 'channel:publish:manage',
@@ -544,6 +545,14 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'plugin',
     resource: 'center',
     action: 'upgrade',
+  },
+  {
+    code: PERMISSION_CODES.pluginCenterUninstall,
+    legacy_code: 'plugin.uninstall',
+    name: 'Plugin Center Uninstall',
+    module: 'plugin',
+    resource: 'center',
+    action: 'uninstall',
   },
   {
     code: PERMISSION_CODES.pluginCenterAudit,
@@ -1157,6 +1166,23 @@ export interface PluginSecurityPreview {
   summary: string;
   risks: string[];
   notes: string[];
+  review_required?: boolean;
+  review_status?: string | null;
+  can_enable?: boolean;
+  block_reason?: string | null;
+}
+
+export interface PluginUninstallResult {
+  plugin_id: string;
+  status: PluginInstallationStatus;
+  runtime_status: PluginRuntimeStatus;
+  cleanup: {
+    menu_bindings: number;
+    menus: number;
+    hooks: number;
+    tools: number;
+  };
+  message: string;
 }
 
 export interface PluginInstallationDetail extends PluginInstallationItem {
@@ -1367,12 +1393,15 @@ export interface CreateTenantApiKeyResult {
 export interface ExternalAgentChatInput {
   message: string;
   title?: string | null;
+  idempotency_key?: string | null;
 }
 
 export interface ExternalAgentChatResponse {
   conversation_id: string;
   agent_id: string;
   channel_id?: string | null;
+  idempotency_key?: string | null;
+  idempotency_replayed?: boolean;
   agent_name: string;
   agent_code: string;
   message_id: string | null;
@@ -3196,6 +3225,26 @@ export interface UpdateAgentToolBindingInput {
 export type PublishChannelType = 'WEB_WIDGET' | 'OPEN_API' | 'WECHAT_WORK' | 'DINGTALK' | 'FEISHU' | 'SLACK' | 'CUSTOM_WEBHOOK';
 export type PublishChannelStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ERROR' | 'ARCHIVED';
 export type PublishChannelHealthStatus = 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE';
+export type ChannelAdapterReadinessStatus = 'READY' | 'DEGRADED' | 'BLOCKED' | 'UNCONFIGURED';
+export type ChannelCredentialRotationStatus = 'CURRENT' | 'ROTATION_DUE' | 'ROTATING' | 'EXPIRED' | 'UNKNOWN';
+
+export interface ChannelAdapterReadiness {
+  status: ChannelAdapterReadinessStatus;
+  message: string | null;
+  checked_at: string | null;
+  required_fields: string[];
+  missing_fields: string[];
+}
+
+export interface ChannelCredentialRotationMetadata {
+  status: ChannelCredentialRotationStatus;
+  last_rotated_at: string | null;
+  next_rotation_at: string | null;
+  rotated_by: string | null;
+  credential_version: number | null;
+  secret_configured: boolean;
+  secret_masked: string | null;
+}
 
 export interface PublishChannelAgentSummary {
   id: string;
@@ -3425,6 +3474,8 @@ export interface ChannelProviderItem {
   route_rule_count?: number;
   delivery_count_24h?: number;
   success_rate_24h?: number;
+  readiness?: ChannelAdapterReadiness | null;
+  credential_rotation?: ChannelCredentialRotationMetadata | null;
   last_checked_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -3443,6 +3494,8 @@ export interface ChannelAccountItem {
   status: string;
   owner?: string | null;
   environment?: string | null;
+  readiness?: ChannelAdapterReadiness | null;
+  credential_rotation?: ChannelCredentialRotationMetadata | null;
   last_used_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -5441,6 +5494,45 @@ export interface MonitorErrorSampleItem {
   occurred_at: string;
 }
 
+export type RuntimeWorkflowMode = 'local' | 'temporal_first' | 'temporal';
+export type RuntimeWorkflowBackend = 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
+export type RuntimeWorkflowBackendStatus = 'READY' | 'DISPATCH_FAILED';
+
+export interface RuntimeWorkflowFailureItem {
+  task_type: 'knowledge_task';
+  task_id: string | null;
+  error_message: string;
+  occurred_at: string | null;
+}
+
+export interface RuntimeWorkflowRecoverableTaskItem {
+  task_type: 'knowledge_task';
+  task_id: string;
+  workflow_task_type: 'PROCESS' | 'REBUILD' | string;
+  status: string;
+  title: string;
+  knowledge_base_id: string;
+  document_id: string | null;
+  error_message: string | null;
+  updated_at: string;
+}
+
+export interface RuntimeWorkflowStatusOverview {
+  generated_at: string;
+  workflow_mode: RuntimeWorkflowMode;
+  workflow_backend: RuntimeWorkflowBackend;
+  backend_status: RuntimeWorkflowBackendStatus;
+  latest_failure: RuntimeWorkflowFailureItem | null;
+  recoverable_tasks: RuntimeWorkflowRecoverableTaskItem[];
+}
+
+export interface RuntimeWorkflowRetryResult {
+  task_type: 'knowledge_task';
+  task_id: string;
+  status: 'QUEUED';
+  message: string;
+}
+
 export interface MonitorOverview {
   window: MonitorWindow;
   health: {
@@ -6096,6 +6188,44 @@ export interface CreateBillingAdjustmentInput {
   reason: string;
   description?: string | null;
   status?: BillingAdjustmentStatus;
+}
+
+export interface ApproveBillingAdjustmentInput {
+  reason?: string | null;
+}
+
+export interface ApplyBillingAdjustmentInput {
+  reason?: string | null;
+}
+
+export interface VoidBillingAdjustmentInput {
+  reason: string;
+}
+
+export interface UpdateBillingInvoiceStatusInput {
+  reason?: string | null;
+  paid_amount?: number;
+  paid_at?: string;
+}
+
+export interface BillingQuotaEnforcementInput {
+  subject_type: BillingQuotaSubjectType;
+  subject_id?: string | null;
+  metric_type: BillingQuotaMetricType;
+  period?: BillingQuotaPeriod;
+  usage_delta?: number;
+}
+
+export interface BillingQuotaEnforcementResult {
+  allow: boolean;
+  block: boolean;
+  reason: string;
+  current_usage: number;
+  limit: number | null;
+  action: BillingQuotaAction | null;
+  policy_id: string | null;
+  policy_name: string | null;
+  usage_rate: number | null;
 }
 
 export interface UpdateBillingSubscriptionInput {

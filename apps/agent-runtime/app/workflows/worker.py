@@ -224,7 +224,11 @@ async def run_worker() -> None:
 
 
 async def run_control_api_knowledge_task(task_id: str) -> None:
-    await asyncio.to_thread(post_control_api_json, "/api/v1/runtime/internal/knowledge-tasks/run", {"task_id": task_id})
+    await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/knowledge-tasks/run",
+        {"task_id": task_id, "workflow_id": f"knowledge-task-{task_id}"},
+    )
 
 
 async def run_control_api_agent_team_run(
@@ -335,7 +339,7 @@ def schedule_channel_release_self_healing_local_fallback(
     task.add_done_callback(lambda completed: log_background_task_error(channel_id, completed))
 
 
-def log_background_task_error(task_id: str, task: asyncio.Task[None]) -> None:
+def log_background_task_error(task_id: str, task: asyncio.Task[Any]) -> None:
     try:
         task.result()
     except Exception as error:  # pragma: no cover - best-effort local fallback logging.

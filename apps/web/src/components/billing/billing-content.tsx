@@ -14,6 +14,7 @@ import type {
   BillingPlanItem,
   BillingProviderCostItem,
   BillingQuotaAction,
+  BillingQuotaEnforcementResult,
   BillingQuotaMetricType,
   BillingQuotaPolicyItem,
   BillingQuotaPolicyStatus,
@@ -53,7 +54,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { createBillingAdjustment, getBillingOverview, recalculateCurrentBillingInvoice, updateBillingQuotaPolicy, updateBillingSubscription } from '@/lib/api-client';
+import {
+  applyBillingAdjustment,
+  approveBillingAdjustment,
+  createBillingAdjustment,
+  enforceBillingQuota,
+  getBillingOverview,
+  lockBillingInvoice,
+  markBillingInvoiceOverdue,
+  markBillingInvoicePaid,
+  recalculateCurrentBillingInvoice,
+  updateBillingQuotaPolicy,
+  updateBillingSubscription,
+  voidBillingAdjustment,
+  voidBillingInvoice,
+} from '@/lib/api-client';
 
 const windows: BillingWindow[] = ['24h', '7d'];
 
@@ -144,6 +159,8 @@ const adjustmentTypes: BillingAdjustmentType[] = ['CREDIT', 'DEBIT', 'REFUND', '
 const invoiceStatusFilters: InvoiceStatusFilter[] = ['ALL', 'DRAFT', 'OPEN', 'PAID', 'OVERDUE', 'VOID'];
 
 type InvoiceStatusFilter = 'ALL' | BillingInvoiceItem['status'];
+type InvoiceAction = 'lock' | 'mark-paid' | 'void' | 'mark-overdue';
+type AdjustmentAction = 'approve' | 'apply' | 'void';
 
 export function BillingContent() {
   const queryClient = useQueryClient();
@@ -154,6 +171,7 @@ export function BillingContent() {
   const [policyDraft, setPolicyDraft] = useState<QuotaPolicyDraft | null>(null);
   const [adjustmentDraft, setAdjustmentDraft] = useState<AdjustmentDraft>(() => defaultAdjustmentDraft());
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [quotaDecision, setQuotaDecision] = useState<BillingQuotaEnforcementResult | null>(null);
   const canManageAdjustments = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
       hasPermission(currentUser?.user.permissions ?? [], 'billing:adjustment:manage'),
@@ -205,6 +223,39 @@ export function BillingContent() {
       await invalidateBilling();
     },
     onError: () => setActionMessage('当前账期账单重算失败，请稍后重试。'),
+  });
+
+  const invoiceActionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: InvoiceAction }) => runInvoiceAction(id, action),
+    onSuccess: async (invoice) => {
+      setActionMessage(`账单 ${invoice.invoice_no} 已更新为${invoiceStatusLabels[invoice.status]}。`);
+      await invalidateBilling();
+    },
+    onError: () => setActionMessage('账单状态更新失败，请检查当前状态或权限。'),
+  });
+
+  const adjustmentActionMutation = useMutation({
+    mutationFn: ({ id, action, reason }: { id: string; action: AdjustmentAction; reason?: string }) =>
+      runAdjustmentAction(id, action, reason),
+    onSuccess: async (adjustment) => {
+      setActionMessage(`调账单 ${adjustment.adjustment_no} 已更新为${adjustmentStatusLabels[adjustment.status]}。`);
+      await invalidateBilling();
+    },
+    onError: () => setActionMessage('调账单操作失败，请检查当前状态或权限。'),
+  });
+
+  const quotaEnforcementMutation = useMutation({
+    mutationFn: () => enforceBillingQuota({
+      subject_type: 'TENANT',
+      metric_type: 'COST',
+      period: 'MONTH',
+      usage_delta: 0,
+    }),
+    onSuccess: (result) => {
+      setQuotaDecision(result);
+      setActionMessage(`Quota enforcement：${result.allow ? '允许' : '阻断'}，${result.reason}`);
+    },
+    onError: () => setActionMessage('Quota enforcement 检查失败，请确认计费中心查看权限。'),
   });
 
   const startEditPolicy = (policy: BillingQuotaPolicyItem) => {
@@ -298,6 +349,15 @@ export function BillingContent() {
             <RotateCcw className="size-4" />
             {recalculateInvoiceMutation.isPending ? '重算中...' : '重算当前账期'}
           </Button>
+          <Button
+            disabled={quotaEnforcementMutation.isPending}
+            onClick={() => quotaEnforcementMutation.mutate()}
+            type="button"
+            variant="outline"
+          >
+            <ShieldAlert className="size-4" />
+            {quotaEnforcementMutation.isPending ? '检查中...' : '检查额度执行'}
+          </Button>
           <Button onClick={() => void billingQuery.refetch()} type="button" variant="outline">
             <RefreshCw className="size-4" />
             刷新
@@ -313,6 +373,15 @@ export function BillingContent() {
       {actionMessage ? (
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           {actionMessage}
+        </div>
+      ) : null}
+      {quotaDecision ? (
+        <div className="grid gap-2 rounded-md border bg-muted/20 px-3 py-3 text-sm md:grid-cols-5">
+          <span>决策：{quotaDecision.allow ? '允许' : '阻断'}</span>
+          <span>动作：{quotaDecision.action ? quotaActionLabels[quotaDecision.action] : '无策略'}</span>
+          <span>当前用量：{formatQuotaValue('COST', quotaDecision.current_usage)}</span>
+          <span>上限：{quotaDecision.limit === null ? '未限制' : formatQuotaValue('COST', quotaDecision.limit)}</span>
+          <span className="truncate">原因：{quotaDecision.reason}</span>
         </div>
       ) : null}
 
@@ -353,7 +422,13 @@ export function BillingContent() {
           onSave={savePolicy}
           saving={quotaPolicyMutation.isPending}
         />
-        <InvoiceCard adjustments={overview?.adjustments ?? []} invoices={overview?.invoices ?? []} loading={billingQuery.isLoading} />
+        <InvoiceCard
+          adjustments={overview?.adjustments ?? []}
+          invoices={overview?.invoices ?? []}
+          loading={billingQuery.isLoading}
+          onAction={(id, action) => invoiceActionMutation.mutate({ id, action })}
+          pendingActionId={invoiceActionMutation.variables?.id ?? null}
+        />
       </section>
 
       <AdjustmentCard
@@ -362,8 +437,10 @@ export function BillingContent() {
         invoices={overview?.invoices ?? []}
         items={overview?.adjustments ?? []}
         loading={billingQuery.isLoading}
+        onAction={(id, action) => adjustmentActionMutation.mutate({ id, action })}
         onCreate={createAdjustment}
         onDraftChange={setAdjustmentDraft}
+        pendingActionId={adjustmentActionMutation.variables?.id ?? null}
         saving={adjustmentMutation.isPending}
       />
 
@@ -707,10 +784,14 @@ function InvoiceCard({
   adjustments,
   invoices,
   loading,
+  onAction,
+  pendingActionId,
 }: {
   adjustments: BillingAdjustmentItem[];
   invoices: BillingInvoiceItem[];
   loading: boolean;
+  onAction: (id: string, action: InvoiceAction) => void;
+  pendingActionId: string | null;
 }) {
   const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>('ALL');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -809,6 +890,8 @@ function InvoiceCard({
               adjustments={selectedAdjustments}
               invoice={selectedInvoice}
               lineItems={parseInvoiceLineItems(selectedInvoice)}
+              onAction={onAction}
+              pendingActionId={pendingActionId}
               summary={invoiceSummary}
             />
           ) : null}
@@ -822,14 +905,19 @@ function InvoiceDetailPanel({
   adjustments,
   invoice,
   lineItems,
+  onAction,
+  pendingActionId,
   summary,
 }: {
   adjustments: BillingAdjustmentItem[];
   invoice: BillingInvoiceItem;
   lineItems: InvoiceLineItem[];
+  onAction: (id: string, action: InvoiceAction) => void;
+  pendingActionId: string | null;
   summary: InvoiceSummary;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const invoiceActions = getInvoiceActions(invoice.status);
 
   return (
     <div className="grid content-start gap-4 rounded-md border bg-muted/15 p-4">
@@ -870,6 +958,24 @@ function InvoiceDetailPanel({
           <div className="text-xs text-muted-foreground">账单项</div>
           <div className="mt-1 font-medium">{lineItems.length} 项</div>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/70 p-3">
+        <span className="mr-1 text-xs text-muted-foreground">状态流转</span>
+        {invoiceActions.length === 0 ? (
+          <span className="text-xs text-muted-foreground">当前状态无可用操作</span>
+        ) : invoiceActions.map((action) => (
+          <Button
+            disabled={pendingActionId === invoice.id}
+            key={action.action}
+            onClick={() => onAction(invoice.id, action.action)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {pendingActionId === invoice.id ? '处理中...' : action.label}
+          </Button>
+        ))}
       </div>
 
       <div className="rounded-md border bg-background/70">
@@ -959,8 +1065,10 @@ function AdjustmentCard({
   invoices,
   items,
   loading,
+  onAction,
   onCreate,
   onDraftChange,
+  pendingActionId,
   saving,
 }: {
   canManage: boolean;
@@ -968,8 +1076,10 @@ function AdjustmentCard({
   invoices: BillingInvoiceItem[];
   items: BillingAdjustmentItem[];
   loading: boolean;
+  onAction: (id: string, action: AdjustmentAction) => void;
   onCreate: () => void;
   onDraftChange: (draft: AdjustmentDraft) => void;
+  pendingActionId: string | null;
   saving: boolean;
 }) {
   return (
@@ -1066,7 +1176,7 @@ function AdjustmentCard({
               <table className="w-full min-w-[760px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    {['调账单', '类型', '状态', '金额', '关联账单', '原因', '创建时间'].map((column) => (
+                    {['调账单', '类型', '状态', '金额', '关联账单', '原因', '创建时间', '操作'].map((column) => (
                       <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
                     ))}
                   </tr>
@@ -1085,6 +1195,24 @@ function AdjustmentCard({
                       <td className="px-3 py-2 text-muted-foreground">{item.invoice_no ?? '-'}</td>
                       <td className="max-w-[220px] truncate px-3 py-2 text-muted-foreground">{item.reason}</td>
                       <td className="px-3 py-2 text-muted-foreground">{formatDateShort(item.created_at)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {getAdjustmentActions(item.status).length === 0 ? (
+                            <span className="text-xs text-muted-foreground">无</span>
+                          ) : getAdjustmentActions(item.status).map((action) => (
+                            <Button
+                              disabled={!canManage || pendingActionId === item.id}
+                              key={action.action}
+                              onClick={() => onAction(item.id, action.action)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              {pendingActionId === item.id ? '处理中...' : action.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1418,6 +1546,19 @@ function adjustmentStatusTone(status: BillingAdjustmentStatus) {
   return 'planned';
 }
 
+function getInvoiceActions(status: BillingInvoiceItem['status']): Array<{ action: InvoiceAction; label: string }> {
+  if (status === 'DRAFT') return [{ action: 'lock', label: '锁账' }, { action: 'void', label: '作废' }];
+  if (status === 'OPEN') return [{ action: 'mark-paid', label: '标记已付' }, { action: 'mark-overdue', label: '标记逾期' }, { action: 'void', label: '作废' }];
+  if (status === 'OVERDUE') return [{ action: 'mark-paid', label: '标记已付' }, { action: 'void', label: '作废' }];
+  return [];
+}
+
+function getAdjustmentActions(status: BillingAdjustmentStatus): Array<{ action: AdjustmentAction; label: string }> {
+  if (status === 'PENDING') return [{ action: 'approve', label: '审批' }, { action: 'void', label: '作废' }];
+  if (status === 'APPROVED') return [{ action: 'apply', label: '应用' }, { action: 'void', label: '作废' }];
+  return [];
+}
+
 function percentValue(usage: number, total: number) {
   if (!total) return 0;
   return Number(((usage / total) * 100).toFixed(1));
@@ -1602,11 +1743,26 @@ function toAdjustmentInput(draft: AdjustmentDraft): CreateBillingAdjustmentInput
     amount,
     reason: draft.reason.trim(),
     description: draft.description.trim() || null,
-    status: 'APPROVED',
+    status: 'PENDING',
   };
 }
 
 function formatInteger(value: number | null | undefined) {
   if (value === null || value === undefined) return '-';
   return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function runInvoiceAction(id: string, action: InvoiceAction) {
+  if (action === 'lock') return lockBillingInvoice(id);
+  if (action === 'mark-paid') return markBillingInvoicePaid(id);
+  if (action === 'mark-overdue') return markBillingInvoiceOverdue(id);
+
+  return voidBillingInvoice(id);
+}
+
+function runAdjustmentAction(id: string, action: AdjustmentAction, reason?: string) {
+  if (action === 'approve') return approveBillingAdjustment(id, { reason });
+  if (action === 'apply') return applyBillingAdjustment(id, { reason });
+
+  return voidBillingAdjustment(id, { reason: reason || '运营作废' });
 }

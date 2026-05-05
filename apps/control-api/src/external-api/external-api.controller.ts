@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
@@ -51,13 +51,15 @@ export class ExternalApiController {
   async chat(
     @Req() request: Request,
     @Param('agentId') agentId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<ExternalAgentChatResponse> {
     const principal = await this.externalApiKeys.authenticate(request as RequestWithContext, agentId, {
       stream: false,
     });
 
-    const result = await this.externalApi.chat(principal, agentId, dto);
+    const result = await this.externalApi.chat(principal, agentId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey));
     const requestContext = request as RequestWithContext;
     requestContext.externalConversationId = result.conversation_id;
     requestContext.externalRunId = result.run_id ?? undefined;
@@ -72,6 +74,8 @@ export class ExternalApiController {
     @Req() request: Request,
     @Res() response: Response,
     @Param('agentId') agentId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<void> {
     const requestContext = request as RequestWithContext;
@@ -91,7 +95,7 @@ export class ExternalApiController {
     };
 
     try {
-      const result = await this.externalApi.streamChat(principal, agentId, dto, writeEvent);
+      const result = await this.externalApi.streamChat(principal, agentId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey), writeEvent);
       requestContext.externalConversationId = result.conversation_id;
       requestContext.externalRunId = result.run_id ?? undefined;
       requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -111,6 +115,8 @@ export class ExternalApiController {
   async channelChat(
     @Req() request: Request,
     @Param('channelId') channelId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<ExternalAgentChatResponse> {
     const requestContext = request as RequestWithContext;
@@ -118,7 +124,7 @@ export class ExternalApiController {
       stream: false,
     });
 
-    const result = await this.externalApi.channelChat(principal, channelId, principal.agentId, dto);
+    const result = await this.externalApi.channelChat(principal, channelId, principal.agentId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey));
     requestContext.externalConversationId = result.conversation_id;
     requestContext.externalRunId = result.run_id ?? undefined;
     requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -132,6 +138,8 @@ export class ExternalApiController {
     @Req() request: Request,
     @Res() response: Response,
     @Param('channelId') channelId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<void> {
     const requestContext = request as RequestWithContext;
@@ -151,7 +159,7 @@ export class ExternalApiController {
     };
 
     try {
-      const result = await this.externalApi.streamChannelChat(principal, channelId, principal.agentId, dto, writeEvent);
+      const result = await this.externalApi.streamChannelChat(principal, channelId, principal.agentId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey), writeEvent);
       requestContext.externalConversationId = result.conversation_id;
       requestContext.externalRunId = result.run_id ?? undefined;
       requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -172,13 +180,15 @@ export class ExternalApiController {
     @Req() request: Request,
     @Param('agentId') agentId: string,
     @Param('conversationId') conversationId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<ExternalAgentChatResponse> {
     const requestContext = request as RequestWithContext;
     const principal = await this.externalApiKeys.authenticateConversation(requestContext, agentId, conversationId, {
       stream: false,
     });
-    const result = await this.externalApi.continueChat(principal, conversationId, dto);
+    const result = await this.externalApi.continueChat(principal, conversationId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey));
     requestContext.externalConversationId = result.conversation_id;
     requestContext.externalRunId = result.run_id ?? undefined;
     requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -192,13 +202,15 @@ export class ExternalApiController {
     @Req() request: Request,
     @Param('channelId') channelId: string,
     @Param('conversationId') conversationId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<ExternalAgentChatResponse> {
     const requestContext = request as RequestWithContext;
     const principal = await this.externalApiKeys.authenticateChannelConversation(requestContext, channelId, conversationId, {
       stream: false,
     });
-    const result = await this.externalApi.channelContinueChat(principal, channelId, conversationId, dto);
+    const result = await this.externalApi.channelContinueChat(principal, channelId, conversationId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey));
     requestContext.externalConversationId = result.conversation_id;
     requestContext.externalRunId = result.run_id ?? undefined;
     requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -213,6 +225,8 @@ export class ExternalApiController {
     @Res() response: Response,
     @Param('channelId') channelId: string,
     @Param('conversationId') conversationId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<void> {
     const requestContext = request as RequestWithContext;
@@ -232,7 +246,7 @@ export class ExternalApiController {
     };
 
     try {
-      const result = await this.externalApi.streamChannelContinueChat(principal, channelId, conversationId, dto, writeEvent);
+      const result = await this.externalApi.streamChannelContinueChat(principal, channelId, conversationId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey), writeEvent);
       requestContext.externalConversationId = result.conversation_id;
       requestContext.externalRunId = result.run_id ?? undefined;
       requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -254,6 +268,8 @@ export class ExternalApiController {
     @Res() response: Response,
     @Param('agentId') agentId: string,
     @Param('conversationId') conversationId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('x-idempotency-key') xIdempotencyKey: string | undefined,
     @Body() dto: ExternalAgentChatDto,
   ): Promise<void> {
     const requestContext = request as RequestWithContext;
@@ -273,7 +289,7 @@ export class ExternalApiController {
     };
 
     try {
-      const result = await this.externalApi.streamContinueChat(principal, conversationId, dto, writeEvent);
+      const result = await this.externalApi.streamContinueChat(principal, conversationId, withIdempotencyKey(dto, idempotencyKey, xIdempotencyKey), writeEvent);
       requestContext.externalConversationId = result.conversation_id;
       requestContext.externalRunId = result.run_id ?? undefined;
       requestContext.externalTraceId = result.trace_id ?? undefined;
@@ -287,4 +303,14 @@ export class ExternalApiController {
       response.end();
     }
   }
+}
+
+function withIdempotencyKey(dto: ExternalAgentChatDto, ...headerValues: Array<string | undefined>): ExternalAgentChatDto {
+  const headerKey = headerValues.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
+  const bodyKey = typeof dto.idempotency_key === 'string' ? dto.idempotency_key.trim() : '';
+
+  return {
+    ...dto,
+    idempotency_key: headerKey || bodyKey || null,
+  };
 }

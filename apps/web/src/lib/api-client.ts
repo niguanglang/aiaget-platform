@@ -20,12 +20,16 @@ import type {
   AgentDetail,
   AgentListItem,
   BillingOverview,
+  BillingQuotaEnforcementInput,
+  BillingQuotaEnforcementResult,
   BillingAdjustmentItem,
   BillingInvoiceItem,
   BillingQuotaPolicyItem,
   BillingSubscriptionItem,
   BillingWindow,
   CreateBillingAdjustmentInput,
+  ApproveBillingAdjustmentInput,
+  ApplyBillingAdjustmentInput,
   CreateAgentKnowledgeBindingInput,
   CreateAgentModelBindingInput,
   CreateAgentPromptBindingInput,
@@ -155,6 +159,7 @@ import type {
   PluginMarketItem,
   PluginMenuBindingItem,
   PluginOverview,
+  PluginUninstallResult,
   CreatePluginInstallationInput,
   PublishChannelListItem,
   PublishChannelOverview,
@@ -295,6 +300,8 @@ import type {
   UpdatePromptVariableInput,
   UpdateBillingQuotaPolicyInput,
   UpdateBillingSubscriptionInput,
+  UpdateBillingInvoiceStatusInput,
+  VoidBillingAdjustmentInput,
   UpdatePlatformUsageAlertInput,
   CreateRoleInput,
   UpdateRoleInput,
@@ -2053,6 +2060,12 @@ export function upgradePlugin(pluginId: string) {
   });
 }
 
+export function uninstallPlugin(pluginId: string) {
+  return request<PluginUninstallResult>(`/plugins/${pluginId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function updatePluginHook(pluginId: string, hookId: string, input: UpdatePluginHookInput) {
   return request<PluginHookItem>(`/plugins/${pluginId}/hooks/${hookId}`, {
     method: 'PATCH',
@@ -2485,9 +2498,65 @@ export function createBillingAdjustment(input: CreateBillingAdjustmentInput) {
   });
 }
 
+export function approveBillingAdjustment(id: string, input: ApproveBillingAdjustmentInput = {}) {
+  return request<BillingAdjustmentItem>(`/billing/adjustments/${id}/approve`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function applyBillingAdjustment(id: string, input: ApplyBillingAdjustmentInput = {}) {
+  return request<BillingAdjustmentItem>(`/billing/adjustments/${id}/apply`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function voidBillingAdjustment(id: string, input: VoidBillingAdjustmentInput) {
+  return request<BillingAdjustmentItem>(`/billing/adjustments/${id}/void`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function recalculateCurrentBillingInvoice() {
   return request<BillingInvoiceItem>('/billing/invoices/current/recalculate', {
     method: 'POST',
+  });
+}
+
+export function lockBillingInvoice(id: string, input: UpdateBillingInvoiceStatusInput = {}) {
+  return request<BillingInvoiceItem>(`/billing/invoices/${id}/lock`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function markBillingInvoicePaid(id: string, input: UpdateBillingInvoiceStatusInput = {}) {
+  return request<BillingInvoiceItem>(`/billing/invoices/${id}/mark-paid`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function voidBillingInvoice(id: string, input: UpdateBillingInvoiceStatusInput = {}) {
+  return request<BillingInvoiceItem>(`/billing/invoices/${id}/void`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function markBillingInvoiceOverdue(id: string, input: UpdateBillingInvoiceStatusInput = {}) {
+  return request<BillingInvoiceItem>(`/billing/invoices/${id}/mark-overdue`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function enforceBillingQuota(input: BillingQuotaEnforcementInput) {
+  return request<BillingQuotaEnforcementResult>('/billing/quota/enforce', {
+    method: 'POST',
+    body: input,
   });
 }
 

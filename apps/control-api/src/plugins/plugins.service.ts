@@ -11,6 +11,7 @@ import type {
   PluginMarketItem,
   PluginMenuBindingItem,
   PluginOverview,
+  PluginUninstallResult,
   PluginVersionItem,
   PluginHookStatus,
   PluginInstallationStatus,
@@ -25,6 +26,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildPluginGeneratedCodes, buildPluginManifestPolicy } from './plugin-policy';
 
 type PluginRecord = Prisma.PluginGetPayload<{
   include: {
@@ -525,6 +527,147 @@ export class PluginsService {
     return this.getInstallation(currentUser, pluginId);
   }
 
+  async uninstall(currentUser: AuthenticatedUser, pluginId: string): Promise<PluginUninstallResult> {
+    const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
+    const plugin = await this.prisma.plugin.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: pluginId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        manifestJson: true,
+      },
+    });
+    if (!plugin) throw new NotFoundException('Plugin not found');
+
+    const now = new Date();
+    const generatedCodes = buildPluginGeneratedCodes(plugin.code, normalizeJson(plugin.manifestJson));
+
+    const [menuBindings, hooks, tools, menus] = await this.prisma.$transaction([
+      this.prisma.pluginMenuBinding.updateMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          pluginId,
+          deletedAt: null,
+        },
+        data: {
+          status: 'DELETED',
+          enabled: false,
+          visible: false,
+          deletedAt: now,
+          updatedBy: currentUser.id,
+        },
+      }),
+      this.prisma.pluginHook.updateMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          pluginId,
+          deletedAt: null,
+        },
+        data: {
+          status: 'DELETED',
+          deletedAt: now,
+          updatedBy: currentUser.id,
+        },
+      }),
+      this.prisma.tool.updateMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          code: {
+            in: generatedCodes.toolCodes,
+          },
+          deletedAt: null,
+        },
+        data: {
+          status: 'DELETED',
+          deletedAt: now,
+          updatedBy: currentUser.id,
+        },
+      }),
+      this.prisma.menu.updateMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          code: {
+            in: generatedCodes.menuCodes,
+          },
+          deletedAt: null,
+        },
+        data: {
+          enabled: false,
+          visible: false,
+          deletedAt: now,
+          updatedBy: currentUser.id,
+        },
+      }),
+    ]);
+
+    await this.prisma.pluginInstallation.update({
+      where: { id: installation.id },
+      data: {
+        status: 'ARCHIVED',
+        runtimeStatus: 'STOPPED',
+        disabledAt: now,
+        deletedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+    await this.prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        status: 'ARCHIVED',
+        runtimeStatus: 'STOPPED',
+        hookCount: 0,
+        menuCount: 0,
+        disabledAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    const cleanup = {
+      menu_bindings: menuBindings.count,
+      menus: menus.count,
+      hooks: hooks.count,
+      tools: tools.count,
+    };
+    await this.recordAudit(
+      currentUser,
+      pluginId,
+      'UNINSTALL',
+      '卸载插件',
+      `已卸载插件 ${plugin.name}，清理菜单绑定 ${cleanup.menu_bindings} 个、菜单 ${cleanup.menus} 个、Hook ${cleanup.hooks} 个、工具 ${cleanup.tools} 个。`,
+      'SUCCESS',
+      cleanup,
+      'MEDIUM',
+    );
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      pluginId,
+      eventSource: 'CONTROL_API',
+      eventType: 'plugin.uninstalled',
+      status: 'SUCCESS',
+      severity: 'WARN',
+      billable: false,
+      summary: `插件 ${plugin.code} 已卸载并完成控制面清理`,
+      payloadJson: cleanup,
+    });
+
+    return {
+      plugin_id: pluginId,
+      status: 'ARCHIVED',
+      runtime_status: 'STOPPED',
+      cleanup,
+      message: '插件已卸载，生成的菜单、Hook 与工具已完成软删除清理。',
+    };
+  }
+
   async updateHook(currentUser: AuthenticatedUser, pluginId: string, hookId: string, dto: UpdatePluginHookInput): Promise<PluginHookItem> {
     await this.ensureInstallation(currentUser.tenantId, pluginId);
     const hook = await this.prisma.pluginHook.findFirst({
@@ -630,6 +773,30 @@ export class PluginsService {
 
   private async setRuntimeState(currentUser: AuthenticatedUser, pluginId: string, runtimeStatus: 'ACTIVE' | 'DISABLED') {
     const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
+    if (runtimeStatus === 'ACTIVE') {
+      const policy = buildPluginManifestPolicy({
+        riskLevel: installation.riskLevel as PluginRiskLevel,
+        status: installation.status,
+        manifest: normalizeJson(installation.manifestJson),
+      });
+      if (!policy.canEnable) {
+        await this.recordAudit(
+          currentUser,
+          pluginId,
+          'ENABLE_BLOCKED',
+          '启用插件被拦截',
+          policy.reason ?? '插件当前状态不允许启用。',
+          'WARN',
+          {
+            review_required: policy.reviewRequired,
+            review_status: policy.reviewStatus,
+            risk_level: installation.riskLevel,
+          },
+          installation.riskLevel as PluginRiskLevel,
+        );
+        throw new BadRequestException(policy.reason ?? 'Plugin cannot be enabled');
+      }
+    }
     await this.prisma.plugin.update({
       where: { id: pluginId },
       data: {
@@ -1146,6 +1313,11 @@ export class PluginsService {
 
   private mapInstallationDetail(item: Prisma.PluginInstallationGetPayload<{ include: { plugin: any } }>): PluginInstallationDetail {
     const plugin = item.plugin as PluginRecord;
+    const policy = buildPluginManifestPolicy({
+      riskLevel: item.riskLevel as PluginRiskLevel,
+      status: item.status,
+      manifest: normalizeJson(plugin.manifestJson),
+    });
     return {
       ...this.mapInstallationItem(item as Prisma.PluginInstallationGetPayload<{ include: { plugin: true } }>),
       manifest_json: normalizeJson(plugin.manifestJson),
@@ -1156,13 +1328,20 @@ export class PluginsService {
       versions: plugin.versions.map((version) => this.mapVersionItem(version)),
       audit_logs: plugin.auditLogs.map((log) => this.mapAuditLogItem(log)),
       security_preview: {
-        summary: '插件安装与启停受到权限、数据范围和资源授权控制。',
+        summary: policy.canEnable
+          ? '插件安装、启停和卸载受到权限、数据范围和资源授权控制。'
+          : policy.reason ?? '插件当前存在安全策略阻断。',
         risks: [
           '插件菜单注入必须经过菜单授权。',
           '插件 Hook 需要审计记录。',
           '高风险插件需要安全中心审批。',
+          ...policy.warnings,
         ],
         notes: ['插件中心当前仅管理控制面状态，不直接执行第三方任意代码。'],
+        review_required: policy.reviewRequired,
+        review_status: policy.reviewStatus,
+        can_enable: policy.canEnable,
+        block_reason: policy.reason,
       },
     };
   }

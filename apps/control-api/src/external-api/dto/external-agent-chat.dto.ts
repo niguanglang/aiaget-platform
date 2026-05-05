@@ -11,4 +11,8 @@ export class ExternalAgentChatDto {
   @MaxLength(220)
   title?: string | null;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
+  idempotency_key?: string | null;
 }

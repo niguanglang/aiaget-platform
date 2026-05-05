@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   ConversationDetail,
   ConversationRunItem,
@@ -13,6 +14,7 @@ import type { ExternalAgentChatDto } from './dto/external-agent-chat.dto';
 import { ExternalChannelRolloutGateService } from './external-channel-rollout-gate.service';
 import { ExternalWebhookService } from './external-webhook.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ExternalApiService {
@@ -22,9 +24,28 @@ export class ExternalApiService {
     @Inject(ExternalChannelRolloutGateService) private readonly rolloutGate: ExternalChannelRolloutGateService,
     @Inject(ExternalWebhookService) private readonly webhooks: ExternalWebhookService,
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
 
   async chat(principal: ExternalApiPrincipal, agentId: string, dto: ExternalAgentChatDto): Promise<ExternalAgentChatResponse> {
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_chat', principal, agentId, idempotencyKey));
+    if (cached) return cached;
+
+    const result = await this.performChat(principal, agentId, dto);
+
+    await this.recordExternalInvocation(principal, agentId, result, {
+      eventType: 'external.agent.chat.completed',
+      idempotencyKey,
+      scope: 'agent_chat',
+      streaming: false,
+      conversationContinuation: false,
+    });
+
+    return withIdempotency(result, idempotencyKey, false);
+  }
+
+  private async performChat(principal: ExternalApiPrincipal, agentId: string, dto: ExternalAgentChatDto): Promise<ExternalAgentChatResponse> {
     const conversation = await this.conversationsService.create(principal.user, {
       agent_id: agentId,
       message: dto.message,
@@ -52,18 +73,46 @@ export class ExternalApiService {
       conversationContinuation: false,
     });
 
-    const result = await this.chat(principal, agentId, dto);
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_chat', principal, channelId, idempotencyKey));
+    if (cached) return withChannel(cached, channelId);
+
+    const result = await this.performChat(principal, agentId, dto);
 
     await this.recordChannelInvocation(principal, channelId, result, {
       eventType: 'channel.external.chat.completed',
+      idempotencyKey,
+      scope: 'channel_chat',
       streaming: false,
       conversationContinuation: false,
     });
 
-    return withChannel(result, channelId);
+    return withIdempotency(withChannel(result, channelId), idempotencyKey, false);
   }
 
   async continueChat(
+    principal: ExternalApiPrincipal,
+    conversationId: string,
+    dto: ExternalAgentChatDto,
+  ): Promise<ExternalAgentChatResponse> {
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_conversation', principal, conversationId, idempotencyKey));
+    if (cached) return cached;
+
+    const result = await this.performContinueChat(principal, conversationId, dto);
+
+    await this.recordExternalInvocation(principal, result.agent_id, result, {
+      eventType: 'external.agent.conversation.completed',
+      idempotencyKey,
+      scope: 'agent_conversation',
+      streaming: false,
+      conversationContinuation: true,
+    });
+
+    return withIdempotency(result, idempotencyKey, false);
+  }
+
+  private async performContinueChat(
     principal: ExternalApiPrincipal,
     conversationId: string,
     dto: ExternalAgentChatDto,
@@ -94,18 +143,51 @@ export class ExternalApiService {
       conversationContinuation: true,
     });
 
-    const result = await this.continueChat(principal, conversationId, dto);
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_conversation', principal, conversationId, idempotencyKey));
+    if (cached) return withChannel(cached, channelId);
+
+    const result = await this.performContinueChat(principal, conversationId, dto);
 
     await this.recordChannelInvocation(principal, channelId, result, {
       eventType: 'channel.external.conversation.completed',
+      idempotencyKey,
+      scope: 'channel_conversation',
       streaming: false,
       conversationContinuation: true,
     });
 
-    return withChannel(result, channelId);
+    return withIdempotency(withChannel(result, channelId), idempotencyKey, false);
   }
 
   async streamChat(
+    principal: ExternalApiPrincipal,
+    agentId: string,
+    dto: ExternalAgentChatDto,
+    emit: (eventName: string, payload: ExternalAgentStreamEvent) => void,
+  ): Promise<ExternalAgentChatResponse> {
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_stream', principal, agentId, idempotencyKey));
+    if (cached) {
+      emit('done', { type: 'done', result: cached });
+
+      return cached;
+    }
+
+    const result = await this.performStreamChat(principal, agentId, dto, emit);
+
+    await this.recordExternalInvocation(principal, agentId, result, {
+      eventType: 'external.agent.stream.completed',
+      idempotencyKey,
+      scope: 'agent_stream',
+      streaming: true,
+      conversationContinuation: false,
+    });
+
+    return withIdempotency(result, idempotencyKey, false);
+  }
+
+  private async performStreamChat(
     principal: ExternalApiPrincipal,
     agentId: string,
     dto: ExternalAgentChatDto,
@@ -153,8 +235,17 @@ export class ExternalApiService {
       conversationContinuation: false,
     });
 
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_stream', principal, channelId, idempotencyKey));
+    if (cached) {
+      const response = withChannel(cached, channelId);
+      emit('done', { type: 'done', result: response });
+
+      return response;
+    }
+
     let finalResult: ExternalAgentChatResponse | null = null;
-    const result = await this.streamChat(principal, agentId, dto, (eventName, payload) => {
+    const result = await this.performStreamChat(principal, agentId, dto, (eventName, payload) => {
       if (payload.type === 'done') {
         finalResult = withChannel(payload.result, channelId);
         emit(eventName, {
@@ -170,14 +261,43 @@ export class ExternalApiService {
 
     await this.recordChannelInvocation(principal, channelId, response, {
       eventType: 'channel.external.stream.completed',
+      idempotencyKey,
+      scope: 'channel_stream',
       streaming: true,
       conversationContinuation: false,
     });
 
-    return response;
+    return withIdempotency(response, idempotencyKey, false);
   }
 
   async streamContinueChat(
+    principal: ExternalApiPrincipal,
+    conversationId: string,
+    dto: ExternalAgentChatDto,
+    emit: (eventName: string, payload: ExternalAgentStreamEvent) => void,
+  ): Promise<ExternalAgentChatResponse> {
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_conversation_stream', principal, conversationId, idempotencyKey));
+    if (cached) {
+      emit('done', { type: 'done', result: cached });
+
+      return cached;
+    }
+
+    const result = await this.performStreamContinueChat(principal, conversationId, dto, emit);
+
+    await this.recordExternalInvocation(principal, result.agent_id, result, {
+      eventType: 'external.agent.conversation.stream.completed',
+      idempotencyKey,
+      scope: 'agent_conversation_stream',
+      streaming: true,
+      conversationContinuation: true,
+    });
+
+    return withIdempotency(result, idempotencyKey, false);
+  }
+
+  private async performStreamContinueChat(
     principal: ExternalApiPrincipal,
     conversationId: string,
     dto: ExternalAgentChatDto,
@@ -224,8 +344,17 @@ export class ExternalApiService {
       conversationContinuation: true,
     });
 
+    const idempotencyKey = normalizeIdempotencyKey(dto.idempotency_key);
+    const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_conversation_stream', principal, conversationId, idempotencyKey));
+    if (cached) {
+      const response = withChannel(cached, channelId);
+      emit('done', { type: 'done', result: response });
+
+      return response;
+    }
+
     let finalResult: ExternalAgentChatResponse | null = null;
-    const result = await this.streamContinueChat(principal, conversationId, dto, (eventName, payload) => {
+    const result = await this.performStreamContinueChat(principal, conversationId, dto, (eventName, payload) => {
       if (payload.type === 'done') {
         finalResult = withChannel(payload.result, channelId);
         emit(eventName, {
@@ -241,11 +370,13 @@ export class ExternalApiService {
 
     await this.recordChannelInvocation(principal, channelId, response, {
       eventType: 'channel.external.conversation.stream.completed',
+      idempotencyKey,
+      scope: 'channel_conversation_stream',
       streaming: true,
       conversationContinuation: true,
     });
 
-    return response;
+    return withIdempotency(response, idempotencyKey, false);
   }
 
   private async recordChannelInvocation(
@@ -254,10 +385,13 @@ export class ExternalApiService {
     result: ExternalAgentChatResponse,
     options: {
       eventType: string;
+      idempotencyKey: string | null;
+      scope: string;
       streaming: boolean;
       conversationContinuation: boolean;
     },
   ) {
+    const resultPayload = withIdempotency(withChannel(result, channelId), options.idempotencyKey, false);
     const event = await this.platformEvents.recordEvent({
       tenantId: principal.user.tenantId,
       departmentId: principal.user.departmentId ?? null,
@@ -280,14 +414,18 @@ export class ExternalApiService {
       payloadJson: {
         api_key_id: principal.key.id,
         api_key_prefix: principal.key.keyPrefix,
+        idempotency_key: options.idempotencyKey,
+        idempotency_scope: options.scope,
         streaming: options.streaming,
         conversation_continuation: options.conversationContinuation,
         message_id: result.message_id,
         status: result.status,
         usage: result.usage,
+        result: resultPayload as unknown as Prisma.InputJsonValue,
       },
       sourceSystem: 'external_channel_api',
       sourceId: channelId,
+      dedupeKey: buildIdempotencyDedupeKey(options.scope, principal, channelId, options.idempotencyKey),
     });
 
     await this.platformEvents.recordUsage({
@@ -333,6 +471,91 @@ export class ExternalApiService {
       });
     }
   }
+
+  private async recordExternalInvocation(
+    principal: ExternalApiPrincipal,
+    agentId: string,
+    result: ExternalAgentChatResponse,
+    options: {
+      eventType: string;
+      idempotencyKey: string | null;
+      scope: string;
+      streaming: boolean;
+      conversationContinuation: boolean;
+    },
+  ) {
+    const resultPayload = withIdempotency(result, options.idempotencyKey, false);
+    const event = await this.platformEvents.recordEvent({
+      tenantId: principal.user.tenantId,
+      departmentId: principal.user.departmentId ?? null,
+      userId: principal.user.id,
+      actorType: 'API_KEY',
+      resourceType: 'AGENT',
+      resourceId: agentId,
+      agentId,
+      conversationId: result.conversation_id,
+      runId: result.run_id,
+      requestId: principal.user.requestId ?? null,
+      traceId: result.trace_id ?? principal.user.traceId ?? null,
+      eventSource: 'EXTERNAL_API',
+      eventType: options.eventType,
+      status: result.status === 'FAILED' ? 'FAILED' : 'SUCCESS',
+      severity: result.status === 'FAILED' ? 'WARN' : 'INFO',
+      billable: false,
+      summary: `外部调用完成：${result.agent_name}`,
+      payloadJson: {
+        api_key_id: principal.key.id,
+        api_key_prefix: principal.key.keyPrefix,
+        idempotency_key: options.idempotencyKey,
+        idempotency_scope: options.scope,
+        streaming: options.streaming,
+        conversation_continuation: options.conversationContinuation,
+        message_id: result.message_id,
+        status: result.status,
+        usage: result.usage,
+        result: resultPayload as unknown as Prisma.InputJsonValue,
+      },
+      sourceSystem: 'external_api',
+      sourceId: result.run_id ?? result.conversation_id,
+      dedupeKey: buildIdempotencyDedupeKey(options.scope, principal, agentId, options.idempotencyKey),
+    });
+
+    await this.platformEvents.recordUsage({
+      tenantId: principal.user.tenantId,
+      departmentId: principal.user.departmentId ?? null,
+      userId: principal.user.id,
+      subjectType: 'API_KEY',
+      subjectId: principal.key.id,
+      resourceType: 'AGENT',
+      resourceId: agentId,
+      metricType: 'external_agent_requests',
+      unit: 'request',
+      quantity: 1,
+      billable: false,
+      costSource: result.status === 'FAILED' ? 'FAILED' : 'EXTERNAL_API',
+      traceId: result.trace_id ?? principal.user.traceId ?? null,
+      requestId: principal.user.requestId ?? null,
+      eventId: event.id,
+      sourceSystem: 'external_api',
+      sourceId: result.run_id ?? result.conversation_id,
+    });
+  }
+
+  private async findIdempotentResult(principal: ExternalApiPrincipal, dedupeKey: string | null): Promise<ExternalAgentChatResponse | null> {
+    if (!dedupeKey) return null;
+
+    const event = await this.prisma.platformEvent.findFirst({
+      where: {
+        tenantId: principal.user.tenantId,
+        dedupeKey,
+        status: 'SUCCESS',
+      },
+      orderBy: { occurredAt: 'desc' },
+    });
+    const result = readExternalResult(event?.payloadJson);
+
+    return result ? withIdempotency(result, result.idempotency_key ?? null, true) : null;
+  }
 }
 
 function mapExternalResponse(conversation: ConversationDetail): ExternalAgentChatResponse {
@@ -377,10 +600,43 @@ function withChannel(result: ExternalAgentChatResponse, channelId: string): Exte
   };
 }
 
+function withIdempotency(result: ExternalAgentChatResponse, idempotencyKey: string | null, replayed: boolean): ExternalAgentChatResponse {
+  return {
+    ...result,
+    idempotency_key: idempotencyKey,
+    idempotency_replayed: replayed,
+  };
+}
+
+function normalizeIdempotencyKey(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed.slice(0, 180) : null;
+}
+
+function buildIdempotencyDedupeKey(scope: string, principal: ExternalApiPrincipal, resourceId: string, idempotencyKey: string | null) {
+  if (!idempotencyKey) return null;
+
+  return ['external-idempotency', scope, principal.key.id, principal.user.tenantId, resourceId, idempotencyKey].join(':').slice(0, 180);
+}
+
+function readExternalResult(payload: Prisma.JsonValue | null | undefined): ExternalAgentChatResponse | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const result = (payload as Record<string, unknown>).result;
+
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+  if (typeof (result as Record<string, unknown>).conversation_id !== 'string') return null;
+  if (typeof (result as Record<string, unknown>).agent_id !== 'string') return null;
+
+  return result as ExternalAgentChatResponse;
+}
+
 function channelStableKey(principal: ExternalApiPrincipal, dto: ExternalAgentChatDto) {
   return [
     principal.key.id,
     principal.user.id,
+    normalizeIdempotencyKey(dto.idempotency_key),
     dto.title?.trim(),
     dto.message.slice(0, 128),
   ].filter(Boolean).join(':');

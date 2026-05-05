@@ -10,10 +10,12 @@ import { ToolsModule } from '../tools/tools.module';
 import { RuntimeExecutionController } from './runtime-execution.controller';
 import { RuntimeExecutionService } from './runtime-execution.service';
 import { RuntimeInternalGuard } from './runtime-internal.guard';
+import { RuntimeWorkflowController } from './runtime-workflow.controller';
 
 @Module({
   imports: [AuthModule, PrismaModule, KnowledgeModule, ToolsModule, AgentTeamsModule, ChannelsModule, PlatformEventsModule],
-  controllers: [RuntimeExecutionController],
+  controllers: [RuntimeExecutionController, RuntimeWorkflowController],
   providers: [RuntimeExecutionService, RuntimeInternalGuard],
+  exports: [RuntimeExecutionService],
 })
 export class RuntimeExecutionModule {}

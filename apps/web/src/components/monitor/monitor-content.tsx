@@ -16,6 +16,7 @@ import type {
   MonitorTrendPoint,
   MonitorWindow,
   RuntimeWorkflowStatusOverview,
+  RuntimeWorkflowTaskType,
 } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
 import { Activity, AlertTriangle, Copy, GitBranch, Layers3, RotateCcw, Search } from 'lucide-react';
@@ -116,7 +117,7 @@ export function MonitorContent() {
     queryFn: () => getRuntimeWorkflowStatus(session?.accessToken ?? ''),
   });
   const retryWorkflowMutation = useMutation({
-    mutationFn: (input: { task_type: 'knowledge_task'; task_id: string }) => retryRuntimeWorkflowTask(session?.accessToken ?? '', input),
+    mutationFn: (input: { task_type: RuntimeWorkflowTaskType; task_id: string }) => retryRuntimeWorkflowTask(session?.accessToken ?? '', input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['runtime-workflow-status'] });
       void eventsQuery.refetch();
@@ -206,8 +207,8 @@ export function MonitorContent() {
       <WorkflowBackendCard
         loading={workflowQuery.isLoading}
         onRefresh={() => void workflowQuery.refetch()}
-        onRetry={(taskId) => retryWorkflowMutation.mutate({ task_type: 'knowledge_task', task_id: taskId })}
-        pendingTaskId={retryWorkflowMutation.variables?.task_id ?? null}
+        onRetry={(taskType, taskId) => retryWorkflowMutation.mutate({ task_type: taskType, task_id: taskId })}
+        pendingTask={retryWorkflowMutation.variables ?? null}
         retrying={retryWorkflowMutation.isPending}
         workflow={workflowQuery.data ?? null}
       />
@@ -749,14 +750,14 @@ function WorkflowBackendCard({
   loading,
   onRefresh,
   onRetry,
-  pendingTaskId,
+  pendingTask,
   retrying,
   workflow,
 }: {
   loading: boolean;
   onRefresh: () => void;
-  onRetry: (taskId: string) => void;
-  pendingTaskId: string | null;
+  onRetry: (taskType: RuntimeWorkflowTaskType, taskId: string) => void;
+  pendingTask: { task_type: RuntimeWorkflowTaskType; task_id: string } | null;
   retrying: boolean;
   workflow: RuntimeWorkflowStatusOverview | null;
 }) {
@@ -795,23 +796,28 @@ function WorkflowBackendCard({
       ) : null}
 
       {tasks.length === 0 ? (
-        <EmptyState description="当前没有可恢复的知识任务。" title="暂无恢复项" />
+        <EmptyState description="当前没有可恢复的工作流任务。" title="暂无恢复项" />
       ) : (
         <div className="grid gap-3">
           {tasks.map((task) => {
-            const pending = retrying && pendingTaskId === task.task_id;
+            const pending = retrying && pendingTask?.task_id === task.task_id && pendingTask.task_type === task.task_type;
 
             return (
-              <div className="grid gap-3 rounded-md border bg-muted/20 px-3 py-3 md:grid-cols-[1fr_auto] md:items-center" key={task.task_id}>
+              <div className="grid gap-3 rounded-md border bg-muted/20 px-3 py-3 md:grid-cols-[1fr_auto] md:items-center" key={`${task.task_type}:${task.task_id}`}>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="truncate text-sm font-medium">{task.title}</div>
+                    <StatusBadge tone="planned">{workflowTaskTypeLabel(task.task_type)}</StatusBadge>
                     <StatusBadge tone="degraded">{task.workflow_task_type}</StatusBadge>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.error_message ?? '任务失败，等待恢复。'}</p>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">{task.task_id}</div>
+                  <div className="mt-1 flex flex-wrap gap-2 font-mono text-xs text-muted-foreground">
+                    <span>{task.task_id}</span>
+                    {task.channel_id ? <span>渠道 {task.channel_id}</span> : null}
+                    <span>{formatDateTime(task.updated_at)}</span>
+                  </div>
                 </div>
-                <Button disabled={pending} onClick={() => onRetry(task.task_id)} type="button" variant="outline">
+                <Button disabled={pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
                   <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />
                   恢复重试
                 </Button>
@@ -1186,6 +1192,16 @@ function workflowBackendStatusLabel(value: RuntimeWorkflowStatusOverview['backen
   return value === 'DISPATCH_FAILED' ? '派发失败' : '可用';
 }
 
+function workflowTaskTypeLabel(value: RuntimeWorkflowTaskType) {
+  const labels: Record<RuntimeWorkflowTaskType, string> = {
+    knowledge_task: '知识库任务',
+    channel_release_automation: '渠道自动推进',
+    channel_release_self_healing: '渠道发布自愈',
+  };
+
+  return labels[value];
+}
+
 async function getRuntimeWorkflowStatus(accessToken: string) {
   const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/status`, {
     headers: buildWorkflowHeaders(accessToken),
@@ -1198,7 +1214,7 @@ async function getRuntimeWorkflowStatus(accessToken: string) {
   return (await response.json()) as RuntimeWorkflowStatusOverview;
 }
 
-async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: 'knowledge_task'; task_id: string }) {
+async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: RuntimeWorkflowTaskType; task_id: string }) {
   const headers = buildWorkflowHeaders(accessToken);
   headers.set('content-type', 'application/json');
   const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/retry`, {

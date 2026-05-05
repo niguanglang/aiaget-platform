@@ -5536,22 +5536,27 @@ export interface MonitorErrorSampleItem {
 export type RuntimeWorkflowMode = 'local' | 'temporal_first' | 'temporal';
 export type RuntimeWorkflowBackend = 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
 export type RuntimeWorkflowBackendStatus = 'READY' | 'DISPATCH_FAILED';
+export type RuntimeWorkflowTaskType =
+  | 'knowledge_task'
+  | 'channel_release_automation'
+  | 'channel_release_self_healing';
 
 export interface RuntimeWorkflowFailureItem {
-  task_type: 'knowledge_task';
+  task_type: RuntimeWorkflowTaskType;
   task_id: string | null;
   error_message: string;
   occurred_at: string | null;
 }
 
 export interface RuntimeWorkflowRecoverableTaskItem {
-  task_type: 'knowledge_task';
+  task_type: RuntimeWorkflowTaskType;
   task_id: string;
   workflow_task_type: 'PROCESS' | 'REBUILD' | string;
   status: string;
   title: string;
-  knowledge_base_id: string;
+  knowledge_base_id: string | null;
   document_id: string | null;
+  channel_id?: string | null;
   error_message: string | null;
   updated_at: string;
 }
@@ -5566,7 +5571,7 @@ export interface RuntimeWorkflowStatusOverview {
 }
 
 export interface RuntimeWorkflowRetryResult {
-  task_type: 'knowledge_task';
+  task_type: RuntimeWorkflowTaskType;
   task_id: string;
   status: 'QUEUED';
   message: string;

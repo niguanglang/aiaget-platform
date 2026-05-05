@@ -32,6 +32,6 @@ export class RuntimeWorkflowController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: RuntimeWorkflowRetryDto,
   ): Promise<RuntimeWorkflowRetryResult> {
-    return this.runtimeExecutionService.retryWorkflowTask(currentUser, dto.task_id);
+    return this.runtimeExecutionService.retryWorkflowTask(currentUser, dto.task_id, dto.task_type);
   }
 }

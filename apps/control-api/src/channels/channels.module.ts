@@ -24,6 +24,6 @@ import { ChannelsService } from './channels.service';
     ChannelReleaseSelfHealingWorkflowService,
     ChannelReleaseSchedulerService,
   ],
-  exports: [ChannelsService],
+  exports: [ChannelsService, ChannelReleaseAutomationWorkflowService, ChannelReleaseSelfHealingWorkflowService],
 })
 export class ChannelsModule {}

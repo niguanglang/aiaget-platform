@@ -1,6 +1,6 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type TestToolResult } from '@aiaget/shared-types';
+import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType, type TestToolResult } from '@aiaget/shared-types';
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { buildTraceparent, createSpanId, type TraceContext } from '../common/tracing/trace-context';
@@ -13,6 +13,8 @@ import { PlatformEventsService } from '../platform-events/platform-events.servic
 import { PrismaService } from '../prisma/prisma.service';
 import { ToolsService } from '../tools/tools.service';
 import { ChannelsService } from '../channels/channels.service';
+import { ChannelReleaseAutomationWorkflowService } from '../channels/channel-release-automation-workflow.service';
+import { ChannelReleaseSelfHealingWorkflowService } from '../channels/channel-release-self-healing-workflow.service';
 import type { RuntimeChannelReleaseAutomationDto } from './dto/runtime-channel-release-automation.dto';
 import type { RuntimeChannelReleaseSelfHealingDto } from './dto/runtime-channel-release-self-healing.dto';
 import type { RuntimeKnowledgeTaskDto } from './dto/runtime-knowledge-task.dto';
@@ -45,6 +47,8 @@ export class RuntimeExecutionService {
     @Inject(AgentTeamsService) private readonly agentTeamsService: AgentTeamsService,
     @Inject(ChannelsService) private readonly channelsService: ChannelsService,
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+    @Optional() @Inject(ChannelReleaseAutomationWorkflowService) private readonly releaseAutomationWorkflow: ChannelReleaseAutomationWorkflowService | null = null,
+    @Optional() @Inject(ChannelReleaseSelfHealingWorkflowService) private readonly releaseSelfHealingWorkflow: ChannelReleaseSelfHealingWorkflowService | null = null,
   ) {}
 
   async retrieve(dto: RuntimeRetrieveDto) {
@@ -196,7 +200,7 @@ export class RuntimeExecutionService {
 
   async getWorkflowStatus(currentUser: AuthenticatedUser): Promise<RuntimeWorkflowStatusOverview> {
     const mode = normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
-    const [latestEvent, failedTasks] = await this.prisma.$transaction([
+    const [latestEvent, failedTasks, failedChannelEvents] = await this.prisma.$transaction([
       this.prisma.platformEvent.findFirst({
         where: {
           tenantId: currentUser.tenantId,
@@ -230,6 +234,20 @@ export class RuntimeExecutionService {
         },
         take: 5,
       }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          eventSource: 'runtime_workflow',
+          status: 'FAILED',
+          eventType: {
+            in: ['workflow.channel_release_automation.failed', 'workflow.channel_release_self_healing.failed'],
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 5,
+      }),
     ]);
     const payload = jsonObjectOrNull(latestEvent?.payloadJson);
     const backendStatus = resolveWorkflowBackendStatus(mode, latestEvent ? {
@@ -237,20 +255,31 @@ export class RuntimeExecutionService {
       workflowBackend: normalizeWorkflowBackend(payload?.workflow_backend),
       errorMessage: latestEvent.summary ?? stringValue(payload?.error_message),
     } : null);
-
-    return {
-      generated_at: new Date().toISOString(),
-      workflow_mode: mode,
-      workflow_backend: backendStatus.backend,
-      backend_status: backendStatus.status,
-      latest_failure: backendStatus.latest_failure ? {
-        task_type: 'knowledge_task',
-        task_id: latestEvent?.taskId ?? latestEvent?.resourceId ?? null,
-        error_message: backendStatus.latest_failure.error_message,
-        occurred_at: latestEvent?.occurredAt.toISOString() ?? null,
-      } : null,
-      recoverable_tasks: failedTasks.map((task) => ({
-        task_type: 'knowledge_task',
+    const channelIds = Array.from(
+      new Set(
+        failedChannelEvents
+          .map((event) => channelIdFromWorkflowEvent(event))
+          .filter((channelId): channelId is string => Boolean(channelId)),
+      ),
+    );
+    const channels = channelIds.length > 0 ? await this.prisma.agentPublishChannel.findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: {
+          in: channelIds,
+        },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        channel: true,
+      },
+    }) : [];
+    const channelById = new Map(channels.map((channel) => [channel.id, channel]));
+    const recoverableTasks: RuntimeWorkflowRecoverableTaskItem[] = [
+      ...failedTasks.map((task) => ({
+        task_type: 'knowledge_task' as const,
         task_id: task.id,
         workflow_task_type: task.taskType,
         status: task.status,
@@ -260,10 +289,39 @@ export class RuntimeExecutionService {
         error_message: task.errorMessage,
         updated_at: task.updatedAt.toISOString(),
       })),
+      ...failedChannelEvents
+        .map((event) => mapChannelWorkflowRecoverableTask(event, channelById.get(channelIdFromWorkflowEvent(event) ?? '')))
+        .filter((task): task is RuntimeWorkflowRecoverableTaskItem => Boolean(task)),
+    ].slice(0, 10);
+
+    return {
+      generated_at: new Date().toISOString(),
+      workflow_mode: mode,
+      workflow_backend: backendStatus.backend,
+      backend_status: backendStatus.status,
+      latest_failure: backendStatus.latest_failure ? {
+        task_type: workflowTaskTypeFromEvent(latestEvent?.eventType),
+        task_id: latestEvent?.taskId ?? latestEvent?.resourceId ?? null,
+        error_message: backendStatus.latest_failure.error_message,
+        occurred_at: latestEvent?.occurredAt.toISOString() ?? null,
+      } : null,
+      recoverable_tasks: recoverableTasks,
     };
   }
 
-  async retryWorkflowTask(currentUser: AuthenticatedUser, taskId: string): Promise<RuntimeWorkflowRetryResult> {
+  async retryWorkflowTask(
+    currentUser: AuthenticatedUser,
+    taskId: string,
+    taskType: RuntimeWorkflowTaskType = 'knowledge_task',
+  ): Promise<RuntimeWorkflowRetryResult> {
+    if (taskType === 'channel_release_automation') {
+      return this.retryChannelReleaseAutomationWorkflow(currentUser, taskId);
+    }
+
+    if (taskType === 'channel_release_self_healing') {
+      return this.retryChannelReleaseSelfHealingWorkflow(currentUser, taskId);
+    }
+
     const task = await this.prisma.knowledgeEmbeddingTask.findFirst({
       where: {
         id: taskId,
@@ -318,6 +376,80 @@ export class RuntimeExecutionService {
       task_id: task.id,
       status: 'QUEUED',
       message: '知识任务已重置为待处理，运行时恢复任务会重新调度。',
+    };
+  }
+
+  private async retryChannelReleaseAutomationWorkflow(
+    currentUser: AuthenticatedUser,
+    channelId: string,
+  ): Promise<RuntimeWorkflowRetryResult> {
+    const channel = await this.ensureRecoverableChannel(currentUser, channelId);
+    if (!this.releaseAutomationWorkflow) {
+      throw new BadRequestException('Channel release automation workflow service is not available');
+    }
+
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'CHANNEL',
+      resourceId: channel.id,
+      channelId: channel.id,
+      taskId: channel.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.channel_release_automation.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `渠道自动推进工作流 ${channel.name ?? channel.channel} 已请求恢复重试。`,
+      payloadJson: {
+        channel_id: channel.id,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: channel.id,
+    });
+    await this.releaseAutomationWorkflow.dispatch(currentUser, channel.id);
+
+    return {
+      task_type: 'channel_release_automation' as RuntimeWorkflowTaskType,
+      task_id: channel.id,
+      status: 'QUEUED',
+      message: '渠道自动推进工作流已重新派发。',
+    };
+  }
+
+  private async retryChannelReleaseSelfHealingWorkflow(
+    currentUser: AuthenticatedUser,
+    channelId: string,
+  ): Promise<RuntimeWorkflowRetryResult> {
+    const channel = await this.ensureRecoverableChannel(currentUser, channelId);
+    if (!this.releaseSelfHealingWorkflow) {
+      throw new BadRequestException('Channel release self-healing workflow service is not available');
+    }
+
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'CHANNEL',
+      resourceId: channel.id,
+      channelId: channel.id,
+      taskId: channel.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.channel_release_self_healing.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `渠道发布自愈工作流 ${channel.name ?? channel.channel} 已请求恢复重试。`,
+      payloadJson: {
+        channel_id: channel.id,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: channel.id,
+    });
+    await this.releaseSelfHealingWorkflow.dispatch(currentUser, channel.id);
+
+    return {
+      task_type: 'channel_release_self_healing' as RuntimeWorkflowTaskType,
+      task_id: channel.id,
+      status: 'QUEUED',
+      message: '渠道发布自愈工作流已重新派发。',
     };
   }
 
@@ -607,6 +739,27 @@ export class RuntimeExecutionService {
     }
   }
 
+  private async ensureRecoverableChannel(currentUser: AuthenticatedUser, channelId: string) {
+    const channel = await this.prisma.agentPublishChannel.findFirst({
+      where: {
+        id: channelId,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        channel: true,
+      },
+    });
+
+    if (!channel) {
+      throw new NotFoundException('Publish channel not found');
+    }
+
+    return channel;
+  }
+
   private async ensureAgentToolBinding(tenantId: string, agentId: string, toolId: string) {
     const binding = await this.prisma.agentToolBinding.findFirst({
       where: {
@@ -803,6 +956,70 @@ interface WorkflowProjectionInput {
 
 function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
+}
+
+function workflowTaskTypeFromEvent(eventType: string | undefined | null): RuntimeWorkflowTaskType {
+  if (eventType === 'workflow.channel_release_automation.failed') {
+    return 'channel_release_automation';
+  }
+
+  if (eventType === 'workflow.channel_release_self_healing.failed') {
+    return 'channel_release_self_healing';
+  }
+
+  return 'knowledge_task';
+}
+
+function channelIdFromWorkflowEvent(event: {
+  channelId?: string | null;
+  resourceId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(event.channelId)
+    ?? stringValue(payload?.channel_id)
+    ?? stringValue(event.resourceId);
+}
+
+function mapChannelWorkflowRecoverableTask(
+  event: {
+    eventType: string;
+    channelId?: string | null;
+    resourceId?: string | null;
+    taskId?: string | null;
+    summary?: string | null;
+    payloadJson?: unknown;
+    occurredAt: Date;
+  },
+  channel: { id: string; name?: string | null; channel?: string | null } | undefined,
+): RuntimeWorkflowRecoverableTaskItem | null {
+  const taskType = workflowTaskTypeFromEvent(event.eventType);
+  if (taskType === 'knowledge_task') {
+    return null;
+  }
+
+  const channelId = channelIdFromWorkflowEvent(event);
+  if (!channelId) {
+    return null;
+  }
+
+  const payload = jsonObjectOrNull(event.payloadJson);
+  const workflowTaskType = taskType === 'channel_release_automation'
+    ? 'CHANNEL_RELEASE_AUTOMATION'
+    : 'CHANNEL_RELEASE_SELF_HEALING';
+
+  return {
+    task_type: taskType,
+    task_id: channelId,
+    workflow_task_type: workflowTaskType,
+    status: 'FAILED',
+    title: channel?.name ?? channel?.channel ?? channelId,
+    knowledge_base_id: null as string | null,
+    document_id: null,
+    channel_id: channelId,
+    error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
+    updated_at: event.occurredAt.toISOString(),
+  };
 }
 
 function mapReferenceSummary(reference: ConversationReferenceItem) {

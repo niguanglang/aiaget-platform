@@ -20,10 +20,12 @@ import {
   PageMessage,
   RefreshButton,
   StorageWorkspaceHeader,
+  useStoragePermissions,
 } from './storage-shared';
 
 export function StorageObjectDetailContent({ objectKey }: { objectKey: string }) {
   const queryClient = useQueryClient();
+  const storagePermissions = useStoragePermissions();
   const [message, setMessage] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -93,6 +95,9 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge tone="healthy">MinIO 对象</StatusBadge>
                 <StatusBadge tone="planned">{object.folder || '根目录'}</StatusBadge>
+                <StatusBadge tone={storagePermissions.canManage ? 'mock' : 'planned'}>
+                  {storagePermissions.canManage ? '可管理' : '只读'}
+                </StatusBadge>
               </div>
               <h2 className="mt-3 break-words text-lg font-semibold">{object.file_name}</h2>
               <p className="mt-2 break-all font-mono text-xs text-muted-foreground">{object.relative_key}</p>
@@ -130,7 +135,7 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
                 <Copy className="size-4" />
                 复制路径
               </Button>
-              <Button onClick={() => setDeleteConfirmOpen(true)} type="button" variant="outline">
+              <Button disabled={!storagePermissions.canManage} onClick={() => setDeleteConfirmOpen(true)} type="button" variant="outline">
                 <Trash2 className="size-4" />
                 删除
               </Button>

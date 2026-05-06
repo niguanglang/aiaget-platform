@@ -1,11 +1,13 @@
 'use client';
 
 import type { StorageConnectionStatus, StorageObjectItem } from '@aiaget/shared-types';
+import { hasPermission } from '@aiaget/shared-types';
 import type { QueryClient } from '@tanstack/react-query';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -31,6 +33,18 @@ export function storageObjectDetailHref(item: Pick<StorageObjectItem, 'relative_
 
 export function decodeStorageObjectKey(segments: string[]) {
   return segments.map((segment) => decodeURIComponent(segment)).join('/');
+}
+
+export function useStoragePermissions() {
+  const { currentUser } = useAuth();
+  const roles = currentUser?.user.roles ?? [];
+  const permissions = currentUser?.user.permissions ?? [];
+  const isTenantAdmin = roles.some((role) => role.code === 'tenant_admin');
+
+  return {
+    canManage: isTenantAdmin || hasPermission(permissions, 'storage:object:manage'),
+    canView: isTenantAdmin || hasPermission(permissions, 'storage:object:view'),
+  };
 }
 
 export async function invalidateStorage(queryClient: QueryClient) {

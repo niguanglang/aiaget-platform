@@ -55,6 +55,8 @@ test('storage settings page owns settings and bucket initialization APIs', () =>
   assert.match(settingsSource, /存储设置/);
   assert.match(settingsSource, /getStorageSettings/);
   assert.match(settingsSource, /ensureStorageBucket/);
+  assert.match(settingsSource, /useStoragePermissions/);
+  assert.match(settingsSource, /disabled=\{!storagePermissions\.canManage \|\| ensureBucketMutation\.isPending\}/);
   assert.match(settingsSource, /打开控制台/);
   assert.doesNotMatch(settingsSource, /uploadStorageObject/);
   assert.doesNotMatch(settingsSource, /deleteStorageObject/);
@@ -67,6 +69,8 @@ test('storage upload page owns upload form and upload API', () => {
   assert.match(uploadSource, /uploadStorageObject/);
   assert.match(uploadSource, /fileToBase64/);
   assert.match(uploadSource, /storageObjectDetailHref/);
+  assert.match(uploadSource, /useStoragePermissions/);
+  assert.match(uploadSource, /disabled=\{!storagePermissions\.canManage \|\| !selectedFile \|\| uploadMutation\.isPending\}/);
   assert.doesNotMatch(uploadSource, /ensureStorageBucket/);
   assert.doesNotMatch(uploadSource, /deleteStorageObject/);
 });
@@ -78,6 +82,8 @@ test('storage object detail page owns object lookup, download, copy, and delete 
   assert.match(detailSource, /listStorageObjects/);
   assert.match(detailSource, /getStorageDownloadUrl/);
   assert.match(detailSource, /deleteStorageObject/);
+  assert.match(detailSource, /useStoragePermissions/);
+  assert.match(detailSource, /disabled=\{!storagePermissions\.canManage\}/);
   assert.match(detailSource, /确认删除这个文件/);
   assert.doesNotMatch(detailSource, /uploadStorageObject/);
   assert.doesNotMatch(detailSource, /ensureStorageBucket/);

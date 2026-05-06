@@ -169,3 +169,15 @@ test('publish channel health check uses backend view permission gate', () => {
   assert.match(publishSource, /disabled=\{!permissions\.canView \|\| checkMutation\.isPending\}/);
   assert.doesNotMatch(publishSource, /渠道巡检[\s\S]{0,160}!permissions\.canDeploy/);
 });
+
+test('publish job row actions match backend permission guards', () => {
+  const jobsSource = readFileSync(join(channelsRoot, 'channel-jobs-content.tsx'), 'utf8');
+
+  assert.match(jobsSource, /取消任务/);
+  assert.match(jobsSource, /disabled=\{!permissions\.canDisable \|\| !canCancelJob\(item\) \|\| cancelMutation\.isPending\}/);
+  assert.doesNotMatch(jobsSource, /取消任务[\s\S]{0,220}!permissions\.canDeploy/);
+
+  assert.match(jobsSource, /重试任务/);
+  assert.match(jobsSource, /disabled=\{!permissions\.canManage \|\| !canRetryJob\(item\) \|\| retryMutation\.isPending\}/);
+  assert.doesNotMatch(jobsSource, /重试任务[\s\S]{0,220}!permissions\.canDeploy/);
+});

@@ -265,6 +265,7 @@ export function TraceSignalCards({ loading, overview }: { loading: boolean; over
 }
 
 export function WorkflowBackendCard({
+  canRetry,
   loading,
   onRefresh,
   onRetry,
@@ -272,6 +273,7 @@ export function WorkflowBackendCard({
   retrying,
   workflow,
 }: {
+  canRetry: boolean;
   loading: boolean;
   onRefresh: () => void;
   onRetry: (taskType: RuntimeWorkflowTaskType, taskId: string) => void;
@@ -333,7 +335,7 @@ export function WorkflowBackendCard({
                     <span>{formatDateTime(task.updated_at)}</span>
                   </div>
                 </div>
-                <Button disabled={pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
+                <Button disabled={!canRetry || pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
                   <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />
                   恢复重试
                 </Button>

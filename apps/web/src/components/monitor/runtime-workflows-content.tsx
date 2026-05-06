@@ -1,6 +1,6 @@
 'use client';
 
-import type { RuntimeWorkflowStatusOverview, RuntimeWorkflowTaskType } from '@aiaget/shared-types';
+import { hasPermission, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -16,7 +16,12 @@ const controlApiBaseUrl = process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http:
 
 export function RuntimeWorkflowsContent() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
+  const { currentUser, session } = useAuth();
+  const permissions = currentUser?.user.permissions ?? [];
+  const canRetryWorkflows = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(permissions, 'knowledge:base:manage'),
+  );
   const workflowQuery = useQuery({
     enabled: Boolean(session?.accessToken),
     queryKey: ['runtime-workflow-status'],
@@ -55,6 +60,7 @@ export function RuntimeWorkflowsContent() {
         <Card className="p-5 text-sm text-destructive">工作流状态加载失败。</Card>
       ) : (
         <WorkflowBackendCard
+          canRetry={canRetryWorkflows}
           loading={workflowQuery.isLoading}
           onRefresh={() => void workflowQuery.refetch()}
           onRetry={(taskType, taskId) => retryWorkflowMutation.mutate({ task_type: taskType, task_id: taskId })}

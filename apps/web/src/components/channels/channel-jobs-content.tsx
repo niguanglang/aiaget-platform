@@ -114,11 +114,11 @@ export function ChannelJobsContent() {
           title={item.title ?? item.job_no ?? item.id}
           actions={
             <>
-              <Button disabled={!permissions.canDeploy || !canCancelJob(item) || cancelMutation.isPending} onClick={() => cancelMutation.mutate(item.id)} size="sm" type="button" variant="outline">
+              <Button disabled={!permissions.canDisable || !canCancelJob(item) || cancelMutation.isPending} onClick={() => cancelMutation.mutate(item.id)} size="sm" type="button" variant="outline">
                 <XCircle className="size-4" />
                 取消任务
               </Button>
-              <Button disabled={!permissions.canDeploy || !canRetryJob(item) || retryMutation.isPending} onClick={() => retryMutation.mutate(item.id)} size="sm" type="button" variant="outline">
+              <Button disabled={!permissions.canManage || !canRetryJob(item) || retryMutation.isPending} onClick={() => retryMutation.mutate(item.id)} size="sm" type="button" variant="outline">
                 <RotateCcw className="size-4" />
                 重试任务
               </Button>

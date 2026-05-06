@@ -57,8 +57,13 @@ test('runtime workflows page owns runtime workflow API calls', () => {
   assert.ok(existsSync(workflowsSourcePath));
 
   const workflowsSource = readFileSync(workflowsSourcePath, 'utf8');
+  const sharedPanelsSource = readFileSync(join(root, 'src/components/monitor/monitor-shared-panels.tsx'), 'utf8');
 
   assert.match(workflowsSource, /\/runtime\/workflows\/status/);
   assert.match(workflowsSource, /\/runtime\/workflows\/retry/);
   assert.match(workflowsSource, /\bRuntimeWorkflowStatusOverview\b/);
+  assert.match(workflowsSource, /hasPermission\(permissions, 'knowledge:base:manage'\)/);
+  assert.match(workflowsSource, /canRetry=\{canRetryWorkflows\}/);
+  assert.match(sharedPanelsSource, /canRetry: boolean/);
+  assert.match(sharedPanelsSource, /disabled=\{!canRetry \|\| pending\}/);
 });

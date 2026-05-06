@@ -17,10 +17,12 @@ import {
   PageMessage,
   storageObjectDetailHref,
   StorageWorkspaceHeader,
+  useStoragePermissions,
 } from './storage-shared';
 
 export function StorageUploadContent() {
   const queryClient = useQueryClient();
+  const storagePermissions = useStoragePermissions();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadFolder, setUploadFolder] = useState('uploads');
 
@@ -54,6 +56,9 @@ export function StorageUploadContent() {
         title="上传文件"
       />
 
+      {!storagePermissions.canManage ? (
+        <PageMessage tone="error" value="当前账号没有 storage:object:manage 权限，无法上传文件。" />
+      ) : null}
       {uploadMutation.isError ? <PageMessage tone="error" value={uploadMutation.error.message} /> : null}
       {uploadedItem ? (
         <PageMessage tone="success" value={`已上传 ${uploadedItem.file_name}。`} />
@@ -67,7 +72,7 @@ export function StorageUploadContent() {
         <div className="grid gap-4 md:grid-cols-[260px_1fr]">
           <label className="grid gap-2 text-sm">
             <span className="font-medium">目标目录</span>
-            <Input onChange={(event) => setUploadFolder(event.target.value)} placeholder="uploads" value={uploadFolder} />
+            <Input disabled={!storagePermissions.canManage} onChange={(event) => setUploadFolder(event.target.value)} placeholder="uploads" value={uploadFolder} />
           </label>
 
           <label className="grid gap-2 text-sm" htmlFor="storage-upload-file">
@@ -75,6 +80,7 @@ export function StorageUploadContent() {
             <input
               className="sr-only"
               id="storage-upload-file"
+              disabled={!storagePermissions.canManage}
               onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
               type="file"
             />
@@ -102,7 +108,7 @@ export function StorageUploadContent() {
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button disabled={!selectedFile || uploadMutation.isPending} onClick={() => uploadMutation.mutate()} type="button">
+          <Button disabled={!storagePermissions.canManage || !selectedFile || uploadMutation.isPending} onClick={() => uploadMutation.mutate()} type="button">
             <UploadCloud className="size-4" />
             {uploadMutation.isPending ? '正在上传...' : '上传到 MinIO'}
           </Button>

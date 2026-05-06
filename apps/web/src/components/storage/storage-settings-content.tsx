@@ -18,10 +18,12 @@ import {
   statusLabels,
   storageTone,
   StorageWorkspaceHeader,
+  useStoragePermissions,
 } from './storage-shared';
 
 export function StorageSettingsContent() {
   const queryClient = useQueryClient();
+  const storagePermissions = useStoragePermissions();
   const settingsQuery = useQuery({
     queryKey: ['storage-settings'],
     queryFn: getStorageSettings,
@@ -96,13 +98,18 @@ export function StorageSettingsContent() {
 
             <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button
-                disabled={ensureBucketMutation.isPending}
+                disabled={!storagePermissions.canManage || ensureBucketMutation.isPending}
                 onClick={() => ensureBucketMutation.mutate()}
                 type="button"
               >
                 <HardDrive className="size-4" />
                 {ensureBucketMutation.isPending ? '正在验证...' : '验证 / 创建桶'}
               </Button>
+              {!storagePermissions.canManage ? (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  当前账号没有 storage:object:manage 权限，只能查看存储设置。
+                </div>
+              ) : null}
               <Button asChild type="button" variant="outline">
                 <a href={settings.console_url} rel="noreferrer" target="_blank">
                   <ExternalLink className="size-4" />

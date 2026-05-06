@@ -1,0 +1,3 @@
+# Product Prototype / Wireframe Prompt
+
+Mid-fidelity wireframe for AI Agent Platform tool detail page `/tools/[id]`, Chinese admin console. Information architecture focus: header/actions area, metrics row, two-column detail cards, JSON schema sections, testing workflow panel, call logs panel, references and usage summary. Clearly separate detail viewing from edit route navigation. Show disabled states for no permission and inactive tool test button. Show delete confirmation as a modal overlay. Keep list page, create form, and edit form out of this wireframe. Use dense but readable enterprise dashboard spacing.

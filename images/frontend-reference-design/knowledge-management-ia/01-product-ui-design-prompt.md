@@ -1,11 +1,11 @@
 # Product UI Design Image Prompt
 
 ```text
-Create a high-fidelity product UI design image for a real enterprise knowledge base management page.
+Create a high-fidelity product UI design reference board for real enterprise knowledge base management pages.
 
 Product context:
 - Product/module: 企业 Agent 平台 / 知识库中心
-- Page/route: 知识库管理 at /knowledge
+- Page/routes: 知识库管理 at /knowledge, /knowledge/[id], /knowledge/[id]/documents, /knowledge/[id]/upload, /knowledge/[id]/retrieval
 - Target users/roles: 租户管理员、知识库管理员、Agent 管理员、审计员、普通查看用户
 - Business goal: 让知识库列表、知识库详情、创建、编辑、文档上传、重建索引、召回测试职责清晰分离
 - Existing frontend stack/design system: Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui 风格组件 + motion/react
@@ -29,9 +29,12 @@ Interface contract that must appear in the UI:
 
 Design requirements:
 - Make it look like a production SaaS/admin product, not a generic mockup.
-- Use a clear two-level information architecture: list page for overview/table, detail page for full knowledge bundle.
+- Use a clear route-level information architecture: list page for overview/table, base detail page for summary/entry actions, documents page for document operations, upload page for upload form, retrieval page for recall testing.
 - Show the knowledge base list page as a dense but controlled table with compact metrics and a small toolbar.
-- Show the detail page as a richer panel with documents, segments, tasks, recall logs, and retrieval testing.
+- Show the base detail page as a focused summary with metrics, agent references, and entry cards for documents/upload/retrieval/edit.
+- Show the documents page with document table, selected document preview, segments, processing tasks, reprocess and delete actions.
+- Show the upload page with source type, local file picker, file name, content editor, validation, disabled and success states.
+- Show the retrieval page with query form, mode/topK controls, rebuild index action, result panel and recent recall logs.
 - Include clear empty states for no knowledge bases, no documents, no segments, and no retrieval results.
 - Use a coherent component system: toolbar, filter row, metric cards, data table, detail cards, action buttons, status badges, confirmation dialogs.
 - Keep visual language consistent with the current project design system: subtle border, soft shadow, backdrop-blur, restrained gradient mesh, minimal glass effect, Chinese copy.
@@ -42,6 +45,6 @@ Avoid:
 - fake API fields not listed above
 - decorative UI that cannot map to project components
 - unreadable tiny text, random charts, placeholder lorem ipsum
-- putting document/task/recall details into the list page
+- putting document/task/recall details into the list page or base detail summary page
 - mixing create/edit forms into the list page
 ```

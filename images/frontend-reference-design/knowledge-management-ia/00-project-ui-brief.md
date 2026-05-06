@@ -2,9 +2,9 @@
 
 - Page: Knowledge Management IA
 - Route: /knowledge
-- Feature goal: Split knowledge list create edit detail documents retrieval responsibilities
+- Feature goal: Split knowledge list, base detail, documents, upload, and retrieval testing into focused route-level pages.
 - Users/roles: tenant_admin, tenant_operator, tenant_viewer, knowledge_admin, agent_admin
-- Business goal: Make knowledge base management a clear CRUD + detail workflow, with documents, segments, tasks, recall logs, and retrieval testing kept in the detail view only.
+- Business goal: Make knowledge base management a clear CRUD + operations workflow. The detail page shows base information and route entries; document management, upload, segment/task inspection, and retrieval testing move to dedicated pages.
 - APIs/services:
   - `listKnowledgeBases`
   - `getKnowledgeOverview`
@@ -36,6 +36,9 @@
   - run retrieval test
   - open detail page
   - open edit page
+  - open document management page
+  - open upload page
+  - open retrieval test page
 - Required states: loading, empty, error, validation, disabled, success, permission-denied, background-processing, no-documents, no-segments, no-recall-results
 - Existing components/design system:
   - Next.js App Router console shell
@@ -43,4 +46,11 @@
   - shadcn/ui-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`
   - motion/react for subtle entry animations
   - glassy borders, soft shadows, backdrop blur, restrained gradients, Chinese UI text
-- Style constraints: match the current project design system, keep list pages dense but not overloaded, and keep detail pages as the primary place for documents and retrieval operations.
+- Page responsibilities:
+  - `/knowledge`: list, filters, overview metrics, row actions only.
+  - `/knowledge/[id]`: base detail summary, health metrics, agent references, and route entries to documents/upload/retrieval/edit.
+  - `/knowledge/[id]/documents`: document table, selected document preview, segments, processing tasks, reprocess and delete document actions.
+  - `/knowledge/[id]/upload`: standalone upload form for text/Markdown/HTML/FAQ content and local files.
+  - `/knowledge/[id]/retrieval`: retrieval test form, latest result panel, recall logs and index rebuild.
+  - `/knowledge/create` and `/knowledge/[id]/edit`: base form pages.
+- Style constraints: match the current project design system, keep list pages dense but not overloaded, and keep operational workflows out of the base detail page.

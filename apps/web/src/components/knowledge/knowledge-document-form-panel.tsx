@@ -27,11 +27,13 @@ export function KnowledgeDocumentFormPanel({
   error,
   isPending,
   onClose,
+  presentation = 'drawer',
   onSubmit,
 }: {
   error?: string | null;
   isPending: boolean;
   onClose: () => void;
+  presentation?: 'drawer' | 'page';
   onSubmit: (values: KnowledgeDocumentFormValues) => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<{ name: string; size: number; type: string } | null>(null);
@@ -63,8 +65,10 @@ export function KnowledgeDocumentFormPanel({
     form.setValue('content', text, { shouldValidate: true });
   }
 
+  const isDrawer = presentation === 'drawer';
+
   return (
-    <section className="fixed inset-y-0 right-0 z-30 flex w-full max-w-2xl flex-col border-l bg-background/95 shadow-xl backdrop-blur">
+    <section className={isDrawer ? 'fixed inset-y-0 right-0 z-30 flex w-full max-w-2xl flex-col border-l bg-background/95 shadow-xl backdrop-blur' : 'grid bg-background'}>
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -73,13 +77,15 @@ export function KnowledgeDocumentFormPanel({
               原始文件会写入 MinIO，解析文本继续用于切片、索引和检索。
             </p>
           </div>
-          <Button onClick={onClose} size="icon" type="button" variant="ghost">
-            <X className="size-4" />
-          </Button>
+          {isDrawer ? (
+            <Button onClick={onClose} size="icon" type="button" variant="ghost">
+              <X className="size-4" />
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form className={isDrawer ? 'grid flex-1 gap-5 overflow-y-auto p-6' : 'grid gap-5 p-6'} onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="标题" message={form.formState.errors.title?.message}>
             <Input {...form.register('title')} />
@@ -146,7 +152,7 @@ export function KnowledgeDocumentFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div className={isDrawer ? 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4' : 'mt-auto flex justify-end gap-2 border-t pt-4'}>
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

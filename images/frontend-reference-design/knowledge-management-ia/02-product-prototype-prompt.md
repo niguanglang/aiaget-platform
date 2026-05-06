@@ -4,12 +4,12 @@
 Create a low- to mid-fidelity product prototype / wireframe for the same enterprise knowledge base management page.
 
 Project context:
-- Page/route: 知识库管理 at /knowledge
+- Page/routes: 知识库管理 at /knowledge, /knowledge/[id], /knowledge/[id]/documents, /knowledge/[id]/upload, /knowledge/[id]/retrieval
 - Users/roles: 租户管理员、知识库管理员、Agent 管理员、审计员、普通查看用户
 - Main task flow:
   1. 在列表页搜索和筛选知识库
-  2. 打开知识库详情查看文档、切片、任务和召回日志
-  3. 从详情页进入编辑、上传文档、重建索引和检索测试
+  2. 打开知识库详情查看基础信息、指标、智能体引用和操作入口
+  3. 从详情页进入文档管理、上传文档、检索测试、编辑
   4. 在独立创建页完成新建知识库
   5. 在独立编辑页修改基础信息
 - API/service contract: listKnowledgeBases, getKnowledgeOverview, createKnowledgeBase, getKnowledgeBase, updateKnowledgeBase, deleteKnowledgeBase, uploadKnowledgeDocument, getKnowledgeDocument, deleteKnowledgeDocument, reprocessKnowledgeDocument, runKnowledgeRetrievalTest, rebuildKnowledgeIndex, listUsers
@@ -32,7 +32,10 @@ Prototype requirements:
 - Use low- to mid-fidelity wireframe style.
 - Focus on information architecture, page regions, user flow, and interaction states.
 - Show the list page as a toolbar + filter strip + table + row actions.
-- Show the detail page as a main content area with separate blocks for base info, document list, document preview, segments, tasks, recall logs, and agent references.
+- Show the base detail page as a main content area with base info, metrics, agent references, and entry cards only.
+- Show the document management page as document list + selected document preview + segments + processing tasks.
+- Show the upload page as a standalone form page.
+- Show the retrieval page as retrieval form + result panel + recall logs.
 - Show create and edit as separate pages or full-page forms, not as embedded list content.
 - Make component boundaries obvious so a frontend engineer can map each region to existing components.
 - Keep layout realistic for the current project and route shell.
@@ -42,4 +45,5 @@ Avoid:
 - invented backend fields
 - unrealistic navigation or actions
 - placing many detail sections inside the list page
+- placing document table, upload form or retrieval form inside the base detail summary page
 ```

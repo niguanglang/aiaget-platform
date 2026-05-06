@@ -1,0 +1,27 @@
+# Project UI Brief
+
+- Page: Dashboard IA
+- Route: `/dashboard`
+- Feature goal: keep the dashboard as a focused workbench/home page and split its card rendering and data mapping out of the route component. The dashboard shows overview, health, trends, rankings, recent alerts, and drill-down links only.
+- Users/roles: authenticated tenant operators and administrators with `dashboard:overview:view`.
+- Business goal: give operators a fast scan of platform health and direct them to focused modules for detail work, instead of turning the homepage into a deep management page.
+- APIs/services:
+  - `getMonitorOverview({ window })`
+  - `getAuditOverview({ window })`
+- Entities/fields:
+  - `MonitorOverview.summary`, `latency_trend`, `health`, `agent_rankings`, `tool_rankings`, `knowledge_rankings`, `model_rankings`, `errors`, `run_step_summary`, `run_step_breakdown`
+  - `AuditOverview.summary`, `failures`
+  - `MonitorWindow`: `24h`, `7d`
+- Required actions:
+  - Refresh dashboard data.
+  - Switch monitor window.
+  - Drill down to `/monitor`, `/monitor?source_type=conversation_step`, `/agents`, `/audit`.
+- Existing components/design system:
+  - Next.js App Router, React Query, Tailwind CSS, `motion/react`.
+  - Local primitives: `Button`, `Card`, `EmptyState`, `StatusBadge`.
+  - Shared monitor formatting helpers from `components/monitor/monitor-status`.
+- Constraints:
+  - Chinese UI text.
+  - No new backend endpoints, middleware, database tables, containers, or migrations.
+  - `DashboardContent` must remain a page composition component and must not own large chart/card/detail implementations.
+  - Detail and operations work must remain linked to focused modules, not embedded in the dashboard.

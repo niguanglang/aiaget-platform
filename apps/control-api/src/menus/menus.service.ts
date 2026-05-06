@@ -37,6 +37,8 @@ const menuInclude = {
 } satisfies Prisma.MenuInclude;
 
 type MenuRecord = Prisma.MenuGetPayload<{ include: typeof menuInclude }>;
+const DEFAULT_MAX_MENU_LEVEL = 6;
+const MAX_MENU_LEVEL = readMaxMenuLevel();
 
 @Injectable()
 export class MenusService {
@@ -541,8 +543,8 @@ export class MenusService {
 
     const parentLevel = buildLevelMap(menus).get(normalizedParentId) ?? 1;
     const subtreeDepth = currentMenuId ? calculateSubtreeDepth(currentMenuId, childrenByParent) : 1;
-    if (parentLevel + subtreeDepth > 3) {
-      throw new BadRequestException('Menu tree supports at most three levels');
+    if (parentLevel + subtreeDepth > MAX_MENU_LEVEL) {
+      throw new BadRequestException(`Menu tree supports at most ${MAX_MENU_LEVEL} levels`);
     }
   }
 
@@ -696,4 +698,11 @@ function calculateSubtreeDepth(menuId: string, childrenByParent: Map<string, Men
   if (children.length === 0) return 1;
 
   return 1 + Math.max(...children.map((child) => calculateSubtreeDepth(child.id, childrenByParent)));
+}
+
+function readMaxMenuLevel() {
+  const value = Number(process.env.MAX_MENU_LEVEL ?? DEFAULT_MAX_MENU_LEVEL);
+  if (!Number.isFinite(value)) return DEFAULT_MAX_MENU_LEVEL;
+
+  return Math.max(4, Math.floor(value));
 }

@@ -96,7 +96,7 @@ export function MenuFormPanel({
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑菜单节点' : '新建菜单节点'}</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              菜单节点会驱动控制台入口，按钮节点用于承载操作权限点；角色授权请在角色权限中心维护。
+              菜单节点会驱动控制台入口，支持多级菜单父级选择；按钮节点用于承载操作权限点，角色授权请在角色权限中心维护。
             </p>
           </div>
           {isPage ? null : (
@@ -137,6 +137,9 @@ export function MenuFormPanel({
                   </option>
                 ))}
               </select>
+              <span className="text-xs font-normal text-muted-foreground">
+                支持选择任意非按钮节点作为父级，下拉项按层级路径展示。
+              </span>
             </Field>
 
             <Field label="节点类型" message={form.formState.errors.type?.message}>
@@ -248,20 +251,48 @@ export function MenuFormPanel({
 
 function flattenParentOptions(items: MenuTreeItem[], excludeId?: string | null) {
   const output: Array<{ id: string; label: string }> = [];
+  const excludedIds = collectSubtreeIds(items, excludeId);
 
-  function visit(nodes: MenuTreeItem[], level: number) {
+  function visit(nodes: MenuTreeItem[], level: number, ancestors: string[]) {
     for (const node of nodes) {
-      if (node.id !== excludeId && node.type !== 'BUTTON' && level < 3) {
+      if (excludedIds.has(node.id)) continue;
+
+      const path = [...ancestors, node.name];
+      if (node.type !== 'BUTTON') {
         output.push({
           id: node.id,
-          label: `${'　'.repeat(Math.max(0, level - 1))}${node.name}（${menuTypeLabel(node.type)}）`,
+          label: `${'　'.repeat(Math.max(0, level - 1))}${path.join(' / ')}（${menuTypeLabel(node.type)}）`,
         });
       }
-      visit(node.children, level + 1);
+      visit(node.children, level + 1, path);
     }
   }
 
-  visit(items, 1);
+  visit(items, 1, []);
+
+  return output;
+}
+
+function collectSubtreeIds(items: MenuTreeItem[], targetId?: string | null) {
+  const output = new Set<string>();
+  if (!targetId) return output;
+
+  function collect(node: MenuTreeItem) {
+    output.add(node.id);
+    for (const child of node.children) collect(child);
+  }
+
+  function visit(nodes: MenuTreeItem[]) {
+    for (const node of nodes) {
+      if (node.id === targetId) {
+        collect(node);
+        return;
+      }
+      visit(node.children);
+    }
+  }
+
+  visit(items);
 
   return output;
 }

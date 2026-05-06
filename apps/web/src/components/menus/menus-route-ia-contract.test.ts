@@ -20,6 +20,8 @@ test('menu list page is only the tree table and query entry', () => {
   assert.match(menuListSource, /展开全部/);
   assert.match(menuListSource, /折叠全部/);
   assert.match(menuListSource, /搜索名称、编码、路径/);
+  assert.match(menuListSource, /多级菜单/);
+  assert.match(menuListSource, /层级路径/);
 
   assert.doesNotMatch(menuListSource, /MenuDetailCard/);
   assert.doesNotMatch(menuListSource, /MenuFormPanel/);
@@ -30,6 +32,32 @@ test('menu list page is only the tree table and query entry', () => {
   assert.doesNotMatch(menuListSource, /\bgetMenu\b/);
   assert.doesNotMatch(menuListSource, /\bcreateMenu\b/);
   assert.doesNotMatch(menuListSource, /\bupdateMenu\b/);
+});
+
+test('menu tree table renders hierarchy path before the single code column', () => {
+  const tableBodySource = menuListSource.slice(menuListSource.indexOf('<tbody>'), menuListSource.indexOf('</tbody>'));
+  const hierarchyPathIndex = tableBodySource.indexOf('hierarchyPathById.get(menu.id)');
+  const firstCodeIndex = tableBodySource.indexOf('{menu.code}');
+  const secondCodeIndex = tableBodySource.indexOf('{menu.code}', firstCodeIndex + 1);
+
+  assert.ok(hierarchyPathIndex > -1);
+  assert.ok(firstCodeIndex > -1);
+  assert.equal(secondCodeIndex, -1);
+  assert.ok(hierarchyPathIndex < firstCodeIndex);
+});
+
+test('menu create and edit forms support deep multi-level parent selection', () => {
+  const createSource = readFileSync(menuCreateSourcePath, 'utf8');
+  const editSource = readFileSync(menuEditSourcePath, 'utf8');
+  const formSource = readFileSync(join(process.cwd(), 'src/components/menus/menu-form-panel.tsx'), 'utf8');
+
+  assert.match(formSource, /多级菜单/);
+  assert.match(formSource, /层级路径/);
+  assert.match(formSource, /flattenParentOptions/);
+  assert.doesNotMatch(formSource, /level\s*<\s*3/);
+  assert.doesNotMatch(formSource, /最多三级/);
+  assert.match(createSource, /parentId/);
+  assert.match(editSource, /menuTree/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

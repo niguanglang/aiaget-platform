@@ -67,6 +67,8 @@ export function MenuContent() {
   const menuTree = treeQuery.data ?? [];
   const flatTree = useMemo(() => flattenVisibleMenuTree(menuTree, collapsedIds), [menuTree, collapsedIds]);
   const totalTreeNodes = useMemo(() => countMenuTree(menuTree), [menuTree]);
+  const maxTreeLevel = useMemo(() => calculateMaxTreeLevel(menuTree), [menuTree]);
+  const hierarchyPathById = useMemo(() => buildHierarchyPathMap(menuTree), [menuTree]);
   const hasActiveFilters = Boolean(keyword || type || status || visible);
   const menus = hasActiveFilters ? menusQuery.data?.items ?? [] : flatTree;
 
@@ -75,7 +77,7 @@ export function MenuContent() {
     { label: '菜单节点', value: `${overview?.total ?? menusQuery.data?.total ?? 0}`, helper: '目录 / 页面 / 按钮' },
     { label: '页面菜单', value: `${overview?.menu_count ?? 0}`, helper: `${overview?.directory_count ?? 0} 个目录` },
     { label: '按钮节点', value: `${overview?.button_count ?? 0}`, helper: '用于操作权限' },
-    { label: '异常状态', value: `${(overview?.hidden_count ?? 0) + (overview?.disabled_count ?? 0)}`, helper: '隐藏或停用' },
+    { label: '最大层级', value: `${maxTreeLevel}`, helper: '多级菜单树深度' },
   ];
 
   const statusMutation = useMutation({
@@ -199,7 +201,9 @@ export function MenuContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">菜单树表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">树形表格用于查询和进入详情，创建和编辑在独立路由完成。</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  多级菜单树形表格用于查询和进入详情，层级路径帮助定位深层目录、页面和按钮节点。
+                </p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {menus.length} / {hasActiveFilters ? menusQuery.data?.total ?? 0 : totalTreeNodes}
@@ -275,6 +279,7 @@ export function MenuContent() {
             canWrite={canWrite}
             collapsedIds={collapsedIds}
             filterMode={hasActiveFilters}
+            hierarchyPathById={hierarchyPathById}
             menus={menus}
             onDelete={setDeleteTarget}
             onToggle={(menu) => statusMutation.mutate({ id: menu.id, enabled: !menu.enabled })}
@@ -301,6 +306,7 @@ function MenuTable({
   canWrite,
   collapsedIds,
   filterMode,
+  hierarchyPathById,
   menus,
   onDelete,
   onToggle,
@@ -310,6 +316,7 @@ function MenuTable({
   canWrite: boolean;
   collapsedIds: Set<string>;
   filterMode: boolean;
+  hierarchyPathById: Map<string, string>;
   menus: Array<MenuTreeItem | MenuListItem>;
   onDelete: (menu: MenuListItem) => void;
   onToggle: (menu: MenuListItem) => void;
@@ -321,7 +328,7 @@ function MenuTable({
       <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
-            {['名称', '编码', '类型', '路径', '权限编码', '状态', '可见', '角色', '更新时间', '操作'].map((column) => (
+            {['名称', '层级路径', '编码', '类型', '路径', '权限编码', '状态', '可见', '更新时间', '操作'].map((column) => (
               <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
                 {column}
               </th>
@@ -357,6 +364,11 @@ function MenuTable({
                     </div>
                   </div>
                 </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  <div className="max-w-[240px] truncate" title={hierarchyPathById.get(menu.id) ?? fallbackHierarchyPath(menu)}>
+                    {hierarchyPathById.get(menu.id) ?? fallbackHierarchyPath(menu)}
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{menu.code}</td>
                 <td className="px-4 py-3">
                   <StatusBadge tone={menuTypeTone(menu.type)}>{menuTypeLabel(menu.type)}</StatusBadge>
@@ -369,7 +381,6 @@ function MenuTable({
                 <td className="px-4 py-3">
                   <StatusBadge tone={booleanTone(menu.visible)}>{booleanLabel(menu.visible, '可见', '隐藏')}</StatusBadge>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{menu.role_count}</td>
                 <td className="px-4 py-3 text-muted-foreground">{formatDateTime(menu.updated_at)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -482,6 +493,30 @@ function flattenMenuTree(items: MenuTreeItem[]) {
 
 function countMenuTree(items: MenuTreeItem[]) {
   return flattenMenuTree(items).length;
+}
+
+function calculateMaxTreeLevel(items: MenuTreeItem[]) {
+  return flattenMenuTree(items).reduce((maxLevel, item) => Math.max(maxLevel, item.level), 0);
+}
+
+function buildHierarchyPathMap(items: MenuTreeItem[]) {
+  const output = new Map<string, string>();
+
+  function visit(nodes: MenuTreeItem[], ancestors: string[]) {
+    for (const node of nodes) {
+      const path = [...ancestors, node.name];
+      output.set(node.id, path.join(' / '));
+      visit(node.children, path);
+    }
+  }
+
+  visit(items, []);
+
+  return output;
+}
+
+function fallbackHierarchyPath(menu: MenuListItem) {
+  return [menu.parent_name, menu.name].filter(Boolean).join(' / ') || menu.name;
 }
 
 function isTreeItem(menu: MenuTreeItem | MenuListItem): menu is MenuTreeItem {

@@ -639,6 +639,8 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'models', name: '模型中心', type: 'MENU', path: '/models', component: 'models/page', icon: 'KeyRound', permissionCode: PERMISSION_CODES.modelConfigView, sortOrder: 40 },
   { code: 'knowledge', name: '知识库中心', type: 'MENU', path: '/knowledge', component: 'knowledge/page', icon: 'Database', permissionCode: PERMISSION_CODES.knowledgeBaseView, sortOrder: 50 },
   { code: 'storage', name: '文件存储', type: 'MENU', path: '/storage', component: 'storage/page', icon: 'HardDrive', permissionCode: PERMISSION_CODES.storageObjectView, sortOrder: 55 },
+  { code: 'storage_settings', parentCode: 'storage', name: '存储设置', type: 'MENU', path: '/storage/settings', component: 'storage/settings/page', icon: 'Settings', permissionCode: PERMISSION_CODES.storageObjectView, sortOrder: 10 },
+  { code: 'storage_upload', parentCode: 'storage', name: '上传文件', type: 'MENU', path: '/storage/upload', component: 'storage/upload/page', icon: 'UploadCloud', permissionCode: PERMISSION_CODES.storageObjectManage, sortOrder: 20 },
   { code: 'plugins', name: '插件生态', type: 'MENU', path: '/plugins', component: 'plugins/page', icon: 'Boxes', permissionCode: PERMISSION_CODES.pluginCenterView, sortOrder: 57 },
   { code: 'tools', name: '工具中心', type: 'MENU', path: '/tools', component: 'tools/page', icon: 'Wrench', permissionCode: PERMISSION_CODES.toolDefinitionView, sortOrder: 60 },
   { code: 'conversations', name: '会话中心', type: 'MENU', path: '/conversations', component: 'conversations/page', icon: 'MessageSquareText', permissionCode: PERMISSION_CODES.conversationHistoryView, sortOrder: 70 },

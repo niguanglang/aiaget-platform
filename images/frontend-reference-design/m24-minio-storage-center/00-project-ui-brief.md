@@ -1,11 +1,11 @@
 # Project UI Brief
 
 - Project: AIAget Enterprise Agent Platform
-- Page: M24 MinIO Storage Center
-- Route: `/storage`
-- Feature goal: connect to remote MinIO, create/manage the project bucket, provide tenant-scoped file management and storage settings
-- Parent layout: protected console shell under `apps/web/src/app/(console)/storage/page.tsx`
-- Target users: tenant operators and admins with storage permissions
+- Page group: M24 MinIO Storage Center IA split
+- Routes: `/storage`, `/storage/settings`, `/storage/upload`, `/storage/objects/[...key]`
+- Feature goal: split the previous storage all-in-one page into focused production console pages for tenant-scoped object listing, storage settings, file upload, and object detail operations.
+- Parent layout: protected console shell under `apps/web/src/app/(console)/storage/*`
+- Target users: tenant operators and admins with storage object view/manage permissions
 
 ## APIs and Services
 
@@ -61,12 +61,28 @@
 
 ## Required States and Actions
 
-- loading: settings and object list loading
-- empty: no files in selected folder/search
-- error: MinIO connection or upload failure
+- loading: settings, object list and object lookup loading
+- empty: no files in selected folder/search, object not found
+- error: MinIO connection, object list, upload, delete or download URL failure
 - success: bucket verified, list files, upload, delete, get download URL
-- disabled: upload without selected file, actions while mutation is running
+- disabled: upload without selected file, bucket verification while pending, destructive action while pending
 - settings: display endpoint, console URL, bucket, masked access key, force path style
+- routing: list rows navigate to object detail, upload success links to detail, settings/upload have static menu entries
+
+## Page Responsibilities
+
+- `/storage`
+  - List page only: overview metrics, keyword/prefix filters, object table, route entry actions to settings/upload/detail.
+  - Must not contain upload form, bucket initialization mutation, delete confirmation, or full object detail panel.
+- `/storage/settings`
+  - Configuration page: storage connection status, endpoint, console URL, bucket, masked access key, validation and bucket creation.
+  - Owns `getStorageSettings()` and `ensureStorageBucket()`.
+- `/storage/upload`
+  - Form page: folder input, file picker, selected file preview, upload mutation and success detail entry.
+  - Owns `uploadStorageObject(input)`.
+- `/storage/objects/[...key]`
+  - Detail page: object lookup, full metadata, copy path, download URL, delete confirmation.
+  - Owns `listStorageObjects`, `getStorageDownloadUrl(key)` and `deleteStorageObject(key)`.
 
 ## Constraints
 
@@ -75,3 +91,4 @@
 - Do not start or install middleware/container.
 - Store files under tenant-scoped prefixes inside `aiaget-files`.
 - No database schema change for this milestone.
+- Do not add object detail dynamic routes to the left menu; only static list/settings/upload routes belong in seed data.

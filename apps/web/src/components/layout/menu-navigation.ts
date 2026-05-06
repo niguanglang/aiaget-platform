@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   SquareTerminal,
+  UploadCloud,
   Wrench,
 } from 'lucide-react';
 
@@ -69,6 +70,7 @@ const iconMap: Record<string, LucideIcon> = {
   ShieldCheck,
   SlidersHorizontal,
   SquareTerminal,
+  UploadCloud,
   Wrench,
 };
 
@@ -89,6 +91,8 @@ const codeIconMap: Record<string, LucideIcon> = {
   models: KeyRound,
   knowledge: Database,
   storage: HardDrive,
+  storage_upload: UploadCloud,
+  storage_settings: Settings,
   tools: Wrench,
   conversations: MessageSquareText,
   monitor: Activity,

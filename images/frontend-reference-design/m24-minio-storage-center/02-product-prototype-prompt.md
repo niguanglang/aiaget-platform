@@ -1,9 +1,9 @@
 # Product Prototype / Wireframe Prompt
 
-Create a product prototype / wireframe image for the same real frontend page.
+Create a product prototype / wireframe image for the same real frontend page group.
 
 Project context:
-- Page/route: M24 MinIO Storage Center at `/storage`
+- Page/routes: M24 MinIO Storage Center at `/storage`, `/storage/settings`, `/storage/upload`, `/storage/objects/[...key]`
 - Users/roles: tenant operators and admins
 - Main task flow: verify MinIO connection, create bucket if needed, upload a file, search/list files, download or delete an object
 - API/service contract:
@@ -28,13 +28,11 @@ Project context:
 
 Prototype requirements:
 - Use low- to mid-fidelity wireframe style with Chinese labels.
-- Layout:
-  - page header and milestone badges
-  - summary metric row
-  - left storage settings card
-  - right upload card
-  - file manager table with toolbar
-  - selected file detail / delete confirmation region
+- Show route-level boundaries clearly:
+  - `/storage` list page: page header, status badges, summary metric row, search/prefix filters, file object table, row action to object detail, top actions for settings and upload.
+  - `/storage/settings`: connection status, settings field groups, bucket validation/create button, open MinIO console button, error state.
+  - `/storage/upload`: folder input, file selector, selected file preview, upload button, success result link to object detail.
+  - `/storage/objects/[...key]`: object metadata, copy relative path, download button, delete confirmation block.
 - Make component boundaries obvious and map them to existing React components.
 - Show empty and error states.
 
@@ -42,3 +40,4 @@ Avoid:
 - invented storage provider actions
 - exposing secret values
 - unrealistic multi-cloud settings not supported by current contract
+- mixing settings/upload/detail panels back into the object list page

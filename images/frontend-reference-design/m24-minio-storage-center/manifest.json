@@ -1,8 +1,8 @@
 {
   "created_at": "2026-04-30T01:57:31.994538+00:00",
-  "page": "M24 MinIO Storage Center",
-  "route": "/storage",
-  "feature": "MinIO file management and storage settings",
+  "page": "M24 MinIO Storage Center IA Split",
+  "route": "/storage, /storage/settings, /storage/upload, /storage/objects/[...key]",
+  "feature": "Focused MinIO list, settings, upload, and object detail pages",
   "purpose": "Reference-first frontend UI design assets",
   "expected_files": {
     "brief": "00-project-ui-brief.md",

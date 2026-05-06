@@ -336,6 +336,8 @@ export class MenusService {
     if (menus.length !== dto.menu_ids.length) {
       throw new BadRequestException('Some menu ids are invalid');
     }
+    const allMenus = await this.loadAllMenus(currentUser.tenantId);
+    const normalizedMenuIds = normalizeRoleMenuBindingIds(dto.menu_ids, allMenus);
 
     await this.prisma.$transaction([
       this.prisma.roleMenu.updateMany({
@@ -344,7 +346,7 @@ export class MenusService {
           roleId,
           deletedAt: null,
           menuId: {
-            notIn: dto.menu_ids,
+            notIn: normalizedMenuIds,
           },
         },
         data: {
@@ -352,7 +354,7 @@ export class MenusService {
           updatedBy: currentUser.id,
         },
       }),
-      ...dto.menu_ids.map((menuId) =>
+      ...normalizedMenuIds.map((menuId) =>
         this.prisma.roleMenu.upsert({
           where: {
             tenantId_roleId_menuId: {
@@ -672,6 +674,32 @@ function normalizeAdvancedRouteConfig(input: {
     hideBreadcrumb: input.hideBreadcrumb ?? false,
     routeMeta: input.routeMeta ? toJsonInput(input.routeMeta) : Prisma.JsonNull,
   };
+}
+
+function normalizeRoleMenuBindingIds(menuIds: string[], menus: MenuRecord[]) {
+  const normalized = new Set<string>();
+  const menuById = new Map(menus.map((menu) => [menu.id, menu]));
+
+  for (const menuId of menuIds) {
+    normalized.add(menuId);
+    for (const ancestorId of collectMenuAncestors(menuId, menuById)) {
+      normalized.add(ancestorId);
+    }
+  }
+
+  return Array.from(normalized);
+}
+
+function collectMenuAncestors(menuId: string, menuById: Map<string, MenuRecord>) {
+  const output: string[] = [];
+  let parentId = menuById.get(menuId)?.parentId ?? null;
+
+  while (parentId) {
+    output.push(parentId);
+    parentId = menuById.get(parentId)?.parentId ?? null;
+  }
+
+  return output;
 }
 
 function isAllowedExternalUrl(value: string) {

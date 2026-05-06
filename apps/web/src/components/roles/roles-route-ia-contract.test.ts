@@ -43,3 +43,13 @@ test('role dedicated pages own detail and authorization workflows', () => {
   assert.match(permissionsSource, /updateRolePermissions/);
   assert.match(menusSource, /updateMenuRoleBinding/);
 });
+
+test('role menu authorization keeps parent and child selections consistent', () => {
+  const menusSource = readFileSync(roleMenusSourcePath, 'utf8');
+
+  assert.match(menusSource, /toggleMenu\(menu/);
+  assert.match(menusSource, /collectAncestorMenuIds/);
+  assert.match(menusSource, /collectDescendantMenuIds/);
+  assert.match(menusSource, /nextSelection\.delete\(descendantId\)/);
+  assert.match(menusSource, /nextSelection\.add\(ancestorId\)/);
+});

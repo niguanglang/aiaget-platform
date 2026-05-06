@@ -71,10 +71,24 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
     onError: (error: ApiClientError) => setMenuError(error.message),
   });
 
-  function toggleMenu(menuId: string) {
-    setDraftMenuIds((current) =>
-      current.includes(menuId) ? current.filter((id) => id !== menuId) : [...current, menuId],
-    );
+  function toggleMenu(menu: MenuTreeItem) {
+    setDraftMenuIds((current) => {
+      const nextSelection = new Set(current);
+
+      if (nextSelection.has(menu.id)) {
+        nextSelection.delete(menu.id);
+        for (const descendantId of collectDescendantMenuIds(menu)) {
+          nextSelection.delete(descendantId);
+        }
+      } else {
+        nextSelection.add(menu.id);
+        for (const ancestorId of collectAncestorMenuIds(menu, menuTreeQuery.data ?? [])) {
+          nextSelection.add(ancestorId);
+        }
+      }
+
+      return Array.from(nextSelection);
+    });
   }
 
   function saveMenuBinding() {
@@ -184,7 +198,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
                 index={index}
                 key={menu.id}
                 menu={menu}
-                onToggle={() => toggleMenu(menu.id)}
+                onToggle={() => toggleMenu(menu)}
               />
             ))}
           </div>
@@ -192,6 +206,34 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
       )}
     </main>
   );
+}
+
+function collectAncestorMenuIds(menu: MenuTreeItem, menuTree: MenuTreeItem[]) {
+  const output: string[] = [];
+  const menuById = new Map(flattenMenuTree(menuTree).map((item) => [item.id, item]));
+  let parentId = menu.parent_id;
+
+  while (parentId) {
+    output.push(parentId);
+    parentId = menuById.get(parentId)?.parent_id ?? null;
+  }
+
+  return output;
+}
+
+function collectDescendantMenuIds(menu: MenuTreeItem) {
+  const output: string[] = [];
+
+  function visit(nodes: MenuTreeItem[]) {
+    for (const node of nodes) {
+      output.push(node.id);
+      visit(node.children);
+    }
+  }
+
+  visit(menu.children);
+
+  return output;
 }
 
 function MenuCheckbox({

@@ -54,6 +54,13 @@ test('menu service validates external menus before persistence', () => {
   assert.match(serviceText, /externalUrl: advanced\.externalUrl/);
 });
 
+test('role menu binding persists ancestors with selected child menus', () => {
+  assert.match(serviceText, /normalizeRoleMenuBindingIds/);
+  assert.match(serviceText, /collectMenuAncestors/);
+  assert.match(serviceText, /notIn: normalizedMenuIds/);
+  assert.match(serviceText, /normalizedMenuIds\.map/);
+});
+
 test('menu advanced route configuration migration includes column comments', () => {
   const migrationsDir = join(process.cwd(), 'prisma/migrations');
   const migrationText = readFileSync(join(migrationsDir, '20260506110000_m79_menu_advanced_route_config/migration.sql'), 'utf8');

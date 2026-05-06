@@ -5,12 +5,13 @@ import test from 'node:test';
 
 const root = process.cwd();
 const overviewRoutePath = join(root, 'src/app/(console)/security/page.tsx');
-const childRoutes = ['policies', 'events', 'alerts', 'recovery'] as const;
+const childRoutes = ['policies', 'events', 'alerts', 'recovery', 'archives'] as const;
 const childComponents = {
   policies: join(root, 'src/components/security/security-policies-content.tsx'),
   events: join(root, 'src/components/security/security-events-content.tsx'),
   alerts: join(root, 'src/components/security/security-alerts-content.tsx'),
   recovery: join(root, 'src/components/security/security-recovery-content.tsx'),
+  archives: join(root, 'src/components/security/security-archives-content.tsx'),
 } satisfies Record<(typeof childRoutes)[number], string>;
 
 function readSource(path: string) {
@@ -37,10 +38,31 @@ test('security child components are real pages, not SecurityPolicyContent view w
     const source = readSource(childComponents[route]);
 
     assert.doesNotMatch(source, /SecurityPolicyContent/);
-    assert.doesNotMatch(source, /view=['"](?:policies|events|alerts|recovery)['"]/);
+    assert.doesNotMatch(source, /view=['"](?:policies|events|alerts|recovery|archives)['"]/);
     assert.match(source, /useQuery/);
     assert.match(source, /<main\b/);
   }
+});
+
+test('archives page owns archive governance data flow and Chinese page responsibility', () => {
+  const source = readSource(childComponents.archives);
+
+  assert.match(source, /归档治理/);
+  assert.match(source, /告警通知归档/);
+  assert.match(source, /自愈审计归档/);
+  assert.match(source, /SLA 死信归档/);
+  assert.match(source, /删除审批/);
+  assert.match(source, /listSecurityOperationAlertNotificationArchives/);
+  assert.match(source, /listSecurityOperationAlertNotificationArchiveApprovals/);
+  assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAuditArchives/);
+  assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals/);
+  assert.match(source, /listSecurityOperationAlertSlaDeadLetterAuditArchives/);
+  assert.match(source, /listSecurityOperationAlertSlaDeadLetterAuditArchiveApprovals/);
+  assert.match(source, /deleteSecurityOperationAlertNotificationArchive/);
+  assert.match(source, /deleteSecurityOperationAlertNotificationTaskRecoveryAuditArchive/);
+  assert.match(source, /deleteSecurityOperationAlertSlaDeadLetterAuditArchive/);
+  assert.doesNotMatch(source, /listSecurityPolicies/);
+  assert.doesNotMatch(source, /listSecurityCenterEvents/);
 });
 
 test('policies page owns policy governance data flow and Chinese page responsibility', () => {

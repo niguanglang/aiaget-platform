@@ -30,4 +30,5 @@ test('default menu seed exposes focused security center pages', () => {
   assert.match(seedText, /code: 'security_events'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/events'/);
   assert.match(seedText, /code: 'security_alerts'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/alerts'/);
   assert.match(seedText, /code: 'security_recovery'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/recovery'/);
+  assert.match(seedText, /code: 'security_archives'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/archives'/);
 });

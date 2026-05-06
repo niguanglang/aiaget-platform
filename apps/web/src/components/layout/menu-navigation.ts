@@ -38,6 +38,7 @@ export interface NavigationLink {
   id: string;
   title: string;
   href: string;
+  external: boolean;
   icon: LucideIcon;
   description: string;
   level: number;
@@ -134,6 +135,7 @@ export function buildNavigationLinks(menus: AuthorizedMenuItem[] | undefined, pe
         id: item.href,
         title: item.title,
         href: item.href,
+        external: false,
         icon: item.icon,
         description: item.description,
         level: 1,
@@ -161,11 +163,12 @@ export function flattenNavigationLinks(items: NavigationLink[]) {
 
 function mapAuthorizedMenu(menu: AuthorizedMenuItem, level: number): NavigationLink[] {
   const children = menu.children.flatMap((child) => mapAuthorizedMenu(child, level + 1));
-  const href = menu.type === 'MENU' && menu.path ? menu.path : '#';
+  const href = resolveHref(menu);
   const node: NavigationLink = {
     id: menu.id,
     title: menu.name,
     href,
+    external: Boolean(menu.is_external && menu.external_url),
     icon: resolveIcon(menu),
     description: menu.permission_code ? `权限：${menu.permission_code}` : '租户菜单',
     level,
@@ -197,6 +200,7 @@ function appendFallbackModules(navigation: NavigationLink[], permissions: readon
       id: item.href,
       title: item.title,
       href: item.href,
+      external: false,
       icon: item.icon,
       description: item.description,
       level: 1,
@@ -204,4 +208,12 @@ function appendFallbackModules(navigation: NavigationLink[], permissions: readon
     }));
 
   return [...navigation, ...additions];
+}
+
+function resolveHref(menu: AuthorizedMenuItem) {
+  if (menu.is_external && menu.external_url) return menu.external_url;
+  if (menu.type === 'MENU' && menu.path) return menu.path;
+  if (menu.redirect_path) return menu.redirect_path;
+
+  return '#';
 }

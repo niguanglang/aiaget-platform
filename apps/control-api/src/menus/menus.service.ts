@@ -128,6 +128,13 @@ export class MenusService {
           component: normalizeNullable(dto.component),
           icon: normalizeNullable(dto.icon),
           permissionCode: normalizeNullable(dto.permission_code),
+          isExternal: dto.is_external ?? false,
+          externalUrl: normalizeNullable(dto.external_url),
+          redirectPath: normalizeNullable(dto.redirect_path),
+          keepAlive: dto.keep_alive ?? false,
+          affix: dto.affix ?? false,
+          hideBreadcrumb: dto.hide_breadcrumb ?? false,
+          routeMeta: dto.route_meta ? toJsonInput(dto.route_meta) : Prisma.JsonNull,
           sortOrder: dto.sort_order ?? 0,
           visible: dto.visible ?? true,
           enabled: dto.enabled ?? true,
@@ -170,6 +177,13 @@ export class MenusService {
     if (dto.component !== undefined) data.component = normalizeNullable(dto.component);
     if (dto.icon !== undefined) data.icon = normalizeNullable(dto.icon);
     if (dto.permission_code !== undefined) data.permissionCode = normalizeNullable(dto.permission_code);
+    if (dto.is_external !== undefined) data.isExternal = dto.is_external;
+    if (dto.external_url !== undefined) data.externalUrl = normalizeNullable(dto.external_url);
+    if (dto.redirect_path !== undefined) data.redirectPath = normalizeNullable(dto.redirect_path);
+    if (dto.keep_alive !== undefined) data.keepAlive = dto.keep_alive;
+    if (dto.affix !== undefined) data.affix = dto.affix;
+    if (dto.hide_breadcrumb !== undefined) data.hideBreadcrumb = dto.hide_breadcrumb;
+    if (dto.route_meta !== undefined) data.routeMeta = dto.route_meta ? toJsonInput(dto.route_meta) : Prisma.JsonNull;
     if (dto.sort_order !== undefined) data.sortOrder = dto.sort_order;
     if (dto.visible !== undefined) data.visible = dto.visible;
     if (dto.enabled !== undefined) data.enabled = dto.enabled;
@@ -578,6 +592,13 @@ export class MenusService {
       component: menu.component,
       icon: menu.icon,
       permission_code: menu.permissionCode,
+      is_external: menu.isExternal,
+      external_url: menu.externalUrl,
+      redirect_path: menu.redirectPath,
+      keep_alive: menu.keepAlive,
+      affix: menu.affix,
+      hide_breadcrumb: menu.hideBreadcrumb,
+      route_meta: normalizeJsonRecord(menu.routeMeta),
       sort_order: menu.sortOrder,
       level,
       visible: menu.visible,
@@ -593,6 +614,16 @@ export class MenusService {
 function normalizeNullable(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeJsonRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  return value as Record<string, unknown>;
+}
+
+function toJsonInput(value: Record<string, unknown>): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function buildTree(items: MenuListItem[]): MenuTreeItem[] {
@@ -634,6 +665,13 @@ function buildAuthorizedTree(items: MenuRecord[]): AuthorizedMenuItem[] {
       path: item.path,
       icon: item.icon,
       permission_code: item.permissionCode,
+      is_external: item.isExternal,
+      external_url: item.externalUrl,
+      redirect_path: item.redirectPath,
+      keep_alive: item.keepAlive,
+      affix: item.affix,
+      hide_breadcrumb: item.hideBreadcrumb,
+      route_meta: normalizeJsonRecord(item.routeMeta),
       sort_order: item.sortOrder,
       children: [],
     });

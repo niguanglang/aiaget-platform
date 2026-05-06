@@ -7,6 +7,7 @@ const menuListSource = readFileSync(join(process.cwd(), 'src/components/menus/me
 const menuDetailSourcePath = join(process.cwd(), 'src/components/menus/menu-detail-content.tsx');
 const menuCreateSourcePath = join(process.cwd(), 'src/components/menus/menu-create-content.tsx');
 const menuEditSourcePath = join(process.cwd(), 'src/components/menus/menu-edit-content.tsx');
+const sharedTypesSource = readFileSync(join(process.cwd(), '../../packages/shared-types/src/index.ts'), 'utf8');
 
 test('menu center route-level pages exist for list, create, detail, and edit', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/menus/page.tsx')));
@@ -58,6 +59,24 @@ test('menu create and edit forms support deep multi-level parent selection', () 
   assert.doesNotMatch(formSource, /最多三级/);
   assert.match(createSource, /parentId/);
   assert.match(editSource, /menuTree/);
+});
+
+test('menu forms expose advanced route configuration fields', () => {
+  const formSource = readFileSync(join(process.cwd(), 'src/components/menus/menu-form-panel.tsx'), 'utf8');
+  const converterSource = readFileSync(join(process.cwd(), 'src/components/menus/menu-form-converters.ts'), 'utf8');
+  const detailSource = readFileSync(menuDetailSourcePath, 'utf8');
+
+  for (const field of ['is_external', 'external_url', 'redirect_path', 'keep_alive', 'affix', 'hide_breadcrumb', 'route_meta']) {
+    assert.match(sharedTypesSource, new RegExp(`\\b${field}\\b`));
+    assert.match(formSource, new RegExp(`\\b${field}\\b`));
+    assert.match(converterSource, new RegExp(`\\b${field}\\b`));
+    assert.match(detailSource, new RegExp(`\\b${field}\\b`));
+  }
+
+  assert.match(formSource, /外链地址/);
+  assert.match(formSource, /重定向地址/);
+  assert.match(formSource, /路由元信息/);
+  assert.match(detailSource, /高级配置/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

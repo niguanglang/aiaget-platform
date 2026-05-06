@@ -38,7 +38,7 @@ export function Sidebar() {
 
 function SidebarNavItem({ item, pathname }: { item: NavigationLink; pathname: string }) {
   const Icon = item.icon;
-  const isActive = item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const isActive = !item.external && item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`));
   const hasClickableRoute = item.href !== '#';
   const content = (
     <>
@@ -60,6 +60,8 @@ function SidebarNavItem({ item, pathname }: { item: NavigationLink; pathname: st
               : 'text-slate-700 hover:border-slate-200/70 hover:bg-white/70 hover:text-blue-700',
           )}
           href={item.href}
+          rel={item.external ? 'noreferrer' : undefined}
+          target={item.external ? '_blank' : undefined}
           title={item.description}
         >
           {content}

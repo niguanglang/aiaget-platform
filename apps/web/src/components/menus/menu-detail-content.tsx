@@ -192,6 +192,7 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           <DetailLine label="路由路径" value={menu.path ?? '暂无'} />
           <DetailLine label="组件标识" value={menu.component ?? '暂无'} />
           <DetailLine label="图标标识" value={menu.icon ?? '暂无'} />
+          <DetailLine label="重定向地址" value={menu.redirect_path ?? '暂无'} />
           <DetailLine label="权限编码" value={menu.permission_code ?? '无需权限'} />
           <DetailLine label="节点类型" value={menuTypeLabel(menu.type)} />
           <DetailLine label="节点状态" value={booleanLabel(menu.enabled, '已启用', '已停用')} />
@@ -207,6 +208,20 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           <DetailLine label="最近更新时间" value={formatDateTime(menu.updated_at)} />
         </InfoCard>
 
+        <InfoCard title="高级配置">
+          <DetailLine label="外链菜单" value={booleanLabel(menu.is_external, '是', '否')} />
+          <DetailLine label="外链地址" value={menu.external_url ?? '暂无'} />
+          <DetailLine label="缓存页面" value={booleanLabel(menu.keep_alive, '是', '否')} />
+          <DetailLine label="固定标签" value={booleanLabel(menu.affix, '是', '否')} />
+          <DetailLine label="面包屑隐藏" value={booleanLabel(menu.hide_breadcrumb, '是', '否')} />
+          <div className="rounded-md border bg-slate-950 p-3 text-xs text-slate-100">
+            <div className="mb-2 text-slate-300">路由元信息</div>
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words">{stringifyRouteMeta(menu.route_meta)}</pre>
+          </div>
+        </InfoCard>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <InfoCard title="权限控制">
           <DetailLine label="权限编码" value={menu.permission_code ?? '无需权限'} />
           <DetailLine label="角色绑定" value={`${menu.role_bindings.length}`} />
@@ -222,9 +237,6 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
             )}
           </div>
         </InfoCard>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <InfoCard title="依赖与子节点">
           {menu.children.length > 0 ? (
             <div className="grid gap-2">
@@ -288,6 +300,10 @@ function DetailLine({ label, value }: { label: string; value: string }) {
       <span className="max-w-[72%] break-words text-right font-medium">{value}</span>
     </div>
   );
+}
+
+function stringifyRouteMeta(value: Record<string, unknown> | null) {
+  return value ? JSON.stringify(value, null, 2) : '暂无';
 }
 
 function ConfirmDialog({

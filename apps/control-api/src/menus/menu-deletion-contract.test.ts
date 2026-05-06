@@ -33,6 +33,13 @@ interface MockMenuRecord {
   component: string;
   icon: string;
   permissionCode: string;
+  isExternal: boolean;
+  externalUrl: string | null;
+  redirectPath: string | null;
+  keepAlive: boolean;
+  affix: boolean;
+  hideBreadcrumb: boolean;
+  routeMeta: Record<string, unknown> | null;
   sortOrder: number;
   visible: boolean;
   enabled: boolean;
@@ -108,6 +115,13 @@ function buildPrisma({
           component: 'test-menu/page',
           icon: 'ListTree',
           permissionCode: 'system:menu:view',
+          isExternal: false,
+          externalUrl: null,
+          redirectPath: null,
+          keepAlive: false,
+          affix: false,
+          hideBreadcrumb: false,
+          routeMeta: null,
           sortOrder: 10,
           visible: true,
           enabled: true,
@@ -165,6 +179,13 @@ function buildMenuRecord({
     component: `${code ?? id}/page`,
     icon: 'ListTree',
     permissionCode: 'system:menu:view',
+    isExternal: false,
+    externalUrl: null,
+    redirectPath: null,
+    keepAlive: false,
+    affix: false,
+    hideBreadcrumb: false,
+    routeMeta: null,
     sortOrder: 10,
     visible: true,
     enabled: true,

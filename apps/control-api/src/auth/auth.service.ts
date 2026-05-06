@@ -308,6 +308,13 @@ export class AuthService {
         path: true,
         icon: true,
         permissionCode: true,
+        isExternal: true,
+        externalUrl: true,
+        redirectPath: true,
+        keepAlive: true,
+        affix: true,
+        hideBreadcrumb: true,
+        routeMeta: true,
         sortOrder: true,
         createdAt: true,
       },
@@ -334,6 +341,13 @@ export class AuthService {
         path: menu.path,
         icon: menu.icon,
         permission_code: menu.permissionCode,
+        is_external: menu.isExternal,
+        external_url: menu.externalUrl,
+        redirect_path: menu.redirectPath,
+        keep_alive: menu.keepAlive,
+        affix: menu.affix,
+        hide_breadcrumb: menu.hideBreadcrumb,
+        route_meta: normalizeJsonRecord(menu.routeMeta),
         sort_order: menu.sortOrder,
         children: [],
       });
@@ -402,4 +416,10 @@ export class AuthService {
       },
     });
   }
+}
+
+function normalizeJsonRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  return value as Record<string, unknown>;
 }

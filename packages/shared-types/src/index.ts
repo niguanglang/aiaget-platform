@@ -674,6 +674,13 @@ export interface AuthorizedMenuItem {
   path: string | null;
   icon: string | null;
   permission_code: string | null;
+  is_external: boolean;
+  external_url: string | null;
+  redirect_path: string | null;
+  keep_alive: boolean;
+  affix: boolean;
+  hide_breadcrumb: boolean;
+  route_meta: Record<string, unknown> | null;
   sort_order: number;
   children: AuthorizedMenuItem[];
 }
@@ -1312,6 +1319,13 @@ export interface MenuListItem {
   component: string | null;
   icon: string | null;
   permission_code: string | null;
+  is_external: boolean;
+  external_url: string | null;
+  redirect_path: string | null;
+  keep_alive: boolean;
+  affix: boolean;
+  hide_breadcrumb: boolean;
+  route_meta: Record<string, unknown> | null;
   sort_order: number;
   level: number;
   visible: boolean;
@@ -1353,6 +1367,13 @@ export interface CreateMenuInput {
   component?: string | null;
   icon?: string | null;
   permission_code?: string | null;
+  is_external?: boolean;
+  external_url?: string | null;
+  redirect_path?: string | null;
+  keep_alive?: boolean;
+  affix?: boolean;
+  hide_breadcrumb?: boolean;
+  route_meta?: Record<string, unknown> | null;
   sort_order?: number;
   visible?: boolean;
   enabled?: boolean;
@@ -1366,6 +1387,13 @@ export interface UpdateMenuInput {
   component?: string | null;
   icon?: string | null;
   permission_code?: string | null;
+  is_external?: boolean;
+  external_url?: string | null;
+  redirect_path?: string | null;
+  keep_alive?: boolean;
+  affix?: boolean;
+  hide_breadcrumb?: boolean;
+  route_meta?: Record<string, unknown> | null;
   sort_order?: number;
   visible?: boolean;
   enabled?: boolean;

@@ -23,6 +23,13 @@ const menuFormSchema = z.object({
   component: z.string().optional(),
   icon: z.string().optional(),
   permission_code: z.string().optional(),
+  is_external: z.boolean(),
+  external_url: z.string().optional(),
+  redirect_path: z.string().optional(),
+  keep_alive: z.boolean(),
+  affix: z.boolean(),
+  hide_breadcrumb: z.boolean(),
+  route_meta: z.string().optional().refine(isJsonObjectText, '请填写 JSON 对象。'),
   sort_order: z.number().int('请使用整数。').min(0, '最小值为 0。').max(10000, '最大值为 10000。'),
   visible: z.boolean(),
   enabled: z.boolean(),
@@ -52,10 +59,29 @@ function formDefaults(menu?: MenuDetail | null, parent?: MenuListItem | null): M
     component: menu?.component ?? '',
     icon: menu?.icon ?? '',
     permission_code: menu?.permission_code ?? '',
+    is_external: menu?.is_external ?? false,
+    external_url: menu?.external_url ?? '',
+    redirect_path: menu?.redirect_path ?? '',
+    keep_alive: menu?.keep_alive ?? false,
+    affix: menu?.affix ?? false,
+    hide_breadcrumb: menu?.hide_breadcrumb ?? false,
+    route_meta: menu?.route_meta ? JSON.stringify(menu.route_meta, null, 2) : '',
     sort_order: menu?.sort_order ?? 0,
     visible: menu?.visible ?? true,
     enabled: menu?.enabled ?? true,
   };
+}
+
+function isJsonObjectText(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return true;
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed));
+  } catch {
+    return false;
+  }
 }
 
 export function MenuFormPanel({
@@ -223,11 +249,55 @@ export function MenuFormPanel({
           </div>
         </div>
 
-        <div className="rounded-lg border border-dashed bg-background/70 p-4">
-          <div className="text-sm font-semibold">高级配置说明</div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            外链、缓存、固定标签、面包屑和路由元信息需要数据库字段扩展后再接入；当前版本保留定义边界。
-          </p>
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">高级配置</div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="flex h-10 items-center gap-2 self-end rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" {...form.register('is_external')} />
+              外链菜单
+            </label>
+
+            <Field label="外链地址" message={form.formState.errors.external_url?.message}>
+              <input
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted"
+                disabled={!form.watch('is_external')}
+                placeholder="https://example.com"
+                {...form.register('external_url')}
+              />
+            </Field>
+
+            <Field label="重定向地址" message={form.formState.errors.redirect_path?.message}>
+              <input
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="/dashboard"
+                {...form.register('redirect_path')}
+              />
+            </Field>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm">
+                <input type="checkbox" {...form.register('keep_alive')} />
+                缓存页面
+              </label>
+              <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm">
+                <input type="checkbox" {...form.register('affix')} />
+                固定标签
+              </label>
+              <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm sm:col-span-2">
+                <input type="checkbox" {...form.register('hide_breadcrumb')} />
+                面包屑隐藏
+              </label>
+            </div>
+
+            <Field label="路由元信息" message={form.formState.errors.route_meta?.message}>
+              <textarea
+                className="min-h-28 resize-y rounded-md border bg-background px-3 py-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring md:col-span-2"
+                placeholder={'{\n  "activeMenu": "/menus"\n}'}
+                {...form.register('route_meta')}
+              />
+              <span className="text-xs font-normal text-muted-foreground">填写 JSON 对象，留空表示不设置扩展元信息。</span>
+            </Field>
+          </div>
         </div>
 
         {error ? (

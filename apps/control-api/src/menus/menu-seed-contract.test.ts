@@ -18,6 +18,9 @@ test('default menu seed exposes focused channel operation pages', () => {
   assert.match(seedText, /code: 'channel_route_rules'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/route-rules'/);
   assert.match(seedText, /code: 'channel_jobs'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/jobs'/);
   assert.match(seedText, /code: 'channel_deliveries'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/deliveries'/);
+  assert.match(seedText, /code: 'channel_replies'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/replies'/);
+  assert.match(seedText, /code: 'channel_sender'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/sender'/);
+  assert.match(seedText, /code: 'channel_release'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/release'/);
 });
 
 test('default menu seed exposes focused security center pages', () => {

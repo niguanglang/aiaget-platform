@@ -44,15 +44,59 @@ const focusedPages = [
     api: ['listChannelDeliveries'],
     keywords: ['投递记录', '响应状态', '链路追踪'],
   },
+  {
+    component: 'channel-replies-content.tsx',
+    route: 'replies/page.tsx',
+    api: ['listChannelReplies'],
+    keywords: ['回复记录', '外部会话', 'Trace'],
+  },
+  {
+    component: 'channel-sender-content.tsx',
+    route: 'sender/page.tsx',
+    api: [
+      'listChannelSenderDeliveries',
+      'getChannelSenderDelivery',
+      'retryChannelSenderDelivery',
+      'getChannelSenderTaskOverview',
+      'runChannelSenderAutoRetry',
+      'runChannelSenderCleanup',
+    ],
+    keywords: ['Sender 投递', '主动回复', '失败重试'],
+  },
+  {
+    component: 'channel-release-content.tsx',
+    route: 'release/page.tsx',
+    api: [
+      'getPublishChannelOverview',
+      'getChannelReleaseSchedulerOverview',
+      'getChannelReleasePipeline',
+      'getChannelReleaseGate',
+      'getChannelReleaseAutomation',
+      'getChannelReleaseSelfHealing',
+      'getChannelReleaseReport',
+    ],
+    keywords: ['发布治理', '发布流水线', '自动推进', '自愈'],
+  },
 ];
 
-test('channels route-level pages exist for overview and six focused operations pages', () => {
+test('channels route-level pages exist for overview and focused operations pages', () => {
   assert.ok(existsSync(join(routesRoot, 'page.tsx')));
 
   for (const page of focusedPages) {
     assert.ok(existsSync(join(channelsRoot, page.component)), `${page.component} should exist`);
     assert.ok(existsSync(join(routesRoot, page.route)), `${page.route} should exist`);
   }
+});
+
+test('focused channel navigation exposes sender, replies, and release routes outside the overview page', () => {
+  const operationsShellSource = readFileSync(join(channelsRoot, 'channel-operations-pages.tsx'), 'utf8');
+
+  assert.match(operationsShellSource, /href: '\/channels\/replies'/);
+  assert.match(operationsShellSource, /href: '\/channels\/sender'/);
+  assert.match(operationsShellSource, /href: '\/channels\/release'/);
+  assert.match(operationsShellSource, /route: 'replies'/);
+  assert.match(operationsShellSource, /route: 'sender'/);
+  assert.match(operationsShellSource, /route: 'release'/);
 });
 
 test('/channels overview remains the compatibility surface backed by ChannelContent', () => {

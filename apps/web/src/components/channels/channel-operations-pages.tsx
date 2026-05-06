@@ -24,7 +24,16 @@ import { Input } from '@/components/ui/input';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 
-export type ChannelFocusedRoute = 'publish' | 'accounts' | 'templates' | 'route-rules' | 'jobs' | 'deliveries';
+export type ChannelFocusedRoute =
+  | 'publish'
+  | 'accounts'
+  | 'templates'
+  | 'route-rules'
+  | 'jobs'
+  | 'deliveries'
+  | 'replies'
+  | 'sender'
+  | 'release';
 
 export interface ChannelOperationMetric {
   helper: string;
@@ -82,6 +91,9 @@ const focusedNavItems: Array<{ href: string; label: string; route: ChannelFocuse
   { href: '/channels/route-rules', label: '路由规则', route: 'route-rules' },
   { href: '/channels/jobs', label: '发布任务', route: 'jobs' },
   { href: '/channels/deliveries', label: '投递记录', route: 'deliveries' },
+  { href: '/channels/replies', label: '回复记录', route: 'replies' },
+  { href: '/channels/sender', label: 'Sender 投递', route: 'sender' },
+  { href: '/channels/release', label: '发布治理', route: 'release' },
 ];
 
 export function ChannelOperationsListPage<TItem>({

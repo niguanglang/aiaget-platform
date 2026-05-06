@@ -53,3 +53,15 @@ test('role menu authorization keeps parent and child selections consistent', () 
   assert.match(menusSource, /nextSelection\.delete\(descendantId\)/);
   assert.match(menusSource, /nextSelection\.add\(ancestorId\)/);
 });
+
+test('role menu authorization excludes button permission nodes from menu grants', () => {
+  const menusSource = readFileSync(roleMenusSourcePath, 'utf8');
+  const detailSource = readFileSync(roleDetailSourcePath, 'utf8');
+
+  assert.match(menusSource, /grantableTree/);
+  assert.match(menusSource, /removeButtonMenuNodes/);
+  assert.match(menusSource, /按钮权限请在角色权限配置页维护/);
+  assert.doesNotMatch(menusSource, /按钮权限`/);
+  assert.match(detailSource, /菜单入口/);
+  assert.doesNotMatch(detailSource, /目录、菜单、按钮/);
+});

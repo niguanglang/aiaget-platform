@@ -362,11 +362,9 @@ async function main() {
   });
 
   for (const role of roleRecords) {
-    const menuCodes = role.code === 'tenant_viewer'
-      ? defaultMenus
-          .filter((menu) => menu.type !== 'BUTTON')
-          .map((menu) => menu.code)
-      : defaultMenus.map((menu) => menu.code);
+    const menuCodes = defaultMenus
+      .filter((menu) => menu.type !== 'BUTTON')
+      .map((menu) => menu.code);
 
     await prisma.roleMenu.createMany({
       data: menuCodes

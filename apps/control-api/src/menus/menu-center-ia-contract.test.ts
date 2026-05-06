@@ -61,6 +61,13 @@ test('role menu binding persists ancestors with selected child menus', () => {
   assert.match(serviceText, /normalizedMenuIds\.map/);
 });
 
+test('button permission nodes stay out of role menu bindings', () => {
+  assert.match(seedText, /\.filter\(\(menu\) => menu\.type !== 'BUTTON'\)/);
+  assert.match(serviceText, /type:\s*\{\s*not:\s*'BUTTON',?\s*\}/);
+  assert.match(serviceText, /selectedMenus/);
+  assert.match(serviceText, /Some menu ids are invalid or are button permission nodes/);
+});
+
 test('menu advanced route configuration migration includes column comments', () => {
   const migrationsDir = join(process.cwd(), 'prisma/migrations');
   const migrationText = readFileSync(join(migrationsDir, '20260506110000_m79_menu_advanced_route_config/migration.sql'), 'utf8');

@@ -75,7 +75,7 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
     () => [
       { label: '绑定用户', value: `${role?.user_count ?? 0}`, helper: '用户角色引用' },
       { label: '接口权限', value: `${role?.permission_count ?? 0}`, helper: '权限编码数量' },
-      { label: '菜单入口', value: `${role?.menu_count ?? 0}`, helper: '目录、菜单、按钮' },
+      { label: '菜单入口', value: `${role?.menu_count ?? 0}`, helper: '目录和页面菜单' },
       { label: '角色类型', value: role?.is_system ? '系统' : '自定义', helper: role?.status ? roleStatusLabel(role.status) : '暂无' },
     ],
     [role],

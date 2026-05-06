@@ -38,6 +38,9 @@ const roleInclude = {
       deletedAt: null,
       menu: {
         deletedAt: null,
+        type: {
+          not: 'BUTTON',
+        },
       },
     },
     include: {
@@ -155,6 +158,9 @@ export class RolesService {
           },
           menu: {
             deletedAt: null,
+            type: {
+              not: 'BUTTON',
+            },
           },
         },
       }),

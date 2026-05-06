@@ -46,15 +46,17 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
   });
 
   const role = roleQuery.data;
-  const flatTree = useMemo(() => flattenMenuTree(menuTreeQuery.data ?? []), [menuTreeQuery.data]);
+  const grantableTree = useMemo(() => removeButtonMenuNodes(menuTreeQuery.data ?? []), [menuTreeQuery.data]);
+  const flatTree = useMemo(() => flattenMenuTree(grantableTree), [grantableTree]);
   const selectedRoleBinding = useMemo(
     () => (role ? (roleBindingsQuery.data ?? []).find((binding) => binding.role_id === role.id) : null),
     [role, roleBindingsQuery.data],
   );
 
   useEffect(() => {
-    setDraftMenuIds(selectedRoleBinding?.menu_ids ?? []);
-  }, [selectedRoleBinding?.menu_ids]);
+    const grantableIds = new Set(flatTree.map((menu) => menu.id));
+    setDraftMenuIds((selectedRoleBinding?.menu_ids ?? []).filter((menuId) => grantableIds.has(menuId)));
+  }, [flatTree, selectedRoleBinding?.menu_ids]);
 
   const menuBindingMutation = useMutation({
     mutationFn: ({ menuIds }: { menuIds: string[] }) => updateMenuRoleBinding(roleId, { menu_ids: menuIds }),
@@ -82,7 +84,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
         }
       } else {
         nextSelection.add(menu.id);
-        for (const ancestorId of collectAncestorMenuIds(menu, menuTreeQuery.data ?? [])) {
+        for (const ancestorId of collectAncestorMenuIds(menu, grantableTree)) {
           nextSelection.add(ancestorId);
         }
       }
@@ -109,9 +111,9 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
   );
 
   const metrics = [
-    { label: '当前已选', value: `${draftMenuIds.length}`, helper: '菜单节点' },
+    { label: '当前已选', value: `${draftMenuIds.length}`, helper: '导航入口' },
     { label: '菜单总数', value: `${flatTree.length}`, helper: `${menuTypeCounts.DIRECTORY} 个目录` },
-    { label: '页面菜单', value: `${menuTypeCounts.MENU}`, helper: `${menuTypeCounts.BUTTON} 个按钮权限` },
+    { label: '页面菜单', value: `${menuTypeCounts.MENU}`, helper: '按钮权限请在角色权限配置页维护' },
     { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '暂无', helper: role?.code ?? roleId },
   ];
 
@@ -134,7 +136,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
           </div>
           <h1 className="text-2xl font-semibold">菜单授权配置</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            为角色分配左侧导航入口和按钮节点可见性。菜单定义仍在菜单中心维护，当前页面只负责角色授权。
+            为角色分配左侧导航入口。菜单定义仍在菜单中心维护，按钮权限请在角色权限配置页维护。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -170,7 +172,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
       ) : roleQuery.isLoading || menuTreeQuery.isLoading || roleBindingsQuery.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">正在加载菜单树...</Card>
       ) : flatTree.length === 0 ? (
-        <EmptyState description="菜单树为空，请先在菜单中心定义目录、页面和按钮节点。" title="暂无菜单节点" />
+        <EmptyState description="菜单树为空，请先在菜单中心定义目录和页面菜单。" title="暂无菜单节点" />
       ) : (
         <Card className="min-w-0">
           <div className="border-b p-4">
@@ -206,6 +208,15 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
       )}
     </main>
   );
+}
+
+function removeButtonMenuNodes(items: MenuTreeItem[]): MenuTreeItem[] {
+  return items
+    .filter((item) => item.type !== 'BUTTON')
+    .map((item) => ({
+      ...item,
+      children: removeButtonMenuNodes(item.children),
+    }));
 }
 
 function collectAncestorMenuIds(menu: MenuTreeItem, menuTree: MenuTreeItem[]) {

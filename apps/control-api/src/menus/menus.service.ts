@@ -290,6 +290,9 @@ export class MenusService {
             deletedAt: null,
             menu: {
               deletedAt: null,
+              type: {
+                not: 'BUTTON',
+              },
             },
           },
         },
@@ -323,18 +326,21 @@ export class MenusService {
       throw new NotFoundException('Role not found');
     }
 
-    const menus = await this.prisma.menu.findMany({
+    const selectedMenus = await this.prisma.menu.findMany({
       where: {
         tenantId: currentUser.tenantId,
         id: {
           in: dto.menu_ids,
         },
         deletedAt: null,
+        type: {
+          not: 'BUTTON',
+        },
       },
     });
 
-    if (menus.length !== dto.menu_ids.length) {
-      throw new BadRequestException('Some menu ids are invalid');
+    if (selectedMenus.length !== dto.menu_ids.length) {
+      throw new BadRequestException('Some menu ids are invalid or are button permission nodes');
     }
     const allMenus = await this.loadAllMenus(currentUser.tenantId);
     const normalizedMenuIds = normalizeRoleMenuBindingIds(dto.menu_ids, allMenus);
@@ -383,6 +389,11 @@ export class MenusService {
         tenantId: currentUser.tenantId,
         roleId,
         deletedAt: null,
+        menu: {
+          type: {
+            not: 'BUTTON',
+          },
+        },
       },
     });
 

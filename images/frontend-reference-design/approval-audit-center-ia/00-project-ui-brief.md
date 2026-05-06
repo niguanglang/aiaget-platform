@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: Approval Audit Center IA
+- Routes: `/approval-audits`, `/approval-audits/events/[eventId]`, `/approval-audits/archives`, `/approval-audits/archives/create`
+- Feature goal: Split the approval audit center into focused route-level pages. The list page stays limited to overview, filters, event table, and route entry actions; event detail and archive workflows move to dedicated pages.
+- Users/roles: security admin, auditor, tenant admin, and platform operator with `securityApprovalView` access.
+- Business goal: Let auditors scan approval events quickly, open a complete event detail page only when needed, and keep archive download/delete/generation workflows out of the event list.
+- APIs/services:
+  - `getApprovalAuditOverview({ window })`
+  - `listApprovalAuditEvents({ page, page_size, window, keyword, source_type, event_type, event_status, trace_only })`
+  - `getApprovalAuditEvent(eventId)`
+  - `listApprovalAuditArchives()`
+  - `getApprovalAuditArchiveDownloadUrl(archiveId)`
+  - `deleteApprovalAuditArchive(archiveId)`
+  - `createApprovalAuditArchive(params)`
+  - `exportApprovalAuditEvents(params)`
+- Entities/fields/statuses:
+  - Event: `id`, `source_type`, `source_id`, `event_type`, `event_status`, `title`, `note`, `request_id`, `trace_id`, `actor`, `occurred_at`, `metadata`.
+  - Archive: `id`, `key`, `file_name`, `folder`, `size_bytes`, `etag`, `last_modified`, `download_expires_in`.
+  - Window values: `24h`, `7d`, `30d`; source values: `TOOL_APPROVAL`, `NOTIFICATION_POLICY`, `APPROVAL_AUDIT_ARCHIVE`; status values: `INFO`, `SUCCESS`, `WARNING`, `FAILED`.
+- Required actions:
+  - List page: filter/search events, clear filters, refresh, open event detail, open archive center, open archive generation page.
+  - Event detail page: return to list, refresh detail, open related approval, open related trace.
+  - Archive page: refresh archive list, download archive, request archive deletion with confirmation, open archive generation page.
+  - Archive generation page: choose export filters, download CSV, generate MinIO archive, show success/error feedback.
+- Existing components/design system:
+  - Next.js App Router under `src/app/(console)`.
+  - React Query for loading and mutations.
+  - Tailwind CSS with shadcn-style `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`.
+  - Motion microinteractions, lucide icons, `next/link` route actions.
+- Required states: loading, empty, error, disabled mutation, success feedback, delete confirmation, query-param defaults, detail missing, archive generation failure.
+- Constraints:
+  - Chinese UI text.
+  - `/approval-audits` must not fetch event detail or archive list.
+  - `/approval-audits/events/[eventId]` must own `getApprovalAuditEvent`.
+  - `/approval-audits/archives` must own archive listing, download, and delete request.
+  - `/approval-audits/archives/create` must own CSV export and archive generation.
+  - Dynamic event/detail and create routes are route-level pages; only `/approval-audits` and `/approval-audits/archives` should be static menu entries.

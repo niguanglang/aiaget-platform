@@ -106,6 +106,8 @@ const codeIconMap: Record<string, LucideIcon> = {
   security_alerts: ClipboardCheck,
   security_recovery: Wrench,
   approvals: ClipboardCheck,
+  approval_audits: ScrollText,
+  approval_audit_archives: FileArchive,
   audit: ScrollText,
   system_management: Settings,
   settings: Settings,

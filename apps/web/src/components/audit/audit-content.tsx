@@ -387,7 +387,7 @@ function ApprovalAuditBridgeCard({
             {recentRiskEvents.map((event) => (
               <Link
                 className="rounded-md border bg-background/80 px-3 py-2 transition-colors hover:bg-muted/40"
-                href={`/approval-audits?eventId=${event.id}`}
+                href={`/approval-audits/events/${event.id}?window=${windowValue}`}
                 key={event.id}
               >
                 <div className="flex items-center justify-between gap-2">

@@ -380,7 +380,7 @@ function ArchiveDeletionApprovalDetailPanel({
             <div className="flex flex-wrap gap-2">
               {activeApproval.source === 'APPROVAL_AUDIT' ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`/approval-audits?eventId=${activeApproval.id}`}>打开审批审计</Link>
+                  <Link href={`/approval-audits/events/${activeApproval.id}`}>打开审批审计</Link>
                 </Button>
               ) : null}
               {activeApproval.source === 'OPERATION_ALERT' ? (

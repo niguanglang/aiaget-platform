@@ -26,6 +26,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 
 export type ChannelFocusedRoute =
   | 'publish'
+  | 'providers'
   | 'accounts'
   | 'templates'
   | 'route-rules'
@@ -86,6 +87,7 @@ interface ChannelOperationsPageProps<TItem> {
 
 const focusedNavItems: Array<{ href: string; label: string; route: ChannelFocusedRoute }> = [
   { href: '/channels/publish', label: '发布渠道', route: 'publish' },
+  { href: '/channels/providers', label: '渠道提供方', route: 'providers' },
   { href: '/channels/accounts', label: '账号凭据', route: 'accounts' },
   { href: '/channels/templates', label: '消息模板', route: 'templates' },
   { href: '/channels/route-rules', label: '路由规则', route: 'route-rules' },

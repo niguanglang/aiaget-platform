@@ -13,6 +13,7 @@ test('default menu seed includes approval audit and billing uses billing permiss
 
 test('default menu seed exposes focused channel operation pages', () => {
   assert.match(seedText, /code: 'channel_publish'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/publish'/);
+  assert.match(seedText, /code: 'channel_providers'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/providers'/);
   assert.match(seedText, /code: 'channel_accounts'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/accounts'/);
   assert.match(seedText, /code: 'channel_templates'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/templates'/);
   assert.match(seedText, /code: 'channel_route_rules'[\s\S]*parentCode: 'channels'[\s\S]*path: '\/channels\/route-rules'/);

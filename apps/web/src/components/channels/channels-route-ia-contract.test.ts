@@ -9,6 +9,12 @@ const routesRoot = join(root, 'src/app/(console)/channels');
 
 const focusedPages = [
   {
+    component: 'channel-providers-content.tsx',
+    route: 'providers/page.tsx',
+    api: ['listChannelProviders', 'createChannelProvider', 'updateChannelProvider', 'enableChannelProvider', 'disableChannelProvider', 'deleteChannelProvider'],
+    keywords: ['渠道提供方', '平台适配', '健康状态'],
+  },
+  {
     component: 'channel-publish-content.tsx',
     route: 'publish/page.tsx',
     api: ['getPublishChannelOverview', 'checkPublishChannel', 'enablePublishChannel', 'disablePublishChannel'],
@@ -88,12 +94,14 @@ test('channels route-level pages exist for overview and focused operations pages
   }
 });
 
-test('focused channel navigation exposes sender, replies, and release routes outside the overview page', () => {
+test('focused channel navigation exposes providers, sender, replies, and release routes outside the overview page', () => {
   const operationsShellSource = readFileSync(join(channelsRoot, 'channel-operations-pages.tsx'), 'utf8');
 
+  assert.match(operationsShellSource, /href: '\/channels\/providers'/);
   assert.match(operationsShellSource, /href: '\/channels\/replies'/);
   assert.match(operationsShellSource, /href: '\/channels\/sender'/);
   assert.match(operationsShellSource, /href: '\/channels\/release'/);
+  assert.match(operationsShellSource, /route: 'providers'/);
   assert.match(operationsShellSource, /route: 'replies'/);
   assert.match(operationsShellSource, /route: 'sender'/);
   assert.match(operationsShellSource, /route: 'release'/);
@@ -132,9 +140,14 @@ test('focused channel pages own route-specific APIs, titles, and operational voc
 });
 
 test('focused channel destructive actions use backend manage permission gates', () => {
+  const providerSource = readFileSync(join(channelsRoot, 'channel-providers-content.tsx'), 'utf8');
   const accountSource = readFileSync(join(channelsRoot, 'channel-accounts-content.tsx'), 'utf8');
   const templateSource = readFileSync(join(channelsRoot, 'channel-templates-content.tsx'), 'utf8');
   const routeRuleSource = readFileSync(join(channelsRoot, 'channel-route-rules-content.tsx'), 'utf8');
+
+  assert.match(providerSource, /删除提供方/);
+  assert.match(providerSource, /disabled=\{!permissions\.canManage \|\| deleteMutation\.isPending\}/);
+  assert.doesNotMatch(providerSource, /删除提供方[\s\S]{0,160}!permissions\.canDisable/);
 
   assert.match(accountSource, /删除账号/);
   assert.match(accountSource, /disabled=\{!permissions\.canManage \|\| deleteMutation\.isPending\}/);

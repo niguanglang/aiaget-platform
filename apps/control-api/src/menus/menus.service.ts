@@ -115,6 +115,15 @@ export class MenusService {
 
   async create(currentUser: AuthenticatedUser, dto: CreateMenuDto): Promise<MenuDetail> {
     await this.ensureParent(currentUser.tenantId, dto.parent_id ?? null, null);
+    const advanced = normalizeAdvancedRouteConfig({
+      affix: dto.affix,
+      externalUrl: dto.external_url,
+      hideBreadcrumb: dto.hide_breadcrumb,
+      isExternal: dto.is_external,
+      keepAlive: dto.keep_alive,
+      redirectPath: dto.redirect_path,
+      routeMeta: dto.route_meta,
+    });
 
     try {
       const menu = await this.prisma.menu.create({
@@ -128,13 +137,13 @@ export class MenusService {
           component: normalizeNullable(dto.component),
           icon: normalizeNullable(dto.icon),
           permissionCode: normalizeNullable(dto.permission_code),
-          isExternal: dto.is_external ?? false,
-          externalUrl: normalizeNullable(dto.external_url),
-          redirectPath: normalizeNullable(dto.redirect_path),
-          keepAlive: dto.keep_alive ?? false,
-          affix: dto.affix ?? false,
-          hideBreadcrumb: dto.hide_breadcrumb ?? false,
-          routeMeta: dto.route_meta ? toJsonInput(dto.route_meta) : Prisma.JsonNull,
+          isExternal: advanced.isExternal,
+          externalUrl: advanced.externalUrl,
+          redirectPath: advanced.redirectPath,
+          keepAlive: advanced.keepAlive,
+          affix: advanced.affix,
+          hideBreadcrumb: advanced.hideBreadcrumb,
+          routeMeta: advanced.routeMeta,
           sortOrder: dto.sort_order ?? 0,
           visible: dto.visible ?? true,
           enabled: dto.enabled ?? true,
@@ -161,10 +170,19 @@ export class MenusService {
   }
 
   async update(currentUser: AuthenticatedUser, id: string, dto: UpdateMenuDto): Promise<MenuDetail> {
-    await this.ensureMenu(currentUser.tenantId, id);
+    const existing = await this.ensureMenu(currentUser.tenantId, id);
     if (dto.parent_id !== undefined) {
       await this.ensureParent(currentUser.tenantId, dto.parent_id, id);
     }
+    const advanced = normalizeAdvancedRouteConfig({
+      affix: dto.affix ?? existing.affix,
+      externalUrl: dto.external_url !== undefined ? dto.external_url : existing.externalUrl,
+      hideBreadcrumb: dto.hide_breadcrumb ?? existing.hideBreadcrumb,
+      isExternal: dto.is_external ?? existing.isExternal,
+      keepAlive: dto.keep_alive ?? existing.keepAlive,
+      redirectPath: dto.redirect_path !== undefined ? dto.redirect_path : existing.redirectPath,
+      routeMeta: dto.route_meta !== undefined ? dto.route_meta : normalizeJsonRecord(existing.routeMeta),
+    });
 
     const data: Prisma.MenuUncheckedUpdateInput = {
       updatedBy: currentUser.id,
@@ -177,13 +195,15 @@ export class MenusService {
     if (dto.component !== undefined) data.component = normalizeNullable(dto.component);
     if (dto.icon !== undefined) data.icon = normalizeNullable(dto.icon);
     if (dto.permission_code !== undefined) data.permissionCode = normalizeNullable(dto.permission_code);
-    if (dto.is_external !== undefined) data.isExternal = dto.is_external;
-    if (dto.external_url !== undefined) data.externalUrl = normalizeNullable(dto.external_url);
-    if (dto.redirect_path !== undefined) data.redirectPath = normalizeNullable(dto.redirect_path);
-    if (dto.keep_alive !== undefined) data.keepAlive = dto.keep_alive;
-    if (dto.affix !== undefined) data.affix = dto.affix;
-    if (dto.hide_breadcrumb !== undefined) data.hideBreadcrumb = dto.hide_breadcrumb;
-    if (dto.route_meta !== undefined) data.routeMeta = dto.route_meta ? toJsonInput(dto.route_meta) : Prisma.JsonNull;
+    if (dto.is_external !== undefined || dto.external_url !== undefined) {
+      data.isExternal = advanced.isExternal;
+      data.externalUrl = advanced.externalUrl;
+    }
+    if (dto.redirect_path !== undefined) data.redirectPath = advanced.redirectPath;
+    if (dto.keep_alive !== undefined) data.keepAlive = advanced.keepAlive;
+    if (dto.affix !== undefined) data.affix = advanced.affix;
+    if (dto.hide_breadcrumb !== undefined) data.hideBreadcrumb = advanced.hideBreadcrumb;
+    if (dto.route_meta !== undefined) data.routeMeta = advanced.routeMeta;
     if (dto.sort_order !== undefined) data.sortOrder = dto.sort_order;
     if (dto.visible !== undefined) data.visible = dto.visible;
     if (dto.enabled !== undefined) data.enabled = dto.enabled;
@@ -492,12 +512,21 @@ export class MenusService {
       },
       select: {
         id: true,
+        isExternal: true,
+        externalUrl: true,
+        redirectPath: true,
+        keepAlive: true,
+        affix: true,
+        hideBreadcrumb: true,
+        routeMeta: true,
       },
     });
 
     if (!menu) {
       throw new NotFoundException('Menu not found');
     }
+
+    return menu;
   }
 
   private async findMenu(tenantId: string, id: string): Promise<MenuRecord> {
@@ -614,6 +643,39 @@ export class MenusService {
 function normalizeNullable(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeAdvancedRouteConfig(input: {
+  affix?: boolean | null;
+  externalUrl?: string | null;
+  hideBreadcrumb?: boolean | null;
+  isExternal?: boolean | null;
+  keepAlive?: boolean | null;
+  redirectPath?: string | null;
+  routeMeta?: Record<string, unknown> | null;
+}) {
+  const isExternal = input.isExternal ?? false;
+  const externalUrl = normalizeNullable(input.externalUrl);
+  if (isExternal && !externalUrl) {
+    throw new BadRequestException('外链菜单需要填写外链地址');
+  }
+  if (externalUrl && !isAllowedExternalUrl(externalUrl)) {
+    throw new BadRequestException('外链地址需要以 http:// 或 https:// 开头');
+  }
+
+  return {
+    isExternal,
+    externalUrl: isExternal ? externalUrl : null,
+    redirectPath: normalizeNullable(input.redirectPath),
+    keepAlive: input.keepAlive ?? false,
+    affix: input.affix ?? false,
+    hideBreadcrumb: input.hideBreadcrumb ?? false,
+    routeMeta: input.routeMeta ? toJsonInput(input.routeMeta) : Prisma.JsonNull,
+  };
+}
+
+function isAllowedExternalUrl(value: string) {
+  return value.startsWith('http://') || value.startsWith('https://');
 }
 
 function normalizeJsonRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | null {

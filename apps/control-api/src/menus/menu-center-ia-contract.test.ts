@@ -35,6 +35,25 @@ test('menu advanced route configuration fields are persisted and exposed by the 
   }
 });
 
+test('default menu seed writes explicit advanced route configuration defaults', () => {
+  for (const field of ['isExternal', 'externalUrl', 'redirectPath', 'keepAlive', 'affix', 'hideBreadcrumb', 'routeMeta']) {
+    assert.match(seedText, new RegExp(`\\b${field}\\b`));
+  }
+
+  assert.match(seedText, /interface DefaultMenuDefinition[\s\S]*isExternal\?: boolean/);
+  assert.match(seedText, /isExternal: menu\.isExternal \?\? false/);
+  assert.match(seedText, /externalUrl: menu\.externalUrl \?\? null/);
+  assert.match(seedText, /routeMeta: menu\.routeMeta \? toSeedJsonInput\(menu\.routeMeta\) : Prisma\.JsonNull/);
+});
+
+test('menu service validates external menus before persistence', () => {
+  assert.match(serviceText, /normalizeAdvancedRouteConfig/);
+  assert.match(serviceText, /外链菜单需要填写外链地址/);
+  assert.match(serviceText, /外链地址需要以 http:\/\/ 或 https:\/\/ 开头/);
+  assert.match(serviceText, /isAllowedExternalUrl/);
+  assert.match(serviceText, /externalUrl: advanced\.externalUrl/);
+});
+
 test('menu advanced route configuration migration includes column comments', () => {
   const migrationsDir = join(process.cwd(), 'prisma/migrations');
   const migrationText = readFileSync(join(migrationsDir, '20260506110000_m79_menu_advanced_route_config/migration.sql'), 'utf8');

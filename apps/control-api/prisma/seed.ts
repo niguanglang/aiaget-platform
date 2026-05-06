@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PERMISSION_CODES, permissionDefinitions } from '@aiaget/shared-types';
 import { hash } from 'bcryptjs';
 
@@ -617,6 +617,13 @@ interface DefaultMenuDefinition {
   component?: string | null;
   icon?: string | null;
   permissionCode?: string | null;
+  isExternal?: boolean;
+  externalUrl?: string | null;
+  redirectPath?: string | null;
+  keepAlive?: boolean;
+  affix?: boolean;
+  hideBreadcrumb?: boolean;
+  routeMeta?: Record<string, unknown> | null;
   sortOrder: number;
   visible?: boolean;
   enabled?: boolean;
@@ -735,6 +742,13 @@ async function seedMenus(tenantId: string, operatorId: string) {
         component: menu.component ?? null,
         icon: menu.icon ?? null,
         permissionCode: menu.permissionCode ?? null,
+        isExternal: menu.isExternal ?? false,
+        externalUrl: menu.externalUrl ?? null,
+        redirectPath: menu.redirectPath ?? null,
+        keepAlive: menu.keepAlive ?? false,
+        affix: menu.affix ?? false,
+        hideBreadcrumb: menu.hideBreadcrumb ?? false,
+        routeMeta: menu.routeMeta ? toSeedJsonInput(menu.routeMeta) : Prisma.JsonNull,
         sortOrder: menu.sortOrder,
         visible: menu.visible ?? true,
         enabled: menu.enabled ?? true,
@@ -749,6 +763,13 @@ async function seedMenus(tenantId: string, operatorId: string) {
         component: menu.component ?? null,
         icon: menu.icon ?? null,
         permissionCode: menu.permissionCode ?? null,
+        isExternal: menu.isExternal ?? false,
+        externalUrl: menu.externalUrl ?? null,
+        redirectPath: menu.redirectPath ?? null,
+        keepAlive: menu.keepAlive ?? false,
+        affix: menu.affix ?? false,
+        hideBreadcrumb: menu.hideBreadcrumb ?? false,
+        routeMeta: menu.routeMeta ? toSeedJsonInput(menu.routeMeta) : Prisma.JsonNull,
         sortOrder: menu.sortOrder,
         visible: menu.visible ?? true,
         enabled: menu.enabled ?? true,
@@ -759,6 +780,10 @@ async function seedMenus(tenantId: string, operatorId: string) {
 
     menuByCode.set(menu.code, menuRecord);
   }
+}
+
+function toSeedJsonInput(value: Record<string, unknown>): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 const dataScopeResourceTypes = [

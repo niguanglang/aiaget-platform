@@ -12,28 +12,46 @@ import { Button } from '@/components/ui/button';
 
 const menuTypes = ['DIRECTORY', 'MENU', 'BUTTON'] as const;
 
-const menuFormSchema = z.object({
-  parent_id: z.string().optional(),
-  name: z.string().min(2, '名称至少需要 2 个字符。'),
-  code: z
-    .string()
-    .regex(/^[a-z][a-z0-9_-]{1,99}$/, '请使用 2-100 位小写字母、数字、下划线或连字符。'),
-  type: z.enum(menuTypes),
-  path: z.string().optional(),
-  component: z.string().optional(),
-  icon: z.string().optional(),
-  permission_code: z.string().optional(),
-  is_external: z.boolean(),
-  external_url: z.string().optional(),
-  redirect_path: z.string().optional(),
-  keep_alive: z.boolean(),
-  affix: z.boolean(),
-  hide_breadcrumb: z.boolean(),
-  route_meta: z.string().optional().refine(isJsonObjectText, '请填写 JSON 对象。'),
-  sort_order: z.number().int('请使用整数。').min(0, '最小值为 0。').max(10000, '最大值为 10000。'),
-  visible: z.boolean(),
-  enabled: z.boolean(),
-});
+const menuFormSchema = z
+  .object({
+    parent_id: z.string().optional(),
+    name: z.string().min(2, '名称至少需要 2 个字符。'),
+    code: z
+      .string()
+      .regex(/^[a-z][a-z0-9_-]{1,99}$/, '请使用 2-100 位小写字母、数字、下划线或连字符。'),
+    type: z.enum(menuTypes),
+    path: z.string().optional(),
+    component: z.string().optional(),
+    icon: z.string().optional(),
+    permission_code: z.string().optional(),
+    is_external: z.boolean(),
+    external_url: z.string().optional(),
+    redirect_path: z.string().optional(),
+    keep_alive: z.boolean(),
+    affix: z.boolean(),
+    hide_breadcrumb: z.boolean(),
+    route_meta: z.string().optional().refine(isJsonObjectText, '请填写 JSON 对象。'),
+    sort_order: z.number().int('请使用整数。').min(0, '最小值为 0。').max(10000, '最大值为 10000。'),
+    visible: z.boolean(),
+    enabled: z.boolean(),
+  })
+  .superRefine((values, context) => {
+    const externalUrl = values.external_url?.trim();
+    if (values.is_external && !externalUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '外链菜单需要填写外链地址。',
+        path: ['external_url'],
+      });
+    }
+    if (externalUrl && !isAllowedExternalUrl(externalUrl)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '外链地址需要以 http:// 或 https:// 开头。',
+        path: ['external_url'],
+      });
+    }
+  });
 
 export type MenuFormValues = z.infer<typeof menuFormSchema>;
 
@@ -82,6 +100,10 @@ function isJsonObjectText(value?: string) {
   } catch {
     return false;
   }
+}
+
+function isAllowedExternalUrl(value: string) {
+  return value.startsWith('http://') || value.startsWith('https://');
 }
 
 export function MenuFormPanel({

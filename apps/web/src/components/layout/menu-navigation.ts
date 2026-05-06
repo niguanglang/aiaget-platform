@@ -175,7 +175,7 @@ function mapAuthorizedMenu(menu: AuthorizedMenuItem, level: number): NavigationL
     children,
   };
 
-  if (menu.type === 'DIRECTORY' && children.length === 0) {
+  if (menu.type === 'DIRECTORY' && children.length === 0 && href === '#') {
     return [];
   }
 

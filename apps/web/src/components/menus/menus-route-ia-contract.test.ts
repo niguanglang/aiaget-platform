@@ -7,6 +7,7 @@ const menuListSource = readFileSync(join(process.cwd(), 'src/components/menus/me
 const menuDetailSourcePath = join(process.cwd(), 'src/components/menus/menu-detail-content.tsx');
 const menuCreateSourcePath = join(process.cwd(), 'src/components/menus/menu-create-content.tsx');
 const menuEditSourcePath = join(process.cwd(), 'src/components/menus/menu-edit-content.tsx');
+const menuNavigationSource = readFileSync(join(process.cwd(), 'src/components/layout/menu-navigation.ts'), 'utf8');
 const sharedTypesSource = readFileSync(join(process.cwd(), '../../packages/shared-types/src/index.ts'), 'utf8');
 
 test('menu center route-level pages exist for list, create, detail, and edit', () => {
@@ -77,6 +78,21 @@ test('menu forms expose advanced route configuration fields', () => {
   assert.match(formSource, /重定向地址/);
   assert.match(formSource, /路由元信息/);
   assert.match(detailSource, /高级配置/);
+});
+
+test('menu forms validate external route configuration before submit', () => {
+  const formSource = readFileSync(join(process.cwd(), 'src/components/menus/menu-form-panel.tsx'), 'utf8');
+
+  assert.match(formSource, /superRefine/);
+  assert.match(formSource, /外链菜单需要填写外链地址/);
+  assert.match(formSource, /外链地址需要以 http:\/\/ 或 https:\/\/ 开头/);
+  assert.match(formSource, /isAllowedExternalUrl/);
+});
+
+test('authorized navigation keeps external and redirect menu entries clickable', () => {
+  assert.match(menuNavigationSource, /if \(menu\.is_external && menu\.external_url\) return menu\.external_url/);
+  assert.match(menuNavigationSource, /if \(menu\.redirect_path\) return menu\.redirect_path/);
+  assert.match(menuNavigationSource, /menu\.type === 'DIRECTORY' && children\.length === 0 && href === '#'/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

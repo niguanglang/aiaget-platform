@@ -1,0 +1,12 @@
+{
+  "page": "BillingCostIA",
+  "route": "/billing",
+  "feature": "成本与计费中心信息架构拆分",
+  "created_at": "2026-05-06",
+  "artifacts": [
+    "00-project-ui-brief.md",
+    "01-product-ui-design-prompt.md",
+    "02-product-prototype-prompt.md",
+    "03-component-mapping.md"
+  ]
+}

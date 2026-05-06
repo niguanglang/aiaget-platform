@@ -1,32 +1,25 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   MonitorErrorSampleItem,
-  MonitorEventDetail,
   MonitorEventSourceType,
   MonitorEventStatus,
   MonitorModule,
-  MonitorObservabilityOverview,
   MonitorRunStepMetricItem,
   MonitorRunStepSummary,
   MonitorRunStepType,
-  MonitorTraceDetail,
-  MonitorTraceSummaryItem,
   MonitorTrendPoint,
   MonitorWindow,
-  RuntimeWorkflowStatusOverview,
-  RuntimeWorkflowTaskType,
 } from '@aiaget/shared-types';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Activity, AlertTriangle, Copy, GitBranch, Layers3, RotateCcw, Search } from 'lucide-react';
+import { Activity, AlertTriangle, ExternalLink, GitBranch, Layers3, RefreshCw, Search } from 'lucide-react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useAuth } from '@/components/auth/auth-provider';
 import { ServiceHealthCard } from '@/components/dashboard/service-health-card';
 import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
-import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
 import {
   formatDateTime,
   formatLatency,
@@ -38,19 +31,19 @@ import {
   monitorStatusLabel,
   monitorStatusTone,
 } from '@/components/monitor/monitor-status';
+import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getMonitorEvent, getMonitorObservabilityOverview, getMonitorOverview, getMonitorTrace, listMonitorEvents } from '@/lib/api-client';
+import { getMonitorOverview, listMonitorEvents } from '@/lib/api-client';
 
 const windows: MonitorWindow[] = ['24h', '7d'];
 const modules: MonitorModule[] = ['agent', 'prompt', 'model', 'knowledge', 'tool', 'conversation', 'user', 'tenant', 'auth', 'system'];
 const statuses: MonitorEventStatus[] = ['SUCCESS', 'DEGRADED', 'FAILED'];
 const sourceTypes: MonitorEventSourceType[] = ['operation', 'model_call', 'tool_call', 'knowledge_recall', 'conversation_run', 'conversation_step'];
 const stepTypes: MonitorRunStepType[] = ['prompt', 'tool', 'knowledge', 'model', 'response'];
-const controlApiBaseUrl = process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http://localhost:3001/api/v1';
 
 function parseWindowParam(value: string | null): MonitorWindow {
   return windows.includes(value as MonitorWindow) ? (value as MonitorWindow) : '24h';
@@ -61,17 +54,16 @@ function parseFilterParam<TValue extends string>(value: string | null, allowed: 
 }
 
 export function MonitorContent() {
-  const queryClient = useQueryClient();
-  const { session } = useAuth();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
+  const legacyTraceId = searchParams.get('trace_id');
+  const legacyTraceHref = legacyTraceId ? `/monitor/traces/${encodeURIComponent(legacyTraceId)}` : null;
   const [windowValue, setWindowValue] = useState<MonitorWindow>(() => parseWindowParam(searchParams.get('window')));
   const [moduleValue, setModuleValue] = useState(() => parseFilterParam(searchParams.get('module'), modules));
   const [statusValue, setStatusValue] = useState(() => parseFilterParam(searchParams.get('status'), statuses));
   const [sourceValue, setSourceValue] = useState(() => parseFilterParam(searchParams.get('source_type'), sourceTypes));
   const [stepValue, setStepValue] = useState(() => parseFilterParam(searchParams.get('step_type'), stepTypes));
   const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? '');
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const overviewQuery = useQuery({
     queryKey: ['monitor-overview', windowValue],
@@ -94,42 +86,6 @@ export function MonitorContent() {
   });
 
   const events = eventsQuery.data?.items ?? [];
-  const activeEventId = selectedEventId ?? events[0]?.event_id ?? null;
-
-  const selectedEventQuery = useQuery({
-    enabled: Boolean(activeEventId),
-    queryKey: ['monitor-event', activeEventId],
-    queryFn: () => getMonitorEvent(activeEventId ?? ''),
-  });
-  const activeTraceId = selectedEventQuery.data?.trace_id ?? events.find((event) => event.event_id === activeEventId)?.trace_id ?? null;
-  const traceQuery = useQuery({
-    enabled: Boolean(activeTraceId),
-    queryKey: ['monitor-trace', activeTraceId, windowValue],
-    queryFn: () => getMonitorTrace(activeTraceId ?? '', { window: windowValue }),
-  });
-  const observabilityQuery = useQuery({
-    queryKey: ['monitor-observability', windowValue],
-    queryFn: () => getMonitorObservabilityOverview({ window: windowValue }),
-  });
-  const workflowQuery = useQuery({
-    enabled: Boolean(session?.accessToken),
-    queryKey: ['runtime-workflow-status'],
-    queryFn: () => getRuntimeWorkflowStatus(session?.accessToken ?? ''),
-  });
-  const retryWorkflowMutation = useMutation({
-    mutationFn: (input: { task_type: RuntimeWorkflowTaskType; task_id: string }) => retryRuntimeWorkflowTask(session?.accessToken ?? '', input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['runtime-workflow-status'] });
-      void eventsQuery.refetch();
-      void overviewQuery.refetch();
-    },
-  });
-
-  useEffect(() => {
-    if (!events.length) {
-      setSelectedEventId(null);
-    }
-  }, [events]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParamsKey);
@@ -172,46 +128,48 @@ export function MonitorContent() {
             <StatusBadge tone="ready">M22</StatusBadge>
             <StatusBadge tone="ready">M46</StatusBadge>
             <StatusBadge tone="healthy">真实监控</StatusBadge>
-            <StatusBadge tone="planned">Trace 下钻</StatusBadge>
+            <StatusBadge tone="planned">独立下钻</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">监控中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合控制服务、运行时、模型、工具、检索和会话运行数据，追踪 Trace 链路、传播质量、慢链路和错误来源。
+            聚合控制服务、运行时、模型、工具、检索和会话运行数据，保留概览、事件列表、服务健康和快捷入口。
           </p>
         </div>
-        <Button onClick={() => {
-          void overviewQuery.refetch();
-          void eventsQuery.refetch();
-          void selectedEventQuery.refetch();
-          void traceQuery.refetch();
-          void observabilityQuery.refetch();
-          void workflowQuery.refetch();
-        }} type="button" variant="outline">
+        <Button
+          onClick={() => {
+            void overviewQuery.refetch();
+            void eventsQuery.refetch();
+          }}
+          type="button"
+          variant="outline"
+        >
+          <RefreshCw className="size-4" />
           刷新数据
         </Button>
       </motion.section>
 
-      <ObservabilityOverviewCard
-        loading={observabilityQuery.isLoading}
-        overview={observabilityQuery.data ?? null}
-        onSelectTrace={(traceId) => {
-          const event = events.find((item) => item.trace_id === traceId);
-          setSelectedEventId(event?.event_id ?? null);
-        }}
-      />
+      {legacyTraceHref ? (
+        <Card className="grid gap-3 border-primary/25 bg-primary/5 p-4 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <div className="text-sm font-semibold">旧 Trace 链接已兼容</div>
+            <p className="mt-1 break-all text-sm text-muted-foreground">
+              当前链接带有 trace_id={legacyTraceId}，Trace 链路已迁移到独立页面。
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline">
+            <Link href={legacyTraceHref}>
+              <GitBranch className="size-4" />
+              打开 Trace
+            </Link>
+          </Button>
+        </Card>
+      ) : null}
 
-      <PlatformEventUsagePanel
-        windowValue={windowValue}
-      />
-
-      <WorkflowBackendCard
-        loading={workflowQuery.isLoading}
-        onRefresh={() => void workflowQuery.refetch()}
-        onRetry={(taskType, taskId) => retryWorkflowMutation.mutate({ task_type: taskType, task_id: taskId })}
-        pendingTask={retryWorkflowMutation.variables ?? null}
-        retrying={retryWorkflowMutation.isPending}
-        workflow={workflowQuery.data ?? null}
-      />
+      <section className="grid gap-3 md:grid-cols-3">
+        <QuickEntry href="/monitor/observability" label="可观测性质量" text="Trace 覆盖、慢链路和错误链路" />
+        <QuickEntry href="/runtime/workflows" label="工作流后端" text="运行时派发状态和恢复重试" />
+        <QuickEntry href="/monitor?status=FAILED" label="异常事件" text="筛选失败事件并进入详情" />
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <ServiceHealthCard
@@ -237,25 +195,13 @@ export function MonitorContent() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
-        <RunStepSummaryCard
-          loading={overviewQuery.isLoading}
-          summary={overviewQuery.data?.run_step_summary ?? null}
-        />
-        <RunStepBreakdownCard
-          items={overviewQuery.data?.run_step_breakdown ?? []}
-          loading={overviewQuery.isLoading}
-        />
+        <RunStepSummaryCard loading={overviewQuery.isLoading} summary={overviewQuery.data?.run_step_summary ?? null} />
+        <RunStepBreakdownCard items={overviewQuery.data?.run_step_breakdown ?? []} loading={overviewQuery.isLoading} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <TrendCard
-          loading={overviewQuery.isLoading}
-          points={overviewQuery.data?.latency_trend ?? []}
-        />
-        <ErrorCard
-          errors={overviewQuery.data?.errors ?? []}
-          loading={overviewQuery.isLoading}
-        />
+        <TrendCard loading={overviewQuery.isLoading} points={overviewQuery.data?.latency_trend ?? []} />
+        <ErrorCard errors={overviewQuery.data?.errors ?? []} loading={overviewQuery.isLoading} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-4">
@@ -301,168 +247,232 @@ export function MonitorContent() {
         />
       </section>
 
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="min-w-0">
-          <div className="border-b p-4">
-            <div className="grid gap-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">统一事件流</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    聚合写操作、模型调用、工具执行、检索日志、会话运行和运行步骤，统一查看状态与耗时。
-                  </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  显示 {events.length} / {eventsQuery.data?.total ?? 0}
-                </div>
-              </div>
+      <PlatformEventUsagePanel windowValue={windowValue} />
 
-              <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-[minmax(220px,1fr)_120px_128px_120px_136px_120px_auto]">
-                <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
-                  <Search className="size-4 text-muted-foreground" />
-                  <input
-                    className="min-w-0 flex-1 bg-transparent outline-none"
-                    onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="搜索追踪、标题、摘要"
-                    value={keyword}
-                  />
-                </label>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setWindowValue(event.target.value as MonitorWindow)} value={windowValue}>
-                  {windows.map((windowItem) => (
-                    <option key={windowItem} value={windowItem}>
-                      {windowItem}
-                    </option>
-                  ))}
-                </select>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setModuleValue(event.target.value)} value={moduleValue}>
-                  <option value="">全部模块</option>
-                  {modules.map((moduleItem) => (
-                    <option key={moduleItem} value={moduleItem}>
-                      {monitorModuleLabel(moduleItem)}
-                    </option>
-                  ))}
-                </select>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setStatusValue(event.target.value)} value={statusValue}>
-                  <option value="">全部状态</option>
-                  {statuses.map((statusItem) => (
-                    <option key={statusItem} value={statusItem}>
-                      {monitorStatusLabel(statusItem)}
-                    </option>
-                  ))}
-                </select>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setSourceValue(event.target.value)} value={sourceValue}>
-                  <option value="">全部来源</option>
-                  {sourceTypes.map((sourceItem) => (
-                    <option key={sourceItem} value={sourceItem}>
-                      {monitorSourceTypeLabel(sourceItem)}
-                    </option>
-                  ))}
-                </select>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setStepValue(event.target.value)} value={stepValue}>
-                  <option value="">全部步骤</option>
-                  {stepTypes.map((stepItem) => (
-                    <option key={stepItem} value={stepItem}>
-                      {monitorStepTypeLabel(stepItem)}
-                    </option>
-                  ))}
-                </select>
-                <Button onClick={() => {
-                  setKeyword('');
-                  setModuleValue('');
-                  setStatusValue('');
-                  setSourceValue('');
-                  setStepValue('');
-                  setWindowValue('24h');
-                }} type="button" variant="outline">
-                  清空
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {eventsQuery.isError ? (
-            <div className="p-6 text-sm text-destructive">监控事件加载失败。</div>
-          ) : eventsQuery.isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">正在加载监控事件...</div>
-          ) : events.length === 0 ? (
-            <EmptyState description="当前筛选窗口内没有事件记录。" title="暂无监控数据" />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1320px] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    {['追踪 ID', '模块', '来源', '状态', '标题', '延迟', '词元', '成本', '步骤', '发生时间'].map((column) => (
-                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event, index) => (
-                    <motion.tr
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                      initial={{ opacity: 0, y: 8 }}
-                      key={event.event_id}
-                      onClick={() => setSelectedEventId(event.event_id)}
-                      transition={{ delay: index * 0.02, duration: 0.22 }}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{event.trace_id}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{monitorModuleLabel(event.module)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{monitorSourceTypeLabel(event.source_type)}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge tone={monitorStatusTone(event.status)}>{monitorStatusLabel(event.status)}</StatusBadge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{event.title}</div>
-                        <div className="line-clamp-1 text-xs text-muted-foreground">{event.summary}</div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatLatency(event.latency_ms)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{event.token_total ?? '-'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatMoney(event.cost_total)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{monitorStepTypeLabel(event.step_type)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-
-        <TraceDetailPanel
-          loading={traceQuery.isLoading}
-          trace={traceQuery.data ?? null}
-          traceId={activeTraceId}
-        />
-      </section>
-
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <EventDetailPanel
-          event={selectedEventQuery.data ?? null}
-          loading={selectedEventQuery.isLoading}
-        />
-        <TraceSignalCards
-          loading={observabilityQuery.isLoading}
-          overview={observabilityQuery.data ?? null}
-          onSelectTrace={(traceId) => {
-            const event = events.find((item) => item.trace_id === traceId);
-            setSelectedEventId(event?.event_id ?? null);
-          }}
-        />
-      </section>
+      <EventListCard
+        events={events}
+        eventsTotal={eventsQuery.data?.total ?? 0}
+        keyword={keyword}
+        loading={eventsQuery.isLoading}
+        loadError={eventsQuery.isError}
+        moduleValue={moduleValue}
+        sourceValue={sourceValue}
+        statusValue={statusValue}
+        stepValue={stepValue}
+        windowValue={windowValue}
+        onClear={() => {
+          setKeyword('');
+          setModuleValue('');
+          setStatusValue('');
+          setSourceValue('');
+          setStepValue('');
+          setWindowValue('24h');
+        }}
+        onKeywordChange={setKeyword}
+        onModuleChange={setModuleValue}
+        onSourceChange={setSourceValue}
+        onStatusChange={setStatusValue}
+        onStepChange={setStepValue}
+        onWindowChange={setWindowValue}
+      />
     </main>
   );
 }
 
-function RunStepSummaryCard({
+function QuickEntry({ href, label, text }: { href: string; label: string; text: string }) {
+  return (
+    <Link className="rounded-md border bg-background/80 p-4 transition-colors hover:bg-muted/35" href={href}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">{label}</div>
+        <ExternalLink className="size-4 text-muted-foreground" />
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+    </Link>
+  );
+}
+
+function EventListCard({
+  events,
+  eventsTotal,
+  keyword,
   loading,
-  summary,
+  loadError,
+  moduleValue,
+  onClear,
+  onKeywordChange,
+  onModuleChange,
+  onSourceChange,
+  onStatusChange,
+  onStepChange,
+  onWindowChange,
+  sourceValue,
+  statusValue,
+  stepValue,
+  windowValue,
 }: {
+  events: Array<{
+    event_id: string;
+    trace_id: string;
+    module: MonitorModule;
+    source_type: MonitorEventSourceType;
+    status: MonitorEventStatus;
+    title: string;
+    summary: string;
+    latency_ms: number | null;
+    token_total: number | null;
+    cost_total: number | null;
+    step_type: MonitorRunStepType | null;
+    occurred_at: string;
+  }>;
+  eventsTotal: number;
+  keyword: string;
   loading: boolean;
-  summary: MonitorRunStepSummary | null;
+  loadError: boolean;
+  moduleValue: string;
+  onClear: () => void;
+  onKeywordChange: (value: string) => void;
+  onModuleChange: (value: string) => void;
+  onSourceChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onStepChange: (value: string) => void;
+  onWindowChange: (value: MonitorWindow) => void;
+  sourceValue: string;
+  statusValue: string;
+  stepValue: string;
+  windowValue: MonitorWindow;
 }) {
+  return (
+    <Card className="min-w-0">
+      <div className="border-b p-4">
+        <div className="grid gap-4">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+            <div>
+              <h2 className="text-sm font-semibold">统一事件流</h2>
+              <p className="mt-1 text-sm text-muted-foreground">列表只负责筛选和导航，事件详情与 Trace 时间线已拆到独立页面。</p>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              显示 {events.length} / {eventsTotal}
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-[minmax(220px,1fr)_120px_128px_120px_136px_120px_auto]">
+            <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+              <Search className="size-4 text-muted-foreground" />
+              <input
+                className="min-w-0 flex-1 bg-transparent outline-none"
+                onChange={(event) => onKeywordChange(event.target.value)}
+                placeholder="搜索追踪、标题、摘要"
+                value={keyword}
+              />
+            </label>
+            <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onWindowChange(event.target.value as MonitorWindow)} value={windowValue}>
+              {windows.map((windowItem) => (
+                <option key={windowItem} value={windowItem}>
+                  {windowItem}
+                </option>
+              ))}
+            </select>
+            <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onModuleChange(event.target.value)} value={moduleValue}>
+              <option value="">全部模块</option>
+              {modules.map((moduleItem) => (
+                <option key={moduleItem} value={moduleItem}>
+                  {monitorModuleLabel(moduleItem)}
+                </option>
+              ))}
+            </select>
+            <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onStatusChange(event.target.value)} value={statusValue}>
+              <option value="">全部状态</option>
+              {statuses.map((statusItem) => (
+                <option key={statusItem} value={statusItem}>
+                  {monitorStatusLabel(statusItem)}
+                </option>
+              ))}
+            </select>
+            <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onSourceChange(event.target.value)} value={sourceValue}>
+              <option value="">全部来源</option>
+              {sourceTypes.map((sourceItem) => (
+                <option key={sourceItem} value={sourceItem}>
+                  {monitorSourceTypeLabel(sourceItem)}
+                </option>
+              ))}
+            </select>
+            <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onStepChange(event.target.value)} value={stepValue}>
+              <option value="">全部步骤</option>
+              {stepTypes.map((stepItem) => (
+                <option key={stepItem} value={stepItem}>
+                  {monitorStepTypeLabel(stepItem)}
+                </option>
+              ))}
+            </select>
+            <Button onClick={onClear} type="button" variant="outline">
+              清空
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {loadError ? (
+        <div className="p-6 text-sm text-destructive">监控事件加载失败。</div>
+      ) : loading ? (
+        <div className="p-6 text-sm text-muted-foreground">正在加载监控事件...</div>
+      ) : events.length === 0 ? (
+        <EmptyState description="当前筛选窗口内没有事件记录。" title="暂无监控数据" />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1360px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                {['追踪 ID', '模块', '来源', '状态', '标题', '延迟', '词元', '成本', '步骤', '发生时间', '操作'].map((column) => (
+                  <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((event, index) => (
+                <motion.tr
+                  animate={{ opacity: 1, y: 0 }}
+                  className="border-b transition-colors last:border-0 hover:bg-muted/25"
+                  initial={{ opacity: 0, y: 8 }}
+                  key={event.event_id}
+                  transition={{ delay: index * 0.02, duration: 0.22 }}
+                >
+                  <td className="px-4 py-3">
+                    <Link className="font-mono text-xs text-primary hover:underline" href={`/monitor/traces/${event.trace_id}`}>
+                      {event.trace_id}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{monitorModuleLabel(event.module)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{monitorSourceTypeLabel(event.source_type)}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge tone={monitorStatusTone(event.status)}>{monitorStatusLabel(event.status)}</StatusBadge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{event.title}</div>
+                    <div className="line-clamp-1 text-xs text-muted-foreground">{event.summary}</div>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatLatency(event.latency_ms)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{event.token_total ?? '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatMoney(event.cost_total)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{monitorStepTypeLabel(event.step_type)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
+                  <td className="px-4 py-3">
+                    <Button asChild size="sm" type="button" variant="outline">
+                      <Link href={`/monitor/events/${event.event_id}`}>详情</Link>
+                    </Button>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function RunStepSummaryCard({ loading, summary }: { loading: boolean; summary: MonitorRunStepSummary | null }) {
   const items = summary
     ? [
         { label: '步骤总数', value: formatInteger(summary.steps_total), helper: '来自会话运行步骤' },
@@ -509,90 +519,7 @@ function RunStepSummaryCard({
   );
 }
 
-function ObservabilityOverviewCard({
-  loading,
-  overview,
-  onSelectTrace,
-}: {
-  loading: boolean;
-  overview: MonitorObservabilityOverview | null;
-  onSelectTrace: (traceId: string) => void;
-}) {
-  const metrics = overview
-    ? [
-        { label: 'Trace 覆盖率', value: formatPercent(overview.trace_coverage), helper: `${overview.window} 窗口` },
-        { label: '关联 Trace', value: formatInteger(overview.linked_trace_count), helper: '可下钻链路' },
-        { label: '孤儿事件', value: formatInteger(overview.orphan_event_count), helper: '缺少标准 Trace' },
-        { label: '错误 Trace', value: formatInteger(overview.error_trace_count), helper: '包含失败或降级' },
-        { label: '慢 Trace', value: formatInteger(overview.slow_trace_count), helper: 'P95 超过阈值' },
-      ]
-    : [];
-
-  return (
-    <Card className="grid gap-4 p-5">
-      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <GitBranch className="size-4 text-primary" />
-            可观测性质量
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">检查事件是否能汇入 Trace 链路，并快速定位错误链路和慢链路。</p>
-        </div>
-        <StatusBadge tone={overview && overview.trace_coverage >= 80 ? 'healthy' : 'degraded'}>
-          {loading ? '计算中' : overview && overview.trace_coverage >= 80 ? '覆盖良好' : '需要关注'}
-        </StatusBadge>
-      </div>
-
-      {loading ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div className="h-24 rounded-md border bg-muted/30" key={index} />
-          ))}
-        </div>
-      ) : !overview ? (
-        <EmptyState description="当前窗口内暂无可观测性数据。" title="暂无观测数据" />
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {metrics.map((metric) => (
-            <div className="rounded-md border bg-muted/20 px-3 py-3" key={metric.label}>
-              <div className="text-xs text-muted-foreground">{metric.label}</div>
-              <div className="mt-2 text-xl font-semibold">{metric.value}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {overview?.recent_error_traces.length ? (
-        <div className="grid gap-2 rounded-md border bg-background/70 p-3">
-          <div className="text-xs font-medium text-muted-foreground">最近错误链路</div>
-          <div className="flex gap-2 overflow-x-auto">
-            {overview.recent_error_traces.slice(0, 4).map((trace) => (
-              <button
-                className="min-w-56 rounded-md border bg-muted/20 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/40"
-                key={trace.trace_id}
-                onClick={() => onSelectTrace(trace.trace_id)}
-                type="button"
-              >
-                <div className="font-medium text-foreground">{trace.title}</div>
-                <div className="mt-1 font-mono text-muted-foreground">{shortTraceId(trace.trace_id)}</div>
-                <div className="mt-1 text-muted-foreground">{trace.failed_count} 个异常事件</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
-function RunStepBreakdownCard({
-  items,
-  loading,
-}: {
-  items: MonitorRunStepMetricItem[];
-  loading: boolean;
-}) {
+function RunStepBreakdownCard({ items, loading }: { items: MonitorRunStepMetricItem[]; loading: boolean }) {
   const maxCount = Math.max(...items.map((item) => item.step_count), 1);
 
   return (
@@ -621,9 +548,7 @@ function RunStepBreakdownCard({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <StatusBadge tone={item.failed_count > 0 ? 'degraded' : 'healthy'}>
-                    {monitorStepTypeLabel(item.step_type)}
-                  </StatusBadge>
+                  <StatusBadge tone={item.failed_count > 0 ? 'degraded' : 'healthy'}>{monitorStepTypeLabel(item.step_type)}</StatusBadge>
                   <span className="text-sm font-medium">{formatInteger(item.step_count)} 次</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -631,10 +556,7 @@ function RunStepBreakdownCard({
                 </div>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-background">
-                <div
-                  className="h-full rounded-full bg-primary/45"
-                  style={{ width: `${Math.max(8, (item.step_count / maxCount) * 100)}%` }}
-                />
+                <div className="h-full rounded-full bg-primary/45" style={{ width: `${Math.max(8, (item.step_count / maxCount) * 100)}%` }} />
               </div>
               <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
                 <span>平均 {formatLatency(item.average_latency_ms)}</span>
@@ -665,13 +587,7 @@ function StepCountRow({ label, total, value }: { label: string; total: number; v
   );
 }
 
-function TrendCard({
-  loading,
-  points,
-}: {
-  loading: boolean;
-  points: MonitorTrendPoint[];
-}) {
+function TrendCard({ loading, points }: { loading: boolean; points: MonitorTrendPoint[] }) {
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center justify-between gap-2">
@@ -687,10 +603,7 @@ function TrendCard({
           <div className="flex h-44 items-end gap-2">
             {points.map((point) => (
               <div className="flex min-w-0 flex-1 flex-col justify-end gap-2" key={point.bucket}>
-                <div
-                  className="w-full rounded-t-md bg-primary/25"
-                  style={{ height: `${Math.max(12, Math.min(100, point.average_latency_ms / 4))}%` }}
-                />
+                <div className="w-full rounded-t-md bg-primary/25" style={{ height: `${Math.max(12, Math.min(100, point.average_latency_ms / 4))}%` }} />
                 <div className="text-center text-[11px] text-muted-foreground">{point.bucket}</div>
               </div>
             ))}
@@ -712,13 +625,7 @@ function TrendCard({
   );
 }
 
-function ErrorCard({
-  errors,
-  loading,
-}: {
-  errors: MonitorErrorSampleItem[];
-  loading: boolean;
-}) {
+function ErrorCard({ errors, loading }: { errors: MonitorErrorSampleItem[]; loading: boolean }) {
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
@@ -738,310 +645,10 @@ function ErrorCard({
                 <span className="text-xs text-muted-foreground">{formatDateTime(error.occurred_at)}</span>
               </div>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">{error.error_message}</p>
+              <Button asChild className="mt-2" size="sm" type="button" variant="outline">
+                <Link href={`/monitor/events/${error.event_id}`}>查看事件</Link>
+              </Button>
             </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function WorkflowBackendCard({
-  loading,
-  onRefresh,
-  onRetry,
-  pendingTask,
-  retrying,
-  workflow,
-}: {
-  loading: boolean;
-  onRefresh: () => void;
-  onRetry: (taskType: RuntimeWorkflowTaskType, taskId: string) => void;
-  pendingTask: { task_type: RuntimeWorkflowTaskType; task_id: string } | null;
-  retrying: boolean;
-  workflow: RuntimeWorkflowStatusOverview | null;
-}) {
-  const latestFailure = workflow?.latest_failure ?? null;
-  const tasks = workflow?.recoverable_tasks ?? [];
-
-  return (
-    <Card className="grid gap-4 p-5">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <GitBranch className="size-4 text-sky-600" />
-            工作流后端
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <StatusBadge tone={workflow?.backend_status === 'DISPATCH_FAILED' ? 'unavailable' : 'healthy'}>
-              {workflow ? workflowBackendStatusLabel(workflow.backend_status) : '待加载'}
-            </StatusBadge>
-            <StatusBadge tone="ready">{workflow ? workflowBackendLabel(workflow.workflow_backend) : '-'}</StatusBadge>
-            <StatusBadge tone="planned">{workflow ? workflowModeLabel(workflow.workflow_mode) : '-'}</StatusBadge>
-          </div>
-        </div>
-        <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
-          刷新工作流
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载工作流状态...</div>
-      ) : latestFailure ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
-          <div className="font-medium">最近派发失败</div>
-          <p className="mt-1 leading-6 text-muted-foreground">{latestFailure.error_message}</p>
-          <div className="mt-1 text-xs text-muted-foreground">{latestFailure.occurred_at ? formatDateTime(latestFailure.occurred_at) : '-'}</div>
-        </div>
-      ) : null}
-
-      {tasks.length === 0 ? (
-        <EmptyState description="当前没有可恢复的工作流任务。" title="暂无恢复项" />
-      ) : (
-        <div className="grid gap-3">
-          {tasks.map((task) => {
-            const pending = retrying && pendingTask?.task_id === task.task_id && pendingTask.task_type === task.task_type;
-
-            return (
-              <div className="grid gap-3 rounded-md border bg-muted/20 px-3 py-3 md:grid-cols-[1fr_auto] md:items-center" key={`${task.task_type}:${task.task_id}`}>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="truncate text-sm font-medium">{task.title}</div>
-                    <StatusBadge tone="planned">{workflowTaskTypeLabel(task.task_type)}</StatusBadge>
-                    <StatusBadge tone="degraded">{task.workflow_task_type}</StatusBadge>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.error_message ?? '任务失败，等待恢复。'}</p>
-                  <div className="mt-1 flex flex-wrap gap-2 font-mono text-xs text-muted-foreground">
-                    <span>{task.task_id}</span>
-                    {task.channel_id ? <span>渠道 {task.channel_id}</span> : null}
-                    <span>{formatDateTime(task.updated_at)}</span>
-                  </div>
-                </div>
-                <Button disabled={pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
-                  <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />
-                  恢复重试
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function TraceDetailPanel({
-  loading,
-  trace,
-  traceId,
-}: {
-  loading: boolean;
-  trace: MonitorTraceDetail | null;
-  traceId: string | null;
-}) {
-  if (loading) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <div className="text-sm text-muted-foreground">正在加载 Trace 链路...</div>
-      </Card>
-    );
-  }
-
-  if (!traceId) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <EmptyState description="选择一条带 Trace ID 的事件后，在这里查看完整链路。" title="未选择 Trace" />
-      </Card>
-    );
-  }
-
-  if (!trace) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <EmptyState description="当前窗口没有找到该 Trace 的关联事件。" title="暂无链路详情" />
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="grid gap-4 p-5">
-      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={trace.metrics.failed_count > 0 ? 'degraded' : 'healthy'}>
-              {trace.metrics.failed_count > 0 ? '存在异常' : '链路正常'}
-            </StatusBadge>
-            <StatusBadge tone={trace.propagation.quality_score >= 80 ? 'healthy' : 'degraded'}>
-              传播质量 {trace.propagation.quality_score}%
-            </StatusBadge>
-          </div>
-          <h2 className="mt-3 text-base font-semibold">Trace 链路详情</h2>
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{trace.trace_id}</p>
-        </div>
-        <Button onClick={() => void navigator.clipboard?.writeText(trace.trace_id)} size="sm" type="button" variant="outline">
-          <Copy className="size-4" />
-          复制
-        </Button>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <DetailRow label="事件数量" value={formatInteger(trace.metrics.event_count)} />
-        <DetailRow label="总延迟" value={formatLatency(trace.metrics.total_latency_ms)} />
-        <DetailRow label="P95 延迟" value={formatLatency(trace.metrics.p95_latency_ms)} />
-        <DetailRow label="模块数量" value={formatInteger(trace.metrics.module_count)} />
-        <DetailRow label="总词元" value={formatInteger(trace.metrics.total_tokens)} />
-        <DetailRow label="总成本" value={formatMoney(trace.metrics.total_cost)} />
-      </div>
-
-      <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
-        <PropagationItem label="标准 Trace" value={trace.propagation.has_trace_id ? '已识别' : '缺失'} />
-        <PropagationItem label="Span 数量" value={formatInteger(trace.propagation.span_count)} />
-        <PropagationItem label="孤儿 Span" value={formatInteger(trace.propagation.orphan_span_count)} />
-        <PropagationItem label="缺失 Span" value={formatInteger(trace.propagation.missing_span_count)} />
-        <PropagationItem label="根 Span" value={formatInteger(trace.propagation.root_span_count)} />
-        <PropagationItem label="父子关系" value={trace.propagation.has_span_links ? '已连接' : '不完整'} />
-      </div>
-
-      {trace.errors.length ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          当前链路包含 {trace.errors.length} 条错误样本，优先检查时间线中的失败节点。
-        </div>
-      ) : null}
-
-      <div className="grid gap-3">
-        <div className="text-sm font-semibold">链路时间线</div>
-        <div className="relative grid gap-3">
-          {trace.timeline.map((item, index) => (
-            <div className="relative grid gap-2 rounded-md border bg-background px-3 py-3 shadow-sm" key={item.event_id}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={monitorStatusTone(item.status)}>{monitorStatusLabel(item.status)}</StatusBadge>
-                  <StatusBadge tone="planned">{monitorModuleLabel(item.module)}</StatusBadge>
-                  <span className="text-sm font-medium">{index + 1}. {item.title}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{formatLatency(item.duration_ms)}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">{item.summary}</p>
-              <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
-                <span>{monitorSourceTypeLabel(item.source_type)}</span>
-                <span>{monitorStepTypeLabel(item.step_type)}</span>
-                <span>{formatDateTime(item.started_at)}</span>
-                <span className="font-mono">span {item.span_id ? shortTraceId(item.span_id) : '-'}</span>
-                <span className="font-mono">parent {item.parent_span_id ? shortTraceId(item.parent_span_id) : '-'}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function PropagationItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 font-medium">{value}</div>
-    </div>
-  );
-}
-
-function TraceSignalCards({
-  loading,
-  overview,
-  onSelectTrace,
-}: {
-  loading: boolean;
-  overview: MonitorObservabilityOverview | null;
-  onSelectTrace: (traceId: string) => void;
-}) {
-  return (
-    <div className="grid gap-4">
-      <TraceSummaryList
-        emptyTitle="暂无慢链路"
-        items={overview?.slow_traces ?? []}
-        loading={loading}
-        title="慢 Trace"
-        onSelectTrace={onSelectTrace}
-      />
-      <TraceSummaryList
-        emptyTitle="暂无错误链路"
-        items={overview?.recent_error_traces ?? []}
-        loading={loading}
-        title="错误 Trace"
-        onSelectTrace={onSelectTrace}
-      />
-      <Card className="grid gap-4 p-5">
-        <h2 className="text-sm font-semibold">错误模块</h2>
-        {loading ? (
-          <div className="text-sm text-muted-foreground">正在计算错误模块...</div>
-        ) : !overview || overview.top_error_modules.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无错误模块。</p>
-        ) : (
-          <div className="grid gap-2">
-            {overview.top_error_modules.map((item) => (
-              <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-sm" key={item.module}>
-                <div>
-                  <div className="font-medium">{monitorModuleLabel(item.module)}</div>
-                  <div className="text-xs text-muted-foreground">{formatDateTime(item.latest_error_at)}</div>
-                </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <div className="font-medium text-foreground">{item.error_count} 次错误</div>
-                  <div>{item.trace_count} 条链路</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-function TraceSummaryList({
-  emptyTitle,
-  items,
-  loading,
-  title,
-  onSelectTrace,
-}: {
-  emptyTitle: string;
-  items: MonitorTraceSummaryItem[];
-  loading: boolean;
-  title: string;
-  onSelectTrace: (traceId: string) => void;
-}) {
-  return (
-    <Card className="grid gap-4 p-5">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载链路...</div>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyTitle}。</p>
-      ) : (
-        <div className="grid gap-3">
-          {items.map((trace) => (
-            <button
-              className="rounded-md border bg-muted/20 px-3 py-2 text-left transition-colors hover:bg-muted/40"
-              key={`${title}-${trace.trace_id}`}
-              onClick={() => onSelectTrace(trace.trace_id)}
-              type="button"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{trace.title}</div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">{shortTraceId(trace.trace_id)}</div>
-                </div>
-                <StatusBadge tone={trace.failed_count > 0 ? 'degraded' : 'healthy'}>
-                  {monitorModuleLabel(trace.module)}
-                </StatusBadge>
-              </div>
-              <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
-                <span>{trace.event_count} 事件</span>
-                <span>{trace.failed_count} 异常</span>
-                <span>{formatLatency(trace.p95_latency_ms)}</span>
-              </div>
-            </button>
           ))}
         </div>
       )}
@@ -1085,162 +692,7 @@ function RankingCard({
   );
 }
 
-function EventDetailPanel({
-  event,
-  loading,
-}: {
-  event: MonitorEventDetail | null;
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
-      </Card>
-    );
-  }
-
-  if (!event) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <EmptyState description="选择一条事件后，在这里查看请求、响应和错误细节。" title="未选择事件" />
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="grid gap-4 p-5">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={monitorStatusTone(event.status)}>{monitorStatusLabel(event.status)}</StatusBadge>
-          <StatusBadge tone="planned">{monitorModuleLabel(event.module)}</StatusBadge>
-          <StatusBadge tone="ready">{monitorSourceTypeLabel(event.source_type)}</StatusBadge>
-          {event.step_type ? (
-            <StatusBadge tone="healthy">{monitorStepTypeLabel(event.step_type)}</StatusBadge>
-          ) : null}
-        </div>
-        <h2 className="mt-3 text-base font-semibold">{event.title}</h2>
-        <p className="mt-1 text-xs font-mono text-muted-foreground">{event.trace_id}</p>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{event.summary}</p>
-      </div>
-
-      <div className="grid gap-3 text-sm">
-        <DetailRow label="发生时间" value={formatDateTime(event.occurred_at)} />
-        <DetailRow label="事件来源" value={monitorSourceTypeLabel(event.source_type)} />
-        <DetailRow label="步骤类型" value={monitorStepTypeLabel(event.step_type)} />
-        <DetailRow label="延迟" value={formatLatency(event.latency_ms)} />
-        <DetailRow label="词元" value={event.token_total?.toString() ?? '-'} />
-        <DetailRow label="成本" value={formatMoney(event.cost_total)} />
-      </div>
-
-      {event.error_message ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {event.error_message}
-        </div>
-      ) : null}
-
-      <JsonCard title="请求载荷" value={event.request_payload} />
-      <JsonCard title="响应载荷" value={event.response_payload} />
-      <JsonCard title="步骤 / 附加信息" value={event.step_payload} />
-    </Card>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1 rounded-md border bg-muted/20 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="break-words font-medium">{value}</div>
-    </div>
-  );
-}
-
-function JsonCard({ title, value }: { title: string; value: unknown }) {
-  return (
-    <div className="rounded-md border bg-slate-950 p-3">
-      <div className="mb-2 text-xs font-medium text-slate-300">{title}</div>
-      <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-100">
-        {JSON.stringify(value ?? null, null, 2)}
-      </pre>
-    </div>
-  );
-}
-
 function formatInteger(value: number | null | undefined) {
   if (value === null || value === undefined) return '-';
   return new Intl.NumberFormat('zh-CN').format(value);
-}
-
-function workflowBackendLabel(value: RuntimeWorkflowStatusOverview['workflow_backend']) {
-  if (value === 'TEMPORAL') return 'Temporal';
-  if (value === 'LOCAL_FALLBACK') return '本地兜底';
-  if (value === 'LOCAL') return '本地执行';
-  return '未确认后端';
-}
-
-function workflowModeLabel(value: RuntimeWorkflowStatusOverview['workflow_mode']) {
-  const labels: Record<RuntimeWorkflowStatusOverview['workflow_mode'], string> = {
-    local: '本地模式',
-    temporal_first: 'Temporal 优先',
-    temporal: '仅 Temporal',
-  };
-
-  return labels[value];
-}
-
-function workflowBackendStatusLabel(value: RuntimeWorkflowStatusOverview['backend_status']) {
-  return value === 'DISPATCH_FAILED' ? '派发失败' : '可用';
-}
-
-function workflowTaskTypeLabel(value: RuntimeWorkflowTaskType) {
-  const labels: Record<RuntimeWorkflowTaskType, string> = {
-    knowledge_task: '知识库任务',
-    channel_release_automation: '渠道自动推进',
-    channel_release_self_healing: '渠道发布自愈',
-  };
-
-  return labels[value];
-}
-
-async function getRuntimeWorkflowStatus(accessToken: string) {
-  const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/status`, {
-    headers: buildWorkflowHeaders(accessToken),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Workflow status request failed with HTTP ${response.status}`);
-  }
-
-  return (await response.json()) as RuntimeWorkflowStatusOverview;
-}
-
-async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: RuntimeWorkflowTaskType; task_id: string }) {
-  const headers = buildWorkflowHeaders(accessToken);
-  headers.set('content-type', 'application/json');
-  const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/retry`, {
-    body: JSON.stringify(input),
-    headers,
-    method: 'POST',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Workflow retry request failed with HTTP ${response.status}`);
-  }
-
-  return response.json();
-}
-
-function buildWorkflowHeaders(accessToken: string) {
-  const headers = new Headers();
-  headers.set('accept', 'application/json');
-  headers.set('x-request-id', `req_${crypto.randomUUID().replaceAll('-', '')}`);
-  if (accessToken) {
-    headers.set('authorization', `Bearer ${accessToken}`);
-  }
-  return headers;
-}
-
-function shortTraceId(value: string) {
-  if (value.length <= 12) return value;
-  return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }

@@ -44,6 +44,7 @@ export function ProviderFormPanel({
   onClose,
   onSubmit,
   provider,
+  presentation = 'drawer',
 }: {
   error?: string | null;
   isPending: boolean;
@@ -51,6 +52,7 @@ export function ProviderFormPanel({
   onClose: () => void;
   onSubmit: (values: ProviderFormValues) => void;
   provider?: ModelProviderDetail | null;
+  presentation?: 'drawer' | 'page';
 }) {
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
@@ -62,9 +64,16 @@ export function ProviderFormPanel({
   }, [form, provider]);
 
   const isEditing = mode === 'edit';
+  const isPage = presentation === 'page';
 
   return (
-    <section className="fixed inset-y-0 right-0 z-30 flex w-full max-w-xl flex-col border-l bg-background/95 shadow-xl backdrop-blur">
+    <section
+      className={
+        isPage
+          ? 'grid rounded-lg border bg-background shadow-sm'
+          : 'fixed inset-y-0 right-0 z-30 flex w-full max-w-xl flex-col border-l bg-background/95 shadow-xl backdrop-blur'
+      }
+    >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -79,7 +88,10 @@ export function ProviderFormPanel({
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className={isPage ? 'grid gap-5 p-6' : 'grid flex-1 gap-5 overflow-y-auto p-6'}
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="名称" message={form.formState.errors.name?.message}>
             <Input {...form.register('name')} />
@@ -121,7 +133,13 @@ export function ProviderFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div
+          className={
+            isPage
+              ? '-mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+              : 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+          }
+        >
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

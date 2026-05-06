@@ -504,6 +504,10 @@ export function createUser(input: CreateUserInput) {
   });
 }
 
+export function getUser(userId: string) {
+  return request<UserListItem>(`/users/${userId}`);
+}
+
 export function getTenant(tenantId: string) {
   return request<TenantDetail>(`/tenants/${tenantId}`);
 }
@@ -628,6 +632,10 @@ export function listResourceAcls(params: {
   status?: string;
 } = {}) {
   return request<ResourceAclItem[]>(`/resource-acls?${toSearchParams(params)}`);
+}
+
+export function getResourceAcl(resourceAclId: string) {
+  return request<ResourceAclItem>(`/resource-acls/${resourceAclId}`);
 }
 
 export function createResourceAcl(input: CreateResourceAclInput) {

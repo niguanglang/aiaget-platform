@@ -1,0 +1,53 @@
+# Project UI Brief
+
+- Page group: Agent 团队 IA 拆分
+- Routes:
+  - `/agent-teams`: 列表/总览页
+  - `/agent-teams/create`: 新增页
+  - `/agent-teams/[id]`: 详情页
+  - `/agent-teams/[id]/edit`: 编辑页
+  - `/agent-teams/[id]/members`: 成员管理页
+  - `/agent-teams/[id]/runs`: 运行记录页
+  - `/agent-teams/report-archives`: 报告归档页
+- Feature goal: 将原本混在 `agent-teams-content.tsx` 的列表、创建、编辑、详情、成员、运行、接力、反馈、报告归档能力拆成清晰路由边界，先完成基础信息架构和可用页面。
+- Target users: 租户管理员、Agent 管理员、团队运营人员、安全审批人员、审计人员。
+- Permissions:
+  - `agent:team:view`: 查看团队列表、详情、成员摘要、运行摘要、报告归档入口。
+  - `agent:team:manage`: 新建、编辑、删除团队，维护团队成员。
+  - `agent:team:run`: 启动团队运行。
+  - `security:approval:handle`: 处理接力审批和报告归档删除审批。
+- API/service contract:
+  - `getAgentTeamOverview()` for `/agent-teams` overview metrics.
+  - `listAgentTeams({ page, page_size, keyword, status, mode, owner_id })` for list filters and tables.
+  - `createAgentTeam(input)` for `/agent-teams/create`.
+  - `getAgentTeam(teamId)` for detail, edit, members, runs pages.
+  - `updateAgentTeam(teamId, input)` for `/agent-teams/[id]/edit`.
+  - `deleteAgentTeam(teamId)` from list/detail destructive action.
+  - `createAgentTeamMember(teamId, input)`, `updateAgentTeamMember(teamId, memberId, input)`, `deleteAgentTeamMember(teamId, memberId)` for `/members`.
+  - `startAgentTeamRun(teamId, { objective })` for `/runs`.
+  - `createAgentTeamHandoff(runId, input)`, `approveAgentTeamHandoff(handoffId, input)`, `rejectAgentTeamHandoff(handoffId, input)`, `createAgentTeamFeedback(runId, input)` as run detail actions surfaced from detail/runs pages.
+  - `exportAgentTeamRunReport(runId)`, `createAgentTeamRunReportArchive(runId)`, `listAgentTeamRunReportArchives()`, `getAgentTeamRunReportArchiveDownloadUrl(archiveId)`, `deleteAgentTeamRunReportArchive(archiveId)`, `listAgentTeamRunReportArchiveApprovals()`, `approveAgentTeamRunReportArchiveApproval(approvalId, input)`, `rejectAgentTeamRunReportArchiveApproval(approvalId, input)` for report archive workflows.
+- Entities and fields:
+  - `AgentTeamListItem`: `id`, `name`, `code`, `description`, `status`, `mode`, `handoff_policy`, `failure_policy`, `owner`, `member_count`, `active_member_count`, `run_count`, `latest_run`, `updated_at`.
+  - `AgentTeamDetail`: list item fields plus `members`, `runs`, `steps`, `handoffs`, `feedback`.
+  - `AgentTeamMemberItem`: `agent_name`, `agent_code`, `role`, `responsibility`, `execution_order`, `required`, `status`.
+  - `AgentTeamRunSummary`: `objective`, `status`, `trace_id`, `total_steps`, `completed_steps`, `failed_steps`, `total_tokens`, `total_cost`, `latency_ms`, `started_at`, `ended_at`, `created_at`.
+  - `AgentTeamRunReportArchiveItem`: `file_name`, `size_bytes`, `team_name`, `run_objective`, `last_modified`, `download_expires_in`.
+  - `AgentTeamRunReportArchiveApprovalItem`: `archive_file_name`, `status`, `reason`, `requested_by`, `reviewed_by`, `requested_at`, `reviewed_at`.
+- Status/enums:
+  - Team: `DRAFT`, `ACTIVE`, `DISABLED`, `ARCHIVED`.
+  - Mode: `SEQUENTIAL`, `PARALLEL`, `SUPERVISOR`.
+  - Handoff policy: `AUTO`, `MANUAL`, `APPROVAL_REQUIRED`.
+  - Failure policy: `MATCH_HANDOFF_POLICY`, `STOP_ON_REQUIRED_FAILURE`, `WAIT_HUMAN_ON_REQUIRED_FAILURE`, `CONTINUE_OPTIONAL`.
+  - Run: `QUEUED`, `RUNNING`, `WAITING_HUMAN`, `SUCCESS`, `FAILED`, `CANCELLED`.
+  - Handoff: `PENDING`, `APPROVED`, `REJECTED`, `AUTO`.
+  - Archive approval: `PENDING`, `APPROVED`, `REJECTED`, `APPLIED`.
+- Existing frontend stack/design system:
+  - Next.js app router under `apps/web/src/app/(console)`.
+  - Client components under `apps/web/src/components`.
+  - React Query for loading and mutations.
+  - Tailwind CSS utility classes.
+  - Local UI primitives: `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, `Card`.
+  - lucide-react icons for buttons and route actions.
+- Required states: loading, empty, error, validation, disabled by permission, mutation pending, destructive confirmation.
+- Design constraints: operational SaaS/admin style, Chinese UI, dense but scannable tables, no landing page, no decorative gradients/orbs, keep cards as repeated data items or framed tools only.

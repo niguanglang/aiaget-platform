@@ -40,6 +40,16 @@ export class UsersController {
     return this.usersService.create(currentUser, dto);
   }
 
+  @Get(':id')
+  @Permissions('system:user:view')
+  @ApiOkResponse({ description: 'Get tenant user detail' })
+  async get(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<UserListItem> {
+    return this.usersService.get(currentUser, id);
+  }
+
   @Patch(':id')
   @Permissions('system:user:manage')
   @ApiOkResponse({ description: 'Update tenant user' })

@@ -23,12 +23,14 @@ export function ConversationFormPanel({
   isPending,
   onClose,
   onSubmit,
+  presentation = 'drawer',
 }: {
   agents: AgentListItem[];
   error?: string | null;
   isPending: boolean;
   onClose: () => void;
   onSubmit: (values: ConversationFormValues) => void;
+  presentation?: 'drawer' | 'page';
 }) {
   const form = useForm<ConversationFormValues>({
     resolver: zodResolver(conversationFormSchema),
@@ -39,8 +41,16 @@ export function ConversationFormPanel({
     },
   });
 
+  const isPage = presentation === 'page';
+
   return (
-    <section className="fixed inset-y-0 right-0 z-30 flex w-full max-w-xl flex-col border-l bg-background/95 shadow-xl backdrop-blur">
+    <section
+      className={
+        isPage
+          ? 'grid rounded-lg border bg-background shadow-sm'
+          : 'fixed inset-y-0 right-0 z-30 flex w-full max-w-xl flex-col border-l bg-background/95 shadow-xl backdrop-blur'
+      }
+    >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -55,7 +65,10 @@ export function ConversationFormPanel({
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className={isPage ? 'grid gap-5 p-6' : 'grid flex-1 gap-5 overflow-y-auto p-6'}
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <Field label="智能体" message={form.formState.errors.agent_id?.message}>
           <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" {...form.register('agent_id')}>
             <option value="">选择智能体</option>
@@ -84,7 +97,13 @@ export function ConversationFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div
+          className={
+            isPage
+              ? '-mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+              : 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+          }
+        >
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

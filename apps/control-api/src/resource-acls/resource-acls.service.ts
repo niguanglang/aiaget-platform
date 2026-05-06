@@ -112,6 +112,12 @@ export class ResourceAclsService {
     return this.mapAcls(currentUser.tenantId, acls);
   }
 
+  async get(currentUser: AuthenticatedUser, id: string): Promise<ResourceAclItem> {
+    const acl = await this.ensureAcl(currentUser.tenantId, id);
+
+    return this.mapAcl(currentUser.tenantId, acl);
+  }
+
   async create(currentUser: AuthenticatedUser, dto: CreateResourceAclDto): Promise<ResourceAclItem> {
     const resourceType = normalizeResourceType(dto.resource_type);
     const subjectType = normalizeSubjectType(dto.subject_type);

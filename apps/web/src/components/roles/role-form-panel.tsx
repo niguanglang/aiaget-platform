@@ -29,6 +29,7 @@ interface RoleFormPanelProps {
   mode: 'create' | 'edit';
   onClose: () => void;
   onSubmit: (values: RoleFormValues) => void;
+  presentation?: 'drawer' | 'page';
   role?: RoleDetail | null;
 }
 
@@ -47,6 +48,7 @@ export function RoleFormPanel({
   mode,
   onClose,
   onSubmit,
+  presentation = 'drawer',
   role,
 }: RoleFormPanelProps) {
   const form = useForm<RoleFormValues>({
@@ -54,13 +56,20 @@ export function RoleFormPanel({
     defaultValues: formDefaults(role),
   });
   const isEditing = mode === 'edit';
+  const isPage = presentation === 'page';
 
   useEffect(() => {
     form.reset(formDefaults(role));
   }, [form, mode, role]);
 
   return (
-    <section className="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l bg-background shadow-xl">
+    <section
+      className={
+        isPage
+          ? 'grid rounded-lg border bg-background shadow-sm'
+          : 'fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l bg-background shadow-xl'
+      }
+    >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -75,7 +84,10 @@ export function RoleFormPanel({
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className={isPage ? 'grid gap-5 p-6' : 'grid flex-1 gap-5 overflow-y-auto p-6'}
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <Field label="角色名称" message={form.formState.errors.name?.message}>
           <input
             className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -117,7 +129,13 @@ export function RoleFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div
+          className={
+            isPage
+              ? '-mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+              : 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+          }
+        >
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

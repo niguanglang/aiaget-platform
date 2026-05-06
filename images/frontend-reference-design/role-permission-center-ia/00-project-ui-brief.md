@@ -1,0 +1,44 @@
+# Project UI Brief
+
+- Page: Role Permission Center IA
+- Route: /roles
+- Feature goal: Split role list, detail, create, edit, permission authorization, and menu authorization routes.
+- Users/roles: tenant_admin, system_admin, security_admin, auditor.
+- Business goal: Make RBAC management understandable: list page finds roles and performs simple lifecycle actions; detail page shows role facts and references; dedicated configuration pages own interface permissions and menu visibility.
+- APIs/services:
+  - `getRoleOverview`
+  - `listRoles`
+  - `createRole`
+  - `getRole`
+  - `updateRole`
+  - `deleteRole`
+  - `enableRole`
+  - `disableRole`
+  - `listRolePermissionCatalog`
+  - `updateRolePermissions`
+  - `getMenuTree`
+  - `listMenuRoleBindings`
+  - `updateMenuRoleBinding`
+- Entities/fields/statuses:
+  - Role list item: `name`, `code`, `description`, `status`, `is_system`, `permission_count`, `menu_count`, `user_count`, `created_at`, `updated_at`.
+  - Role detail: list fields plus `permissions`, `menus`, `users`.
+  - Permission catalog: module/resource/action grouped permission codes.
+  - Menu tree and role menu bindings.
+  - Status values: `ACTIVE`, `DISABLED`, `DELETED`.
+- Actions:
+  - List/search/filter roles.
+  - Route-level create/edit.
+  - Open role detail.
+  - Enable/disable role.
+  - Delete role with confirmation.
+  - Configure permissions at `/roles/[id]/permissions`.
+  - Configure menu authorization at `/roles/[id]/menus`.
+- Required states: loading, empty, error, disabled, permission-denied, mutation pending, delete confirmation, system role locked, tenant admin protected.
+- Existing components/design system:
+  - Next.js App Router console shell.
+  - Tailwind CSS.
+  - shadcn/ui-style `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`.
+  - `motion/react` for subtle row reveal.
+  - React Query for loading/mutations.
+  - Existing `RoleCenterBackground`, `RoleFormPanel`, `role-status` helpers.
+- Style constraints: Chinese UI text, enterprise SaaS console density, list-first hierarchy, configuration pages separate from list, subtle borders, soft shadows, no permission/menu matrices inside `/roles`.

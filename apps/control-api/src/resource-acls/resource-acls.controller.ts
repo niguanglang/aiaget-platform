@@ -54,6 +54,16 @@ export class ResourceAclsController {
     return this.resourceAclsService.list(currentUser, query);
   }
 
+  @Get(':id')
+  @Permissions('system:resource_acl:view')
+  @ApiOkResponse({ description: 'Resource ACL detail' })
+  async get(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<ResourceAclItem> {
+    return this.resourceAclsService.get(currentUser, id);
+  }
+
   @Post()
   @Permissions('system:resource_acl:manage')
   @ApiOkResponse({ description: 'Create Resource ACL rule' })

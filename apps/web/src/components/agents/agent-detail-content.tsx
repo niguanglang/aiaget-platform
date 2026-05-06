@@ -19,7 +19,6 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { AgentBindingManager } from '@/components/agents/agent-binding-manager';
 import { AgentConversationTestPanel } from '@/components/agents/agent-conversation-test-panel';
-import { AgentFormPanel, type AgentFormValues } from '@/components/agents/agent-form-panel';
 import { agentStatusLabel, agentStatusTone, agentVersionStatusLabel, formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -29,11 +28,8 @@ import {
   deleteAgent,
   disableAgent,
   getAgent,
-  listAgentCategories,
-  listUsers,
   publishAgent,
   rollbackAgent,
-  updateAgent,
   type ApiClientError,
 } from '@/lib/api-client';
 
@@ -41,9 +37,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AgentDetail | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [versionNote, setVersionNote] = useState('');
 
@@ -55,30 +49,6 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
   const agentQuery = useQuery({
     queryKey: ['agent', agentId],
     queryFn: () => getAgent(agentId),
-  });
-  const categoriesQuery = useQuery({
-    queryKey: ['agent-categories'],
-    queryFn: listAgentCategories,
-  });
-  const ownersQuery = useQuery({
-    queryKey: ['agent-owners'],
-    queryFn: () =>
-      listUsers({
-        page: 1,
-        page_size: 100,
-        status: 'ACTIVE',
-      }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: AgentFormValues }) =>
-      updateAgent(id, toUpdateInput(values)),
-    onSuccess: async (agent) => {
-      applyAgentResult(agent);
-      setIsEditing(false);
-      setFormError(null);
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
   });
 
   const createVersionMutation = useMutation({
@@ -145,17 +115,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     void queryClient.invalidateQueries({ queryKey: ['agents'] });
   }
 
-  function submitForm(values: AgentFormValues) {
-    setFormError(null);
-    updateMutation.mutate({
-      id: agentId,
-      values,
-    });
-  }
-
   const agent = agentQuery.data;
-  const categories = categoriesQuery.data ?? [];
-  const owners = ownersQuery.data?.items ?? [];
   const isActionPending =
     createVersionMutation.isPending ||
     publishMutation.isPending ||
@@ -211,9 +171,16 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button disabled={!canWrite} onClick={() => setIsEditing(true)} variant="outline">
-            <Edit className="size-4" />
-            编辑
+          <Button
+            asChild
+            aria-disabled={!canWrite}
+            className={!canWrite ? 'pointer-events-none opacity-60' : undefined}
+            variant="outline"
+          >
+            <Link href={`/agents/${agent.id}/edit`}>
+              <Edit className="size-4" />
+              编辑
+            </Link>
           </Button>
           <Button
             disabled={!canWrite || isActionPending}
@@ -386,22 +353,6 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
         )}
       </section>
 
-      {isEditing ? (
-        <AgentFormPanel
-          agent={agent}
-          categories={categories}
-          error={formError}
-          isPending={updateMutation.isPending}
-          mode="edit"
-          onClose={() => {
-            setFormError(null);
-            setIsEditing(false);
-          }}
-          onSubmit={submitForm}
-          owners={owners}
-        />
-      ) : null}
-
       {deleteTarget ? (
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
@@ -426,31 +377,6 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
       ) : null}
     </main>
   );
-}
-
-function toUpdateInput(values: AgentFormValues) {
-  return {
-    name: values.name,
-    description: nullableText(values.description),
-    avatar_url: nullableText(values.avatar_url),
-    category_id: nullableId(values.category_id),
-    owner_id: nullableId(values.owner_id),
-    status: values.status,
-    temperature: values.temperature,
-    max_context_tokens: values.max_context_tokens,
-    enable_stream: values.enable_stream,
-    enable_log: values.enable_log,
-  };
-}
-
-function nullableText(value?: string) {
-  const trimmed = value?.trim();
-
-  return trimmed ? trimmed : null;
-}
-
-function nullableId(value?: string) {
-  return value || null;
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {

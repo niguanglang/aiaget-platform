@@ -1,0 +1,7 @@
+{
+  "page": "Data Scope IA",
+  "route": "/data-scopes",
+  "feature": "Route-level data-scope overview, role detail, and role edit pages",
+  "images_generated": false,
+  "notes": "Reference prompts only; no real image generation requested for this batch."
+}

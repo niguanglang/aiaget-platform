@@ -1,0 +1,51 @@
+# Project UI Brief
+
+- Page: Model Center IA
+- Route: /models
+- Feature goal: Split provider list detail create edit routes and keep model configs api keys test logs in provider detail
+- Users/roles: tenant_admin, model_admin, agent_admin, auditor, tenant_viewer
+- Business goal: Make model provider management a clear CRUD + provider-detail workflow. The list page should only search, filter, summarize, and route into provider detail/edit/create. Provider detail owns models, masked API keys, compatibility tests, cost rules, rate limits, and call logs.
+- APIs/services:
+  - `listModelProviders`
+  - `createModelProvider`
+  - `getModelProvider`
+  - `updateModelProvider`
+  - `deleteModelProvider`
+  - `enableModelProvider`
+  - `disableModelProvider`
+  - `createModelApiKey`
+  - `deleteModelApiKey`
+  - `testModelProvider`
+  - `createModelConfig`
+  - `updateModelConfig`
+  - `deleteModelConfig`
+  - `enableModelConfig`
+  - `disableModelConfig`
+- Entities/fields/statuses:
+  - Model provider: `name`, `code`, `provider_type`, `base_url`, `status`, `is_default`, `description`, `model_count`, `enabled_model_count`, `api_key_count`, `last_call_at`, timestamps
+  - Model config: `name`, `model`, `capabilities`, `context_length`, `input_price`, `output_price`, `rate_limit_rpm`, `status`, `is_default`
+  - API key: `name`, `key_prefix`, `masked_key`, `status`, `last_used_at`, `created_at`
+  - Cost rule: `currency`, `input_price`, `output_price`, `unit`, `status`, `effective_from`
+  - Call log: `trace_id`, `request_model`, `status`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `total_cost`, `latency_ms`, `error_message`, `created_at`
+  - Test result: `trace_id`, `status`, `request_model`, `latency_ms`, `total_tokens`, `total_cost`, `output_text`, `error_message`
+  - Status values: `ACTIVE`, `DISABLED`, `DELETED`, `SUCCESS`, `FAILED`
+  - Provider types: `OPENAI_COMPATIBLE`, `AZURE_OPENAI`, `ANTHROPIC`, `LOCAL`
+  - Capabilities: `chat`, `embedding`, `rerank`, `vision`, `tool_call`
+- Actions:
+  - list/search/filter providers
+  - create/edit/delete provider
+  - enable/disable provider
+  - open provider detail
+  - create/edit/delete/enable/disable model config
+  - add/delete masked API key
+  - run compatibility test
+  - inspect cost rules and call logs
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, no-provider-selected, no-models, no-api-keys, no-call-logs, test-running, test-failed
+- Existing components/design system:
+  - Next.js App Router console shell
+  - Tailwind CSS
+  - shadcn/ui-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`
+  - motion/react for subtle transitions
+  - React Query data loading/mutations
+  - Existing `ProviderFormPanel`, `ModelFormPanel`, `ModelCenterBackground`, `model-status` helpers
+- Style constraints: Chinese UI text, clean enterprise SaaS console, dashboard/list layout, subtle borders, soft shadows, restrained glass treatment, no overpacked list rows.

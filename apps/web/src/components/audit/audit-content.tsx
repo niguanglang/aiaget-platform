@@ -3,15 +3,15 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
   ApprovalAuditOverview,
-  AuditEventDetail,
   AuditEventSourceType,
   AuditEventStatus,
   AuditOverview,
   AuditWindow,
 } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { AlertTriangle, Search } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Search } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { AuditCenterBackground } from '@/components/audit/audit-center-background';
@@ -21,18 +21,20 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getApprovalAuditOverview, getAuditEvent, getAuditOverview, listAuditEvents } from '@/lib/api-client';
+import { getApprovalAuditOverview, getAuditOverview, listAuditEvents } from '@/lib/api-client';
 
 const windows: AuditWindow[] = ['24h', '7d'];
 const sourceTypes: AuditEventSourceType[] = ['login', 'operation', 'approval_audit'];
 const statuses: AuditEventStatus[] = ['SUCCESS', 'DEGRADED', 'FAILED'];
 
 export function AuditContent() {
-  const [windowValue, setWindowValue] = useState<AuditWindow>('24h');
+  const searchParams = useSearchParams();
+  const initialWindow = parseAuditWindow(searchParams.get('window'));
+  const initialKeyword = searchParams.get('keyword') ?? '';
+  const [windowValue, setWindowValue] = useState<AuditWindow>(initialWindow);
   const [sourceType, setSourceType] = useState('');
   const [statusValue, setStatusValue] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [keyword, setKeyword] = useState(initialKeyword);
 
   const overviewQuery = useQuery({
     queryKey: ['audit-overview', windowValue],
@@ -58,13 +60,7 @@ export function AuditContent() {
   });
 
   const events = eventsQuery.data?.items ?? [];
-  const activeEventId = selectedEventId ?? events[0]?.event_id ?? null;
-
-  const selectedEventQuery = useQuery({
-    enabled: Boolean(activeEventId),
-    queryKey: ['audit-event', activeEventId],
-    queryFn: () => getAuditEvent(activeEventId ?? ''),
-  });
+  const inheritedQuery = buildInheritedQuery(windowValue, keyword);
 
   const metrics = useMemo(() => {
     const summary = overviewQuery.data?.summary;
@@ -105,7 +101,6 @@ export function AuditContent() {
             void overviewQuery.refetch();
             void approvalAuditOverviewQuery.refetch();
             void eventsQuery.refetch();
-            void selectedEventQuery.refetch();
           }}
           type="button"
           variant="outline"
@@ -151,7 +146,7 @@ export function AuditContent() {
         windowValue={windowValue}
       />
 
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[1.18fr_0.82fr]">
+      <section className="min-w-0">
         <Card className="min-w-0">
           <div className="border-b p-4">
             <div className="grid gap-4">
@@ -159,7 +154,7 @@ export function AuditContent() {
                 <div>
                   <h2 className="text-sm font-semibold">统一审计事件流</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    统一查看登录尝试和写操作记录，筛选用户、状态和窗口后直接查看上下文细节。
+                    统一查看登录尝试和写操作记录，筛选用户、状态和窗口后进入事件详情页查看上下文。
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -223,7 +218,7 @@ export function AuditContent() {
               <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    {['时间', '来源', '状态', '用户', '模块', '动作', '链路 ID', '摘要'].map((column) => (
+                    {['时间', '来源', '状态', '用户', '模块', '动作', '链路 ID', '摘要', '操作'].map((column) => (
                       <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
                         {column}
                       </th>
@@ -237,7 +232,6 @@ export function AuditContent() {
                       className="border-b transition-colors last:border-0 hover:bg-muted/25"
                       initial={{ opacity: 0, y: 8 }}
                       key={event.event_id}
-                      onClick={() => setSelectedEventId(event.event_id)}
                       transition={{ delay: index * 0.02, duration: 0.22 }}
                     >
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
@@ -253,6 +247,14 @@ export function AuditContent() {
                         <div className="font-medium">{event.title}</div>
                         <div className="line-clamp-1 text-xs text-muted-foreground">{event.summary}</div>
                       </td>
+                      <td className="px-4 py-3">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/audit/events/${event.event_id}${inheritedQuery}`}>
+                            <ExternalLink className="size-3.5" />
+                            查看详情
+                          </Link>
+                        </Button>
+                      </td>
                     </motion.tr>
                   ))}
                 </tbody>
@@ -260,11 +262,6 @@ export function AuditContent() {
             </div>
           )}
         </Card>
-
-        <AuditDetailPanel
-          event={selectedEventQuery.data ?? null}
-          loading={selectedEventQuery.isLoading}
-        />
       </section>
     </main>
   );
@@ -323,14 +320,14 @@ function FailureCard({
       ) : (
         <div className="grid gap-3">
           {failures.map((failure) => (
-            <div className="rounded-md border bg-muted/20 px-3 py-2" key={failure.event_id}>
+            <Link className="rounded-md border bg-muted/20 px-3 py-2 transition-colors hover:bg-muted/40" href={`/audit/events/${failure.event_id}`} key={failure.event_id}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">{failure.title}</div>
                 <span className="text-xs text-muted-foreground">{formatDateTime(failure.occurred_at)}</span>
               </div>
               <div className="mt-1 text-xs text-muted-foreground">{auditSourceLabel(failure.source_type)}</div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{failure.error_message}</p>
-            </div>
+            </Link>
           ))}
         </div>
       )}
@@ -419,79 +416,14 @@ function BridgeMetric({ helper, label, value }: { helper: string; label: string;
   );
 }
 
-function AuditDetailPanel({
-  event,
-  loading,
-}: {
-  event: AuditEventDetail | null;
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
-      </Card>
-    );
-  }
-
-  if (!event) {
-    return (
-      <Card className="grid gap-4 p-5">
-        <EmptyState description="选择一条审计事件后，在这里查看 IP、请求摘要和错误信息。" title="未选择事件" />
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="grid gap-4 p-5">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={auditStatusTone(event.status)}>{auditStatusLabel(event.status)}</StatusBadge>
-          <StatusBadge tone="planned">{auditSourceLabel(event.source_type)}</StatusBadge>
-        </div>
-        <h2 className="mt-3 text-base font-semibold">{event.title}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{event.user_email}</p>
-      </div>
-
-      <div className="grid gap-3 text-sm">
-        <DetailRow label="发生时间" value={formatDateTime(event.occurred_at)} />
-        <DetailRow label="模块" value={event.module ?? '-'} />
-        <DetailRow label="动作" value={event.action ?? '-'} />
-        <DetailRow label="链路 ID" value={event.request_id ?? '-'} />
-        <DetailRow label="IP 地址" value={event.ip ?? '-'} />
-        <DetailRow label="客户端标识" value={event.user_agent ?? '-'} />
-        <DetailRow label="请求路径" value={event.path ?? '-'} />
-        <DetailRow label="请求方法" value={event.method ?? '-'} />
-        <DetailRow label="状态码" value={event.status_code?.toString() ?? '-'} />
-      </div>
-
-      {event.error_message ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {event.error_message}
-        </div>
-      ) : null}
-
-      <JsonCard title="请求摘要" value={event.request_summary} />
-    </Card>
-  );
+function parseAuditWindow(value: string | null): AuditWindow {
+  return value === '7d' ? '7d' : '24h';
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1 rounded-md border bg-muted/20 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="break-words font-medium">{value}</div>
-    </div>
-  );
-}
-
-function JsonCard({ title, value }: { title: string; value: unknown }) {
-  return (
-    <div className="rounded-md border bg-slate-950 p-3">
-      <div className="mb-2 text-xs font-medium text-slate-300">{title}</div>
-      <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-100">
-        {JSON.stringify(value ?? null, null, 2)}
-      </pre>
-    </div>
-  );
+function buildInheritedQuery(windowValue: AuditWindow, keyword: string) {
+  const params = new URLSearchParams();
+  params.set('window', windowValue);
+  if (keyword.trim()) params.set('keyword', keyword.trim());
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }

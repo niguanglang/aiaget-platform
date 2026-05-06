@@ -1,0 +1,14 @@
+# Component Mapping
+
+| Reference region | Existing/new component/file | API/type backing it | Notes |
+| --- | --- | --- | --- |
+| Compatible overview | `apps/web/src/app/(console)/channels/page.tsx`, `apps/web/src/components/channels/channel-content.tsx` | `getPublishChannelOverview`, existing channel operations | Leave `/channels` on `ChannelContent`; this is the only route that should import it. |
+| Shared focused-page shell | `apps/web/src/components/channels/channel-operations-pages.tsx` | `useAuth`, `hasPermission`, React Query, `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState` | New small shared shell/nav/filter/list helpers for real subpages; no dependency on `ChannelContent`. |
+| Publish page | `apps/web/src/components/channels/channel-publish-content.tsx` | `getPublishChannelOverview`, `enablePublishChannel`, `disablePublishChannel`, `checkPublishChannel`, `PublishChannelListItem` | Focused published-channel inventory with health/status metrics and row details/actions. |
+| Accounts page | `apps/web/src/components/channels/channel-accounts-content.tsx` | `listChannelProviders`, `listChannelAccounts`, `enableChannelAccount`, `disableChannelAccount`, `deleteChannelAccount`, `ChannelProviderItem`, `ChannelAccountItem` | Shows provider context and account credential inventory; status/delete actions live in row details. |
+| Templates page | `apps/web/src/components/channels/channel-templates-content.tsx` | `listChannelTemplates`, `enableChannelTemplate`, `disableChannelTemplate`, `deleteChannelTemplate`, `ChannelTemplateItem` | Template list keeps only code/type/language/version/provider/status in primary row. |
+| Route rules page | `apps/web/src/components/channels/channel-route-rules-content.tsx` | `listChannelRouteRules`, `enableChannelRouteRule`, `disableChannelRouteRule`, `deleteChannelRouteRule`, `ChannelRouteRuleItem` | Route list centers priority, match, target, fallback and status; advanced metadata in details. |
+| Jobs page | `apps/web/src/components/channels/channel-jobs-content.tsx` | `listChannelPublishJobs`, `cancelChannelPublishJob`, `retryChannelPublishJob`, `ChannelPublishJobItem` | Operational queue/tracker with progress, retry count, timestamps, error details, deploy-only actions. |
+| Deliveries page | `apps/web/src/components/channels/channel-deliveries-content.tsx` | `listChannelDeliveries`, `ChannelDeliveryItem` | Delivery ledger focused on response/latency/retry/trace/error inspection; read-only actions. |
+| Route wrappers | `apps/web/src/app/(console)/channels/**/page.tsx` | Next App Router | Continue to render the corresponding focused content component. |
+| IA contract test | `apps/web/src/components/channels/channels-route-ia-contract.test.ts` | Node test source scanning | Guards against returning to thin `ChannelContent` wrappers and verifies route responsibility keywords/API names. |

@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { DepartmentDetail, DepartmentTreeItem, UserListItem } from '@aiaget/shared-types';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -36,6 +36,7 @@ interface DepartmentFormPanelProps {
   onClose: () => void;
   onSubmit: (values: DepartmentFormValues) => void;
   parent?: DepartmentTreeItem | null;
+  presentation?: 'drawer' | 'page';
 }
 
 function formDefaults(department?: DepartmentDetail | null, parent?: DepartmentTreeItem | null): DepartmentFormValues {
@@ -60,6 +61,7 @@ export function DepartmentFormPanel({
   onClose,
   onSubmit,
   parent,
+  presentation = 'drawer',
 }: DepartmentFormPanelProps) {
   const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
@@ -67,13 +69,20 @@ export function DepartmentFormPanel({
   });
   const parentOptions = useMemo(() => flattenParentOptions(departmentTree, department?.id), [departmentTree, department?.id]);
   const isEditing = mode === 'edit';
+  const isPage = presentation === 'page';
 
   useEffect(() => {
     form.reset(formDefaults(department, parent));
   }, [department, form, mode, parent]);
 
   return (
-    <section className="fixed inset-y-0 right-0 z-40 flex w-full max-w-2xl flex-col border-l bg-background shadow-xl">
+    <section
+      className={
+        isPage
+          ? 'grid rounded-lg border bg-background shadow-sm'
+          : 'fixed inset-y-0 right-0 z-40 flex w-full max-w-2xl flex-col border-l bg-background shadow-xl'
+      }
+    >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -82,13 +91,23 @@ export function DepartmentFormPanel({
               部门归属会成为用户主体属性，后续可用于数据范围、知识库密级和资源授权。
             </p>
           </div>
-          <Button onClick={onClose} size="icon" type="button" variant="ghost">
-            <X className="size-4" />
-          </Button>
+          {isPage ? (
+            <Button onClick={onClose} type="button" variant="outline">
+              <ArrowLeft className="size-4" />
+              返回
+            </Button>
+          ) : (
+            <Button onClick={onClose} size="icon" type="button" variant="ghost">
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className={isPage ? 'grid gap-5 p-6' : 'grid flex-1 gap-5 overflow-y-auto p-6'}
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="部门名称" message={form.formState.errors.name?.message}>
             <input
@@ -168,7 +187,13 @@ export function DepartmentFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div
+          className={
+            isPage
+              ? '-mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+              : 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'
+          }
+        >
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

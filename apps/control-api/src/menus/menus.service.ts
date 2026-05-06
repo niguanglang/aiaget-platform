@@ -189,29 +189,39 @@ export class MenusService {
       throw new BadRequestException('Menu with child nodes cannot be deleted');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.roleMenu.updateMany({
+    const [roleBindingCount, pluginMenuBindingCount] = await this.prisma.$transaction([
+      this.prisma.roleMenu.count({
         where: {
           tenantId: currentUser.tenantId,
           menuId: id,
           deletedAt: null,
         },
-        data: {
-          deletedAt: new Date(),
-          updatedBy: currentUser.id,
-        },
       }),
-      this.prisma.menu.update({
+      this.prisma.pluginMenuBinding.count({
         where: {
-          id,
-        },
-        data: {
-          deletedAt: new Date(),
-          enabled: false,
-          updatedBy: currentUser.id,
+          tenantId: currentUser.tenantId,
+          menuId: id,
+          deletedAt: null,
         },
       }),
     ]);
+
+    if (roleBindingCount > 0 || pluginMenuBindingCount > 0) {
+      throw new BadRequestException(
+        `菜单仍存在依赖，不能删除。请先解除角色绑定 ${roleBindingCount} 个、插件菜单绑定 ${pluginMenuBindingCount} 个。`,
+      );
+    }
+
+    await this.prisma.menu.update({
+      where: {
+        id,
+      },
+      data: {
+        deletedAt: new Date(),
+        enabled: false,
+        updatedBy: currentUser.id,
+      },
+    });
 
     return { success: true };
   }

@@ -277,7 +277,15 @@ const channelOperationsModules: Array<{ description: string; label: string; valu
   { description: '入站回复与关联链路', label: '回复记录', value: 'replies' },
 ];
 
-export function ChannelContent() {
+interface ChannelContentProps {
+  focusOperationsOnly?: boolean;
+  initialOperationsModule?: ChannelOperationsModule;
+}
+
+export function ChannelContent({
+  focusOperationsOnly = false,
+  initialOperationsModule = 'overview',
+}: ChannelContentProps = {}) {
   const queryClient = useQueryClient();
   const auth = useAuthPermissions();
   const [keyword, setKeyword] = useState('');
@@ -289,7 +297,7 @@ export function ChannelContent() {
   const [senderProviderFilter, setSenderProviderFilter] = useState('');
   const [senderAllChannels, setSenderAllChannels] = useState(false);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
-  const [operationsModule, setOperationsModule] = useState<ChannelOperationsModule>('overview');
+  const [operationsModule, setOperationsModule] = useState<ChannelOperationsModule>(initialOperationsModule);
   const [operationsKeyword, setOperationsKeyword] = useState('');
   const [operationsStatusFilter, setOperationsStatusFilter] = useState('');
   const [operationsProviderFilter, setOperationsProviderFilter] = useState('');
@@ -1364,6 +1372,8 @@ export function ChannelContent() {
         total={activeOperationsResult?.total ?? activeOperationsItems.length}
       />
 
+      {!focusOperationsOnly ? (
+        <>
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <Card className="overflow-hidden">
           <div className="border-b p-4">
@@ -1697,6 +1707,8 @@ export function ChannelContent() {
         selectedSnapshotId={selectedSnapshotId}
         targetSnapshotId={targetSnapshotId}
       />
+        </>
+      ) : null}
     </main>
   );
 }

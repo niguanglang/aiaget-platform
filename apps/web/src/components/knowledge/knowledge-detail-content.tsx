@@ -32,7 +32,6 @@ import {
   KnowledgeDocumentFormPanel,
   type KnowledgeDocumentFormValues,
 } from '@/components/knowledge/knowledge-document-form-panel';
-import { KnowledgeFormPanel, type KnowledgeFormValues } from '@/components/knowledge/knowledge-form-panel';
 import {
   formatDateTime,
   formatFileSize,
@@ -53,11 +52,9 @@ import {
   deleteKnowledgeDocument,
   getKnowledgeBase,
   getKnowledgeDocument,
-  listUsers,
   rebuildKnowledgeIndex,
   reprocessKnowledgeDocument,
   runKnowledgeRetrievalTest,
-  updateKnowledgeBase,
   uploadKnowledgeDocument,
   type ApiClientError,
 } from '@/lib/api-client';
@@ -68,12 +65,10 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [isEditingBase, setIsEditingBase] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [deleteBaseTarget, setDeleteBaseTarget] = useState<KnowledgeBaseDetail | null>(null);
   const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<KnowledgeDocumentListItem | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [retrievalError, setRetrievalError] = useState<string | null>(null);
   const [retrievalQuery, setRetrievalQuery] = useState('认证部署指南');
@@ -90,13 +85,7 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
     queryKey: ['knowledge-base', knowledgeId],
     queryFn: () => getKnowledgeBase(knowledgeId),
   });
-  const ownersQuery = useQuery({
-    queryKey: ['knowledge-owners'],
-    queryFn: () => listUsers({ page: 1, page_size: 100, status: 'ACTIVE' }),
-  });
-
   const base = baseQuery.data ?? null;
-  const owners = ownersQuery.data?.items ?? [];
   const activeDocumentId = selectedDocumentId ?? base?.documents[0]?.id ?? null;
   const hasActiveBackgroundWork = hasActiveKnowledgeBackgroundWork(base);
 
@@ -146,16 +135,6 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
       { label: '智能体', value: `${base.agent_reference_count}`, helper: '知识库绑定' },
     ];
   }, [base]);
-
-  const updateBaseMutation = useMutation({
-    mutationFn: (values: KnowledgeFormValues) => updateKnowledgeBase(knowledgeId, toUpdateInput(values)),
-    onSuccess: async (result) => {
-      await applyBaseResult(result);
-      setIsEditingBase(false);
-      setFormError(null);
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
 
   const uploadMutation = useMutation({
     mutationFn: (values: KnowledgeDocumentFormValues) =>
@@ -314,10 +293,19 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={!canWrite} onClick={() => setIsEditingBase(true)} variant="outline">
-            <Edit className="size-4" />
-            编辑
-          </Button>
+          {canWrite ? (
+            <Button asChild variant="outline">
+              <Link href={`/knowledge/${knowledgeId}/edit`}>
+                <Edit className="size-4" />
+                编辑
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled variant="outline">
+              <Edit className="size-4" />
+              编辑
+            </Button>
+          )}
           <Button disabled={!canWrite} onClick={() => setIsUploading(true)} variant="outline">
             <FileUp className="size-4" />
             上传
@@ -381,24 +369,6 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
         <RecallLogsCard base={base} />
         <AgentReferencesCard base={base} />
       </section>
-
-      {isEditingBase ? (
-        <KnowledgeFormPanel
-          base={base}
-          error={formError}
-          isPending={updateBaseMutation.isPending}
-          mode="edit"
-          onClose={() => {
-            setFormError(null);
-            setIsEditingBase(false);
-          }}
-          onSubmit={(values) => {
-            setFormError(null);
-            updateBaseMutation.mutate(values);
-          }}
-          owners={owners}
-        />
-      ) : null}
 
       {isUploading ? (
         <KnowledgeDocumentFormPanel
@@ -873,23 +843,9 @@ function ConfirmDialog({
   );
 }
 
-function toUpdateInput(values: KnowledgeFormValues) {
-  return {
-    name: values.name,
-    visibility: values.visibility,
-    status: values.status,
-    description: nullableText(values.description),
-    owner_id: nullableId(values.owner_id),
-  };
-}
-
 function nullableText(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function nullableId(value?: string) {
-  return value || null;
 }
 
 function mimeTypeForSource(sourceType: KnowledgeSourceType) {

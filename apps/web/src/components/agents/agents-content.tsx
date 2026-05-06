@@ -1,26 +1,21 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { hasPermission, type AgentDetail, type AgentListItem, type AgentStatus } from '@aiaget/shared-types';
-import { Edit, Eye, Plus, Search, Trash2, X } from 'lucide-react';
+import { hasPermission, type AgentListItem, type AgentStatus } from '@aiaget/shared-types';
+import { Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { AgentFormPanel, type AgentFormValues } from '@/components/agents/agent-form-panel';
 import { agentStatusLabel, agentStatusTone, formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
-  createAgent,
   deleteAgent,
-  getAgent,
   listAgentCategories,
   listAgents,
   listUsers,
-  updateAgent,
-  type ApiClientError,
 } from '@/lib/api-client';
 
 const statusOptions: AgentStatus[] = ['DRAFT', 'TESTING', 'PENDING', 'PUBLISHED', 'DISABLED', 'ARCHIVED'];
@@ -32,12 +27,7 @@ export function AgentsContent() {
   const [status, setStatus] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [ownerId, setOwnerId] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState<AgentListItem | null>(null);
-  const [editingAgent, setEditingAgent] = useState<AgentDetail | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AgentListItem | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [editLoadingId, setEditLoadingId] = useState<string | null>(null);
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -70,34 +60,11 @@ export function AgentsContent() {
       }),
   });
 
-  const createMutation = useMutation({
-    mutationFn: createAgent,
-    onSuccess: async (agent) => {
-      await queryClient.invalidateQueries({ queryKey: ['agents'] });
-      setSelectedAgent(agent);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: AgentFormValues }) =>
-      updateAgent(id, toUpdateInput(values)),
-    onSuccess: async (agent) => {
-      await queryClient.invalidateQueries({ queryKey: ['agents'] });
-      queryClient.setQueryData(['agent', agent.id], agent);
-      setSelectedAgent(agent);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: deleteAgent,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['agents'] });
       setDeleteTarget(null);
-      setSelectedAgent(null);
     },
   });
 
@@ -126,61 +93,12 @@ export function AgentsContent() {
     [agents, agentsQuery.data?.total],
   );
 
-  function openCreateForm() {
-    setFormError(null);
-    setEditingAgent(null);
-    setIsCreating(true);
-  }
-
-  async function openEditForm(agent: AgentListItem) {
-    setFormError(null);
-    setIsCreating(false);
-    setEditLoadingId(agent.id);
-
-    try {
-      const detail = await queryClient.fetchQuery({
-        queryKey: ['agent', agent.id],
-        queryFn: () => getAgent(agent.id),
-      });
-
-      setEditingAgent(detail);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : '智能体详情加载失败。');
-    } finally {
-      setEditLoadingId(null);
-    }
-  }
-
-  function closeForm() {
-    setFormError(null);
-    setIsCreating(false);
-    setEditingAgent(null);
-  }
-
-  function submitForm(values: AgentFormValues) {
-    setFormError(null);
-
-    if (isCreating) {
-      createMutation.mutate(toCreateInput(values));
-      return;
-    }
-
-    if (editingAgent) {
-      updateMutation.mutate({
-        id: editingAgent.id,
-        values,
-      });
-    }
-  }
-
   function clearFilters() {
     setKeyword('');
     setStatus('');
     setCategoryId('');
     setOwnerId('');
   }
-
-  const isFormOpen = isCreating || Boolean(editingAgent);
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -196,9 +114,11 @@ export function AgentsContent() {
             管理租户智能体、运行默认值、版本快照、发布状态和审计历史。
           </p>
         </div>
-        <Button disabled={!canWrite} onClick={openCreateForm}>
-          <Plus className="size-4" />
-          新建智能体
+        <Button asChild aria-disabled={!canWrite} className={!canWrite ? 'pointer-events-none opacity-60' : undefined}>
+          <Link href="/agents/create">
+            <Plus className="size-4" />
+            新建智能体
+          </Link>
         </Button>
       </section>
 
@@ -305,17 +225,13 @@ export function AgentsContent() {
                 {agents.map((agent) => (
                   <tr className="border-b last:border-0" key={agent.id}>
                     <td className="px-4 py-3">
-                      <button
-                        className="grid max-w-sm gap-1 text-left"
-                        onClick={() => setSelectedAgent(agent)}
-                        type="button"
-                      >
+                      <Link className="grid max-w-sm gap-1 text-left transition-colors hover:text-blue-700" href={`/agents/${agent.id}`}>
                         <span className="font-medium">{agent.name}</span>
                         <span className="text-xs text-muted-foreground">{agent.code}</span>
                         {agent.description ? (
                           <span className="line-clamp-1 text-xs text-muted-foreground">{agent.description}</span>
                         ) : null}
-                      </button>
+                      </Link>
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge tone={agentStatusTone(agent.status)}>{agentStatusLabel(agent.status)}</StatusBadge>
@@ -333,13 +249,16 @@ export function AgentsContent() {
                           </Link>
                         </Button>
                         <Button
-                          disabled={!canWrite || editLoadingId === agent.id}
-                          onClick={() => void openEditForm(agent)}
+                          asChild
+                          aria-disabled={!canWrite}
+                          className={!canWrite ? 'pointer-events-none opacity-60' : undefined}
                           size="sm"
                           title="编辑"
                           variant="outline"
                         >
-                          <Edit className="size-4" />
+                          <Link href={`/agents/${agent.id}/edit`}>
+                            <Edit className="size-4" />
+                          </Link>
                         </Button>
                         <Button
                           disabled={!canWrite}
@@ -359,66 +278,6 @@ export function AgentsContent() {
           </div>
         )}
       </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
-        <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">配置覆盖</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {[
-              ['基础资料', '名称、编码、分类、负责人、头像、描述'],
-              ['运行默认值', '温度、上下文词元、流式响应和日志开关'],
-              ['生命周期', '草稿、测试中、待发布、已发布、已停用、已归档'],
-              ['资源绑定', 'M04-M07 的模型、提示词、知识库和工具占位'],
-            ].map(([label, value]) => (
-              <div className="rounded-md border bg-muted/30 px-3 py-2" key={label}>
-                <div className="text-xs text-muted-foreground">{label}</div>
-                <div className="mt-1 text-sm font-medium">{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-background p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">选中的智能体</h2>
-            {selectedAgent ? (
-              <Button onClick={() => setSelectedAgent(null)} size="icon" variant="ghost">
-                <X className="size-4" />
-              </Button>
-            ) : null}
-          </div>
-          {selectedAgent ? (
-            <div className="mt-4 grid gap-3 text-sm">
-              <DetailRow label="名称" value={selectedAgent.name} />
-              <DetailRow label="编码" value={selectedAgent.code} />
-              <DetailRow label="状态" value={agentStatusLabel(selectedAgent.status)} />
-              <DetailRow label="版本" value={`v${selectedAgent.version}`} />
-              <DetailRow label="分类" value={selectedAgent.category?.name ?? '-'} />
-              <DetailRow label="负责人" value={selectedAgent.owner?.email ?? '-'} />
-              <Button asChild className="mt-1" variant="outline">
-                <Link href={`/agents/${selectedAgent.id}`}>打开完整详情</Link>
-              </Button>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              选择一行查看摘要，或打开详情页处理版本、发布、回滚和审计。
-            </p>
-          )}
-        </div>
-      </section>
-
-      {isFormOpen ? (
-        <AgentFormPanel
-          agent={editingAgent}
-          categories={categories}
-          error={formError}
-          isPending={createMutation.isPending || updateMutation.isPending}
-          mode={isCreating ? 'create' : 'edit'}
-          onClose={closeForm}
-          onSubmit={submitForm}
-          owners={owners}
-        />
-      ) : null}
 
       {deleteTarget ? (
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
@@ -443,54 +302,5 @@ export function AgentsContent() {
         </section>
       ) : null}
     </main>
-  );
-}
-
-function toCreateInput(values: AgentFormValues) {
-  return {
-    name: values.name,
-    code: values.code,
-    description: nullableText(values.description),
-    avatar_url: nullableText(values.avatar_url),
-    category_id: nullableId(values.category_id),
-    owner_id: nullableId(values.owner_id),
-    temperature: values.temperature,
-    max_context_tokens: values.max_context_tokens,
-    enable_stream: values.enable_stream,
-    enable_log: values.enable_log,
-  };
-}
-
-function toUpdateInput(values: AgentFormValues) {
-  return {
-    name: values.name,
-    description: nullableText(values.description),
-    avatar_url: nullableText(values.avatar_url),
-    category_id: nullableId(values.category_id),
-    owner_id: nullableId(values.owner_id),
-    status: values.status,
-    temperature: values.temperature,
-    max_context_tokens: values.max_context_tokens,
-    enable_stream: values.enable_stream,
-    enable_log: values.enable_log,
-  };
-}
-
-function nullableText(value?: string) {
-  const trimmed = value?.trim();
-
-  return trimmed ? trimmed : null;
-}
-
-function nullableId(value?: string) {
-  return value || null;
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1 rounded-md border bg-muted/30 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="break-words font-medium">{value}</div>
-    </div>
   );
 }

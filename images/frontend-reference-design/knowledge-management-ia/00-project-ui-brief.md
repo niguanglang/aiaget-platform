@@ -1,0 +1,46 @@
+# Project UI Brief
+
+- Page: Knowledge Management IA
+- Route: /knowledge
+- Feature goal: Split knowledge list create edit detail documents retrieval responsibilities
+- Users/roles: tenant_admin, tenant_operator, tenant_viewer, knowledge_admin, agent_admin
+- Business goal: Make knowledge base management a clear CRUD + detail workflow, with documents, segments, tasks, recall logs, and retrieval testing kept in the detail view only.
+- APIs/services:
+  - `listKnowledgeBases`
+  - `getKnowledgeOverview`
+  - `createKnowledgeBase`
+  - `getKnowledgeBase`
+  - `updateKnowledgeBase`
+  - `deleteKnowledgeBase`
+  - `uploadKnowledgeDocument`
+  - `getKnowledgeDocument`
+  - `deleteKnowledgeDocument`
+  - `reprocessKnowledgeDocument`
+  - `runKnowledgeRetrievalTest`
+  - `rebuildKnowledgeIndex`
+  - `listUsers`
+- Entities/fields/statuses:
+  - Knowledge base list/detail: `name`, `code`, `visibility`, `status`, `description`, `owner`, `document_count`, `segment_count`, `failed_task_count`, `recall_count`, `agent_reference_count`, timestamps
+  - Knowledge document: `title`, `source_type`, `file_name`, `file_size`, `storage_path`, `status`, `segment_count`, `token_count`, `error_message`, `uploaded_by`
+  - Knowledge segment: `content`, `keywords`, `embedding_model`, `vector_backend`, `keyword_backend`, `vector_status`, `index_status`
+  - Knowledge task: `task_type`, `status`, `total_items`, `processed_items`, `started_at`, `ended_at`, `error_message`
+  - Knowledge recall log: `query`, `mode`, `top_k`, `status`, `latency_ms`, `result_count`, `results`, `error_message`
+  - Knowledge overview summary: `knowledge_base_count`, `processing_document_count`, `vector_ready_rate`, `keyword_ready_rate`, `recall_success_rate_24h`
+- Actions:
+  - list/search/filter knowledge bases
+  - create/edit/delete knowledge base
+  - upload document
+  - reprocess document
+  - delete document
+  - rebuild index
+  - run retrieval test
+  - open detail page
+  - open edit page
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, background-processing, no-documents, no-segments, no-recall-results
+- Existing components/design system:
+  - Next.js App Router console shell
+  - Tailwind CSS
+  - shadcn/ui-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`
+  - motion/react for subtle entry animations
+  - glassy borders, soft shadows, backdrop blur, restrained gradients, Chinese UI text
+- Style constraints: match the current project design system, keep list pages dense but not overloaded, and keep detail pages as the primary place for documents and retrieval operations.

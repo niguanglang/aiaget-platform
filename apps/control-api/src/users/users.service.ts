@@ -147,6 +147,12 @@ export class UsersService {
     }
   }
 
+  async get(currentUser: AuthenticatedUser, userId: string): Promise<UserListItem> {
+    const user = await this.ensureUser(currentUser.tenantId, userId);
+
+    return this.mapUser(user);
+  }
+
   async update(
     currentUser: AuthenticatedUser,
     userId: string,

@@ -1,0 +1,35 @@
+# Project UI Brief
+
+- Page: Audit Center IA
+- Routes: `/audit`, `/audit/events/[id]`
+- Feature goal: Split the audit center into a list/overview route and a dedicated event detail route. The list page stays focused on overview, filters, failure rankings, and table navigation; event context moves to its own page.
+- Users/roles: security admin, auditor, platform operator, tenant admin with `securityAuditView` menu/permission access.
+- Business goal: Let operators scan audit volume and failures quickly, preserve query-linked investigation entry points, and open a focused event detail page for request context, Trace, subjects, JSON payload, and related timeline.
+- APIs/services:
+  - `getAuditOverview({ window })`
+  - `listAuditEvents({ page, page_size, window, source_type, status, keyword })`
+  - `getAuditEvent(eventId)`
+  - `getApprovalAuditOverview({ window })`
+- Entities/fields/statuses:
+  - List item: `event_id`, `source_type`, `status`, `user_email`, `module`, `action`, `request_id`, `title`, `summary`, `occurred_at`.
+  - Detail: list identity plus `ip`, `user_agent`, `path`, `method`, `status_code`, `error_message`, `request_summary`.
+  - Overview: `summary`, `user_rankings`, `module_rankings`, `failures`.
+  - Status values: `SUCCESS`, `DEGRADED`, `FAILED`; source values: `login`, `operation`, `approval_audit`; window values: `24h`, `7d`.
+- User actions:
+  - Change window/source/status filters.
+  - Search by user, module, request ID, or Trace keyword.
+  - Clear filters.
+  - Refresh list and overview data.
+  - Open event detail via row action/link while carrying current `window` and `keyword`.
+  - Jump from failure/risk entries to related filtered list or detail when supported.
+- Compatibility constraints:
+  - `/audit?keyword=...` and `/audit?window=...` continue to initialize list filters.
+  - The `/audit` component must not fetch `getAuditEvent`, store `activeEventId`, or render an inline detail panel.
+  - Menu seed keeps only `/audit`; `/audit/events/[id]` is route-level IA, not a dynamic menu item.
+- Existing components/design system:
+  - Next.js App Router under `src/app/(console)`.
+  - React Query for API loading.
+  - Tailwind CSS with shadcn-style `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`.
+  - `AuditCenterBackground`, `audit-status` helpers, `motion/react`, `lucide-react`, `next/link`.
+- Required states: loading, empty, error, disabled refresh, query-param defaults, detail not found/no data, detail loading, detail error, malformed/missing JSON fields.
+- Style constraints: Chinese UI text; enterprise console density with restrained cards, tables, subtle borders, and compact controls; avoid nested cards and decorative marketing composition.

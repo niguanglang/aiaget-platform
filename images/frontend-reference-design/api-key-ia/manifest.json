@@ -1,0 +1,7 @@
+{
+  "page": "API Key IA",
+  "route": "/api-keys",
+  "feature": "Route-level API Key external invocation management",
+  "imagesRequired": false,
+  "createdAt": "2026-05-06"
+}

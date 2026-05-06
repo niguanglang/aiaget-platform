@@ -3,13 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   hasPermission,
-  type KnowledgeBaseDetail,
-  KnowledgeBaseListItem,
+  type KnowledgeBaseListItem,
   KnowledgeBaseStatus,
   type KnowledgeOverview,
-  KnowledgeRetrievalMode,
-  KnowledgeRetrievalTestResult,
-  KnowledgeSourceType,
   KnowledgeVisibility,
 } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
@@ -19,7 +15,6 @@ import {
   Database,
   Edit,
   Eye,
-  FileUp,
   Layers3,
   Lock,
   Plus,
@@ -29,15 +24,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
-import {
-  KnowledgeDocumentFormPanel,
-  type KnowledgeDocumentFormValues,
-} from '@/components/knowledge/knowledge-document-form-panel';
-import { KnowledgeFormPanel, type KnowledgeFormValues } from '@/components/knowledge/knowledge-form-panel';
 import {
   formatDateTime,
   knowledgeRetrievalModeLabel,
@@ -52,22 +42,15 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
-  createKnowledgeBase,
   deleteKnowledgeBase,
-  getKnowledgeBase,
   getKnowledgeOverview,
   listKnowledgeBases,
   listUsers,
-  rebuildKnowledgeIndex,
-  runKnowledgeRetrievalTest,
-  updateKnowledgeBase,
-  uploadKnowledgeDocument,
   type ApiClientError,
 } from '@/lib/api-client';
 
 const statuses: KnowledgeBaseStatus[] = ['ACTIVE', 'DISABLED', 'ARCHIVED'];
 const visibilities: KnowledgeVisibility[] = ['PRIVATE', 'TENANT', 'PUBLIC'];
-const retrievalModes: KnowledgeRetrievalMode[] = ['HYBRID', 'VECTOR', 'KEYWORD'];
 
 export function KnowledgeContent() {
   const queryClient = useQueryClient();
@@ -76,18 +59,8 @@ export function KnowledgeContent() {
   const [status, setStatus] = useState('');
   const [visibility, setVisibility] = useState('');
   const [ownerId, setOwnerId] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
-  const [editingBase, setEditingBase] = useState<KnowledgeBaseDetail | null>(null);
-  const [uploadTarget, setUploadTarget] = useState<KnowledgeBaseListItem | KnowledgeBaseDetail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeBaseListItem | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [retrievalError, setRetrievalError] = useState<string | null>(null);
-  const [retrievalQuery, setRetrievalQuery] = useState('部署指南 认证');
-  const [retrievalMode, setRetrievalMode] = useState<KnowledgeRetrievalMode>('HYBRID');
-  const [topK, setTopK] = useState(5);
-  const [retrievalResult, setRetrievalResult] = useState<KnowledgeRetrievalTestResult | null>(null);
 
   const canView = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -125,158 +98,25 @@ export function KnowledgeContent() {
 
   const bases = basesQuery.data?.items ?? [];
   const owners = ownersQuery.data?.items ?? [];
-  const activeId = selectedId ?? bases[0]?.id ?? null;
 
-  const selectedQuery = useQuery({
-    enabled: canView && Boolean(activeId),
-    queryKey: ['knowledge-base', activeId],
-    queryFn: () => getKnowledgeBase(activeId ?? ''),
-  });
-
-  const selectedBase = selectedQuery.data ?? null;
-  const hasActiveBackgroundWork = hasActiveKnowledgeBackgroundWork(selectedBase);
   const permissionDenied = !canView || getErrorStatus(basesQuery.error) === 403 || getErrorStatus(overviewQuery.error) === 403;
-  useEffect(() => {
-    setRetrievalError(null);
-    setRetrievalResult(null);
-  }, [activeId]);
-
-  useEffect(() => {
-    if (!activeId || !hasActiveBackgroundWork) return;
-
-    const timer = window.setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: ['knowledge-base', activeId] });
-      void queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-      void queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
-    }, 2500);
-
-    return () => window.clearInterval(timer);
-  }, [activeId, hasActiveBackgroundWork, queryClient]);
-
-  const createMutation = useMutation({
-    mutationFn: createKnowledgeBase,
-    onSuccess: async (base) => {
-      await applyBaseResult(base);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: KnowledgeFormValues }) => updateKnowledgeBase(id, toUpdateInput(values)),
-    onSuccess: async (base) => {
-      await applyBaseResult(base);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: KnowledgeDocumentFormValues }) =>
-      uploadKnowledgeDocument(id, {
-        title: values.title,
-        source_type: values.source_type,
-        content: values.content,
-        file_name: nullableText(values.file_name),
-        mime_type: mimeTypeForSource(values.source_type),
-      }),
-    onSuccess: async (base) => {
-      await applyBaseResult(base);
-      setUploadTarget(null);
-      setActionError(null);
-    },
-    onError: (error: ApiClientError) => setActionError(error.message),
-  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteKnowledgeBase,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
       await queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
-      if (deleteTarget?.id === selectedId) setSelectedId(null);
       setDeleteTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
   });
 
-  const rebuildMutation = useMutation({
-    mutationFn: rebuildKnowledgeIndex,
-    onSuccess: async () => {
-      if (activeId) await queryClient.invalidateQueries({ queryKey: ['knowledge-base', activeId] });
-      await queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-      await queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
-      setActionError(null);
-    },
-    onError: (error: ApiClientError) => setActionError(error.message),
-  });
-
-  const retrievalMutation = useMutation({
-    mutationFn: ({ id }: { id: string }) => runKnowledgeRetrievalTest(id, { query: retrievalQuery, mode: retrievalMode, top_k: topK }),
-    onSuccess: async (result) => {
-      setRetrievalResult(result);
-      setRetrievalError(null);
-      if (activeId) await queryClient.invalidateQueries({ queryKey: ['knowledge-base', activeId] });
-      await queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-      await queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
-    },
-    onError: (error: ApiClientError) => setRetrievalError(error.message),
-  });
-
-  async function applyBaseResult(base: KnowledgeBaseDetail) {
-    queryClient.setQueryData(['knowledge-base', base.id], base);
-    await queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-    await queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
-    setSelectedId(base.id);
-  }
-
-  function openCreateForm() {
-    setFormError(null);
-    setEditingBase(null);
-    setFormMode('create');
-  }
-
-  async function openEditForm(base: KnowledgeBaseListItem) {
-    setFormError(null);
-    const detail = await queryClient.fetchQuery({ queryKey: ['knowledge-base', base.id], queryFn: () => getKnowledgeBase(base.id) });
-    setEditingBase(detail);
-    setFormMode('edit');
-  }
-
-  function closeForm() {
-    setFormError(null);
-    setFormMode(null);
-    setEditingBase(null);
-  }
-
-  function submitForm(values: KnowledgeFormValues) {
-    setFormError(null);
-    if (formMode === 'create') {
-      createMutation.mutate(toCreateInput(values));
-      return;
-    }
-    if (editingBase) updateMutation.mutate({ id: editingBase.id, values });
-  }
-
-  function submitUpload(values: KnowledgeDocumentFormValues) {
-    if (!uploadTarget) return;
-    setActionError(null);
-    uploadMutation.mutate({ id: uploadTarget.id, values });
-  }
-
   function clearFilters() {
     setKeyword('');
     setStatus('');
     setVisibility('');
     setOwnerId('');
-  }
-
-  function runRetrieval() {
-    if (!activeId || !retrievalQuery.trim()) {
-      setRetrievalError('请输入检索问题。');
-      return;
-    }
-    retrievalMutation.mutate({ id: activeId });
   }
 
   if (permissionDenied) {
@@ -320,7 +160,7 @@ export function KnowledgeContent() {
           </div>
           <h1 className="text-2xl font-semibold">知识库中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合知识库健康、文档处理、索引就绪率和最近召回情况，继续保留知识库创建、上传、重建索引与检索测试能力。
+            聚合知识库健康、文档处理、索引就绪率和最近召回情况。列表页用于总览、筛选和进入知识库操作。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -328,10 +168,19 @@ export function KnowledgeContent() {
             <RefreshCcw className="size-4" />
             刷新总览
           </Button>
-          <Button className="w-full md:w-auto" disabled={!canWrite} onClick={openCreateForm}>
-            <Plus className="size-4" />
-            新建知识库
-          </Button>
+          {canWrite ? (
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/knowledge/create">
+                <Plus className="size-4" />
+                新建知识库
+              </Link>
+            </Button>
+          ) : (
+            <Button className="w-full md:w-auto" disabled variant="default">
+              <Plus className="size-4" />
+              新建知识库
+            </Button>
+          )}
         </div>
       </motion.section>
 
@@ -369,14 +218,14 @@ export function KnowledgeContent() {
 
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[1.35fr_0.85fr]">
+      <section className="grid min-w-0 gap-4">
         <Card className="min-w-0">
           <div className="border-b p-4">
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
                   <h2 className="text-sm font-semibold">知识库</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">搜索、筛选、上传、重建索引，并进入完整知识库操作。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">搜索、筛选，并进入详情查看、编辑或删除知识库。</p>
                 </div>
                 <div className="text-sm text-muted-foreground">显示 {bases.length} / {basesQuery.data?.total ?? 0}</div>
               </div>
@@ -408,10 +257,28 @@ export function KnowledgeContent() {
           ) : basesQuery.isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">正在加载知识库...</div>
           ) : bases.length === 0 ? (
-            <EmptyState action={<Button disabled={!canWrite} onClick={openCreateForm}><Plus className="size-4" />新建知识库</Button>} description="创建知识库，上传文本或 Markdown 文档，生成切片后运行检索测试。" title="暂无知识库" />
+            <EmptyState
+              action={
+                canWrite ? (
+                  <Button asChild>
+                    <Link href="/knowledge/create">
+                      <Plus className="size-4" />
+                      新建知识库
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button disabled variant="default">
+                    <Plus className="size-4" />
+                    新建知识库
+                  </Button>
+                )
+              }
+              description="创建知识库后，可在详情页上传文档、重建索引并运行检索测试。"
+              title="暂无知识库"
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[980px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
                     {['知识库', '可见范围', '状态', '文档', '切片', '失败', '更新时间', '操作'].map((column) => <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>)}
@@ -421,11 +288,11 @@ export function KnowledgeContent() {
                   {bases.map((base, index) => (
                     <motion.tr animate={{ opacity: 1, y: 0 }} className="border-b transition-colors last:border-0 hover:bg-muted/25" initial={{ opacity: 0, y: 8 }} key={base.id} transition={{ delay: index * 0.025, duration: 0.22 }}>
                       <td className="px-4 py-3">
-                        <button className="grid max-w-sm gap-1 text-left" onClick={() => setSelectedId(base.id)} type="button">
+                        <Link className="grid max-w-sm gap-1 text-left hover:text-primary" href={`/knowledge/${base.id}`}>
                           <span className="font-medium">{base.name}</span>
                           <span className="text-xs text-muted-foreground">{base.code}</span>
                           <span className="line-clamp-1 text-xs text-muted-foreground">{base.description ?? '暂无描述。'}</span>
-                        </button>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{knowledgeVisibilityLabel(base.visibility)}</td>
                       <td className="px-4 py-3"><StatusBadge tone={knowledgeStatusTone(base.status)}>{knowledgeStatusLabel(base.status)}</StatusBadge></td>
@@ -436,9 +303,17 @@ export function KnowledgeContent() {
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <Button asChild size="sm" title="打开详情" variant="outline"><Link href={`/knowledge/${base.id}`}><Eye className="size-4" /></Link></Button>
-                          <Button disabled={!canWrite} onClick={() => void openEditForm(base)} size="sm" title="编辑" variant="outline"><Edit className="size-4" /></Button>
-                          <Button disabled={!canWrite} onClick={() => setUploadTarget(base)} size="sm" title="上传" variant="outline"><FileUp className="size-4" /></Button>
-                          <Button disabled={!canWrite || rebuildMutation.isPending} onClick={() => rebuildMutation.mutate(base.id)} size="sm" title="重建索引" variant="outline"><RefreshCcw className="size-4" /></Button>
+                          {canWrite ? (
+                            <Button asChild size="sm" title="编辑" variant="outline">
+                              <Link href={`/knowledge/${base.id}/edit`}>
+                                <Edit className="size-4" />
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button disabled size="sm" title="编辑" variant="outline">
+                              <Edit className="size-4" />
+                            </Button>
+                          )}
                           <Button disabled={!canWrite} onClick={() => setDeleteTarget(base)} size="sm" title="删除" variant="outline"><Trash2 className="size-4" /></Button>
                         </div>
                       </td>
@@ -450,25 +325,8 @@ export function KnowledgeContent() {
           )}
         </Card>
 
-        <RetrievalPanel
-          base={selectedBase}
-          canWrite={canWrite}
-          loading={selectedQuery.isLoading}
-          mode={retrievalMode}
-          onChangeMode={setRetrievalMode}
-          onChangeQuery={setRetrievalQuery}
-          onChangeTopK={setTopK}
-          onRun={runRetrieval}
-          pending={retrievalMutation.isPending}
-          query={retrievalQuery}
-          result={retrievalResult}
-          error={retrievalError}
-          topK={topK}
-        />
       </section>
 
-      {formMode ? <KnowledgeFormPanel base={editingBase} error={formError} isPending={createMutation.isPending || updateMutation.isPending} mode={formMode} onClose={closeForm} onSubmit={submitForm} owners={owners} /> : null}
-      {uploadTarget ? <KnowledgeDocumentFormPanel error={actionError} isPending={uploadMutation.isPending} onClose={() => setUploadTarget(null)} onSubmit={submitUpload} /> : null}
       {deleteTarget ? (
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
@@ -615,147 +473,6 @@ function statusTone(status: string): BadgeTone {
   if (status === 'PROCESSING' || status === 'RUNNING' || status === 'PENDING') return 'degraded';
   if (status === 'READY' || status === 'SUCCESS' || status === 'ACTIVE') return 'healthy';
   return 'planned';
-}
-
-function RetrievalPanel({
-  base,
-  canWrite,
-  error,
-  loading,
-  mode,
-  onChangeMode,
-  onChangeQuery,
-  onChangeTopK,
-  onRun,
-  pending,
-  query,
-  result,
-  topK,
-}: {
-  base: KnowledgeBaseDetail | null;
-  canWrite: boolean;
-  error: string | null;
-  loading: boolean;
-  mode: KnowledgeRetrievalMode;
-  onChangeMode: (mode: KnowledgeRetrievalMode) => void;
-  onChangeQuery: (query: string) => void;
-  onChangeTopK: (topK: number) => void;
-  onRun: () => void;
-  pending: boolean;
-  query: string;
-  result: KnowledgeRetrievalTestResult | null;
-  topK: number;
-}) {
-  if (loading) return <Card className="min-w-0 p-5"><div className="text-sm text-muted-foreground">正在加载选中的知识库...</div></Card>;
-  if (!base) {
-    return <Card className="min-w-0 p-5"><div className="flex items-center gap-2 text-sm font-semibold"><Database className="size-4" />选中的知识库</div><p className="mt-3 text-sm leading-6 text-muted-foreground">选择一行后运行检索测试，并查看文档处理覆盖情况。</p></Card>;
-  }
-
-  return (
-    <Card className="grid min-w-0 gap-5 p-5">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={knowledgeStatusTone(base.status)}>{knowledgeStatusLabel(base.status)}</StatusBadge>
-          <StatusBadge tone="planned">{knowledgeVisibilityLabel(base.visibility)}</StatusBadge>
-        </div>
-        <h2 className="mt-3 text-base font-semibold">{base.name}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{base.code}</p>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{base.description ?? '暂无描述。'}</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <SummaryTile label="文档" value={`${base.document_count}`} />
-        <SummaryTile label="切片" value={`${base.segment_count}`} />
-        <SummaryTile label="智能体" value={`${base.agent_reference_count}`} />
-      </div>
-
-      <div className="grid gap-3">
-        <label className="grid gap-2 text-sm font-medium">
-          检索问题
-          <textarea className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" onChange={(event) => onChangeQuery(event.target.value)} value={query} />
-        </label>
-        <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
-          <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => onChangeMode(event.target.value as KnowledgeRetrievalMode)} value={mode}>
-            {retrievalModes.map((option) => <option key={option} value={option}>{knowledgeRetrievalModeLabel(option)}</option>)}
-          </select>
-          <input className="h-9 rounded-md border bg-background/80 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" max="20" min="1" onChange={(event) => onChangeTopK(Number(event.target.value))} type="number" value={topK} />
-        </div>
-        {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</div> : null}
-        <Button disabled={!canWrite || pending || base.segment_count === 0} onClick={onRun} type="button">
-          <Search className="size-4" />
-          运行检索测试
-        </Button>
-      </div>
-
-      {result ? (
-        <div className="rounded-md border bg-muted/25 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">召回结果</h3>
-            <span className="text-xs text-muted-foreground">{result.results.length} 条结果 · {result.latency_ms}ms</span>
-          </div>
-          <div className="mt-3 grid gap-3">
-            {result.results.length === 0 ? <p className="text-sm text-muted-foreground">没有切片命中该问题。</p> : result.results.map((item) => (
-              <div className="rounded-md border bg-background px-3 py-2" key={item.segment_id}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium">{item.document_title}</div>
-                  <span className="text-xs text-muted-foreground">得分 {item.score}</span>
-                </div>
-                <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.content}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
-function SummaryTile({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-md border bg-muted/25 px-3 py-2"><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-sm font-semibold">{value}</div></div>;
-}
-
-function toCreateInput(values: KnowledgeFormValues) {
-  return {
-    name: values.name,
-    code: values.code,
-    visibility: values.visibility,
-    description: nullableText(values.description),
-    owner_id: nullableId(values.owner_id),
-  };
-}
-
-function toUpdateInput(values: KnowledgeFormValues) {
-  return {
-    name: values.name,
-    visibility: values.visibility,
-    status: values.status,
-    description: nullableText(values.description),
-    owner_id: nullableId(values.owner_id),
-  };
-}
-
-function nullableText(value?: string) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function nullableId(value?: string) {
-  return value || null;
-}
-
-function mimeTypeForSource(sourceType: KnowledgeSourceType) {
-  if (sourceType === 'MARKDOWN') return 'text/markdown';
-  if (sourceType === 'HTML') return 'text/html';
-  return 'text/plain';
-}
-
-function hasActiveKnowledgeBackgroundWork(base: KnowledgeBaseDetail | null) {
-  if (!base) return false;
-
-  return (
-    base.documents.some((document) => document.status === 'PROCESSING') ||
-    base.tasks.some((task) => task.status === 'PENDING' || task.status === 'RUNNING')
-  );
 }
 
 function getErrorStatus(error: unknown) {

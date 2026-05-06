@@ -1,0 +1,40 @@
+# Project UI Brief
+
+- Page: Tool Center IA
+- Route: /tools
+- Feature goal: Split tool list, detail, create, and edit routes so tool configuration, testing, logs, and agent references live outside the list page.
+- Users/roles: tenant_admin, tool_admin, agent_admin, security_admin, auditor, ordinary authorized user.
+- Business goal: Let operators search and govern HTTP tools from a clean list, then enter detail pages for full configuration, risk policy, test execution, call logs, and Agent binding references.
+- APIs/services:
+  - `listTools`
+  - `createTool`
+  - `getTool`
+  - `updateTool`
+  - `deleteTool`
+  - `copyTool`
+  - `enableTool`
+  - `disableTool`
+  - `testTool`
+- Entities/fields/statuses:
+  - Tool list item: `name`, `code`, `description`, `tool_type`, `method`, `url`, `status`, `risk_level`, `timeout_ms`, `require_approval`, `auth_type`, `call_count_today`, `failure_count_today`, `last_call_at`, `last_call_status`, `agent_reference_count`, timestamps.
+  - Tool detail: list fields plus `headers`, `auth_config`, `input_schema`, `output_schema`, `call_logs`, `agent_references`.
+  - Call log: `status`, `trigger_source`, `approval_request_id`, `request_url`, `request_method`, `response_status`, `latency_ms`, `error_message`, `created_at`, `created_by`.
+  - Agent reference: `agent_name`, `agent_code`, `require_approval`, `created_at`.
+  - Status values: `ACTIVE`, `DISABLED`, `DELETED`; risk values: `LOW`, `MEDIUM`, `HIGH`; auth values: `NONE`, `BEARER`, `API_KEY_HEADER`, `API_KEY_QUERY`, `BASIC`.
+- Actions:
+  - List/search/filter tools.
+  - Create route-level tool.
+  - Open detail.
+  - Edit route-level tool.
+  - Copy, enable, disable, delete with disabled and error states.
+  - Run test only from detail page.
+  - Inspect call logs and approval links only from detail page.
+- Required states: loading, empty, error, validation, disabled, permission-denied, mutation pending, delete confirmation, no logs, no agent references, test pending, test error.
+- Existing components/design system:
+  - Next.js App Router console shell.
+  - Tailwind CSS.
+  - shadcn/ui-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`.
+  - `motion/react` for subtle row reveal.
+  - React Query for API loading and mutations.
+  - Existing `ToolCenterBackground`, `ToolFormPanel`, `tool-status` helpers, `tool-json` helpers.
+- Style constraints: Chinese UI text, enterprise SaaS console density, bento/dashboard summary, list-first information hierarchy, subtle borders, soft shadows, restrained glass background, no long config JSON/test panel inside list.

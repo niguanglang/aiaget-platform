@@ -39,6 +39,7 @@ interface MenuFormPanelProps {
   onClose: () => void;
   onSubmit: (values: MenuFormValues) => void;
   parent?: MenuListItem | null;
+  presentation?: 'drawer' | 'page';
 }
 
 function formDefaults(menu?: MenuDetail | null, parent?: MenuListItem | null): MenuFormValues {
@@ -66,6 +67,7 @@ export function MenuFormPanel({
   onClose,
   onSubmit,
   parent,
+  presentation = 'drawer',
 }: MenuFormPanelProps) {
   const form = useForm<MenuFormValues>({
     resolver: zodResolver(menuFormSchema),
@@ -79,67 +81,78 @@ export function MenuFormPanel({
     form.reset(formDefaults(menu, parent));
   }, [form, menu, mode, parent]);
 
+  const isPage = presentation === 'page';
+
   return (
-    <section className="fixed inset-y-0 right-0 z-40 flex w-full max-w-2xl flex-col border-l bg-background shadow-xl">
+    <section
+      className={
+        isPage
+          ? 'grid rounded-lg border bg-background shadow-sm'
+          : 'fixed inset-y-0 right-0 z-40 flex w-full max-w-2xl flex-col border-l bg-background shadow-xl'
+      }
+    >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑菜单节点' : '新建菜单节点'}</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              菜单节点会驱动控制台入口，按钮节点用于承载操作权限和角色授权。
+              菜单节点会驱动控制台入口，按钮节点用于承载操作权限点；角色授权请在角色权限中心维护。
             </p>
           </div>
-          <Button onClick={onClose} size="icon" type="button" variant="ghost">
-            <X className="size-4" />
-          </Button>
+          {isPage ? null : (
+            <Button onClick={onClose} size="icon" type="button" variant="ghost">
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
-      <form className="grid flex-1 gap-5 overflow-y-auto p-6" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="名称" message={form.formState.errors.name?.message}>
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="例如：菜单管理"
-              {...form.register('name')}
-            />
-          </Field>
+      <form className={isPage ? 'grid gap-5 p-6' : 'grid flex-1 gap-5 overflow-y-auto p-6'} onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">基础信息</div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Field label="名称" message={form.formState.errors.name?.message}>
+              <input
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="例如：菜单管理"
+                {...form.register('name')}
+              />
+            </Field>
 
-          <Field label="编码" message={form.formState.errors.code?.message}>
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm outline-none read-only:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="例如：menus"
-              readOnly={isEditing}
-              {...form.register('code')}
-            />
-          </Field>
-        </div>
+            <Field label="编码" message={form.formState.errors.code?.message}>
+              <input
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none read-only:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="例如：menus"
+                readOnly={isEditing}
+                {...form.register('code')}
+              />
+            </Field>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="父级节点" message={form.formState.errors.parent_id?.message}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('parent_id')}>
-              <option value="">根节点</option>
-              {parentOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+            <Field label="父级节点" message={form.formState.errors.parent_id?.message}>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('parent_id')}>
+                <option value="">根节点</option>
+                {parentOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <Field label="节点类型" message={form.formState.errors.type?.message}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('type')}>
-              {menuTypes.map((type) => (
-                <option key={type} value={type}>
-                  {menuTypeLabel(type)}
-                </option>
-              ))}
-            </select>
-          </Field>
+            <Field label="节点类型" message={form.formState.errors.type?.message}>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('type')}>
+                {menuTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {menuTypeLabel(type)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </div>
 
         <div className="rounded-lg border bg-muted/20 p-4">
-          <div className="text-sm font-semibold">路由与权限</div>
+          <div className="text-sm font-semibold">路由信息</div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="路由路径" message={form.formState.errors.path?.message}>
               <input
@@ -166,37 +179,52 @@ export function MenuFormPanel({
                 {...form.register('icon')}
               />
             </Field>
+          </div>
+        </div>
 
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">权限控制</div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="权限编码" message={form.formState.errors.permission_code?.message}>
               <input
                 className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="menu.read"
+                placeholder="system:menu:view"
                 {...form.register('permission_code')}
               />
             </Field>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
-          <Field label="排序号" message={form.formState.errors.sort_order?.message}>
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              min="0"
-              step="1"
-              type="number"
-              {...form.register('sort_order', { valueAsNumber: true })}
-            />
-          </Field>
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">显示控制</div>
+          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
+            <Field label="排序号" message={form.formState.errors.sort_order?.message}>
+              <input
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                min="0"
+                step="1"
+                type="number"
+                {...form.register('sort_order', { valueAsNumber: true })}
+              />
+            </Field>
 
-          <label className="flex h-10 items-center gap-2 self-end rounded-md border bg-background px-3 text-sm">
-            <input type="checkbox" {...form.register('visible')} />
-            导航可见
-          </label>
+            <label className="flex h-10 items-center gap-2 self-end rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" {...form.register('visible')} />
+              导航可见
+            </label>
 
-          <label className="flex h-10 items-center gap-2 self-end rounded-md border bg-background px-3 text-sm">
-            <input type="checkbox" {...form.register('enabled')} />
-            启用节点
-          </label>
+            <label className="flex h-10 items-center gap-2 self-end rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" {...form.register('enabled')} />
+              启用节点
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-dashed bg-background/70 p-4">
+          <div className="text-sm font-semibold">高级配置说明</div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            外链、缓存、固定标签、面包屑和路由元信息需要数据库字段扩展后再接入；当前版本保留定义边界。
+          </p>
         </div>
 
         {error ? (
@@ -205,7 +233,7 @@ export function MenuFormPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4">
+        <div className={isPage ? '-mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4' : 'sticky bottom-0 -mx-6 mt-auto flex justify-end gap-2 border-t bg-background px-6 py-4'}>
           <Button onClick={onClose} type="button" variant="outline">
             取消
           </Button>

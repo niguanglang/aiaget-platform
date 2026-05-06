@@ -1,29 +1,18 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  hasPermission,
-  type PromptStatus,
-  PromptTemplateDetail,
-  PromptTemplateListItem,
-  PromptType,
-  RenderPromptResult,
-  TestPromptResult,
-} from '@aiaget/shared-types';
+import { hasPermission, type PromptStatus, type PromptTemplateListItem, type PromptType } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { Copy, Edit, Eye, FileText, FlaskConical, Plus, Search, Send, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Edit, Eye, Plus, Search, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { PromptCenterBackground } from '@/components/prompts/prompt-center-background';
-import { PromptFormPanel, type PromptFormValues } from '@/components/prompts/prompt-form-panel';
 import {
   formatDateTime,
   promptStatusLabel,
   promptStatusTone,
-  promptTestStatusLabel,
-  promptTestStatusTone,
   promptTypeLabel,
 } from '@/components/prompts/prompt-status';
 import { Button } from '@/components/ui/button';
@@ -33,20 +22,16 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   copyPromptTemplate,
-  createPromptTemplate,
   deletePromptTemplate,
-  getPromptTemplate,
   listPromptTemplates,
   listUsers,
   publishPromptTemplate,
-  renderPromptTemplate,
-  testPromptTemplate,
-  updatePromptTemplate,
   type ApiClientError,
 } from '@/lib/api-client';
 
 const promptTypes: PromptType[] = ['SYSTEM', 'USER', 'ASSISTANT', 'TOOL'];
 const promptStatuses: PromptStatus[] = ['DRAFT', 'PUBLISHED', 'DISABLED', 'ARCHIVED'];
+const pageSize = 20;
 
 export function PromptsContent() {
   const queryClient = useQueryClient();
@@ -55,17 +40,9 @@ export function PromptsContent() {
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [ownerId, setOwnerId] = useState('');
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
-  const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
-  const [editingPrompt, setEditingPrompt] = useState<PromptTemplateDetail | null>(null);
+  const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<PromptTemplateListItem | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [editLoadingId, setEditLoadingId] = useState<string | null>(null);
-  const [inputsText, setInputsText] = useState('{\n  "audience": "支持团队",\n  "goal": "总结客户请求"\n}');
-  const [renderError, setRenderError] = useState<string | null>(null);
-  const [renderResult, setRenderResult] = useState<RenderPromptResult | null>(null);
-  const [testResult, setTestResult] = useState<TestPromptResult | null>(null);
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -73,11 +50,11 @@ export function PromptsContent() {
   );
 
   const promptsQuery = useQuery({
-    queryKey: ['prompt-templates', keyword, type, status, ownerId],
+    queryKey: ['prompt-templates', page, keyword, type, status, ownerId],
     queryFn: () =>
       listPromptTemplates({
-        page: 1,
-        page_size: 20,
+        page,
+        page_size: pageSize,
         keyword,
         type,
         status,
@@ -96,17 +73,12 @@ export function PromptsContent() {
 
   const prompts = promptsQuery.data?.items ?? [];
   const owners = ownersQuery.data?.items ?? [];
-  const activePromptId = selectedPromptId ?? prompts[0]?.id ?? null;
-
-  const selectedPromptQuery = useQuery({
-    enabled: Boolean(activePromptId),
-    queryKey: ['prompt-template', activePromptId],
-    queryFn: () => getPromptTemplate(activePromptId ?? ''),
-  });
+  const total = promptsQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const metrics = useMemo(
     () => [
-      { label: '模板', value: `${promptsQuery.data?.total ?? 0}`, helper: '租户范围' },
+      { label: '模板', value: `${total}`, helper: '租户范围' },
       {
         label: '已发布',
         value: `${prompts.filter((prompt) => prompt.status === 'PUBLISHED').length}`,
@@ -118,43 +90,19 @@ export function PromptsContent() {
         helper: '当前页',
       },
       {
-        label: '测试',
-        value: `${prompts.reduce((sum, prompt) => sum + prompt.test_count, 0)}`,
+        label: '智能体引用',
+        value: `${prompts.reduce((sum, prompt) => sum + prompt.agent_reference_count, 0)}`,
         helper: '当前页',
       },
     ],
-    [prompts, promptsQuery.data?.total],
+    [prompts, total],
   );
-
-  useEffect(() => {
-    setRenderError(null);
-    setRenderResult(null);
-    setTestResult(null);
-  }, [activePromptId]);
-
-  const createMutation = useMutation({
-    mutationFn: createPromptTemplate,
-    onSuccess: async (prompt) => {
-      await applyPromptResult(prompt);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: PromptFormValues }) =>
-      updatePromptTemplate(id, toUpdateInput(values)),
-    onSuccess: async (prompt) => {
-      await applyPromptResult(prompt);
-      closeForm();
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
 
   const copyMutation = useMutation({
     mutationFn: copyPromptTemplate,
     onSuccess: async (prompt) => {
-      await applyPromptResult(prompt);
+      queryClient.setQueryData(['prompt-template', prompt.id], prompt);
+      await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -166,7 +114,8 @@ export function PromptsContent() {
         change_note: '从提示词中心列表发布',
       }),
     onSuccess: async (prompt) => {
-      await applyPromptResult(prompt);
+      queryClient.setQueryData(['prompt-template', prompt.id], prompt);
+      await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -176,129 +125,24 @@ export function PromptsContent() {
     mutationFn: deletePromptTemplate,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
-      if (deleteTarget?.id === selectedPromptId) {
-        setSelectedPromptId(null);
-      }
       setDeleteTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
   });
 
-  const renderMutation = useMutation({
-    mutationFn: ({ id, inputs }: { id: string; inputs: Record<string, unknown> }) =>
-      renderPromptTemplate(id, { inputs }),
-    onSuccess: (result) => {
-      setRenderResult(result);
-      setRenderError(null);
-    },
-    onError: (error: ApiClientError) => setRenderError(error.message),
-  });
-
-  const testMutation = useMutation({
-    mutationFn: ({ id, inputs }: { id: string; inputs: Record<string, unknown> }) =>
-      testPromptTemplate(id, { inputs }),
-    onSuccess: async (result) => {
-      setTestResult(result);
-      setRenderResult({
-        rendered_content: result.rendered_content,
-        missing_variables: result.missing_variables,
-      });
-      if (activePromptId) {
-        await queryClient.invalidateQueries({ queryKey: ['prompt-template', activePromptId] });
-      }
-      await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
-      setRenderError(null);
-    },
-    onError: (error: ApiClientError) => setRenderError(error.message),
-  });
-
-  async function applyPromptResult(prompt: PromptTemplateDetail) {
-    queryClient.setQueryData(['prompt-template', prompt.id], prompt);
-    await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
-    setSelectedPromptId(prompt.id);
-  }
-
-  function openCreateForm() {
-    setFormError(null);
-    setEditingPrompt(null);
-    setFormMode('create');
-  }
-
-  async function openEditForm(prompt: PromptTemplateListItem) {
-    setFormError(null);
-    setEditLoadingId(prompt.id);
-
-    try {
-      const detail = await queryClient.fetchQuery({
-        queryKey: ['prompt-template', prompt.id],
-        queryFn: () => getPromptTemplate(prompt.id),
-      });
-
-      setEditingPrompt(detail);
-      setFormMode('edit');
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '提示词详情加载失败。');
-    } finally {
-      setEditLoadingId(null);
-    }
-  }
-
-  function closeForm() {
-    setFormError(null);
-    setFormMode(null);
-    setEditingPrompt(null);
-  }
-
-  function submitForm(values: PromptFormValues) {
-    setFormError(null);
-
-    if (formMode === 'create') {
-      createMutation.mutate(toCreateInput(values));
-      return;
-    }
-
-    if (editingPrompt) {
-      updateMutation.mutate({
-        id: editingPrompt.id,
-        values,
-      });
-    }
-  }
-
   function clearFilters() {
     setKeyword('');
     setType('');
     setStatus('');
     setOwnerId('');
+    setPage(1);
   }
 
-  function runRender() {
-    if (!activePromptId) return;
-
-    const parsed = parseJsonObject(inputsText);
-    if (!parsed.ok) {
-      setRenderError(parsed.message);
-      return;
-    }
-
-    renderMutation.mutate({ id: activePromptId, inputs: parsed.value });
+  function updateFilter(setter: (value: string) => void, value: string) {
+    setter(value);
+    setPage(1);
   }
-
-  function runTest() {
-    if (!activePromptId) return;
-
-    const parsed = parseJsonObject(inputsText);
-    if (!parsed.ok) {
-      setRenderError(parsed.message);
-      return;
-    }
-
-    testMutation.mutate({ id: activePromptId, inputs: parsed.value });
-  }
-
-  const selectedPrompt = selectedPromptQuery.data ?? null;
-  const isFormOpen = Boolean(formMode);
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -312,19 +156,28 @@ export function PromptsContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M20</StatusBadge>
-            <StatusBadge tone="healthy">真实模型测试</StatusBadge>
-            <StatusBadge tone="planned">版本化发布</StatusBadge>
+            <StatusBadge tone="ready">提示词中心</StatusBadge>
+            <StatusBadge tone="healthy">模板列表</StatusBadge>
+            <StatusBadge tone="planned">详情页测试</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">提示词中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            管理租户提示词模板、变量、不可变版本、回滚、渲染检查、真实模型测试记录和智能体引用。
+            列表页用于查询模板、识别状态和进入详情。变量、版本、渲染测试、真实模型测试和智能体引用在详情页维护。
           </p>
         </div>
-        <Button disabled={!canWrite} onClick={openCreateForm}>
-          <Plus className="size-4" />
-          新建提示词
-        </Button>
+        {canWrite ? (
+          <Button asChild className="w-full md:w-auto">
+            <Link href="/prompts/create">
+              <Plus className="size-4" />
+              新建提示词
+            </Link>
+          </Button>
+        ) : (
+          <Button className="w-full md:w-auto" disabled>
+            <Plus className="size-4" />
+            新建提示词
+          </Button>
+        )}
       </motion.section>
 
       <motion.section
@@ -344,102 +197,104 @@ export function PromptsContent() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]">
-        <Card>
-          <div className="border-b p-4">
-            <div className="grid gap-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">模板</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    搜索、筛选、创建、复制、发布、归档，并打开提示词模板。
-                  </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  显示 {prompts.length} / {promptsQuery.data?.total ?? 0}
-                </div>
+      <Card>
+        <div className="border-b p-4">
+          <div className="grid gap-4">
+            <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+              <div>
+                <h2 className="text-sm font-semibold">模板列表</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  搜索、筛选、分页和单条操作；完整内容和测试请进入详情页。
+                </p>
               </div>
-
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_150px_160px_190px_auto]">
-                <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
-                  <Search className="size-4 text-muted-foreground" />
-                  <input
-                    className="min-w-0 flex-1 bg-transparent outline-none"
-                    onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="搜索提示词、编码、内容"
-                    value={keyword}
-                  />
-                </label>
-                <select
-                  className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                  onChange={(event) => setType(event.target.value)}
-                  value={type}
-                >
-                  <option value="">全部类型</option>
-                  {promptTypes.map((option) => (
-                    <option key={option} value={option}>
-                      {promptTypeLabel(option)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                  onChange={(event) => setStatus(event.target.value)}
-                  value={status}
-                >
-                  <option value="">全部状态</option>
-                  {promptStatuses.map((option) => (
-                    <option key={option} value={option}>
-                      {promptStatusLabel(option)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                  onChange={(event) => setOwnerId(event.target.value)}
-                  value={ownerId}
-                >
-                  <option value="">全部负责人</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </option>
-                  ))}
-                </select>
-                <Button onClick={clearFilters} type="button" variant="outline">
-                  清空
-                </Button>
+              <div className="text-sm text-muted-foreground">
+                显示 {prompts.length} / {total}
               </div>
             </div>
-          </div>
 
-          {promptsQuery.isError ? (
-            <div className="p-6 text-sm text-destructive">提示词模板加载失败。</div>
-          ) : promptsQuery.isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">正在加载提示词模板...</div>
-          ) : prompts.length === 0 ? (
-            <EmptyState
-              action={
-                <Button disabled={!canWrite} onClick={openCreateForm}>
-                  <Plus className="size-4" />
-                  新建提示词
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_150px_160px_190px_auto]">
+              <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+                <Search className="size-4 text-muted-foreground" />
+                <input
+                  className="min-w-0 flex-1 bg-transparent outline-none"
+                  onChange={(event) => updateFilter(setKeyword, event.target.value)}
+                  placeholder="搜索提示词、编码、内容"
+                  value={keyword}
+                />
+              </label>
+              <select
+                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) => updateFilter(setType, event.target.value)}
+                value={type}
+              >
+                <option value="">全部类型</option>
+                {promptTypes.map((option) => (
+                  <option key={option} value={option}>
+                    {promptTypeLabel(option)}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) => updateFilter(setStatus, event.target.value)}
+                value={status}
+              >
+                <option value="">全部状态</option>
+                {promptStatuses.map((option) => (
+                  <option key={option} value={option}>
+                    {promptStatusLabel(option)}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) => updateFilter(setOwnerId, event.target.value)}
+                value={ownerId}
+              >
+                <option value="">全部负责人</option>
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.name}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={clearFilters} type="button" variant="outline">
+                清空
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {promptsQuery.isError ? (
+          <div className="p-6 text-sm text-destructive">提示词模板加载失败。</div>
+        ) : promptsQuery.isLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">正在加载提示词模板...</div>
+        ) : prompts.length === 0 ? (
+          <EmptyState
+            action={
+              canWrite ? (
+                <Button asChild>
+                  <Link href="/prompts/create">
+                    <Plus className="size-4" />
+                    新建提示词
+                  </Link>
                 </Button>
-              }
-              description="创建提示词模板，定义变量，使用测试输入渲染，并发布不可变版本。"
-              title="暂无提示词模板"
-            />
-          ) : (
+              ) : null
+            }
+            description="创建提示词模板后，在详情页定义变量、执行渲染测试并发布不可变版本。"
+            title="暂无提示词模板"
+          />
+        ) : (
+          <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    {['模板', '类型', '状态', '版本', '变量', '测试', '更新时间', '操作'].map(
-                      (column) => (
-                        <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                          {column}
-                        </th>
-                      ),
-                    )}
+                    {['模板', '类型', '状态', '版本', '变量', '测试', '智能体', '更新时间', '操作'].map((column) => (
+                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
+                        {column}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -452,17 +307,15 @@ export function PromptsContent() {
                       transition={{ delay: index * 0.025, duration: 0.22 }}
                     >
                       <td className="px-4 py-3">
-                        <button
-                          className="grid max-w-md gap-1 text-left"
-                          onClick={() => setSelectedPromptId(prompt.id)}
-                          type="button"
-                        >
-                          <span className="font-medium">{prompt.name}</span>
+                        <div className="grid max-w-md gap-1">
+                          <Link className="font-medium hover:text-primary" href={`/prompts/${prompt.id}`}>
+                            {prompt.name}
+                          </Link>
                           <span className="text-xs text-muted-foreground">{prompt.code}</span>
                           <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
                             {prompt.content_preview}
                           </span>
-                        </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{promptTypeLabel(prompt.type)}</td>
                       <td className="px-4 py-3">
@@ -471,49 +324,57 @@ export function PromptsContent() {
                       <td className="px-4 py-3 text-muted-foreground">v{prompt.version}</td>
                       <td className="px-4 py-3 text-muted-foreground">{prompt.variable_count}</td>
                       <td className="px-4 py-3 text-muted-foreground">{prompt.test_count}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{prompt.agent_reference_count}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(prompt.updated_at)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <Button asChild size="sm" title="打开详情" variant="outline">
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="outline">
                             <Link href={`/prompts/${prompt.id}`}>
                               <Eye className="size-4" />
+                              查看
                             </Link>
                           </Button>
                           <Button
-                            disabled={!canWrite || editLoadingId === prompt.id}
-                            onClick={() => void openEditForm(prompt)}
+                            asChild
+                            aria-disabled={!canWrite}
+                            className={!canWrite ? 'pointer-events-none opacity-60' : undefined}
                             size="sm"
-                            title="编辑"
                             variant="outline"
                           >
-                            <Edit className="size-4" />
+                            <Link href={`/prompts/${prompt.id}/edit`}>
+                              <Edit className="size-4" />
+                              编辑
+                            </Link>
                           </Button>
                           <Button
                             disabled={!canWrite || copyMutation.isPending}
                             onClick={() => copyMutation.mutate(prompt.id)}
                             size="sm"
-                            title="复制"
+                            type="button"
                             variant="outline"
                           >
                             <Copy className="size-4" />
+                            复制
                           </Button>
                           <Button
                             disabled={!canWrite || publishMutation.isPending || prompt.status === 'ARCHIVED'}
                             onClick={() => publishMutation.mutate(prompt.id)}
                             size="sm"
-                            title="发布"
+                            type="button"
                             variant="outline"
                           >
                             <Send className="size-4" />
+                            发布
                           </Button>
                           <Button
                             disabled={!canWrite}
                             onClick={() => setDeleteTarget(prompt)}
                             size="sm"
-                            title="删除"
+                            type="button"
                             variant="outline"
                           >
                             <Trash2 className="size-4" />
+                            删除
                           </Button>
                         </div>
                       </td>
@@ -522,305 +383,95 @@ export function PromptsContent() {
                 </tbody>
               </table>
             </div>
-          )}
-        </Card>
-
-        <PromptSummaryPanel
-          canWrite={canWrite}
-          inputsText={inputsText}
-          loading={selectedPromptQuery.isLoading}
-          onChangeInputs={setInputsText}
-          onLoadDefaults={() => {
-            if (!selectedPrompt) return;
-            setInputsText(JSON.stringify(createInputDefaults(selectedPrompt), null, 2));
-          }}
-          onRender={runRender}
-          onTest={runTest}
-          prompt={selectedPrompt}
-          renderError={renderError}
-          renderPending={renderMutation.isPending}
-          renderResult={renderResult}
-          testPending={testMutation.isPending}
-          testResult={testResult}
-        />
-      </section>
-
-      {isFormOpen ? (
-        <PromptFormPanel
-          error={formError}
-          isPending={createMutation.isPending || updateMutation.isPending}
-          mode={formMode ?? 'create'}
-          onClose={closeForm}
-          onSubmit={submitForm}
-          owners={owners}
-          prompt={editingPrompt}
-        />
-      ) : null}
+            <div className="border-t p-4">
+              <PaginationBar onPageChange={setPage} page={page} pageCount={pageCount} total={total} />
+            </div>
+          </>
+        )}
+      </Card>
 
       {deleteTarget ? (
-        <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">删除提示词？</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              这会归档 `{deleteTarget.name}`，并保留版本历史。
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button onClick={() => setDeleteTarget(null)} variant="outline">
-                取消
-              </Button>
-              <Button
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget.id)}
-                variant="destructive"
-              >
-                删除
-              </Button>
-            </div>
-          </div>
-        </section>
+        <ConfirmDialog
+          body={`这会归档提示词 ${deleteTarget.name}，并保留版本历史和审计记录。`}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          pending={deleteMutation.isPending}
+          title="删除提示词？"
+        />
       ) : null}
     </main>
   );
 }
 
-function PromptSummaryPanel({
-  canWrite,
-  inputsText,
-  loading,
-  onChangeInputs,
-  onLoadDefaults,
-  onRender,
-  onTest,
-  prompt,
-  renderError,
-  renderPending,
-  renderResult,
-  testPending,
-  testResult,
+function PaginationBar({
+  onPageChange,
+  page,
+  pageCount,
+  total,
 }: {
-  canWrite: boolean;
-  inputsText: string;
-  loading: boolean;
-  onChangeInputs: (value: string) => void;
-  onLoadDefaults: () => void;
-  onRender: () => void;
-  onTest: () => void;
-  prompt: PromptTemplateDetail | null;
-  renderError: string | null;
-  renderPending: boolean;
-  renderResult: RenderPromptResult | null;
-  testPending: boolean;
-  testResult: TestPromptResult | null;
+  onPageChange: (value: number) => void;
+  page: number;
+  pageCount: number;
+  total: number;
 }) {
-  if (loading) {
-    return (
-      <Card className="p-5">
-        <div className="text-sm text-muted-foreground">正在加载选中的提示词...</div>
-      </Card>
-    );
-  }
-
-  if (!prompt) {
-    return (
-      <Card className="p-5">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <FileText className="size-4" />
-          选中的提示词
-        </div>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          选择一行后查看变量、渲染模板，或打开完整详情页。
-        </p>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="grid gap-5 p-5">
-      <div>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone={promptStatusTone(prompt.status)}>{promptStatusLabel(prompt.status)}</StatusBadge>
-              <StatusBadge tone="planned">{promptTypeLabel(prompt.type)}</StatusBadge>
-              <StatusBadge tone="ready">v{prompt.version}</StatusBadge>
-            </div>
-            <h2 className="mt-3 break-words text-base font-semibold">{prompt.name}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{prompt.code}</p>
-          </div>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/prompts/${prompt.id}`}>
-              <Eye className="size-4" />
-              详情
-            </Link>
-          </Button>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{prompt.description ?? '暂无描述。'}</p>
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="text-sm text-muted-foreground">
+        第 {page} / {pageCount} 页 · 共 {total} 条
       </div>
-
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <SummaryTile label="变量" value={`${prompt.variable_count}`} />
-        <SummaryTile label="测试" value={`${prompt.test_count}`} />
-        <SummaryTile label="智能体" value={`${prompt.agent_reference_count}`} />
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronLeft className="size-4" />
+          上一页
+        </Button>
+        <Button
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          下一页
+          <ChevronRight className="size-4" />
+        </Button>
       </div>
-
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">渲染输入</h3>
-          <Button onClick={onLoadDefaults} size="sm" type="button" variant="outline">
-            加载默认值
-          </Button>
-        </div>
-        <textarea
-          className="mt-3 min-h-40 w-full resize-y rounded-md border bg-slate-950 px-3 py-3 font-mono text-xs leading-5 text-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onChange={(event) => onChangeInputs(event.target.value)}
-          spellCheck={false}
-          value={inputsText}
-        />
-        {renderError ? (
-          <div className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {renderError}
-          </div>
-        ) : null}
-        <div className="mt-2 text-xs text-muted-foreground">
-          未指定模型时，自动使用租户当前可执行的默认 chat 模型。
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button disabled={renderPending} onClick={onRender} type="button" variant="outline">
-            <FileText className="size-4" />
-            渲染
-          </Button>
-          <Button disabled={!canWrite || testPending} onClick={onTest} type="button">
-            <FlaskConical className="size-4" />
-            运行测试
-          </Button>
-        </div>
-      </div>
-
-      {renderResult ? (
-        <div className="rounded-md border bg-muted/25 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">渲染输出</h3>
-            <span className="text-xs text-muted-foreground">
-              {renderResult.missing_variables.length === 0
-                ? '必填变量已全部解析'
-                : `${renderResult.missing_variables.length} 个变量缺失`}
-            </span>
-          </div>
-          <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background p-3 text-xs leading-5">
-            {renderResult.rendered_content}
-          </pre>
-        </div>
-      ) : null}
-
-      {testResult ? (
-        <div className="rounded-md border bg-muted/25 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">最新测试</h3>
-            <StatusBadge tone={promptTestStatusTone(testResult.status)}>{promptTestStatusLabel(testResult.status)}</StatusBadge>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">延迟 {testResult.latency_ms}ms</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {testResult.model_provider_name ?? '未指定供应商'} · {testResult.request_model ?? '未执行模型'}
-          </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            {testResult.output_text ?? testResult.error_message ?? '暂无 Runtime 输出。'}
-          </p>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
-function SummaryTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/25 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
   );
 }
 
-function toCreateInput(values: PromptFormValues) {
-  return {
-    name: values.name,
-    code: values.code,
-    type: values.type,
-    content: values.content,
-    description: nullableText(values.description),
-    owner_id: nullableId(values.owner_id),
-  };
-}
-
-function toUpdateInput(values: PromptFormValues) {
-  return {
-    name: values.name,
-    type: values.type,
-    status: values.status,
-    content: values.content,
-    description: nullableText(values.description),
-    owner_id: nullableId(values.owner_id),
-  };
-}
-
-function nullableText(value?: string) {
-  const trimmed = value?.trim();
-
-  return trimmed ? trimmed : null;
-}
-
-function nullableId(value?: string) {
-  return value || null;
-}
-
-function parseJsonObject(value: string):
-  | { ok: true; value: Record<string, unknown> }
-  | { ok: false; message: string } {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-      return { ok: false, message: '输入必须是 JSON 对象。' };
-    }
-
-    return { ok: true, value: parsed as Record<string, unknown> };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : '无效的 JSON 输入。',
-    };
-  }
-}
-
-function createInputDefaults(prompt: PromptTemplateDetail) {
-  return Object.fromEntries(
-    prompt.variables.map((variable) => [variable.name, coerceVariableDefault(variable.default_value, variable.variable_type)]),
+function ConfirmDialog({
+  body,
+  onCancel,
+  onConfirm,
+  pending,
+  title,
+}: {
+  body: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  title: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
+      <Card className="w-full max-w-md p-5">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="outline">
+            取消
+          </Button>
+          <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
+            确认删除
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
-}
-
-function coerceVariableDefault(value: string | null, type: PromptTemplateDetail['variables'][number]['variable_type']) {
-  if (value === null || value === '') {
-    if (type === 'number') return 0;
-    if (type === 'boolean') return false;
-    if (type === 'json') return {};
-    return '';
-  }
-
-  if (type === 'number') {
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
-
-  if (type === 'boolean') {
-    return value === 'true';
-  }
-
-  if (type === 'json') {
-    try {
-      return JSON.parse(value) as unknown;
-    } catch {
-      return value;
-    }
-  }
-
-  return value;
 }

@@ -1,0 +1,35 @@
+# Project UI Brief
+
+- Page: Conversation Center IA
+- Route: /conversations
+- Feature goal: Split conversation list and create route so message streaming, run trace, feedback, references, and tool calls live in conversation detail.
+- Users/roles: tenant_admin, agent_admin, auditor, ordinary authorized user.
+- Business goal: Let users browse tenant conversation threads, search/filter by Agent and status, archive conversations, and enter a detail page to continue chat and inspect full runtime evidence.
+- APIs/services:
+  - `listConversations`
+  - `createConversation`
+  - `getConversation`
+  - `deleteConversation`
+  - `streamConversationMessage`
+  - `createConversationFeedback`
+  - `listAgents`
+- Entities/fields/statuses:
+  - Conversation list item: `id`, `title`, `agent_id`, `agent_name`, `user`, `status`, `message_count`, `feedback_count`, `last_run_status`, `last_message_preview`, `last_message_at`, `created_at`, `updated_at`.
+  - Conversation detail: list fields plus `messages`, `runs`, `feedback`, references, tool calls.
+  - Status values: conversation `ACTIVE`, `ARCHIVED`; run statuses including success/failure/running states from shared types.
+- Actions:
+  - List/search/filter conversations.
+  - Create route-level conversation from `/conversations/create`.
+  - Open conversation detail from `/conversations/[id]`.
+  - Archive one conversation with confirmation.
+  - Continue chat only from detail page.
+  - Feedback and run trace inspection only from detail page.
+- Required states: loading, empty, error, disabled, permission-denied, no-published-agent, mutation pending, delete/archive confirmation.
+- Existing components/design system:
+  - Next.js App Router console shell.
+  - Tailwind CSS.
+  - shadcn/ui-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`.
+  - `motion/react` for subtle row reveal.
+  - React Query for loading/mutations.
+  - Existing `ConversationCenterBackground`, `ConversationFormPanel`, `conversation-status` helpers.
+- Style constraints: Chinese UI text, enterprise SaaS console density, list-first information hierarchy, subtle borders, soft shadows, no message composer or message history inside list.

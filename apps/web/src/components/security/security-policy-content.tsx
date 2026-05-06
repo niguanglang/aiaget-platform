@@ -101,6 +101,7 @@ import {
   ShieldEllipsis,
   SlidersHorizontal,
   Trash2,
+  Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -219,13 +220,17 @@ const approvalWorkbenchTypes: Array<{ label: string; value: SecurityApprovalWork
   { label: 'SLA 死信审计归档删除', value: 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE' },
   { label: '自愈审计归档删除', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
 ];
-const approvalWorkbenchStatuses: Array<{ label: string; value: SecurityApprovalWorkbenchStatus }> = [
-  { label: '待审批', value: 'PENDING' },
-  { label: '已批准', value: 'APPROVED' },
-  { label: '已拒绝', value: 'REJECTED' },
-  { label: '已生效', value: 'APPLIED' },
-];
-const approvalWorkbenchRiskDomains: Array<{ label: string; value: SecurityApprovalWorkbenchRiskDomain }> = [
+const approvalWorkbenchStatuses: Array<{ label: string; value: SecurityApprovalWorkbenchStatus }> =
+  [
+    { label: '待审批', value: 'PENDING' },
+    { label: '已批准', value: 'APPROVED' },
+    { label: '已拒绝', value: 'REJECTED' },
+    { label: '已生效', value: 'APPLIED' },
+  ];
+const approvalWorkbenchRiskDomains: Array<{
+  label: string;
+  value: SecurityApprovalWorkbenchRiskDomain;
+}> = [
   { label: '工具风险', value: 'TOOL' },
   { label: '策略风险', value: 'POLICY' },
   { label: '审计归档', value: 'AUDIT_ARCHIVE' },
@@ -276,6 +281,76 @@ const securityModuleIcons = {
   monitor: Activity,
 } satisfies Record<SecurityCenterModuleSummary['key'], typeof ShieldCheck>;
 
+export type SecurityCenterView = 'overview' | 'policies' | 'events' | 'alerts' | 'recovery';
+
+type SecurityPolicyContentProps = {
+  view?: SecurityCenterView;
+};
+
+type SecurityCenterViewConfig = {
+  id: SecurityCenterView;
+  href: string;
+  title: string;
+  badge: string;
+  description: string;
+  primaryMetricLabel: string;
+  helper: string;
+  icon: typeof ShieldCheck;
+};
+
+const securityCenterViewConfigs: [SecurityCenterViewConfig, ...SecurityCenterViewConfig[]] = [
+  {
+    id: 'overview',
+    href: '/security',
+    title: '安全治理总览',
+    badge: '入口',
+    description: '统一查看安全评分、权限链路、风险信号和治理模块入口。',
+    primaryMetricLabel: '安全评分',
+    helper: '从安全态势聚合接口计算',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'policies',
+    href: '/security/policies',
+    title: '策略治理',
+    badge: 'ABAC',
+    description: '维护安全策略，运行策略模拟，并追踪评估日志。',
+    primaryMetricLabel: '策略总数',
+    helper: '策略清单与模拟器',
+    icon: ShieldEllipsis,
+  },
+  {
+    id: 'events',
+    href: '/security/events',
+    title: '安全事件',
+    badge: 'Trace',
+    description: '检索拒绝事件、审批导出事件和请求链路详情。',
+    primaryMetricLabel: '24h 事件',
+    helper: '支持请求 ID 与 Trace 跳转',
+    icon: Activity,
+  },
+  {
+    id: 'alerts',
+    href: '/security/alerts',
+    title: '告警运营',
+    badge: '闭环',
+    description: '处理审批工作台、运营告警、通知审计、SLA 和死信处置。',
+    primaryMetricLabel: '运营告警',
+    helper: '确认、升级、关闭与通知',
+    icon: AlertTriangle,
+  },
+  {
+    id: 'recovery',
+    href: '/security/recovery',
+    title: '自愈恢复',
+    badge: '任务',
+    description: '查看通知任务历史、自愈建议、恢复审计和归档审批。',
+    primaryMetricLabel: '自愈建议',
+    helper: '失败来源聚合与恢复闭环',
+    icon: Wrench,
+  },
+];
+
 const defaultConditions = {
   all: [
     {
@@ -306,7 +381,7 @@ const defaultContext = {
   channel: 'console',
 };
 
-export function SecurityPolicyContent() {
+export function SecurityPolicyContent({ view = 'overview' }: SecurityPolicyContentProps) {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
   const [keyword, setKeyword] = useState('');
@@ -315,7 +390,9 @@ export function SecurityPolicyContent() {
   const [resourceType, setResourceType] = useState('');
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
   const [editingPolicy, setEditingPolicy] = useState<SecurityPolicyDetail | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<SecurityPolicyListItem | SecurityPolicyDetail | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    SecurityPolicyListItem | SecurityPolicyDetail | null
+  >(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [simulateError, setSimulateError] = useState<string | null>(null);
@@ -331,11 +408,19 @@ export function SecurityPolicyContent() {
   const [eventPage, setEventPage] = useState(1);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [approvalWorkbenchKeyword, setApprovalWorkbenchKeyword] = useState('');
-  const [approvalWorkbenchType, setApprovalWorkbenchType] = useState<SecurityApprovalWorkbenchType | ''>('');
-  const [approvalWorkbenchStatus, setApprovalWorkbenchStatus] = useState<SecurityApprovalWorkbenchStatus | ''>('PENDING');
-  const [approvalWorkbenchRiskDomain, setApprovalWorkbenchRiskDomain] = useState<SecurityApprovalWorkbenchRiskDomain | ''>('');
+  const [approvalWorkbenchType, setApprovalWorkbenchType] = useState<
+    SecurityApprovalWorkbenchType | ''
+  >('');
+  const [approvalWorkbenchStatus, setApprovalWorkbenchStatus] = useState<
+    SecurityApprovalWorkbenchStatus | ''
+  >('PENDING');
+  const [approvalWorkbenchRiskDomain, setApprovalWorkbenchRiskDomain] = useState<
+    SecurityApprovalWorkbenchRiskDomain | ''
+  >('');
   const [approvalWorkbenchPage, setApprovalWorkbenchPage] = useState(1);
-  const [selectedApprovalWorkbenchId, setSelectedApprovalWorkbenchId] = useState<string | null>(null);
+  const [selectedApprovalWorkbenchId, setSelectedApprovalWorkbenchId] = useState<string | null>(
+    null,
+  );
   const [approvalWorkbenchNote, setApprovalWorkbenchNote] = useState('');
   const [approvalWorkbenchMessage, setApprovalWorkbenchMessage] = useState<string | null>(null);
   const [approvalWorkbenchError, setApprovalWorkbenchError] = useState<string | null>(null);
@@ -350,56 +435,89 @@ export function SecurityPolicyContent() {
   const [operationNotificationExportState, setOperationNotificationExportState] = useState<
     'idle' | 'exporting' | 'success' | 'error'
   >('idle');
-  const [operationNotificationArchiveMessage, setOperationNotificationArchiveMessage] = useState<string | null>(null);
-  const [operationNotificationArchiveError, setOperationNotificationArchiveError] = useState<string | null>(null);
-  const [operationNotificationArchiveApprovalNote, setOperationNotificationArchiveApprovalNote] = useState('');
+  const [operationNotificationArchiveMessage, setOperationNotificationArchiveMessage] = useState<
+    string | null
+  >(null);
+  const [operationNotificationArchiveError, setOperationNotificationArchiveError] = useState<
+    string | null
+  >(null);
+  const [operationNotificationArchiveApprovalNote, setOperationNotificationArchiveApprovalNote] =
+    useState('');
   const [operationNotificationTaskRunTask, setOperationNotificationTaskRunTask] = useState<
     SecurityOperationAlertNotificationTaskName | ''
   >('');
   const [operationNotificationTaskRunStatus, setOperationNotificationTaskRunStatus] = useState<
     SecurityOperationAlertNotificationTaskRunResult['status'] | ''
   >('');
-  const [operationNotificationTaskRunKeyword, setOperationNotificationTaskRunKeyword] = useState('');
-  const [operationNotificationTaskRecoveryAuditAction, setOperationNotificationTaskRecoveryAuditAction] = useState<
-    SecurityOperationAlertNotificationTaskRecoveryAction | ''
-  >('');
-  const [operationNotificationTaskRecoveryAuditStatus, setOperationNotificationTaskRecoveryAuditStatus] = useState<
-    SecurityOperationAlertNotificationTaskRecoveryStatus | ''
-  >('');
-  const [operationNotificationTaskRecoveryAuditReason, setOperationNotificationTaskRecoveryAuditReason] = useState<
-    SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | ''
-  >('');
-  const [operationNotificationTaskRecoveryAuditFailureSource, setOperationNotificationTaskRecoveryAuditFailureSource] =
-    useState<SecurityOperationAlertNotificationTaskRecoveryFailureSource | ''>('');
-  const [operationNotificationTaskRecoveryAuditKeyword, setOperationNotificationTaskRecoveryAuditKeyword] = useState('');
-  const [operationNotificationTaskRecoveryAuditExportState, setOperationNotificationTaskRecoveryAuditExportState] =
-    useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
-  const [operationNotificationTaskRecoveryAuditArchiveMessage, setOperationNotificationTaskRecoveryAuditArchiveMessage] =
-    useState<string | null>(null);
-  const [operationNotificationTaskRecoveryAuditArchiveError, setOperationNotificationTaskRecoveryAuditArchiveError] =
-    useState<string | null>(null);
-  const [operationNotificationTaskRecoveryAuditArchiveApprovalNote, setOperationNotificationTaskRecoveryAuditArchiveApprovalNote] =
+  const [operationNotificationTaskRunKeyword, setOperationNotificationTaskRunKeyword] =
     useState('');
+  const [
+    operationNotificationTaskRecoveryAuditAction,
+    setOperationNotificationTaskRecoveryAuditAction,
+  ] = useState<SecurityOperationAlertNotificationTaskRecoveryAction | ''>('');
+  const [
+    operationNotificationTaskRecoveryAuditStatus,
+    setOperationNotificationTaskRecoveryAuditStatus,
+  ] = useState<SecurityOperationAlertNotificationTaskRecoveryStatus | ''>('');
+  const [
+    operationNotificationTaskRecoveryAuditReason,
+    setOperationNotificationTaskRecoveryAuditReason,
+  ] = useState<SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | ''>('');
+  const [
+    operationNotificationTaskRecoveryAuditFailureSource,
+    setOperationNotificationTaskRecoveryAuditFailureSource,
+  ] = useState<SecurityOperationAlertNotificationTaskRecoveryFailureSource | ''>('');
+  const [
+    operationNotificationTaskRecoveryAuditKeyword,
+    setOperationNotificationTaskRecoveryAuditKeyword,
+  ] = useState('');
+  const [
+    operationNotificationTaskRecoveryAuditExportState,
+    setOperationNotificationTaskRecoveryAuditExportState,
+  ] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [
+    operationNotificationTaskRecoveryAuditArchiveMessage,
+    setOperationNotificationTaskRecoveryAuditArchiveMessage,
+  ] = useState<string | null>(null);
+  const [
+    operationNotificationTaskRecoveryAuditArchiveError,
+    setOperationNotificationTaskRecoveryAuditArchiveError,
+  ] = useState<string | null>(null);
+  const [
+    operationNotificationTaskRecoveryAuditArchiveApprovalNote,
+    setOperationNotificationTaskRecoveryAuditArchiveApprovalNote,
+  ] = useState('');
   const [operationAlertNotificationResults, setOperationAlertNotificationResults] = useState<
     Record<string, SecurityOperationAlertNotificationResult>
   >({});
   const [operationAlertActionResults, setOperationAlertActionResults] = useState<
     Record<string, SecurityOperationAlertActionResult>
   >({});
-  const [operationAlertNotificationTaskRecoveryActionResults, setOperationAlertNotificationTaskRecoveryActionResults] =
-    useState<Record<string, SecurityOperationAlertNotificationTaskRecoveryActionResult>>({});
+  const [
+    operationAlertNotificationTaskRecoveryActionResults,
+    setOperationAlertNotificationTaskRecoveryActionResults,
+  ] = useState<Record<string, SecurityOperationAlertNotificationTaskRecoveryActionResult>>({});
   const [slaDeadLetterNote, setSlaDeadLetterNote] = useState('');
   const [slaDeadLetterAuditKeyword, setSlaDeadLetterAuditKeyword] = useState('');
   const [slaDeadLetterAuditCategory, setSlaDeadLetterAuditCategory] = useState('');
-  const [slaDeadLetterAuditAction, setSlaDeadLetterAuditAction] = useState<SecurityOperationAlertSlaDeadLetterAction | ''>('');
-  const [slaDeadLetterAuditStatus, setSlaDeadLetterAuditStatus] = useState<SecurityOperationAlertSlaDeadLetterDispositionStatus | ''>('');
+  const [slaDeadLetterAuditAction, setSlaDeadLetterAuditAction] = useState<
+    SecurityOperationAlertSlaDeadLetterAction | ''
+  >('');
+  const [slaDeadLetterAuditStatus, setSlaDeadLetterAuditStatus] = useState<
+    SecurityOperationAlertSlaDeadLetterDispositionStatus | ''
+  >('');
   const [slaDeadLetterAuditPage, setSlaDeadLetterAuditPage] = useState(1);
   const [slaDeadLetterAuditExportState, setSlaDeadLetterAuditExportState] = useState<
     'idle' | 'exporting' | 'success' | 'error'
   >('idle');
-  const [slaDeadLetterAuditArchiveMessage, setSlaDeadLetterAuditArchiveMessage] = useState<string | null>(null);
-  const [slaDeadLetterAuditArchiveError, setSlaDeadLetterAuditArchiveError] = useState<string | null>(null);
-  const [slaDeadLetterAuditArchiveApprovalNote, setSlaDeadLetterAuditArchiveApprovalNote] = useState('');
+  const [slaDeadLetterAuditArchiveMessage, setSlaDeadLetterAuditArchiveMessage] = useState<
+    string | null
+  >(null);
+  const [slaDeadLetterAuditArchiveError, setSlaDeadLetterAuditArchiveError] = useState<
+    string | null
+  >(null);
+  const [slaDeadLetterAuditArchiveApprovalNote, setSlaDeadLetterAuditArchiveApprovalNote] =
+    useState('');
   const operationNotificationExportParams = useMemo(
     () => ({
       status: operationNotificationStatus,
@@ -431,7 +549,12 @@ export function SecurityPolicyContent() {
       action: slaDeadLetterAuditAction,
       disposition_status: slaDeadLetterAuditStatus,
     }),
-    [slaDeadLetterAuditAction, slaDeadLetterAuditCategory, slaDeadLetterAuditKeyword, slaDeadLetterAuditStatus],
+    [
+      slaDeadLetterAuditAction,
+      slaDeadLetterAuditCategory,
+      slaDeadLetterAuditKeyword,
+      slaDeadLetterAuditStatus,
+    ],
   );
   const approvalWorkbenchExportParams = useMemo(
     () => ({
@@ -440,22 +563,27 @@ export function SecurityPolicyContent() {
       status: approvalWorkbenchStatus,
       risk_domain: approvalWorkbenchRiskDomain,
     }),
-    [approvalWorkbenchKeyword, approvalWorkbenchRiskDomain, approvalWorkbenchStatus, approvalWorkbenchType],
+    [
+      approvalWorkbenchKeyword,
+      approvalWorkbenchRiskDomain,
+      approvalWorkbenchStatus,
+      approvalWorkbenchType,
+    ],
   );
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      hasPermission(currentUser?.user.permissions ?? [], 'security:rule:manage'),
+    hasPermission(currentUser?.user.permissions ?? [], 'security:rule:manage'),
   );
 
   const canViewApprovals = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:view'),
+    hasPermission(currentUser?.user.permissions ?? [], 'security:approval:view'),
   );
 
   const canHandleApprovals = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
-      hasPermission(currentUser?.user.permissions ?? [], 'security:approval:handle'),
+    hasPermission(currentUser?.user.permissions ?? [], 'security:approval:handle'),
   );
 
   const overviewQuery = useQuery({
@@ -491,7 +619,14 @@ export function SecurityPolicyContent() {
   });
 
   const securityEventsQuery = useQuery({
-    queryKey: ['security-center-events', eventKeyword, eventSource, eventWindow, eventTraceOnly, eventPage],
+    queryKey: [
+      'security-center-events',
+      eventKeyword,
+      eventSource,
+      eventWindow,
+      eventTraceOnly,
+      eventPage,
+    ],
     queryFn: () =>
       listSecurityCenterEvents({
         page: eventPage,
@@ -612,7 +747,9 @@ export function SecurityPolicyContent() {
   });
 
   const operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery = useQuery({
-    queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approval-overview'],
+    queryKey: [
+      'security-operation-alert-notification-task-recovery-audit-archive-approval-overview',
+    ],
     queryFn: getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview,
   });
 
@@ -692,7 +829,10 @@ export function SecurityPolicyContent() {
   const securityEventsTotal = securityEventsQuery.data?.total ?? 0;
   const securityEventsPageCount = Math.max(1, Math.ceil(securityEventsTotal / eventPageSize));
   const slaDeadLetterAuditTotal = operationAlertSlaDeadLetterAuditQuery.data?.total ?? 0;
-  const slaDeadLetterAuditPageCount = Math.max(1, Math.ceil(slaDeadLetterAuditTotal / slaDeadLetterAuditPageSize));
+  const slaDeadLetterAuditPageCount = Math.max(
+    1,
+    Math.ceil(slaDeadLetterAuditTotal / slaDeadLetterAuditPageSize),
+  );
 
   useEffect(() => {
     if (eventPage > securityEventsPageCount) {
@@ -707,7 +847,10 @@ export function SecurityPolicyContent() {
   }, [approvalWorkbenchPage, approvalWorkbenchPageCount]);
 
   useEffect(() => {
-    if (selectedApprovalWorkbenchId && !approvalWorkbenchItems.some((item) => item.id === selectedApprovalWorkbenchId)) {
+    if (
+      selectedApprovalWorkbenchId &&
+      !approvalWorkbenchItems.some((item) => item.id === selectedApprovalWorkbenchId)
+    ) {
       setSelectedApprovalWorkbenchId(approvalWorkbenchItems[0]?.id ?? null);
     } else if (!selectedApprovalWorkbenchId && approvalWorkbenchItems.length > 0) {
       setSelectedApprovalWorkbenchId(approvalWorkbenchItems[0]?.id ?? null);
@@ -723,7 +866,9 @@ export function SecurityPolicyContent() {
   async function handleExportOperationAlertNotifications() {
     setOperationNotificationExportState('exporting');
     try {
-      const blob = await exportSecurityOperationAlertNotifications(operationNotificationExportParams);
+      const blob = await exportSecurityOperationAlertNotifications(
+        operationNotificationExportParams,
+      );
       downloadBlob(blob, `运营告警通知审计-${new Date().toISOString().slice(0, 10)}.csv`);
       setOperationNotificationExportState('success');
     } catch {
@@ -734,7 +879,9 @@ export function SecurityPolicyContent() {
   async function handleExportSlaDeadLetterAudits() {
     setSlaDeadLetterAuditExportState('exporting');
     try {
-      const blob = await exportSecurityOperationAlertSlaDeadLetterAudits(slaDeadLetterAuditExportParams);
+      const blob = await exportSecurityOperationAlertSlaDeadLetterAudits(
+        slaDeadLetterAuditExportParams,
+      );
       downloadBlob(blob, `SLA死信处置审计-${new Date().toISOString().slice(0, 10)}.csv`);
       setSlaDeadLetterAuditExportState('success');
     } catch {
@@ -771,7 +918,8 @@ export function SecurityPolicyContent() {
   }
 
   const createOperationAlertNotificationArchiveMutation = useMutation({
-    mutationFn: () => createSecurityOperationAlertNotificationArchive(operationNotificationExportParams),
+    mutationFn: () =>
+      createSecurityOperationAlertNotificationArchive(operationNotificationExportParams),
     onSuccess: async (result) => {
       setOperationNotificationArchiveError(null);
       setOperationNotificationArchiveMessage(`已生成归档 ${result.item.file_name}。`);
@@ -801,7 +949,9 @@ export function SecurityPolicyContent() {
       deleteSecurityOperationAlertNotificationArchive(archive.id),
     onSuccess: async (result) => {
       setOperationNotificationArchiveError(null);
-      setOperationNotificationArchiveMessage(`归档删除已提交审批，审批 ID：${result.approval_id}。`);
+      setOperationNotificationArchiveMessage(
+        `归档删除已提交审批，审批 ID：${result.approval_id}。`,
+      );
       await Promise.all([
         operationAlertNotificationArchiveApprovalOverviewQuery.refetch(),
         operationAlertNotificationArchiveApprovalsQuery.refetch(),
@@ -861,7 +1011,9 @@ export function SecurityPolicyContent() {
       ),
     onSuccess: async (result) => {
       setOperationNotificationTaskRecoveryAuditArchiveError(null);
-      setOperationNotificationTaskRecoveryAuditArchiveMessage(`已生成归档 ${result.item.file_name}。`);
+      setOperationNotificationTaskRecoveryAuditArchiveMessage(
+        `已生成归档 ${result.item.file_name}。`,
+      );
       await operationAlertNotificationTaskRecoveryAuditArchivesQuery.refetch();
     },
     onError: (error: Error) => {
@@ -888,7 +1040,9 @@ export function SecurityPolicyContent() {
       deleteSecurityOperationAlertNotificationTaskRecoveryAuditArchive(archive.id),
     onSuccess: async (result) => {
       setOperationNotificationTaskRecoveryAuditArchiveError(null);
-      setOperationNotificationTaskRecoveryAuditArchiveMessage(`归档删除已提交审批，审批 ID：${result.approval_id}。`);
+      setOperationNotificationTaskRecoveryAuditArchiveMessage(
+        `归档删除已提交审批，审批 ID：${result.approval_id}。`,
+      );
       await Promise.all([
         operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.refetch(),
         operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.refetch(),
@@ -908,7 +1062,9 @@ export function SecurityPolicyContent() {
     onSuccess: async () => {
       setOperationNotificationTaskRecoveryAuditArchiveError(null);
       setOperationNotificationTaskRecoveryAuditArchiveApprovalNote('');
-      setOperationNotificationTaskRecoveryAuditArchiveMessage('归档删除审批已通过，文件已从对象存储删除。');
+      setOperationNotificationTaskRecoveryAuditArchiveMessage(
+        '归档删除审批已通过，文件已从对象存储删除。',
+      );
       await Promise.all([
         operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.refetch(),
         operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.refetch(),
@@ -942,7 +1098,8 @@ export function SecurityPolicyContent() {
   });
 
   const createSlaDeadLetterAuditArchiveMutation = useMutation({
-    mutationFn: () => createSecurityOperationAlertSlaDeadLetterAuditArchive(slaDeadLetterAuditExportParams),
+    mutationFn: () =>
+      createSecurityOperationAlertSlaDeadLetterAuditArchive(slaDeadLetterAuditExportParams),
     onSuccess: async (result) => {
       setSlaDeadLetterAuditArchiveError(null);
       setSlaDeadLetterAuditArchiveMessage(`已生成归档 ${result.item.file_name}。`);
@@ -1237,7 +1394,9 @@ export function SecurityPolicyContent() {
       setActionError(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
-        queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audits'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['security-operation-alert-notification-task-recovery-audits'],
+        }),
       ]);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -1366,7 +1525,9 @@ export function SecurityPolicyContent() {
     {
       label: '安全评分',
       value: `${securityOverview?.posture.score ?? 100}`,
-      helper: securityOverview ? securityRiskLevelLabel(securityOverview.posture.level) : '正在计算',
+      helper: securityOverview
+        ? securityRiskLevelLabel(securityOverview.posture.level)
+        : '正在计算',
     },
     {
       label: '待审批',
@@ -1399,6 +1560,21 @@ export function SecurityPolicyContent() {
       helper: '条件化授权规则',
     },
   ];
+  const policyTotal = overview?.total ?? policiesQuery.data?.total ?? 0;
+  const activeView =
+    securityCenterViewConfigs.find((item) => item.id === view) ?? securityCenterViewConfigs[0];
+  const viewMetricValues: Record<SecurityCenterView, string> = {
+    overview: `${securityOverview?.posture.score ?? 100}`,
+    policies: `${policyTotal}`,
+    events: `${securityOverview?.metrics.security_events_24h ?? securityEventsTotal}`,
+    alerts: `${securityOverview?.approval_operations.operational_alerts.length ?? 0}`,
+    recovery: `${securityOverview?.approval_operations.notification_task_recovery_suggestions.length ?? 0}`,
+  };
+  const showOverview = view === 'overview';
+  const showPolicies = view === 'policies';
+  const showEvents = view === 'events';
+  const showAlerts = view === 'alerts';
+  const showRecovery = view === 'recovery';
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -1417,299 +1593,438 @@ export function SecurityPolicyContent() {
             <StatusBadge tone="healthy">ABAC</StatusBadge>
             <StatusBadge tone="ready">RBAC + DataScope + ACL</StatusBadge>
           </div>
-          <h1 className="text-2xl font-semibold">安全中心</h1>
+          <h1 className="text-2xl font-semibold">{activeView.title}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            统一查看安全态势、列表数据范围、资源授权条件、安全策略拒绝、高危审批、审计日志和运行监控。
+            {activeView.description}
           </p>
         </div>
-        <Button className="w-full md:w-auto" disabled={!canWrite} onClick={openCreateForm}>
-          <Plus className="size-4" />
-          新建策略
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+          {view !== 'overview' ? (
+            <Button asChild className="w-full md:w-auto" variant="outline">
+              <Link href="/security">
+                <ArrowRight className="size-4 rotate-180" />
+                返回总览
+              </Link>
+            </Button>
+          ) : null}
+          {view === 'overview' || view === 'policies' ? (
+            <Button className="w-full md:w-auto" disabled={!canWrite} onClick={openCreateForm}>
+              <Plus className="size-4" />
+              新建策略
+            </Button>
+          ) : null}
+        </div>
       </motion.section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricCard
+            helper={metric.helper}
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+          />
         ))}
       </section>
 
-      <SecurityCenterOverviewPanel
-        loading={securityCenterQuery.isLoading}
-        overview={securityOverview}
-        onOpenEventDetail={setSelectedEventId}
-        policyTotal={overview?.total ?? policiesQuery.data?.total ?? 0}
-      />
+      {showOverview ? (
+        <>
+          <SecurityCenterEntryPanel activeView={view} metricValues={viewMetricValues} />
 
-      <ApprovalArchiveOperationsCard
-        actionResults={operationAlertActionResults}
-        loading={securityCenterQuery.isLoading}
-        notificationResults={operationAlertNotificationResults}
-        notificationTaskRecoveryActionResults={operationAlertNotificationTaskRecoveryActionResults}
-        notificationTaskRecoveryPendingAction={updateNotificationTaskRecoverySuggestionMutation.variables?.action ?? null}
-        notificationTaskRecoveryPendingSuggestionId={
-          updateNotificationTaskRecoverySuggestionMutation.variables?.suggestionId ?? null
-        }
-        notificationTaskRecoveryUpdating={updateNotificationTaskRecoverySuggestionMutation.isPending}
-        onAction={(alertId, action) => updateOperationAlertMutation.mutate({ action, alertId })}
-        onNotificationTaskRecoveryAction={(suggestionId, action) =>
-          updateNotificationTaskRecoverySuggestionMutation.mutate({ action, suggestionId })
-        }
-        notifyingAlertId={notifyOperationAlertMutation.variables ?? null}
-        notifying={notifyOperationAlertMutation.isPending}
-        onNotify={(alertId) => notifyOperationAlertMutation.mutate(alertId)}
-        overview={securityOverview}
-        pendingAction={updateOperationAlertMutation.variables?.action ?? null}
-        pendingActionAlertId={updateOperationAlertMutation.variables?.alertId ?? null}
-        notificationAudit={operationAlertNotificationsQuery.data ?? null}
-        notificationAuditLoading={operationAlertNotificationsQuery.isLoading}
-        notificationArchiveError={operationNotificationArchiveError}
-        notificationArchiveLoading={operationAlertNotificationArchivesQuery.isLoading}
-        notificationArchiveMessage={operationNotificationArchiveMessage}
-        notificationArchiveApprovalNote={operationNotificationArchiveApprovalNote}
-        notificationArchiveApprovalOverview={operationAlertNotificationArchiveApprovalOverviewQuery.data ?? null}
-        notificationArchiveApprovals={operationAlertNotificationArchiveApprovalsQuery.data ?? []}
-        notificationArchiveApprovalsLoading={
-          operationAlertNotificationArchiveApprovalOverviewQuery.isLoading ||
-          operationAlertNotificationArchiveApprovalsQuery.isLoading
-        }
-        notificationArchives={operationAlertNotificationArchivesQuery.data?.items ?? []}
-        notificationArchiveSummary={operationAlertNotificationArchivesQuery.data?.summary ?? null}
-        notificationCategory={operationNotificationCategory}
-        notificationExportState={operationNotificationExportState}
-        notificationKeyword={operationNotificationKeyword}
-        notificationStatus={operationNotificationStatus}
-        onNotificationArchiveCreate={() => createOperationAlertNotificationArchiveMutation.mutate()}
-        onNotificationArchiveApprove={(approvalId) => approveOperationAlertNotificationArchiveApprovalMutation.mutate(approvalId)}
-        onNotificationArchiveDelete={(archive) => deleteOperationAlertNotificationArchiveMutation.mutate(archive)}
-        onNotificationArchiveDownload={(archive) => downloadOperationAlertNotificationArchiveMutation.mutate(archive)}
-        onNotificationArchiveNoteChange={setOperationNotificationArchiveApprovalNote}
-        onNotificationArchiveReject={(approvalId) => rejectOperationAlertNotificationArchiveApprovalMutation.mutate(approvalId)}
-        onNotificationArchiveRefresh={() => void operationAlertNotificationArchivesQuery.refetch()}
-        onNotificationArchiveApprovalRefresh={() => {
-          void operationAlertNotificationArchiveApprovalOverviewQuery.refetch();
-          void operationAlertNotificationArchiveApprovalsQuery.refetch();
-        }}
-        onNotificationCategoryChange={setOperationNotificationCategory}
-        onNotificationExport={() => void handleExportOperationAlertNotifications()}
-        onNotificationKeywordChange={setOperationNotificationKeyword}
-        onNotificationStatusChange={setOperationNotificationStatus}
-        onRetryNotification={(notificationEventId) => retryOperationNotificationMutation.mutate(notificationEventId)}
-        operationNotificationArchiving={createOperationAlertNotificationArchiveMutation.isPending}
-        operationNotificationArchiveApproving={approveOperationAlertNotificationArchiveApprovalMutation.isPending}
-        operationNotificationArchiveDeleting={deleteOperationAlertNotificationArchiveMutation.isPending}
-        operationNotificationArchiveRejecting={rejectOperationAlertNotificationArchiveApprovalMutation.isPending}
-        operationNotificationDownloading={downloadOperationAlertNotificationArchiveMutation.isPending}
-        retryingNotificationEventId={retryOperationNotificationMutation.variables ?? null}
-        retryingNotification={retryOperationNotificationMutation.isPending}
-        updatingAction={updateOperationAlertMutation.isPending}
-        taskLoading={operationAlertNotificationTaskQuery.isLoading}
-        taskOverview={operationAlertNotificationTaskQuery.data ?? null}
-        taskAutoNotifyRunning={runOperationNotificationAutoNotifyMutation.isPending}
-        taskAutoRetryRunning={runOperationNotificationAutoRetryMutation.isPending}
-        onRefreshTask={() => void operationAlertNotificationTaskQuery.refetch()}
-        onRunAutoNotify={() => runOperationNotificationAutoNotifyMutation.mutate()}
-        onRunAutoRetry={() => runOperationNotificationAutoRetryMutation.mutate()}
-        taskRunHistory={operationAlertNotificationTaskRunsQuery.data ?? null}
-        taskRunHistoryLoading={operationAlertNotificationTaskRunsQuery.isLoading}
-        taskRunHistoryKeyword={operationNotificationTaskRunKeyword}
-        taskRunHistoryStatus={operationNotificationTaskRunStatus}
-        taskRunHistoryTask={operationNotificationTaskRunTask}
-        taskRecoveryAudit={operationAlertNotificationTaskRecoveryAuditsQuery.data ?? null}
-        taskRecoveryAuditAction={operationNotificationTaskRecoveryAuditAction}
-        taskRecoveryAuditArchiveError={operationNotificationTaskRecoveryAuditArchiveError}
-        taskRecoveryAuditArchiveLoading={operationAlertNotificationTaskRecoveryAuditArchivesQuery.isLoading}
-        taskRecoveryAuditArchiveMessage={operationNotificationTaskRecoveryAuditArchiveMessage}
-        taskRecoveryAuditArchives={operationAlertNotificationTaskRecoveryAuditArchivesQuery.data?.items ?? []}
-        taskRecoveryAuditArchiveSummary={operationAlertNotificationTaskRecoveryAuditArchivesQuery.data?.summary ?? null}
-        taskRecoveryAuditCreatingArchive={createNotificationTaskRecoveryAuditArchiveMutation.isPending}
-        taskRecoveryAuditDeletingArchive={deleteNotificationTaskRecoveryAuditArchiveMutation.isPending}
-        taskRecoveryAuditDownloadingArchive={downloadNotificationTaskRecoveryAuditArchiveMutation.isPending}
-        taskRecoveryAuditArchiveApproving={approveNotificationTaskRecoveryAuditArchiveApprovalMutation.isPending}
-        taskRecoveryAuditArchiveRejecting={rejectNotificationTaskRecoveryAuditArchiveApprovalMutation.isPending}
-        taskRecoveryAuditArchiveApprovalNote={operationNotificationTaskRecoveryAuditArchiveApprovalNote}
-        taskRecoveryAuditArchiveApprovalOverview={operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.data ?? null}
-        taskRecoveryAuditArchiveApprovals={operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.data ?? []}
-        taskRecoveryAuditArchiveApprovalsLoading={
-          operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.isLoading ||
-          operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.isLoading
-        }
-        taskRecoveryAuditExportState={operationNotificationTaskRecoveryAuditExportState}
-        taskRecoveryAuditKeyword={operationNotificationTaskRecoveryAuditKeyword}
-        taskRecoveryAuditLoading={operationAlertNotificationTaskRecoveryAuditsQuery.isLoading}
-        taskRecoveryAuditFailureSource={operationNotificationTaskRecoveryAuditFailureSource}
-        taskRecoveryAuditReason={operationNotificationTaskRecoveryAuditReason}
-        taskRecoveryAuditStatus={operationNotificationTaskRecoveryAuditStatus}
-        onTaskRecoveryAuditActionChange={setOperationNotificationTaskRecoveryAuditAction}
-        onTaskRecoveryAuditArchiveApprove={(approvalId) => approveNotificationTaskRecoveryAuditArchiveApprovalMutation.mutate(approvalId)}
-        onTaskRecoveryAuditArchiveCreate={() => createNotificationTaskRecoveryAuditArchiveMutation.mutate()}
-        onTaskRecoveryAuditArchiveDelete={(archive) => deleteNotificationTaskRecoveryAuditArchiveMutation.mutate(archive)}
-        onTaskRecoveryAuditArchiveDownload={(archive) => downloadNotificationTaskRecoveryAuditArchiveMutation.mutate(archive)}
-        onTaskRecoveryAuditArchiveNoteChange={setOperationNotificationTaskRecoveryAuditArchiveApprovalNote}
-        onTaskRecoveryAuditArchiveReject={(approvalId) => rejectNotificationTaskRecoveryAuditArchiveApprovalMutation.mutate(approvalId)}
-        onTaskRecoveryAuditArchiveRefresh={() => void operationAlertNotificationTaskRecoveryAuditArchivesQuery.refetch()}
-        onTaskRecoveryAuditArchiveApprovalRefresh={() => {
-          void operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.refetch();
-          void operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.refetch();
-        }}
-        onTaskRecoveryAuditExport={() => void handleExportNotificationTaskRecoveryAudits()}
-        onTaskRecoveryAuditFailureSourceChange={setOperationNotificationTaskRecoveryAuditFailureSource}
-        onTaskRecoveryAuditKeywordChange={setOperationNotificationTaskRecoveryAuditKeyword}
-        onTaskRecoveryAuditReasonChange={setOperationNotificationTaskRecoveryAuditReason}
-        onTaskRecoveryAuditStatusChange={setOperationNotificationTaskRecoveryAuditStatus}
-        onRefreshTaskRecoveryAudit={() => void operationAlertNotificationTaskRecoveryAuditsQuery.refetch()}
-        onRefreshTaskRunHistory={() => void operationAlertNotificationTaskRunsQuery.refetch()}
-        onTaskRunHistoryKeywordChange={setOperationNotificationTaskRunKeyword}
-        onTaskRunHistoryStatusChange={setOperationNotificationTaskRunStatus}
-        onTaskRunHistoryTaskChange={setOperationNotificationTaskRunTask}
-        slaLoading={operationAlertSlaQuery.isLoading}
-        slaOverview={operationAlertSlaQuery.data ?? null}
-        slaRunning={runOperationAlertSlaEscalationMutation.isPending}
-        onRefreshSla={() => void operationAlertSlaQuery.refetch()}
-        onRunSlaEscalation={() => runOperationAlertSlaEscalationMutation.mutate()}
-        slaNotificationLoading={operationAlertSlaNotificationQuery.isLoading}
-        slaNotificationOverview={operationAlertSlaNotificationQuery.data ?? null}
-        slaNotificationRunning={notifyOperationAlertSlaOverdueMutation.isPending}
-        onRefreshSlaNotification={() => void operationAlertSlaNotificationQuery.refetch()}
-        onNotifySlaOverdue={() => notifyOperationAlertSlaOverdueMutation.mutate()}
-        slaNotificationRetryLoading={operationAlertSlaNotificationRetryQuery.isLoading}
-        slaNotificationRetryOverview={operationAlertSlaNotificationRetryQuery.data ?? null}
-        slaNotificationRetryRunning={runOperationAlertSlaNotificationAutoRetryMutation.isPending}
-        onRefreshSlaNotificationRetry={() => void operationAlertSlaNotificationRetryQuery.refetch()}
-        onRunSlaNotificationAutoRetry={() => runOperationAlertSlaNotificationAutoRetryMutation.mutate()}
-        onRetrySlaNotification={(notificationEventId) => retryOperationAlertSlaNotificationMutation.mutate(notificationEventId)}
-        retryingSlaNotification={retryOperationAlertSlaNotificationMutation.isPending}
-        retryingSlaNotificationEventId={retryOperationAlertSlaNotificationMutation.variables ?? null}
-        slaDeadLetterLoading={operationAlertSlaDeadLetterQuery.isLoading}
-        slaDeadLetterNote={slaDeadLetterNote}
-        slaDeadLetterOverview={operationAlertSlaDeadLetterQuery.data ?? null}
-        slaDeadLetterPendingAction={handleOperationAlertSlaDeadLetterMutation.variables?.action ?? null}
-        slaDeadLetterPendingEventId={handleOperationAlertSlaDeadLetterMutation.variables?.notificationEventId ?? null}
-        slaDeadLetterRunning={handleOperationAlertSlaDeadLetterMutation.isPending}
-        onSlaDeadLetterNoteChange={setSlaDeadLetterNote}
-        onRefreshSlaDeadLetter={() => void operationAlertSlaDeadLetterQuery.refetch()}
-        onHandleSlaDeadLetter={(notificationEventId, action) =>
-          handleOperationAlertSlaDeadLetterMutation.mutate({
-            action,
-            notificationEventId,
-            note: slaDeadLetterNote.trim() || null,
-          })}
-        slaDeadLetterAuditAction={slaDeadLetterAuditAction}
-        slaDeadLetterAuditCategory={slaDeadLetterAuditCategory}
-        slaDeadLetterAuditKeyword={slaDeadLetterAuditKeyword}
-        slaDeadLetterAuditLoading={operationAlertSlaDeadLetterAuditQuery.isLoading}
-        slaDeadLetterAuditPage={slaDeadLetterAuditPage}
-        slaDeadLetterAuditPageCount={slaDeadLetterAuditPageCount}
-        slaDeadLetterAuditResult={operationAlertSlaDeadLetterAuditQuery.data ?? null}
-        slaDeadLetterAuditStatus={slaDeadLetterAuditStatus}
-        slaDeadLetterAuditExportState={slaDeadLetterAuditExportState}
-        slaDeadLetterAuditArchives={operationAlertSlaDeadLetterAuditArchivesQuery.data?.items ?? []}
-        slaDeadLetterAuditArchiveError={slaDeadLetterAuditArchiveError}
-        slaDeadLetterAuditArchiveLoading={operationAlertSlaDeadLetterAuditArchivesQuery.isLoading}
-        slaDeadLetterAuditArchiveMessage={slaDeadLetterAuditArchiveMessage}
-        slaDeadLetterAuditArchiveSummary={operationAlertSlaDeadLetterAuditArchivesQuery.data?.summary ?? null}
-        slaDeadLetterAuditCreatingArchive={createSlaDeadLetterAuditArchiveMutation.isPending}
-        slaDeadLetterAuditDownloadingArchive={downloadSlaDeadLetterAuditArchiveMutation.isPending}
-        slaDeadLetterAuditDeletingArchive={deleteSlaDeadLetterAuditArchiveMutation.isPending}
-        slaDeadLetterAuditArchiveApproving={approveSlaDeadLetterAuditArchiveApprovalMutation.isPending}
-        slaDeadLetterAuditArchiveRejecting={rejectSlaDeadLetterAuditArchiveApprovalMutation.isPending}
-        slaDeadLetterAuditArchiveApprovalNote={slaDeadLetterAuditArchiveApprovalNote}
-        slaDeadLetterAuditArchiveApprovalOverview={operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.data ?? null}
-        slaDeadLetterAuditArchiveApprovals={operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.data ?? []}
-        slaDeadLetterAuditArchiveApprovalsLoading={
-          operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.isLoading ||
-          operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.isLoading
-        }
-        onSlaDeadLetterAuditActionChange={(value) => {
-          setSlaDeadLetterAuditAction(value);
-          setSlaDeadLetterAuditPage(1);
-        }}
-        onSlaDeadLetterAuditCategoryChange={(value) => {
-          setSlaDeadLetterAuditCategory(value);
-          setSlaDeadLetterAuditPage(1);
-        }}
-        onSlaDeadLetterAuditArchiveApprove={(approvalId) => approveSlaDeadLetterAuditArchiveApprovalMutation.mutate(approvalId)}
-        onSlaDeadLetterAuditArchiveCreate={() => createSlaDeadLetterAuditArchiveMutation.mutate()}
-        onSlaDeadLetterAuditArchiveDelete={(archive) => deleteSlaDeadLetterAuditArchiveMutation.mutate(archive)}
-        onSlaDeadLetterAuditArchiveDownload={(archive) => downloadSlaDeadLetterAuditArchiveMutation.mutate(archive)}
-        onSlaDeadLetterAuditArchiveNoteChange={setSlaDeadLetterAuditArchiveApprovalNote}
-        onSlaDeadLetterAuditArchiveReject={(approvalId) => rejectSlaDeadLetterAuditArchiveApprovalMutation.mutate(approvalId)}
-        onSlaDeadLetterAuditArchiveRefresh={() => void operationAlertSlaDeadLetterAuditArchivesQuery.refetch()}
-        onSlaDeadLetterAuditArchiveApprovalRefresh={() => {
-          void operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.refetch();
-          void operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.refetch();
-        }}
-        onSlaDeadLetterAuditExport={() => void handleExportSlaDeadLetterAudits()}
-        onSlaDeadLetterAuditKeywordChange={(value) => {
-          setSlaDeadLetterAuditKeyword(value);
-          setSlaDeadLetterAuditPage(1);
-        }}
-        onSlaDeadLetterAuditStatusChange={(value) => {
-          setSlaDeadLetterAuditStatus(value);
-          setSlaDeadLetterAuditPage(1);
-        }}
-        onSlaDeadLetterAuditPageChange={setSlaDeadLetterAuditPage}
-        onRefreshSlaDeadLetterAudit={() => void operationAlertSlaDeadLetterAuditQuery.refetch()}
-      />
+          <SecurityCenterOverviewPanel
+            loading={securityCenterQuery.isLoading}
+            overview={securityOverview}
+            onOpenEventDetail={setSelectedEventId}
+            policyTotal={policyTotal}
+          />
+        </>
+      ) : null}
 
-      <SecurityApprovalWorkbenchCard
-        canHandleApprovals={canHandleApprovals}
-        canViewApprovals={canViewApprovals}
-        detail={selectedApprovalWorkbenchQuery.data ?? null}
-        detailLoading={selectedApprovalWorkbenchQuery.isLoading || selectedApprovalWorkbenchQuery.isFetching}
-        error={approvalWorkbenchError}
-        exportState={approvalWorkbenchExportState}
-        keyword={approvalWorkbenchKeyword}
-        loading={approvalWorkbenchQuery.isLoading}
-        message={approvalWorkbenchMessage}
-        note={approvalWorkbenchNote}
-        onExport={() => void handleExportApprovalWorkbench()}
-        onKeywordChange={(value) => {
-          setApprovalWorkbenchPage(1);
-          setApprovalWorkbenchKeyword(value);
-        }}
-        onNoteChange={setApprovalWorkbenchNote}
-        onPageChange={setApprovalWorkbenchPage}
-        onRefresh={() => {
-          void approvalWorkbenchOverviewQuery.refetch();
-          void approvalWorkbenchQuery.refetch();
-          if (selectedApprovalWorkbenchId) {
-            void selectedApprovalWorkbenchQuery.refetch();
+      {showAlerts || showRecovery ? (
+        <ApprovalArchiveOperationsCard
+          actionResults={operationAlertActionResults}
+          loading={securityCenterQuery.isLoading}
+          mode={showRecovery ? 'recovery' : 'alerts'}
+          notificationResults={operationAlertNotificationResults}
+          notificationTaskRecoveryActionResults={
+            operationAlertNotificationTaskRecoveryActionResults
           }
-        }}
-        onResetFilters={() => {
-          setApprovalWorkbenchKeyword('');
-          setApprovalWorkbenchType('');
-          setApprovalWorkbenchStatus('PENDING');
-          setApprovalWorkbenchRiskDomain('');
-          setApprovalWorkbenchPage(1);
-        }}
-        onReview={(approvalId, decision) => reviewApprovalWorkbenchMutation.mutate({ approvalId, decision })}
-        onRiskDomainChange={(value) => {
-          setApprovalWorkbenchPage(1);
-          setApprovalWorkbenchRiskDomain(value);
-        }}
-        onSelect={setSelectedApprovalWorkbenchId}
-        onStatusChange={(value) => {
-          setApprovalWorkbenchPage(1);
-          setApprovalWorkbenchStatus(value);
-        }}
-        onTypeChange={(value) => {
-          setApprovalWorkbenchPage(1);
-          setApprovalWorkbenchType(value);
-        }}
-        overview={approvalWorkbenchOverview}
-        page={approvalWorkbenchPage}
-        pageCount={approvalWorkbenchPageCount}
-        refreshing={approvalWorkbenchOverviewQuery.isFetching || approvalWorkbenchQuery.isFetching}
-        reviewing={reviewApprovalWorkbenchMutation.isPending}
-        riskDomain={approvalWorkbenchRiskDomain}
-        selectedId={selectedApprovalWorkbenchId}
-        status={approvalWorkbenchStatus}
-        total={approvalWorkbenchTotal}
-        type={approvalWorkbenchType}
-        workbenchItems={approvalWorkbenchItems}
-      />
+          notificationTaskRecoveryPendingAction={
+            updateNotificationTaskRecoverySuggestionMutation.variables?.action ?? null
+          }
+          notificationTaskRecoveryPendingSuggestionId={
+            updateNotificationTaskRecoverySuggestionMutation.variables?.suggestionId ?? null
+          }
+          notificationTaskRecoveryUpdating={
+            updateNotificationTaskRecoverySuggestionMutation.isPending
+          }
+          onAction={(alertId, action) => updateOperationAlertMutation.mutate({ action, alertId })}
+          onNotificationTaskRecoveryAction={(suggestionId, action) =>
+            updateNotificationTaskRecoverySuggestionMutation.mutate({ action, suggestionId })
+          }
+          notifyingAlertId={notifyOperationAlertMutation.variables ?? null}
+          notifying={notifyOperationAlertMutation.isPending}
+          onNotify={(alertId) => notifyOperationAlertMutation.mutate(alertId)}
+          overview={securityOverview}
+          pendingAction={updateOperationAlertMutation.variables?.action ?? null}
+          pendingActionAlertId={updateOperationAlertMutation.variables?.alertId ?? null}
+          notificationAudit={operationAlertNotificationsQuery.data ?? null}
+          notificationAuditLoading={operationAlertNotificationsQuery.isLoading}
+          notificationArchiveError={operationNotificationArchiveError}
+          notificationArchiveLoading={operationAlertNotificationArchivesQuery.isLoading}
+          notificationArchiveMessage={operationNotificationArchiveMessage}
+          notificationArchiveApprovalNote={operationNotificationArchiveApprovalNote}
+          notificationArchiveApprovalOverview={
+            operationAlertNotificationArchiveApprovalOverviewQuery.data ?? null
+          }
+          notificationArchiveApprovals={operationAlertNotificationArchiveApprovalsQuery.data ?? []}
+          notificationArchiveApprovalsLoading={
+            operationAlertNotificationArchiveApprovalOverviewQuery.isLoading ||
+            operationAlertNotificationArchiveApprovalsQuery.isLoading
+          }
+          notificationArchives={operationAlertNotificationArchivesQuery.data?.items ?? []}
+          notificationArchiveSummary={operationAlertNotificationArchivesQuery.data?.summary ?? null}
+          notificationCategory={operationNotificationCategory}
+          notificationExportState={operationNotificationExportState}
+          notificationKeyword={operationNotificationKeyword}
+          notificationStatus={operationNotificationStatus}
+          onNotificationArchiveCreate={() =>
+            createOperationAlertNotificationArchiveMutation.mutate()
+          }
+          onNotificationArchiveApprove={(approvalId) =>
+            approveOperationAlertNotificationArchiveApprovalMutation.mutate(approvalId)
+          }
+          onNotificationArchiveDelete={(archive) =>
+            deleteOperationAlertNotificationArchiveMutation.mutate(archive)
+          }
+          onNotificationArchiveDownload={(archive) =>
+            downloadOperationAlertNotificationArchiveMutation.mutate(archive)
+          }
+          onNotificationArchiveNoteChange={setOperationNotificationArchiveApprovalNote}
+          onNotificationArchiveReject={(approvalId) =>
+            rejectOperationAlertNotificationArchiveApprovalMutation.mutate(approvalId)
+          }
+          onNotificationArchiveRefresh={() =>
+            void operationAlertNotificationArchivesQuery.refetch()
+          }
+          onNotificationArchiveApprovalRefresh={() => {
+            void operationAlertNotificationArchiveApprovalOverviewQuery.refetch();
+            void operationAlertNotificationArchiveApprovalsQuery.refetch();
+          }}
+          onNotificationCategoryChange={setOperationNotificationCategory}
+          onNotificationExport={() => void handleExportOperationAlertNotifications()}
+          onNotificationKeywordChange={setOperationNotificationKeyword}
+          onNotificationStatusChange={setOperationNotificationStatus}
+          onRetryNotification={(notificationEventId) =>
+            retryOperationNotificationMutation.mutate(notificationEventId)
+          }
+          operationNotificationArchiving={createOperationAlertNotificationArchiveMutation.isPending}
+          operationNotificationArchiveApproving={
+            approveOperationAlertNotificationArchiveApprovalMutation.isPending
+          }
+          operationNotificationArchiveDeleting={
+            deleteOperationAlertNotificationArchiveMutation.isPending
+          }
+          operationNotificationArchiveRejecting={
+            rejectOperationAlertNotificationArchiveApprovalMutation.isPending
+          }
+          operationNotificationDownloading={
+            downloadOperationAlertNotificationArchiveMutation.isPending
+          }
+          retryingNotificationEventId={retryOperationNotificationMutation.variables ?? null}
+          retryingNotification={retryOperationNotificationMutation.isPending}
+          updatingAction={updateOperationAlertMutation.isPending}
+          taskLoading={operationAlertNotificationTaskQuery.isLoading}
+          taskOverview={operationAlertNotificationTaskQuery.data ?? null}
+          taskAutoNotifyRunning={runOperationNotificationAutoNotifyMutation.isPending}
+          taskAutoRetryRunning={runOperationNotificationAutoRetryMutation.isPending}
+          onRefreshTask={() => void operationAlertNotificationTaskQuery.refetch()}
+          onRunAutoNotify={() => runOperationNotificationAutoNotifyMutation.mutate()}
+          onRunAutoRetry={() => runOperationNotificationAutoRetryMutation.mutate()}
+          taskRunHistory={operationAlertNotificationTaskRunsQuery.data ?? null}
+          taskRunHistoryLoading={operationAlertNotificationTaskRunsQuery.isLoading}
+          taskRunHistoryKeyword={operationNotificationTaskRunKeyword}
+          taskRunHistoryStatus={operationNotificationTaskRunStatus}
+          taskRunHistoryTask={operationNotificationTaskRunTask}
+          taskRecoveryAudit={operationAlertNotificationTaskRecoveryAuditsQuery.data ?? null}
+          taskRecoveryAuditAction={operationNotificationTaskRecoveryAuditAction}
+          taskRecoveryAuditArchiveError={operationNotificationTaskRecoveryAuditArchiveError}
+          taskRecoveryAuditArchiveLoading={
+            operationAlertNotificationTaskRecoveryAuditArchivesQuery.isLoading
+          }
+          taskRecoveryAuditArchiveMessage={operationNotificationTaskRecoveryAuditArchiveMessage}
+          taskRecoveryAuditArchives={
+            operationAlertNotificationTaskRecoveryAuditArchivesQuery.data?.items ?? []
+          }
+          taskRecoveryAuditArchiveSummary={
+            operationAlertNotificationTaskRecoveryAuditArchivesQuery.data?.summary ?? null
+          }
+          taskRecoveryAuditCreatingArchive={
+            createNotificationTaskRecoveryAuditArchiveMutation.isPending
+          }
+          taskRecoveryAuditDeletingArchive={
+            deleteNotificationTaskRecoveryAuditArchiveMutation.isPending
+          }
+          taskRecoveryAuditDownloadingArchive={
+            downloadNotificationTaskRecoveryAuditArchiveMutation.isPending
+          }
+          taskRecoveryAuditArchiveApproving={
+            approveNotificationTaskRecoveryAuditArchiveApprovalMutation.isPending
+          }
+          taskRecoveryAuditArchiveRejecting={
+            rejectNotificationTaskRecoveryAuditArchiveApprovalMutation.isPending
+          }
+          taskRecoveryAuditArchiveApprovalNote={
+            operationNotificationTaskRecoveryAuditArchiveApprovalNote
+          }
+          taskRecoveryAuditArchiveApprovalOverview={
+            operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.data ?? null
+          }
+          taskRecoveryAuditArchiveApprovals={
+            operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.data ?? []
+          }
+          taskRecoveryAuditArchiveApprovalsLoading={
+            operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.isLoading ||
+            operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.isLoading
+          }
+          taskRecoveryAuditExportState={operationNotificationTaskRecoveryAuditExportState}
+          taskRecoveryAuditKeyword={operationNotificationTaskRecoveryAuditKeyword}
+          taskRecoveryAuditLoading={operationAlertNotificationTaskRecoveryAuditsQuery.isLoading}
+          taskRecoveryAuditFailureSource={operationNotificationTaskRecoveryAuditFailureSource}
+          taskRecoveryAuditReason={operationNotificationTaskRecoveryAuditReason}
+          taskRecoveryAuditStatus={operationNotificationTaskRecoveryAuditStatus}
+          onTaskRecoveryAuditActionChange={setOperationNotificationTaskRecoveryAuditAction}
+          onTaskRecoveryAuditArchiveApprove={(approvalId) =>
+            approveNotificationTaskRecoveryAuditArchiveApprovalMutation.mutate(approvalId)
+          }
+          onTaskRecoveryAuditArchiveCreate={() =>
+            createNotificationTaskRecoveryAuditArchiveMutation.mutate()
+          }
+          onTaskRecoveryAuditArchiveDelete={(archive) =>
+            deleteNotificationTaskRecoveryAuditArchiveMutation.mutate(archive)
+          }
+          onTaskRecoveryAuditArchiveDownload={(archive) =>
+            downloadNotificationTaskRecoveryAuditArchiveMutation.mutate(archive)
+          }
+          onTaskRecoveryAuditArchiveNoteChange={
+            setOperationNotificationTaskRecoveryAuditArchiveApprovalNote
+          }
+          onTaskRecoveryAuditArchiveReject={(approvalId) =>
+            rejectNotificationTaskRecoveryAuditArchiveApprovalMutation.mutate(approvalId)
+          }
+          onTaskRecoveryAuditArchiveRefresh={() =>
+            void operationAlertNotificationTaskRecoveryAuditArchivesQuery.refetch()
+          }
+          onTaskRecoveryAuditArchiveApprovalRefresh={() => {
+            void operationAlertNotificationTaskRecoveryAuditArchiveApprovalOverviewQuery.refetch();
+            void operationAlertNotificationTaskRecoveryAuditArchiveApprovalsQuery.refetch();
+          }}
+          onTaskRecoveryAuditExport={() => void handleExportNotificationTaskRecoveryAudits()}
+          onTaskRecoveryAuditFailureSourceChange={
+            setOperationNotificationTaskRecoveryAuditFailureSource
+          }
+          onTaskRecoveryAuditKeywordChange={setOperationNotificationTaskRecoveryAuditKeyword}
+          onTaskRecoveryAuditReasonChange={setOperationNotificationTaskRecoveryAuditReason}
+          onTaskRecoveryAuditStatusChange={setOperationNotificationTaskRecoveryAuditStatus}
+          onRefreshTaskRecoveryAudit={() =>
+            void operationAlertNotificationTaskRecoveryAuditsQuery.refetch()
+          }
+          onRefreshTaskRunHistory={() => void operationAlertNotificationTaskRunsQuery.refetch()}
+          onTaskRunHistoryKeywordChange={setOperationNotificationTaskRunKeyword}
+          onTaskRunHistoryStatusChange={setOperationNotificationTaskRunStatus}
+          onTaskRunHistoryTaskChange={setOperationNotificationTaskRunTask}
+          slaLoading={operationAlertSlaQuery.isLoading}
+          slaOverview={operationAlertSlaQuery.data ?? null}
+          slaRunning={runOperationAlertSlaEscalationMutation.isPending}
+          onRefreshSla={() => void operationAlertSlaQuery.refetch()}
+          onRunSlaEscalation={() => runOperationAlertSlaEscalationMutation.mutate()}
+          slaNotificationLoading={operationAlertSlaNotificationQuery.isLoading}
+          slaNotificationOverview={operationAlertSlaNotificationQuery.data ?? null}
+          slaNotificationRunning={notifyOperationAlertSlaOverdueMutation.isPending}
+          onRefreshSlaNotification={() => void operationAlertSlaNotificationQuery.refetch()}
+          onNotifySlaOverdue={() => notifyOperationAlertSlaOverdueMutation.mutate()}
+          slaNotificationRetryLoading={operationAlertSlaNotificationRetryQuery.isLoading}
+          slaNotificationRetryOverview={operationAlertSlaNotificationRetryQuery.data ?? null}
+          slaNotificationRetryRunning={runOperationAlertSlaNotificationAutoRetryMutation.isPending}
+          onRefreshSlaNotificationRetry={() =>
+            void operationAlertSlaNotificationRetryQuery.refetch()
+          }
+          onRunSlaNotificationAutoRetry={() =>
+            runOperationAlertSlaNotificationAutoRetryMutation.mutate()
+          }
+          onRetrySlaNotification={(notificationEventId) =>
+            retryOperationAlertSlaNotificationMutation.mutate(notificationEventId)
+          }
+          retryingSlaNotification={retryOperationAlertSlaNotificationMutation.isPending}
+          retryingSlaNotificationEventId={
+            retryOperationAlertSlaNotificationMutation.variables ?? null
+          }
+          slaDeadLetterLoading={operationAlertSlaDeadLetterQuery.isLoading}
+          slaDeadLetterNote={slaDeadLetterNote}
+          slaDeadLetterOverview={operationAlertSlaDeadLetterQuery.data ?? null}
+          slaDeadLetterPendingAction={
+            handleOperationAlertSlaDeadLetterMutation.variables?.action ?? null
+          }
+          slaDeadLetterPendingEventId={
+            handleOperationAlertSlaDeadLetterMutation.variables?.notificationEventId ?? null
+          }
+          slaDeadLetterRunning={handleOperationAlertSlaDeadLetterMutation.isPending}
+          onSlaDeadLetterNoteChange={setSlaDeadLetterNote}
+          onRefreshSlaDeadLetter={() => void operationAlertSlaDeadLetterQuery.refetch()}
+          onHandleSlaDeadLetter={(notificationEventId, action) =>
+            handleOperationAlertSlaDeadLetterMutation.mutate({
+              action,
+              notificationEventId,
+              note: slaDeadLetterNote.trim() || null,
+            })
+          }
+          slaDeadLetterAuditAction={slaDeadLetterAuditAction}
+          slaDeadLetterAuditCategory={slaDeadLetterAuditCategory}
+          slaDeadLetterAuditKeyword={slaDeadLetterAuditKeyword}
+          slaDeadLetterAuditLoading={operationAlertSlaDeadLetterAuditQuery.isLoading}
+          slaDeadLetterAuditPage={slaDeadLetterAuditPage}
+          slaDeadLetterAuditPageCount={slaDeadLetterAuditPageCount}
+          slaDeadLetterAuditResult={operationAlertSlaDeadLetterAuditQuery.data ?? null}
+          slaDeadLetterAuditStatus={slaDeadLetterAuditStatus}
+          slaDeadLetterAuditExportState={slaDeadLetterAuditExportState}
+          slaDeadLetterAuditArchives={
+            operationAlertSlaDeadLetterAuditArchivesQuery.data?.items ?? []
+          }
+          slaDeadLetterAuditArchiveError={slaDeadLetterAuditArchiveError}
+          slaDeadLetterAuditArchiveLoading={operationAlertSlaDeadLetterAuditArchivesQuery.isLoading}
+          slaDeadLetterAuditArchiveMessage={slaDeadLetterAuditArchiveMessage}
+          slaDeadLetterAuditArchiveSummary={
+            operationAlertSlaDeadLetterAuditArchivesQuery.data?.summary ?? null
+          }
+          slaDeadLetterAuditCreatingArchive={createSlaDeadLetterAuditArchiveMutation.isPending}
+          slaDeadLetterAuditDownloadingArchive={downloadSlaDeadLetterAuditArchiveMutation.isPending}
+          slaDeadLetterAuditDeletingArchive={deleteSlaDeadLetterAuditArchiveMutation.isPending}
+          slaDeadLetterAuditArchiveApproving={
+            approveSlaDeadLetterAuditArchiveApprovalMutation.isPending
+          }
+          slaDeadLetterAuditArchiveRejecting={
+            rejectSlaDeadLetterAuditArchiveApprovalMutation.isPending
+          }
+          slaDeadLetterAuditArchiveApprovalNote={slaDeadLetterAuditArchiveApprovalNote}
+          slaDeadLetterAuditArchiveApprovalOverview={
+            operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.data ?? null
+          }
+          slaDeadLetterAuditArchiveApprovals={
+            operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.data ?? []
+          }
+          slaDeadLetterAuditArchiveApprovalsLoading={
+            operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.isLoading ||
+            operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.isLoading
+          }
+          onSlaDeadLetterAuditActionChange={(value) => {
+            setSlaDeadLetterAuditAction(value);
+            setSlaDeadLetterAuditPage(1);
+          }}
+          onSlaDeadLetterAuditCategoryChange={(value) => {
+            setSlaDeadLetterAuditCategory(value);
+            setSlaDeadLetterAuditPage(1);
+          }}
+          onSlaDeadLetterAuditArchiveApprove={(approvalId) =>
+            approveSlaDeadLetterAuditArchiveApprovalMutation.mutate(approvalId)
+          }
+          onSlaDeadLetterAuditArchiveCreate={() => createSlaDeadLetterAuditArchiveMutation.mutate()}
+          onSlaDeadLetterAuditArchiveDelete={(archive) =>
+            deleteSlaDeadLetterAuditArchiveMutation.mutate(archive)
+          }
+          onSlaDeadLetterAuditArchiveDownload={(archive) =>
+            downloadSlaDeadLetterAuditArchiveMutation.mutate(archive)
+          }
+          onSlaDeadLetterAuditArchiveNoteChange={setSlaDeadLetterAuditArchiveApprovalNote}
+          onSlaDeadLetterAuditArchiveReject={(approvalId) =>
+            rejectSlaDeadLetterAuditArchiveApprovalMutation.mutate(approvalId)
+          }
+          onSlaDeadLetterAuditArchiveRefresh={() =>
+            void operationAlertSlaDeadLetterAuditArchivesQuery.refetch()
+          }
+          onSlaDeadLetterAuditArchiveApprovalRefresh={() => {
+            void operationAlertSlaDeadLetterAuditArchiveApprovalOverviewQuery.refetch();
+            void operationAlertSlaDeadLetterAuditArchiveApprovalsQuery.refetch();
+          }}
+          onSlaDeadLetterAuditExport={() => void handleExportSlaDeadLetterAudits()}
+          onSlaDeadLetterAuditKeywordChange={(value) => {
+            setSlaDeadLetterAuditKeyword(value);
+            setSlaDeadLetterAuditPage(1);
+          }}
+          onSlaDeadLetterAuditStatusChange={(value) => {
+            setSlaDeadLetterAuditStatus(value);
+            setSlaDeadLetterAuditPage(1);
+          }}
+          onSlaDeadLetterAuditPageChange={setSlaDeadLetterAuditPage}
+          onRefreshSlaDeadLetterAudit={() => void operationAlertSlaDeadLetterAuditQuery.refetch()}
+        />
+      ) : null}
+
+      {showAlerts ? (
+        <SecurityApprovalWorkbenchCard
+          canHandleApprovals={canHandleApprovals}
+          canViewApprovals={canViewApprovals}
+          detail={selectedApprovalWorkbenchQuery.data ?? null}
+          detailLoading={
+            selectedApprovalWorkbenchQuery.isLoading || selectedApprovalWorkbenchQuery.isFetching
+          }
+          error={approvalWorkbenchError}
+          exportState={approvalWorkbenchExportState}
+          keyword={approvalWorkbenchKeyword}
+          loading={approvalWorkbenchQuery.isLoading}
+          message={approvalWorkbenchMessage}
+          note={approvalWorkbenchNote}
+          onExport={() => void handleExportApprovalWorkbench()}
+          onKeywordChange={(value) => {
+            setApprovalWorkbenchPage(1);
+            setApprovalWorkbenchKeyword(value);
+          }}
+          onNoteChange={setApprovalWorkbenchNote}
+          onPageChange={setApprovalWorkbenchPage}
+          onRefresh={() => {
+            void approvalWorkbenchOverviewQuery.refetch();
+            void approvalWorkbenchQuery.refetch();
+            if (selectedApprovalWorkbenchId) {
+              void selectedApprovalWorkbenchQuery.refetch();
+            }
+          }}
+          onResetFilters={() => {
+            setApprovalWorkbenchKeyword('');
+            setApprovalWorkbenchType('');
+            setApprovalWorkbenchStatus('PENDING');
+            setApprovalWorkbenchRiskDomain('');
+            setApprovalWorkbenchPage(1);
+          }}
+          onReview={(approvalId, decision) =>
+            reviewApprovalWorkbenchMutation.mutate({ approvalId, decision })
+          }
+          onRiskDomainChange={(value) => {
+            setApprovalWorkbenchPage(1);
+            setApprovalWorkbenchRiskDomain(value);
+          }}
+          onSelect={setSelectedApprovalWorkbenchId}
+          onStatusChange={(value) => {
+            setApprovalWorkbenchPage(1);
+            setApprovalWorkbenchStatus(value);
+          }}
+          onTypeChange={(value) => {
+            setApprovalWorkbenchPage(1);
+            setApprovalWorkbenchType(value);
+          }}
+          overview={approvalWorkbenchOverview}
+          page={approvalWorkbenchPage}
+          pageCount={approvalWorkbenchPageCount}
+          refreshing={
+            approvalWorkbenchOverviewQuery.isFetching || approvalWorkbenchQuery.isFetching
+          }
+          reviewing={reviewApprovalWorkbenchMutation.isPending}
+          riskDomain={approvalWorkbenchRiskDomain}
+          selectedId={selectedApprovalWorkbenchId}
+          status={approvalWorkbenchStatus}
+          total={approvalWorkbenchTotal}
+          type={approvalWorkbenchType}
+          workbenchItems={approvalWorkbenchItems}
+        />
+      ) : null}
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -1717,136 +2032,154 @@ export function SecurityPolicyContent() {
         </div>
       ) : null}
 
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[1.18fr_0.82fr]">
-        <Card className="min-w-0">
-          <div className="border-b p-4">
-            <div className="grid gap-4">
-              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">策略清单</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    按优先级匹配策略，同等优先级下拒绝规则优先，用于收紧企业级访问边界。
-                  </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  显示 {policies.length} / {policiesQuery.data?.total ?? 0}
+      {showPolicies ? (
+        <>
+          <section className="grid min-w-0 gap-4 xl:grid-cols-[1.18fr_0.82fr]">
+            <Card className="min-w-0">
+              <div className="border-b p-4">
+                <div className="grid gap-4">
+                  <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+                    <div>
+                      <h2 className="text-sm font-semibold">策略清单</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        按优先级匹配策略，同等优先级下拒绝规则优先，用于收紧企业级访问边界。
+                      </p>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      显示 {policies.length} / {policiesQuery.data?.total ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_150px_150px_150px_auto]">
+                    <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+                      <Search className="size-4 text-muted-foreground" />
+                      <input
+                        className="min-w-0 flex-1 bg-transparent outline-none"
+                        onChange={(event) => setKeyword(event.target.value)}
+                        placeholder="搜索名称、编码、动作"
+                        value={keyword}
+                      />
+                    </label>
+                    <select
+                      className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                      onChange={(event) => setStatus(event.target.value)}
+                      value={status}
+                    >
+                      <option value="">全部状态</option>
+                      {policyStatuses.map((item) => (
+                        <option key={item} value={item}>
+                          {securityPolicyStatusLabel(item)}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                      onChange={(event) => setEffect(event.target.value)}
+                      value={effect}
+                    >
+                      <option value="">全部效果</option>
+                      {policyEffects.map((item) => (
+                        <option key={item} value={item}>
+                          {securityPolicyEffectLabel(item)}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      onChange={(event) => setResourceType(event.target.value)}
+                      placeholder="资源类型"
+                      value={resourceType}
+                    />
+                    <Button onClick={clearFilters} type="button" variant="outline">
+                      清空
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_150px_150px_150px_auto]">
-                <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
-                  <Search className="size-4 text-muted-foreground" />
-                  <input
-                    className="min-w-0 flex-1 bg-transparent outline-none"
-                    onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="搜索名称、编码、动作"
-                    value={keyword}
-                  />
-                </label>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setStatus(event.target.value)} value={status}>
-                  <option value="">全部状态</option>
-                  {policyStatuses.map((item) => (
-                    <option key={item} value={item}>
-                      {securityPolicyStatusLabel(item)}
-                    </option>
-                  ))}
-                </select>
-                <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setEffect(event.target.value)} value={effect}>
-                  <option value="">全部效果</option>
-                  {policyEffects.map((item) => (
-                    <option key={item} value={item}>
-                      {securityPolicyEffectLabel(item)}
-                    </option>
-                  ))}
-                </select>
-                <Input onChange={(event) => setResourceType(event.target.value)} placeholder="资源类型" value={resourceType} />
-                <Button onClick={clearFilters} type="button" variant="outline">
-                  清空
-                </Button>
-              </div>
-            </div>
-          </div>
+              {policiesQuery.isError ? (
+                <div className="p-6 text-sm text-destructive">策略加载失败。</div>
+              ) : policiesQuery.isLoading ? (
+                <div className="p-6 text-sm text-muted-foreground">正在加载安全策略...</div>
+              ) : policies.length === 0 ? (
+                <EmptyState
+                  action={
+                    <Button disabled={!canWrite} onClick={openCreateForm}>
+                      <Plus className="size-4" />
+                      新建策略
+                    </Button>
+                  }
+                  description="创建第一条 ABAC 策略，建议先用模拟面板验证条件路径和命中结果。"
+                  title="暂无安全策略"
+                />
+              ) : (
+                <PolicyTable
+                  canWrite={canWrite}
+                  onDelete={setDeleteTarget}
+                  onEdit={(policy) => void openEditForm(policy)}
+                  onToggle={(policy) =>
+                    statusMutation.mutate({
+                      id: policy.id,
+                      nextStatus: policy.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+                    })
+                  }
+                  policies={policies}
+                  pending={statusMutation.isPending}
+                />
+              )}
+            </Card>
 
-          {policiesQuery.isError ? (
-            <div className="p-6 text-sm text-destructive">策略加载失败。</div>
-          ) : policiesQuery.isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">正在加载安全策略...</div>
-          ) : policies.length === 0 ? (
-            <EmptyState
-              action={
-                <Button disabled={!canWrite} onClick={openCreateForm}>
-                  <Plus className="size-4" />
-                  新建策略
-                </Button>
-              }
-              description="创建第一条 ABAC 策略，建议先用模拟面板验证条件路径和命中结果。"
-              title="暂无安全策略"
-            />
-          ) : (
-            <PolicyTable
+            <SimulationPanel
+              action={simulateAction}
               canWrite={canWrite}
-              onDelete={setDeleteTarget}
-              onEdit={(policy) => void openEditForm(policy)}
-              onToggle={(policy) =>
-                statusMutation.mutate({
-                  id: policy.id,
-                  nextStatus: policy.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-                })
-              }
-              policies={policies}
-              pending={statusMutation.isPending}
+              contextText={contextText}
+              error={simulateError}
+              onActionChange={setSimulateAction}
+              onContextChange={setContextText}
+              onResourceChange={setResourceText}
+              onRun={runSimulation}
+              onSubjectChange={setSubjectText}
+              pending={simulateMutation.isPending}
+              resourceText={resourceText}
+              result={simulateResult}
+              subjectText={subjectText}
             />
-          )}
-        </Card>
+          </section>
 
-        <SimulationPanel
-          action={simulateAction}
-          canWrite={canWrite}
-          contextText={contextText}
-          error={simulateError}
-          onActionChange={setSimulateAction}
-          onContextChange={setContextText}
-          onResourceChange={setResourceText}
-          onRun={runSimulation}
-          onSubjectChange={setSubjectText}
-          pending={simulateMutation.isPending}
-          resourceText={resourceText}
-          result={simulateResult}
-          subjectText={subjectText}
+          <EvaluationLogCard evaluations={evaluations} loading={evaluationsQuery.isLoading} />
+        </>
+      ) : null}
+
+      {showEvents ? (
+        <SecurityEventCenterCard
+          events={securityEvents}
+          keyword={eventKeyword}
+          loading={securityEventsQuery.isLoading}
+          onKeywordChange={(value) => {
+            setEventPage(1);
+            setEventKeyword(value);
+          }}
+          onOpenDetail={setSelectedEventId}
+          onPageChange={setEventPage}
+          onSourceChange={(value) => {
+            setEventPage(1);
+            setEventSource(value);
+          }}
+          onTraceOnlyChange={(value) => {
+            setEventPage(1);
+            setEventTraceOnly(value);
+          }}
+          onWindowChange={(value) => {
+            setEventPage(1);
+            setEventWindow(value);
+          }}
+          page={eventPage}
+          pageCount={securityEventsPageCount}
+          source={eventSource}
+          total={securityEventsTotal}
+          traceOnly={eventTraceOnly}
+          window={eventWindow}
         />
-      </section>
-
-      <EvaluationLogCard evaluations={evaluations} loading={evaluationsQuery.isLoading} />
-
-      <SecurityEventCenterCard
-        events={securityEvents}
-        keyword={eventKeyword}
-        loading={securityEventsQuery.isLoading}
-        onKeywordChange={(value) => {
-          setEventPage(1);
-          setEventKeyword(value);
-        }}
-        onOpenDetail={setSelectedEventId}
-        onPageChange={setEventPage}
-        onSourceChange={(value) => {
-          setEventPage(1);
-          setEventSource(value);
-        }}
-        onTraceOnlyChange={(value) => {
-          setEventPage(1);
-          setEventTraceOnly(value);
-        }}
-        onWindowChange={(value) => {
-          setEventPage(1);
-          setEventWindow(value);
-        }}
-        page={eventPage}
-        pageCount={securityEventsPageCount}
-        source={eventSource}
-        total={securityEventsTotal}
-        traceOnly={eventTraceOnly}
-        window={eventWindow}
-      />
+      ) : null}
 
       {formMode ? (
         <PolicyFormDialog
@@ -1959,24 +2292,41 @@ function SecurityApprovalWorkbenchCard({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge tone="ready">M117</StatusBadge>
-              <StatusBadge tone={(overview?.summary.pending_count ?? 0) > 0 ? 'degraded' : 'healthy'}>
+              <StatusBadge
+                tone={(overview?.summary.pending_count ?? 0) > 0 ? 'degraded' : 'healthy'}
+              >
                 {overview?.summary.pending_count ?? 0} 个待审批
               </StatusBadge>
-              <StatusBadge tone={(overview?.summary.high_risk_pending_count ?? 0) > 0 ? 'unavailable' : 'planned'}>
+              <StatusBadge
+                tone={
+                  (overview?.summary.high_risk_pending_count ?? 0) > 0 ? 'unavailable' : 'planned'
+                }
+              >
                 {overview?.summary.high_risk_pending_count ?? 0} 个高风险
               </StatusBadge>
             </div>
             <h2 className="mt-3 text-sm font-semibold">安全细分审批工作台</h2>
             <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">
-              汇总工具调用、通知策略、团队运行报告、审批审计归档、SLA 死信审计归档和通知任务自愈归档删除审批，统一筛选、查看时间线和处理待办。
+              汇总工具调用、通知策略、团队运行报告、审批审计归档、SLA
+              死信审计归档和通知任务自愈归档删除审批，统一筛选、查看时间线和处理待办。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button disabled={!canViewApprovals || exporting || total === 0} onClick={onExport} type="button" variant="outline">
+            <Button
+              disabled={!canViewApprovals || exporting || total === 0}
+              onClick={onExport}
+              type="button"
+              variant="outline"
+            >
               <Download className="size-4" />
               {exporting ? '导出中' : '导出当前筛选'}
             </Button>
-            <Button disabled={!canViewApprovals || refreshing} onClick={onRefresh} type="button" variant="outline">
+            <Button
+              disabled={!canViewApprovals || refreshing}
+              onClick={onRefresh}
+              type="button"
+              variant="outline"
+            >
               <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
               刷新
             </Button>
@@ -1990,11 +2340,27 @@ function SecurityApprovalWorkbenchCard({
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard helper="全部审批来源" label="审批总数" value={`${overview?.summary.total_count ?? 0}`} />
-          <MetricCard helper="等待安全管理员处理" label="待处理" value={`${overview?.summary.pending_count ?? 0}`} />
-          <MetricCard helper="高风险工具或删除类操作" label="高风险待审" value={`${overview?.summary.high_risk_pending_count ?? 0}`} />
           <MetricCard
-            helper={overview?.summary.oldest_pending_at ? `最早 ${formatDateTime(overview.summary.oldest_pending_at)}` : '无积压'}
+            helper="全部审批来源"
+            label="审批总数"
+            value={`${overview?.summary.total_count ?? 0}`}
+          />
+          <MetricCard
+            helper="等待安全管理员处理"
+            label="待处理"
+            value={`${overview?.summary.pending_count ?? 0}`}
+          />
+          <MetricCard
+            helper="高风险工具或删除类操作"
+            label="高风险待审"
+            value={`${overview?.summary.high_risk_pending_count ?? 0}`}
+          />
+          <MetricCard
+            helper={
+              overview?.summary.oldest_pending_at
+                ? `最早 ${formatDateTime(overview.summary.oldest_pending_at)}`
+                : '无积压'
+            }
             label="归档删除待审"
             value={`${overview?.summary.archive_delete_pending_count ?? 0}`}
           />
@@ -2012,32 +2378,44 @@ function SecurityApprovalWorkbenchCard({
           </label>
           <select
             className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-            onChange={(event) => onTypeChange(event.target.value as SecurityApprovalWorkbenchType | '')}
+            onChange={(event) =>
+              onTypeChange(event.target.value as SecurityApprovalWorkbenchType | '')
+            }
             value={type}
           >
             <option value="">全部类型</option>
             {approvalWorkbenchTypes.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
             ))}
           </select>
           <select
             className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-            onChange={(event) => onStatusChange(event.target.value as SecurityApprovalWorkbenchStatus | '')}
+            onChange={(event) =>
+              onStatusChange(event.target.value as SecurityApprovalWorkbenchStatus | '')
+            }
             value={status}
           >
             <option value="">全部状态</option>
             {approvalWorkbenchStatuses.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
             ))}
           </select>
           <select
             className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-            onChange={(event) => onRiskDomainChange(event.target.value as SecurityApprovalWorkbenchRiskDomain | '')}
+            onChange={(event) =>
+              onRiskDomainChange(event.target.value as SecurityApprovalWorkbenchRiskDomain | '')
+            }
             value={riskDomain}
           >
             <option value="">全部风险域</option>
             {approvalWorkbenchRiskDomains.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
             ))}
           </select>
           <Button disabled={!hasFilters} onClick={onResetFilters} type="button" variant="outline">
@@ -2047,8 +2425,12 @@ function SecurityApprovalWorkbenchCard({
         {canViewApprovals ? (
           <div className="mt-3 text-xs text-muted-foreground">
             当前筛选命中 {total} 条审批记录，导出 CSV 会记录平台事件审计。
-            {exportState === 'success' ? <span className="ml-2 text-emerald-700">最近一次导出成功。</span> : null}
-            {exportState === 'error' ? <span className="ml-2 text-destructive">最近一次导出失败。</span> : null}
+            {exportState === 'success' ? (
+              <span className="ml-2 text-emerald-700">最近一次导出成功。</span>
+            ) : null}
+            {exportState === 'error' ? (
+              <span className="ml-2 text-destructive">最近一次导出失败。</span>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -2087,7 +2469,9 @@ function SecurityApprovalWorkbenchCard({
                 <thead>
                   <tr className="border-b bg-muted/40">
                     {['状态', '审批对象', '风险', '申请人', '申请时间', '操作'].map((column) => (
-                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
+                        {column}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -2105,7 +2489,12 @@ function SecurityApprovalWorkbenchCard({
               </table>
             </div>
             <div className="border-t p-4">
-              <PaginationBar onPageChange={onPageChange} page={page} pageCount={pageCount} total={total} />
+              <PaginationBar
+                onPageChange={onPageChange}
+                page={page}
+                pageCount={pageCount}
+                total={total}
+              />
             </div>
           </div>
 
@@ -2144,7 +2533,9 @@ function SecurityApprovalWorkbenchRow({
       transition={{ delay: rowIndex * 0.018, duration: 0.18 }}
     >
       <td className="px-4 py-3">
-        <StatusBadge tone={archiveApprovalStatusTone(item.status)}>{archiveApprovalStatusLabel(item.status)}</StatusBadge>
+        <StatusBadge tone={archiveApprovalStatusTone(item.status)}>
+          {archiveApprovalStatusLabel(item.status)}
+        </StatusBadge>
         <div className="mt-1 font-mono text-xs text-muted-foreground">{shortId(item.id)}</div>
       </td>
       <td className="px-4 py-3">
@@ -2153,13 +2544,17 @@ function SecurityApprovalWorkbenchRow({
           <StatusBadge tone="planned">{securityApprovalWorkbenchTypeLabel(item.type)}</StatusBadge>
         </div>
         <div className="mt-1 max-w-sm truncate text-xs text-muted-foreground">{item.title}</div>
-        <div className="mt-1 max-w-sm truncate text-xs text-muted-foreground">{item.description}</div>
+        <div className="mt-1 max-w-sm truncate text-xs text-muted-foreground">
+          {item.description}
+        </div>
       </td>
       <td className="px-4 py-3">
         <StatusBadge tone={securityApprovalWorkbenchRiskTone(item.risk_level)}>
           {securityApprovalWorkbenchRiskLevelLabel(item.risk_level)}
         </StatusBadge>
-        <div className="mt-1 text-xs text-muted-foreground">{securityApprovalWorkbenchRiskDomainLabel(item.risk_domain)}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {securityApprovalWorkbenchRiskDomainLabel(item.risk_domain)}
+        </div>
       </td>
       <td className="px-4 py-3 text-muted-foreground">
         {item.requester?.name ?? '系统'}
@@ -2231,20 +2626,26 @@ function SecurityApprovalWorkbenchDetailPanel({
   const timeline = detail?.timeline ?? [];
   const metadata = detail?.metadata ?? {};
   const isAgentTeamArchiveDelete = current.type === 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE';
-  const agentTeamArchiveMetadata = isAgentTeamArchiveDelete ? readAgentTeamArchiveMetadata(metadata) : null;
-  const metadataEntries = Object.entries(metadata).filter(([key]) => (
-    !isAgentTeamArchiveDelete || !agentTeamArchiveDetailMetadataKeys.has(key)
-  ));
+  const agentTeamArchiveMetadata = isAgentTeamArchiveDelete
+    ? readAgentTeamArchiveMetadata(metadata)
+    : null;
+  const metadataEntries = Object.entries(metadata).filter(
+    ([key]) => !isAgentTeamArchiveDelete || !agentTeamArchiveDetailMetadataKeys.has(key),
+  );
 
   return (
     <div className="grid content-start gap-5 p-5">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={archiveApprovalStatusTone(current.status)}>{archiveApprovalStatusLabel(current.status)}</StatusBadge>
+          <StatusBadge tone={archiveApprovalStatusTone(current.status)}>
+            {archiveApprovalStatusLabel(current.status)}
+          </StatusBadge>
           <StatusBadge tone={securityApprovalWorkbenchRiskTone(current.risk_level)}>
             {securityApprovalWorkbenchRiskLevelLabel(current.risk_level)}
           </StatusBadge>
-          <StatusBadge tone="planned">{securityApprovalWorkbenchRiskDomainLabel(current.risk_domain)}</StatusBadge>
+          <StatusBadge tone="planned">
+            {securityApprovalWorkbenchRiskDomainLabel(current.risk_domain)}
+          </StatusBadge>
         </div>
         <h3 className="mt-3 text-base font-semibold">{current.title}</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.description}</p>
@@ -2269,7 +2670,9 @@ function SecurityApprovalWorkbenchDetailPanel({
 
       <div className="rounded-md border bg-background/75 p-4">
         <h4 className="text-sm font-semibold">审批原因与链路</h4>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{current.reason ?? '未填写审批原因。'}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {current.reason ?? '未填写审批原因。'}
+        </p>
         <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
           <span className="truncate">审批 ID：{current.id}</span>
           <span className="truncate">来源 ID：{current.source_id}</span>
@@ -2277,25 +2680,43 @@ function SecurityApprovalWorkbenchDetailPanel({
           <span className="truncate">trace_id：{current.trace_id ?? '-'}</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button disabled={!current.request_id} onClick={() => void copyValue('请求 ID', current.request_id)} size="sm" type="button" variant="outline">
+          <Button
+            disabled={!current.request_id}
+            onClick={() => void copyValue('请求 ID', current.request_id)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <Copy className="size-4" />
             复制请求 ID
           </Button>
-          <Button disabled={!current.trace_id} onClick={() => void copyValue('Trace ID', current.trace_id)} size="sm" type="button" variant="outline">
+          <Button
+            disabled={!current.trace_id}
+            onClick={() => void copyValue('Trace ID', current.trace_id)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <Copy className="size-4" />
             复制 Trace ID
           </Button>
         </div>
-        {copyMessage ? <div className="mt-2 text-xs text-muted-foreground">{copyMessage}</div> : null}
+        {copyMessage ? (
+          <div className="mt-2 text-xs text-muted-foreground">{copyMessage}</div>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.request_id ? (
             <Button asChild size="sm" type="button" variant="outline">
-              <Link href={`/audit?keyword=${encodeURIComponent(current.request_id)}`}>审计中心</Link>
+              <Link href={`/audit?keyword=${encodeURIComponent(current.request_id)}`}>
+                审计中心
+              </Link>
             </Button>
           ) : null}
           {current.trace_id ? (
             <Button asChild size="sm" type="button" variant="outline">
-              <Link href={`/monitor?keyword=${encodeURIComponent(current.trace_id)}`}>查看 Trace</Link>
+              <Link href={`/monitor?keyword=${encodeURIComponent(current.trace_id)}`}>
+                查看 Trace
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -2303,11 +2724,15 @@ function SecurityApprovalWorkbenchDetailPanel({
 
       {metadataEntries.length > 0 ? (
         <div className="rounded-md border bg-background/75 p-4">
-          <h4 className="text-sm font-semibold">{isAgentTeamArchiveDelete ? '其他扩展信息' : '来源扩展信息'}</h4>
+          <h4 className="text-sm font-semibold">
+            {isAgentTeamArchiveDelete ? '其他扩展信息' : '来源扩展信息'}
+          </h4>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
             {metadataEntries.slice(0, 12).map(([key, value]) => (
               <div className="min-w-0 rounded-md border bg-muted/10 px-3 py-2" key={key}>
-                <div className="font-medium text-foreground">{securityApprovalMetadataLabel(key)}</div>
+                <div className="font-medium text-foreground">
+                  {securityApprovalMetadataLabel(key)}
+                </div>
                 <div className="mt-1 truncate">{formatSecurityApprovalMetadataValue(value)}</div>
               </div>
             ))}
@@ -2318,7 +2743,9 @@ function SecurityApprovalWorkbenchDetailPanel({
       <div className="rounded-md border bg-background/75 p-4">
         <h4 className="text-sm font-semibold">审批时间线</h4>
         {timeline.length === 0 ? (
-          <div className="mt-3 text-sm text-muted-foreground">详情加载后会展示申请、审批和生效事件。</div>
+          <div className="mt-3 text-sm text-muted-foreground">
+            详情加载后会展示申请、审批和生效事件。
+          </div>
         ) : (
           <div className="mt-4 grid gap-3">
             {timeline.map((item) => (
@@ -2333,10 +2760,14 @@ function SecurityApprovalWorkbenchDetailPanel({
           <div>
             <h4 className="text-sm font-semibold">审批处理</h4>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {canHandleApprovals ? '通过或拒绝会回写到原审批来源，并保留审计事件。' : '当前账号没有处理审批权限，只能查看审批详情。'}
+              {canHandleApprovals
+                ? '通过或拒绝会回写到原审批来源，并保留审计事件。'
+                : '当前账号没有处理审批权限，只能查看审批详情。'}
             </p>
           </div>
-          <StatusBadge tone={pending ? 'degraded' : 'planned'}>{pending ? '可处理' : '已结束'}</StatusBadge>
+          <StatusBadge tone={pending ? 'degraded' : 'planned'}>
+            {pending ? '可处理' : '已结束'}
+          </StatusBadge>
         </div>
         <textarea
           className="mt-3 min-h-20 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring"
@@ -2377,7 +2808,9 @@ function SecurityApprovalAgentTeamArchiveContext({
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-semibold">团队运行上下文</h4>
-          <p className="mt-1 text-xs text-muted-foreground">用于确认本次删除影响的多 Agent 团队和具体运行记录。</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            用于确认本次删除影响的多 Agent 团队和具体运行记录。
+          </p>
         </div>
         <StatusBadge tone="degraded">高危归档删除</StatusBadge>
       </div>
@@ -2401,19 +2834,26 @@ function SecurityApprovalArchiveObjectPanel({
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-semibold">归档对象</h4>
-          <p className="mt-1 text-xs text-muted-foreground">审批通过后会删除该对象存储文件，操作会写入审计时间线。</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            审批通过后会删除该对象存储文件，操作会写入审计时间线。
+          </p>
         </div>
         <StatusBadge tone="planned">{metadata.archiveContext}</StatusBadge>
       </div>
       <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
         <SummaryTile label="归档文件" value={metadata.archiveFileName} />
-        <SummaryTile label="归档大小" value={metadata.archiveSizeBytes > 0 ? formatBytes(metadata.archiveSizeBytes) : '未知'} />
+        <SummaryTile
+          label="归档大小"
+          value={metadata.archiveSizeBytes > 0 ? formatBytes(metadata.archiveSizeBytes) : '未知'}
+        />
         <SummaryTile label="归档目录" value={metadata.archiveFolder} />
         <SummaryTile label="归档来源" value={metadata.archiveSource} />
       </div>
       <div className="mt-3 rounded-md border bg-muted/10 px-3 py-2">
         <div className="text-xs font-medium text-foreground">对象路径</div>
-        <div className="mt-1 break-all font-mono text-xs text-muted-foreground">{metadata.archiveKey}</div>
+        <div className="mt-1 break-all font-mono text-xs text-muted-foreground">
+          {metadata.archiveKey}
+        </div>
       </div>
     </div>
   );
@@ -2425,16 +2865,28 @@ function SecurityApprovalTimelineItem({ item }: { item: SecurityApprovalWorkbenc
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={archiveApprovalEventTone(item.type)}>{archiveApprovalEventLabel(item.type)}</StatusBadge>
-            <StatusBadge tone={archiveApprovalEventStatusTone(item.status)}>{item.status}</StatusBadge>
+            <StatusBadge tone={archiveApprovalEventTone(item.type)}>
+              {archiveApprovalEventLabel(item.type)}
+            </StatusBadge>
+            <StatusBadge tone={archiveApprovalEventStatusTone(item.status)}>
+              {item.status}
+            </StatusBadge>
           </div>
           <div className="mt-2 text-sm font-medium">{item.title}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{item.actor?.name ?? '系统'} · {formatDateTime(item.occurred_at)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {item.actor?.name ?? '系统'} · {formatDateTime(item.occurred_at)}
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">{item.request_id ? shortId(item.request_id) : '无 request_id'}</div>
+        <div className="text-xs text-muted-foreground">
+          {item.request_id ? shortId(item.request_id) : '无 request_id'}
+        </div>
       </div>
-      {item.note ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.note}</p> : null}
-      {item.trace_id ? <div className="mt-2 truncate text-xs text-muted-foreground">Trace：{item.trace_id}</div> : null}
+      {item.note ? (
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.note}</p>
+      ) : null}
+      {item.trace_id ? (
+        <div className="mt-2 truncate text-xs text-muted-foreground">Trace：{item.trace_id}</div>
+      ) : null}
     </div>
   );
 }
@@ -2459,7 +2911,18 @@ function PolicyTable({
       <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
-            {['策略', '效果', '资源', '动作', '优先级', '状态', '条件', '评估', '更新时间', '操作'].map((column) => (
+            {[
+              '策略',
+              '效果',
+              '资源',
+              '动作',
+              '优先级',
+              '状态',
+              '条件',
+              '评估',
+              '更新时间',
+              '操作',
+            ].map((column) => (
               <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
                 {column}
               </th>
@@ -2502,16 +2965,36 @@ function PolicyTable({
                 {policy.evaluation_count}
                 <div className="text-xs">{formatDateTime(policy.last_evaluated_at)}</div>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">{formatDateTime(policy.updated_at)}</td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {formatDateTime(policy.updated_at)}
+              </td>
               <td className="px-4 py-3">
                 <div className="flex gap-2">
-                  <Button disabled={!canWrite} onClick={() => onEdit(policy)} size="sm" title="编辑" variant="outline">
+                  <Button
+                    disabled={!canWrite}
+                    onClick={() => onEdit(policy)}
+                    size="sm"
+                    title="编辑"
+                    variant="outline"
+                  >
                     <Edit className="size-4" />
                   </Button>
-                  <Button disabled={!canWrite || pending} onClick={() => onToggle(policy)} size="sm" title={policy.status === 'ACTIVE' ? '停用' : '启用'} variant="outline">
+                  <Button
+                    disabled={!canWrite || pending}
+                    onClick={() => onToggle(policy)}
+                    size="sm"
+                    title={policy.status === 'ACTIVE' ? '停用' : '启用'}
+                    variant="outline"
+                  >
                     <Power className="size-4" />
                   </Button>
-                  <Button disabled={!canWrite} onClick={() => onDelete(policy)} size="sm" title="删除" variant="outline">
+                  <Button
+                    disabled={!canWrite}
+                    onClick={() => onDelete(policy)}
+                    size="sm"
+                    title="删除"
+                    variant="outline"
+                  >
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
@@ -2626,23 +3109,30 @@ function EvaluationLogCard({
       {loading ? (
         <div className="p-6 text-sm text-muted-foreground">正在加载评估日志...</div>
       ) : evaluations.length === 0 ? (
-        <EmptyState description="运行一次策略模拟后，会在这里生成第一条评估日志。" title="暂无评估日志" />
+        <EmptyState
+          description="运行一次策略模拟后，会在这里生成第一条评估日志。"
+          title="暂无评估日志"
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                {['时间', '决策', '动作', '命中策略', '原因', '请求 ID', 'Trace ID'].map((column) => (
-                  <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                    {column}
-                  </th>
-                ))}
+                {['时间', '决策', '动作', '命中策略', '原因', '请求 ID', 'Trace ID'].map(
+                  (column) => (
+                    <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
+                      {column}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               {evaluations.map((item) => (
                 <tr className="border-b last:border-0" key={item.id}>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.created_at)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {formatDateTime(item.created_at)}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={securityPolicyDecisionTone(item.decision)}>
                       {securityPolicyDecisionLabel(item.decision)}
@@ -2651,7 +3141,9 @@ function EvaluationLogCard({
                   <td className="px-4 py-3 text-muted-foreground">{item.action}</td>
                   <td className="px-4 py-3">
                     <div className="max-w-48 truncate">{item.matched_policy_name ?? '未命中'}</div>
-                    <div className="text-xs text-muted-foreground">{item.matched_policy_code ?? '-'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.matched_policy_code ?? '-'}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="max-w-md truncate">{item.reason}</div>
@@ -2712,7 +3204,8 @@ function SecurityEventCenterCard({
             </div>
             <h2 className="mt-2 text-sm font-semibold">安全事件详情中心</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              汇总 DataScope、Resource ACL、SecurityPolicyGuard、操作拒绝和审批工作台导出事件，支持筛选、审计和 trace 跳转。
+              汇总 DataScope、Resource
+              ACL、SecurityPolicyGuard、操作拒绝和审批工作台导出事件，支持筛选、审计和 trace 跳转。
             </p>
           </div>
           <div className="text-sm text-muted-foreground">
@@ -2789,11 +3282,13 @@ function SecurityEventCenterCard({
           <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                {['时间', '来源', '风险', '原因', '资源', '动作', '请求', 'Trace', '操作'].map((column) => (
-                  <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                    {column}
-                  </th>
-                ))}
+                {['时间', '来源', '风险', '原因', '资源', '动作', '请求', 'Trace', '操作'].map(
+                  (column) => (
+                    <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
+                      {column}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -2805,9 +3300,13 @@ function SecurityEventCenterCard({
                   key={event.id}
                   transition={{ delay: index * 0.018, duration: 0.2 }}
                 >
-                  <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {formatDateTime(event.occurred_at)}
+                  </td>
                   <td className="px-4 py-3">
-                    <StatusBadge tone="degraded">{securityDenialSourceLabel(event.source)}</StatusBadge>
+                    <StatusBadge tone="degraded">
+                      {securityDenialSourceLabel(event.source)}
+                    </StatusBadge>
                     <div className="mt-1 text-xs text-muted-foreground">{event.status_code}</div>
                   </td>
                   <td className="px-4 py-3">
@@ -2817,7 +3316,9 @@ function SecurityEventCenterCard({
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-sm truncate font-medium">{event.title}</div>
-                    <div className="max-w-sm truncate text-xs text-muted-foreground">{event.reason}</div>
+                    <div className="max-w-sm truncate text-xs text-muted-foreground">
+                      {event.reason}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="max-w-44 truncate">{event.resource_type ?? '未知资源'}</div>
@@ -2825,11 +3326,15 @@ function SecurityEventCenterCard({
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="max-w-40 truncate">{event.action ?? '-'}</div>
-                    <div className="max-w-40 truncate text-xs">{event.method} {event.path}</div>
+                    <div className="max-w-40 truncate text-xs">
+                      {event.method} {event.path}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="max-w-44 truncate">{event.request_id}</div>
-                    <div className="max-w-44 truncate text-xs">{event.matched_code ?? '无匹配编码'}</div>
+                    <div className="max-w-44 truncate text-xs">
+                      {event.matched_code ?? '无匹配编码'}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="max-w-44 truncate">{event.trace_id ?? '-'}</div>
@@ -2850,7 +3355,12 @@ function SecurityEventCenterCard({
 
       {total > 0 ? (
         <div className="border-t p-4">
-          <PaginationBar onPageChange={onPageChange} page={page} pageCount={pageCount} total={total} />
+          <PaginationBar
+            onPageChange={onPageChange}
+            page={page}
+            pageCount={pageCount}
+            total={total}
+          />
         </div>
       ) : null}
     </Card>
@@ -2888,9 +3398,15 @@ function SecurityEventDetailDrawer({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge tone="ready">事件详情</StatusBadge>
-              {event ? <StatusBadge tone={securityRiskTone(event.severity)}>{securityRiskLevelLabel(event.severity)}</StatusBadge> : null}
+              {event ? (
+                <StatusBadge tone={securityRiskTone(event.severity)}>
+                  {securityRiskLevelLabel(event.severity)}
+                </StatusBadge>
+              ) : null}
             </div>
-            <h2 className="mt-2 text-base font-semibold">{event?.source === 'APPROVAL_WORKBENCH' ? '审批工作台导出事件' : '安全拒绝事件'}</h2>
+            <h2 className="mt-2 text-base font-semibold">
+              {event?.source === 'APPROVAL_WORKBENCH' ? '审批工作台导出事件' : '安全拒绝事件'}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {event?.source === 'APPROVAL_WORKBENCH'
                 ? '查看导出数量、筛选条件、操作人和链路追踪信息。'
@@ -2918,7 +3434,9 @@ function SecurityEventDetailDrawer({
                 <StatusBadge tone={event.has_trace ? 'healthy' : 'planned'}>
                   {event.has_trace ? '可追踪' : '无 Trace'}
                 </StatusBadge>
-                <span className="text-xs text-muted-foreground">{formatDateTime(event.occurred_at)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateTime(event.occurred_at)}
+                </span>
               </div>
               <h3 className="mt-3 text-sm font-semibold">{event.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{event.reason}</p>
@@ -2927,7 +3445,10 @@ function SecurityEventDetailDrawer({
             <div className="grid gap-3 md:grid-cols-2">
               <SummaryTile label="请求 ID" value={event.request_id} />
               <SummaryTile label="Trace ID" value={event.trace_id ?? '未记录'} />
-              <SummaryTile label="资源" value={`${event.resource_type ?? '未知'} / ${event.resource_id ?? '未记录'}`} />
+              <SummaryTile
+                label="资源"
+                value={`${event.resource_type ?? '未知'} / ${event.resource_id ?? '未记录'}`}
+              />
               <SummaryTile label="动作" value={event.action ?? '未记录'} />
               <SummaryTile label="路径" value={`${event.method} ${event.path}`} />
               <SummaryTile label="状态码" value={`${event.status_code}`} />
@@ -2938,15 +3459,29 @@ function SecurityEventDetailDrawer({
                 <h3 className="text-sm font-semibold">导出摘要</h3>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <SummaryTile label="导出数量" value={`${securityEventExportedCount(event)}`} />
-                  <SummaryTile label="筛选状态" value={securityEventExportFilterValue(event, 'status')} />
-                  <SummaryTile label="审批类型" value={securityEventExportFilterValue(event, 'type')} />
-                  <SummaryTile label="风险域" value={securityEventExportFilterValue(event, 'risk_domain')} />
+                  <SummaryTile
+                    label="筛选状态"
+                    value={securityEventExportFilterValue(event, 'status')}
+                  />
+                  <SummaryTile
+                    label="审批类型"
+                    value={securityEventExportFilterValue(event, 'type')}
+                  />
+                  <SummaryTile
+                    label="风险域"
+                    value={securityEventExportFilterValue(event, 'risk_domain')}
+                  />
                 </div>
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void copyValue('请求 ID', event.request_id)} size="sm" type="button" variant="outline">
+              <Button
+                onClick={() => void copyValue('请求 ID', event.request_id)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
                 <Copy className="size-4" />
                 复制请求 ID
               </Button>
@@ -2962,7 +3497,9 @@ function SecurityEventDetailDrawer({
               </Button>
             </div>
 
-            {copyMessage ? <div className="text-xs text-muted-foreground">{copyMessage}</div> : null}
+            {copyMessage ? (
+              <div className="text-xs text-muted-foreground">{copyMessage}</div>
+            ) : null}
 
             {event.trace_id ? (
               <Button asChild className="w-full justify-center" type="button" variant="outline">
@@ -2990,7 +3527,12 @@ function SecurityEventDetailDrawer({
               <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                 <span>匹配编码：{event.matched_code ?? event.matched_policy?.code ?? '无'}</span>
                 <span>匹配策略：{event.matched_policy?.name ?? '无'}</span>
-                <span>操作人：{event.operator ? `${event.operator.name} / ${event.operator.email}` : '系统或未知'}</span>
+                <span>
+                  操作人：
+                  {event.operator
+                    ? `${event.operator.name} / ${event.operator.email}`
+                    : '系统或未知'}
+                </span>
                 <span>来源 IP：{event.ip ?? '未记录'}</span>
                 <span>User-Agent：{event.user_agent ?? '未记录'}</span>
               </div>
@@ -3062,7 +3604,9 @@ function PolicyFormDialog({
       <Card className="max-h-[92vh] w-full max-w-2xl overflow-y-auto p-5 shadow-lg">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">{mode === 'create' ? '新建安全策略' : '编辑安全策略'}</h2>
+            <h2 className="text-base font-semibold">
+              {mode === 'create' ? '新建安全策略' : '编辑安全策略'}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               条件路径支持 subject、resource、context，例如 subject.department_id。
             </p>
@@ -3082,15 +3626,30 @@ function PolicyFormDialog({
           <div className="grid gap-3 md:grid-cols-2">
             <label className="grid gap-1 text-sm">
               <span className="font-medium">名称</span>
-              <Input onChange={(event) => patchValue('name', event.target.value)} required value={values.name} />
+              <Input
+                onChange={(event) => patchValue('name', event.target.value)}
+                required
+                value={values.name}
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">编码</span>
-              <Input disabled={mode === 'edit'} onChange={(event) => patchValue('code', event.target.value)} required value={values.code} />
+              <Input
+                disabled={mode === 'edit'}
+                onChange={(event) => patchValue('code', event.target.value)}
+                required
+                value={values.code}
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">效果</span>
-              <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => patchValue('effect', event.target.value as SecurityPolicyEffect)} value={values.effect}>
+              <select
+                className="h-10 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) =>
+                  patchValue('effect', event.target.value as SecurityPolicyEffect)
+                }
+                value={values.effect}
+              >
                 {policyEffects.map((item) => (
                   <option key={item} value={item}>
                     {securityPolicyEffectLabel(item)}
@@ -3100,15 +3659,29 @@ function PolicyFormDialog({
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">优先级</span>
-              <Input min={0} onChange={(event) => patchValue('priority', event.target.value)} required type="number" value={values.priority} />
+              <Input
+                min={0}
+                onChange={(event) => patchValue('priority', event.target.value)}
+                required
+                type="number"
+                value={values.priority}
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">资源类型</span>
-              <Input onChange={(event) => patchValue('resource_type', event.target.value)} required value={values.resource_type} />
+              <Input
+                onChange={(event) => patchValue('resource_type', event.target.value)}
+                required
+                value={values.resource_type}
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">动作</span>
-              <Input onChange={(event) => patchValue('action', event.target.value)} required value={values.action} />
+              <Input
+                onChange={(event) => patchValue('action', event.target.value)}
+                required
+                value={values.action}
+              />
             </label>
           </div>
 
@@ -3121,7 +3694,11 @@ function PolicyFormDialog({
             />
           </label>
 
-          <JsonTextArea label="条件 JSON" onChange={(value) => patchValue('conditions', value)} value={values.conditions} />
+          <JsonTextArea
+            label="条件 JSON"
+            onChange={(value) => patchValue('conditions', value)}
+            value={values.conditions}
+          />
 
           {error ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -3205,7 +3782,9 @@ function SummaryTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function toPolicyPayload(values: PolicyFormValues):
+function toPolicyPayload(
+  values: PolicyFormValues,
+):
   | { ok: true; value: CreateSecurityPolicyInput | UpdateSecurityPolicyInput }
   | { ok: false; message: string } {
   const priority = Number(values.priority);
@@ -3247,15 +3826,33 @@ async function invalidateSecurityQueries(queryClient: ReturnType<typeof useQuery
     queryClient.invalidateQueries({ queryKey: ['approval-audit-archives'] }),
     queryClient.invalidateQueries({ queryKey: ['approval-audit-events'] }),
     queryClient.invalidateQueries({ queryKey: ['approval-audit-overview'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archive-approval-overview'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archive-approvals'] }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-notification-archive-approval-overview'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-notification-archive-approvals'],
+    }),
     queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archives'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approval-overview'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approvals'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archives'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approval-overview'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approvals'] }),
-    queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archives'] }),
+    queryClient.invalidateQueries({
+      queryKey: [
+        'security-operation-alert-notification-task-recovery-audit-archive-approval-overview',
+      ],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approvals'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-notification-task-recovery-audit-archives'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approval-overview'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approvals'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['security-operation-alert-sla-dead-letter-audit-archives'],
+    }),
     queryClient.invalidateQueries({ queryKey: ['security-policy-overview'] }),
     queryClient.invalidateQueries({ queryKey: ['security-policies'] }),
     queryClient.invalidateQueries({ queryKey: ['security-policy-evaluations'] }),
@@ -3322,7 +3919,10 @@ function SecurityCenterOverviewPanel({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {overview.posture.guard_chain.map((item) => (
-              <span className="rounded-md border bg-background/70 px-2.5 py-1 text-xs text-muted-foreground" key={item}>
+              <span
+                className="rounded-md border bg-background/70 px-2.5 py-1 text-xs text-muted-foreground"
+                key={item}
+              >
                 {item}
               </span>
             ))}
@@ -3350,14 +3950,22 @@ function SecurityCenterOverviewPanel({
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-medium text-muted-foreground">最近拒绝事件</div>
-              <StatusBadge tone={overview.recent.security_denials.length > 0 ? 'degraded' : 'healthy'}>
+              <StatusBadge
+                tone={overview.recent.security_denials.length > 0 ? 'degraded' : 'healthy'}
+              >
                 {overview.recent.security_denials.length} 条
               </StatusBadge>
             </div>
             {overview.recent.security_denials.length > 0 ? (
-              overview.recent.security_denials.slice(0, 4).map((item) => (
-                <SecurityDenialCard denial={item} key={item.id} onOpenDetail={onOpenEventDetail} />
-              ))
+              overview.recent.security_denials
+                .slice(0, 4)
+                .map((item) => (
+                  <SecurityDenialCard
+                    denial={item}
+                    key={item.id}
+                    onOpenDetail={onOpenEventDetail}
+                  />
+                ))
             ) : (
               <div className="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
                 最近 24 小时暂无运行时拒绝事件。
@@ -3371,6 +3979,92 @@ function SecurityCenterOverviewPanel({
         </div>
       </Card>
     </section>
+  );
+}
+
+function SecurityCenterEntryPanel({
+  activeView,
+  metricValues,
+}: {
+  activeView: SecurityCenterView;
+  metricValues: Record<SecurityCenterView, string>;
+}) {
+  return (
+    <Card className="min-w-0 overflow-hidden border-border/70 bg-background/85 shadow-sm backdrop-blur">
+      <div className="border-b p-5">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">治理入口</StatusBadge>
+              <StatusBadge tone="planned">P0-4 拆分</StatusBadge>
+            </div>
+            <h2 className="mt-3 text-lg font-semibold">安全治理工作区</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              从总览进入策略、事件、告警和自愈四类工作台；各工作台复用同一套安全中心接口和权限控制。
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline">
+            <Link href="/security/events">
+              <Activity className="size-4" />
+              查看安全事件
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+        {securityCenterViewConfigs
+          .filter((item) => item.id !== 'overview')
+          .map((item) => (
+            <SecurityCenterEntryCard
+              active={activeView === item.id}
+              config={item}
+              key={item.id}
+              value={metricValues[item.id]}
+            />
+          ))}
+      </div>
+    </Card>
+  );
+}
+
+function SecurityCenterEntryCard({
+  active,
+  config,
+  value,
+}: {
+  active: boolean;
+  config: SecurityCenterViewConfig;
+  value: string;
+}) {
+  const Icon = config.icon;
+
+  return (
+    <Link
+      className={`group grid min-h-44 gap-4 rounded-lg border bg-background/70 p-4 transition-colors hover:bg-muted/25 ${
+        active ? 'border-blue-200 bg-blue-50/50' : ''
+      }`}
+      href={config.href}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="grid size-9 place-items-center rounded-md border bg-background">
+            <Icon className="size-4" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">{config.title}</h3>
+            <StatusBadge tone={active ? 'healthy' : 'planned'}>{config.badge}</StatusBadge>
+          </div>
+        </div>
+        <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
+      <p className="text-sm leading-6 text-muted-foreground">{config.description}</p>
+      <div className="rounded-md border bg-muted/15 px-3 py-2">
+        <div className="text-xs text-muted-foreground">{config.primaryMetricLabel}</div>
+        <div className="mt-1 text-xl font-semibold">{value}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{config.helper}</div>
+      </div>
+    </Link>
   );
 }
 
@@ -3399,7 +4093,9 @@ function SecurityModuleCard({ module }: { module: SecurityCenterModuleSummary })
         <SummaryTile label={module.primary_metric.label} value={module.primary_metric.value} />
         <SummaryTile label={module.secondary_metric.label} value={module.secondary_metric.value} />
       </div>
-      <div className="text-xs text-muted-foreground">{module.action_label} · {module.primary_metric.helper}</div>
+      <div className="text-xs text-muted-foreground">
+        {module.action_label} · {module.primary_metric.helper}
+      </div>
     </Link>
   );
 }
@@ -3407,6 +4103,7 @@ function SecurityModuleCard({ module }: { module: SecurityCenterModuleSummary })
 function ApprovalArchiveOperationsCard({
   actionResults,
   loading,
+  mode,
   notificationResults,
   notificationTaskRecoveryActionResults,
   notificationTaskRecoveryPendingAction,
@@ -3577,8 +4274,12 @@ function ApprovalArchiveOperationsCard({
 }: {
   actionResults: Record<string, SecurityOperationAlertActionResult>;
   loading: boolean;
+  mode?: 'alerts' | 'recovery';
   notificationResults: Record<string, SecurityOperationAlertNotificationResult>;
-  notificationTaskRecoveryActionResults: Record<string, SecurityOperationAlertNotificationTaskRecoveryActionResult>;
+  notificationTaskRecoveryActionResults: Record<
+    string,
+    SecurityOperationAlertNotificationTaskRecoveryActionResult
+  >;
   notificationTaskRecoveryPendingAction: SecurityOperationAlertNotificationTaskRecoveryAction | null;
   notificationTaskRecoveryPendingSuggestionId: string | null;
   notificationTaskRecoveryUpdating: boolean;
@@ -3657,7 +4358,9 @@ function ApprovalArchiveOperationsCard({
   taskRecoveryAuditFailureSource: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '';
   taskRecoveryAuditKeyword: string;
   taskRecoveryAuditLoading: boolean;
-  taskRecoveryAuditReason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '';
+  taskRecoveryAuditReason:
+    | SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code']
+    | '';
   taskRecoveryAuditStatus: SecurityOperationAlertNotificationTaskRecoveryStatus | '';
   slaLoading: boolean;
   slaOverview: SecurityOperationAlertSlaOverview | null;
@@ -3702,22 +4405,36 @@ function ApprovalArchiveOperationsCard({
   onRunAutoRetry: () => void;
   onRefreshTaskRecoveryAudit: () => void;
   onRefreshTaskRunHistory: () => void;
-  onTaskRecoveryAuditActionChange: (action: SecurityOperationAlertNotificationTaskRecoveryAction | '') => void;
+  onTaskRecoveryAuditActionChange: (
+    action: SecurityOperationAlertNotificationTaskRecoveryAction | '',
+  ) => void;
   onTaskRecoveryAuditArchiveApprove: (approvalId: string) => void;
   onTaskRecoveryAuditArchiveCreate: () => void;
-  onTaskRecoveryAuditArchiveDelete: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
-  onTaskRecoveryAuditArchiveDownload: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
+  onTaskRecoveryAuditArchiveDelete: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
+  onTaskRecoveryAuditArchiveDownload: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
   onTaskRecoveryAuditArchiveNoteChange: (note: string) => void;
   onTaskRecoveryAuditArchiveReject: (approvalId: string) => void;
   onTaskRecoveryAuditArchiveRefresh: () => void;
   onTaskRecoveryAuditArchiveApprovalRefresh: () => void;
   onTaskRecoveryAuditExport: () => void;
-  onTaskRecoveryAuditFailureSourceChange: (source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '') => void;
+  onTaskRecoveryAuditFailureSourceChange: (
+    source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '',
+  ) => void;
   onTaskRecoveryAuditKeywordChange: (keyword: string) => void;
-  onTaskRecoveryAuditReasonChange: (reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '') => void;
-  onTaskRecoveryAuditStatusChange: (status: SecurityOperationAlertNotificationTaskRecoveryStatus | '') => void;
+  onTaskRecoveryAuditReasonChange: (
+    reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '',
+  ) => void;
+  onTaskRecoveryAuditStatusChange: (
+    status: SecurityOperationAlertNotificationTaskRecoveryStatus | '',
+  ) => void;
   onTaskRunHistoryKeywordChange: (keyword: string) => void;
-  onTaskRunHistoryStatusChange: (status: SecurityOperationAlertNotificationTaskRunResult['status'] | '') => void;
+  onTaskRunHistoryStatusChange: (
+    status: SecurityOperationAlertNotificationTaskRunResult['status'] | '',
+  ) => void;
   onTaskRunHistoryTaskChange: (task: SecurityOperationAlertNotificationTaskName | '') => void;
   onRefreshSla: () => void;
   onRunSlaEscalation: () => void;
@@ -3727,20 +4444,31 @@ function ApprovalArchiveOperationsCard({
   onRunSlaNotificationAutoRetry: () => void;
   onRetrySlaNotification: (notificationEventId: string) => void;
   onRefreshSlaDeadLetter: () => void;
-  onHandleSlaDeadLetter: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onHandleSlaDeadLetter: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   onSlaDeadLetterNoteChange: (note: string) => void;
-  onSlaDeadLetterAuditActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
+  onSlaDeadLetterAuditActionChange: (
+    action: SecurityOperationAlertSlaDeadLetterAction | '',
+  ) => void;
   onSlaDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onSlaDeadLetterAuditArchiveCreate: () => void;
-  onSlaDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
-  onSlaDeadLetterAuditArchiveDownload: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
+  onSlaDeadLetterAuditArchiveDelete: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
+  onSlaDeadLetterAuditArchiveDownload: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
   onSlaDeadLetterAuditArchiveNoteChange: (note: string) => void;
   onSlaDeadLetterAuditArchiveReject: (approvalId: string) => void;
   onSlaDeadLetterAuditArchiveRefresh: () => void;
   onSlaDeadLetterAuditArchiveApprovalRefresh: () => void;
   onSlaDeadLetterAuditExport: () => void;
   onSlaDeadLetterAuditKeywordChange: (keyword: string) => void;
-  onSlaDeadLetterAuditStatusChange: (status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '') => void;
+  onSlaDeadLetterAuditStatusChange: (
+    status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '',
+  ) => void;
   onSlaDeadLetterAuditCategoryChange: (category: string) => void;
   onSlaDeadLetterAuditPageChange: (page: number) => void;
   onRefreshSlaDeadLetterAudit: () => void;
@@ -3765,9 +4493,7 @@ function ApprovalArchiveOperationsCard({
     operations.sla_dead_letter_archive_delete_pending +
     operations.notification_task_recovery_audit_archive_delete_pending;
   const pendingTotal =
-    operations.tool_pending +
-    operations.notification_pending +
-    archiveDeletePendingTotal;
+    operations.tool_pending + operations.notification_pending + archiveDeletePendingTotal;
   const auditRiskTotal = operations.audit_failed_24h + operations.audit_warning_24h;
   const notificationTaskRisk =
     operations.notification_task_failed_24h > 0 ||
@@ -3793,10 +4519,20 @@ function ApprovalArchiveOperationsCard({
       operations.notification_task_recovery_audit_archive_delete_applied;
   const agentTeamReportArchiveDeleteRisk =
     operations.agent_team_report_archive_delete_rejected > 0 &&
-    operations.agent_team_report_archive_delete_rejected >= operations.agent_team_report_archive_delete_applied;
-  const archiveRisk = operations.archive_storage_status === 'UNKNOWN' || operations.archive_storage_status === 'UNAVAILABLE';
+    operations.agent_team_report_archive_delete_rejected >=
+      operations.agent_team_report_archive_delete_applied;
+  const archiveRisk =
+    operations.archive_storage_status === 'UNKNOWN' ||
+    operations.archive_storage_status === 'UNAVAILABLE';
+  const focusedMode = mode ?? 'alerts';
+  const showAlertOperations = focusedMode === 'alerts';
+  const showRecoveryOperations = focusedMode === 'recovery';
   const statusTone =
-    archiveRisk || auditRiskTotal > 0 || notificationTaskRisk || notificationTaskRecoveryArchiveDeleteRisk || agentTeamReportArchiveDeleteRisk
+    archiveRisk ||
+    auditRiskTotal > 0 ||
+    notificationTaskRisk ||
+    notificationTaskRecoveryArchiveDeleteRisk ||
+    agentTeamReportArchiveDeleteRisk
       ? 'degraded'
       : pendingTotal > 0
         ? 'planned'
@@ -3853,7 +4589,8 @@ function ApprovalArchiveOperationsCard({
     {
       label: 'SLA 死信闭环率',
       value: approvalClosureRate(
-        operations.sla_dead_letter_archive_delete_applied + operations.sla_dead_letter_archive_delete_rejected,
+        operations.sla_dead_letter_archive_delete_applied +
+          operations.sla_dead_letter_archive_delete_rejected,
         operations.sla_dead_letter_archive_delete_pending +
           operations.sla_dead_letter_archive_delete_applied +
           operations.sla_dead_letter_archive_delete_rejected,
@@ -3880,7 +4617,8 @@ function ApprovalArchiveOperationsCard({
     {
       label: '团队报告闭环率',
       value: approvalClosureRate(
-        operations.agent_team_report_archive_delete_applied + operations.agent_team_report_archive_delete_rejected,
+        operations.agent_team_report_archive_delete_applied +
+          operations.agent_team_report_archive_delete_rejected,
         operations.agent_team_report_archive_delete_pending +
           operations.agent_team_report_archive_delete_applied +
           operations.agent_team_report_archive_delete_rejected,
@@ -4011,11 +4749,19 @@ function ApprovalArchiveOperationsCard({
               </StatusBadge>
             </div>
             <div className="mt-3 flex items-center gap-2">
-              <Archive className="size-4 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">审批与归档运营</h2>
+              {showRecoveryOperations ? (
+                <Wrench className="size-4 text-muted-foreground" />
+              ) : (
+                <Archive className="size-4 text-muted-foreground" />
+              )}
+              <h2 className="text-lg font-semibold">
+                {showRecoveryOperations ? '通知任务自愈恢复' : '审批与告警运营'}
+              </h2>
             </div>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              聚合工具审批、通知策略审批、归档删除审批、通知任务自愈归档删除、审批审计事件和 MinIO 归档容量，帮助安全管理员快速处理待办与归档风险。
+              {showRecoveryOperations
+                ? '聚合通知任务执行历史、失败来源、自愈建议、恢复审计和归档删除审批，帮助安全管理员完成恢复闭环。'
+                : '聚合工具审批、通知策略审批、归档删除审批、通知审计、SLA 和运营告警，帮助安全管理员快速处理待办与归档风险。'}
             </p>
           </div>
           <div className="grid min-w-[210px] gap-1 rounded-md border bg-background/70 p-3 text-sm">
@@ -4032,19 +4778,20 @@ function ApprovalArchiveOperationsCard({
         </div>
       ) : null}
 
-      {notificationTaskCategoryFailureTotal > 0 ? (
+      {showRecoveryOperations && notificationTaskCategoryFailureTotal > 0 ? (
         <div className="mx-5 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
-          通知任务来源失败已进入运营告警闭环：SLA 死信 {operations.notification_task_sla_dead_letter_failed_24h} 条，
-          团队报告 {operations.notification_task_agent_team_report_archive_delete_failed_24h} 条，
-          自愈归档 {operations.notification_task_recovery_archive_delete_failed_24h} 条
+          通知任务来源失败已进入运营告警闭环：SLA 死信{' '}
+          {operations.notification_task_sla_dead_letter_failed_24h} 条， 团队报告{' '}
+          {operations.notification_task_agent_team_report_archive_delete_failed_24h} 条， 自愈归档{' '}
+          {operations.notification_task_recovery_archive_delete_failed_24h} 条
           {notificationTaskMixedFailure ? '，当前为多来源失败。' : '。'}
         </div>
       ) : null}
 
-      {approvalWorkbenchExportRisk ? (
+      {showAlertOperations && approvalWorkbenchExportRisk ? (
         <div className="mx-5 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
-          审批工作台导出治理已发现风险：导出次数 {operations.approval_workbench_exports_24h} 次，导出记录{' '}
-          {operations.approval_workbench_exported_records_24h} 条，高风险导出{' '}
+          审批工作台导出治理已发现风险：导出次数 {operations.approval_workbench_exports_24h}{' '}
+          次，导出记录 {operations.approval_workbench_exported_records_24h} 条，高风险导出{' '}
           {operations.approval_workbench_high_risk_exports_24h} 次，重复导出{' '}
           {operations.approval_workbench_repeated_exports_24h} 次。
         </div>
@@ -4074,463 +4821,497 @@ function ApprovalArchiveOperationsCard({
         </div>
       </div>
 
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>M78</StatusBadge>
-              <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>
-                {approvalWorkbenchExportRisk ? '导出治理风险' : '导出治理正常'}
-              </StatusBadge>
+      {showAlertOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>
+                  M78
+                </StatusBadge>
+                <StatusBadge tone={approvalWorkbenchExportRisk ? 'degraded' : 'healthy'}>
+                  {approvalWorkbenchExportRisk ? '导出治理风险' : '导出治理正常'}
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">审批工作台导出治理</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                监控统一审批工作台导出次数、导出记录总量、高风险筛选和重复导出行为，避免审批数据被过量取数或异常导出。
+              </p>
             </div>
-            <h3 className="mt-3 text-sm font-semibold">审批工作台导出治理</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              监控统一审批工作台导出次数、导出记录总量、高风险筛选和重复导出行为，避免审批数据被过量取数或异常导出。
-            </p>
+            <Button asChild type="button" variant="outline">
+              <Link href="/security/events">
+                <Archive className="size-4" />
+                查看导出事件
+              </Link>
+            </Button>
           </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/security?eventSource=APPROVAL_WORKBENCH">
-              <Archive className="size-4" />
-              查看导出事件
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {approvalWorkbenchExportMetrics.map((metric) => (
-            <OperationMetricTile
-              helper={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              value={String(metric.value)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="ready">M72</StatusBadge>
-              <StatusBadge
-                tone={
-                  agentTeamReportArchiveDeleteRisk
-                    ? 'degraded'
-                    : operations.agent_team_report_archive_delete_pending > 0
-                      ? 'planned'
-                      : 'healthy'
-                }
-              >
-                {agentTeamReportArchiveDeleteRisk
-                  ? '拒绝复核'
-                  : operations.agent_team_report_archive_delete_pending > 0
-                    ? '存在待审'
-                    : '已闭环'}
-              </StatusBadge>
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">团队运行报告归档删除审批运营</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              团队运行报告归档删除申请进入安全中心运营看板，追踪待审、批准、拒绝和删除生效，防止多 Agent 运行报告留存被绕过。
-            </p>
-          </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/security">
-              <Archive className="size-4" />
-              查看统一审批工作台
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {agentTeamReportArchiveDeleteMetrics.map((metric) => (
-            <OperationMetricTile
-              helper={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              value={String(metric.value)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="ready">M98</StatusBadge>
-              <StatusBadge tone={operations.sla_dead_letter_archive_delete_pending > 0 ? 'degraded' : 'healthy'}>
-                {operations.sla_dead_letter_archive_delete_pending > 0 ? '存在待审' : '已闭环'}
-              </StatusBadge>
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">SLA 死信归档删除审批运营</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              将 SLA 死信处置审计归档删除申请纳入安全中心运营看板，追踪待审、批准、拒绝和删除生效情况。
-            </p>
-          </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/security">
-              <Archive className="size-4" />
-              查看归档删除审批
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {slaArchiveDeleteMetrics.map((metric) => (
-            <OperationMetricTile
-              helper={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              value={String(metric.value)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="ready">M108</StatusBadge>
-              <StatusBadge
-                tone={
-                  notificationTaskRecoveryArchiveDeleteRisk
-                    ? 'degraded'
-                    : operations.notification_task_recovery_audit_archive_delete_pending > 0
-                      ? 'planned'
-                      : 'healthy'
-                }
-              >
-                {notificationTaskRecoveryArchiveDeleteRisk
-                  ? '拒绝复核'
-                  : operations.notification_task_recovery_audit_archive_delete_pending > 0
-                    ? '存在待审'
-                    : '已闭环'}
-              </StatusBadge>
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">通知任务自愈归档删除审批运营</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              将通知任务自愈闭环审计归档删除申请纳入安全中心运营看板，联动待审、拒绝风险、删除生效和运营告警闭环。
-            </p>
-          </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/security">
-              <Archive className="size-4" />
-              查看自愈归档审批
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {notificationTaskRecoveryArchiveDeleteMetrics.map((metric) => (
-            <OperationMetricTile
-              helper={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              value={String(metric.value)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="ready">M102</StatusBadge>
-              <StatusBadge tone={notificationTaskRisk ? 'degraded' : 'healthy'}>
-                {notificationTaskRisk ? '通知任务风险' : '任务正常'}
-              </StatusBadge>
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">通知任务失败聚合</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              聚合首发自动通知与失败自动重试任务的执行结果，连续失败或失败率偏高会进入运营告警闭环。
-            </p>
-          </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/security">
-              <Activity className="size-4" />
-              查看任务历史
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {notificationTaskMetrics.map((metric) => (
-            <OperationMetricTile
-              helper={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              value={String(metric.value)}
-            />
-          ))}
-        </div>
-
-        <NotificationTaskRecoverySuggestionsCard
-          actionResults={notificationTaskRecoveryActionResults}
-          onAction={onNotificationTaskRecoveryAction}
-          pendingAction={notificationTaskRecoveryPendingAction}
-          pendingSuggestionId={notificationTaskRecoveryPendingSuggestionId}
-          suggestions={operations.notification_task_recovery_suggestions}
-          updating={notificationTaskRecoveryUpdating}
-        />
-      </div>
-
-      <div className="border-t bg-muted/10 p-5">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone={operations.operational_alerts.length > 0 ? 'degraded' : 'healthy'}>
-                M83 告警闭环
-              </StatusBadge>
-              <StatusBadge tone="planned">{operations.operational_alerts.length} 条告警</StatusBadge>
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">运营告警闭环</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              根据审批积压、归档删除、自愈归档删除、审计失败、Trace 覆盖和归档存储状态自动推导处理项。
-            </p>
-          </div>
-          <Button asChild type="button" variant="outline">
-            <Link href="/monitor">
-              <Activity className="size-4" />
-              查看监控告警
-            </Link>
-          </Button>
-        </div>
-
-        {operations.operational_alerts.length > 0 ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {operations.operational_alerts.map((alert) => (
-              <OperationAlertCard
-                actionResult={actionResults[alert.id] ?? null}
-                alert={alert}
-                key={alert.id}
-                notificationResult={notificationResults[alert.id] ?? null}
-                notifying={notifying && notifyingAlertId === alert.id}
-                onAction={onAction}
-                onNotify={onNotify}
-                pendingAction={pendingAction}
-                updatingAction={updatingAction && pendingActionAlertId === alert.id}
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {approvalWorkbenchExportMetrics.map((metric) => (
+              <OperationMetricTile
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={String(metric.value)}
               />
             ))}
           </div>
-        ) : (
-          <div className="mt-4">
-            <EmptyState
-              description="当前审批积压、归档存储、审批审计和 Trace 覆盖没有触发运营告警。"
-              title="审批与归档运营平稳"
-            />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="grid gap-4 border-t bg-muted/10 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-5">
-          <div>
-            <span className="font-medium text-foreground">工具审批：</span>
-            已通过 {operations.tool_approved}，已拒绝 {operations.tool_rejected}
+      {showAlertOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="ready">M72</StatusBadge>
+                <StatusBadge
+                  tone={
+                    agentTeamReportArchiveDeleteRisk
+                      ? 'degraded'
+                      : operations.agent_team_report_archive_delete_pending > 0
+                        ? 'planned'
+                        : 'healthy'
+                  }
+                >
+                  {agentTeamReportArchiveDeleteRisk
+                    ? '拒绝复核'
+                    : operations.agent_team_report_archive_delete_pending > 0
+                      ? '存在待审'
+                      : '已闭环'}
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">团队运行报告归档删除审批运营</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                团队运行报告归档删除申请进入安全中心运营看板，追踪待审、批准、拒绝和删除生效，防止多
+                Agent 运行报告留存被绕过。
+              </p>
+            </div>
+            <Button asChild type="button" variant="outline">
+              <Link href="/security/alerts">
+                <Archive className="size-4" />
+                查看统一审批工作台
+              </Link>
+            </Button>
           </div>
-          <div>
-            <span className="font-medium text-foreground">审计归档删除：</span>
-            已通过 {operations.archive_delete_approved}，已拒绝 {operations.archive_delete_rejected}
-          </div>
-          <div>
-            <span className="font-medium text-foreground">团队报告归档：</span>
-            待审 {operations.agent_team_report_archive_delete_pending}，拒绝{' '}
-            {operations.agent_team_report_archive_delete_rejected}，生效{' '}
-            {operations.agent_team_report_archive_delete_applied}
-          </div>
-          <div>
-            <span className="font-medium text-foreground">自愈归档删除：</span>
-            待审 {operations.notification_task_recovery_audit_archive_delete_pending}，拒绝{' '}
-            {operations.notification_task_recovery_audit_archive_delete_rejected}，生效{' '}
-            {operations.notification_task_recovery_audit_archive_delete_applied}
-          </div>
-          <div>
-            <span className="font-medium text-foreground">审计质量：</span>
-            {auditRiskTotal > 0 ? '存在失败或告警事件' : '最近 24 小时无失败告警'}
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {agentTeamReportArchiveDeleteMetrics.map((metric) => (
+              <OperationMetricTile
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={String(metric.value)}
+              />
+            ))}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild type="button">
-            <Link href="/approvals">
-              <ClipboardCheck className="size-4" />
-              处理审批
-            </Link>
-          </Button>
-          <Button asChild type="button" variant="outline">
-            <Link href="/approval-audits">
-              <Archive className="size-4" />
-              查看审批审计
-            </Link>
-          </Button>
-          <Button asChild type="button" variant="outline">
-            <Link href="/audit">
-              <FileSearch className="size-4" />
-              打开审计中心
-            </Link>
-          </Button>
+      ) : null}
+
+      {showAlertOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="ready">M98</StatusBadge>
+                <StatusBadge
+                  tone={
+                    operations.sla_dead_letter_archive_delete_pending > 0 ? 'degraded' : 'healthy'
+                  }
+                >
+                  {operations.sla_dead_letter_archive_delete_pending > 0 ? '存在待审' : '已闭环'}
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">SLA 死信归档删除审批运营</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                将 SLA
+                死信处置审计归档删除申请纳入安全中心运营看板，追踪待审、批准、拒绝和删除生效情况。
+              </p>
+            </div>
+            <Button asChild type="button" variant="outline">
+              <Link href="/security/alerts">
+                <Archive className="size-4" />
+                查看归档删除审批
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {slaArchiveDeleteMetrics.map((metric) => (
+              <OperationMetricTile
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={String(metric.value)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <OperationAlertNotificationAuditCard
-        archiveError={notificationArchiveError}
-        archiveLoading={notificationArchiveLoading}
-        archiveMessage={notificationArchiveMessage}
-        archives={notificationArchives}
-        archiveSummary={notificationArchiveSummary}
-        archiving={operationNotificationArchiving}
-        approvingArchive={operationNotificationArchiveApproving}
-        archiveApprovalNote={notificationArchiveApprovalNote}
-        archiveApprovalOverview={notificationArchiveApprovalOverview}
-        archiveApprovals={notificationArchiveApprovals}
-        archiveApprovalsLoading={notificationArchiveApprovalsLoading}
-        category={notificationCategory}
-        deletingArchive={operationNotificationArchiveDeleting}
-        downloadingArchive={operationNotificationDownloading}
-        exportState={notificationExportState}
-        keyword={notificationKeyword}
-        loading={notificationAuditLoading}
-        onArchiveApprove={onNotificationArchiveApprove}
-        onArchiveCreate={onNotificationArchiveCreate}
-        onArchiveDelete={onNotificationArchiveDelete}
-        onArchiveDownload={onNotificationArchiveDownload}
-        onArchiveNoteChange={onNotificationArchiveNoteChange}
-        onArchiveReject={onNotificationArchiveReject}
-        onArchiveRefresh={onNotificationArchiveRefresh}
-        onArchiveApprovalRefresh={onNotificationArchiveApprovalRefresh}
-        onCategoryChange={onNotificationCategoryChange}
-        onExport={onNotificationExport}
-        onKeywordChange={onNotificationKeywordChange}
-        onRetry={onRetryNotification}
-        onStatusChange={onNotificationStatusChange}
-        overview={notificationAudit}
-        rejectingArchive={operationNotificationArchiveRejecting}
-        retrying={retryingNotification}
-        retryingNotificationEventId={retryingNotificationEventId}
-        status={notificationStatus}
-      />
+      {showRecoveryOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="ready">M108</StatusBadge>
+                <StatusBadge
+                  tone={
+                    notificationTaskRecoveryArchiveDeleteRisk
+                      ? 'degraded'
+                      : operations.notification_task_recovery_audit_archive_delete_pending > 0
+                        ? 'planned'
+                        : 'healthy'
+                  }
+                >
+                  {notificationTaskRecoveryArchiveDeleteRisk
+                    ? '拒绝复核'
+                    : operations.notification_task_recovery_audit_archive_delete_pending > 0
+                      ? '存在待审'
+                      : '已闭环'}
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">通知任务自愈归档删除审批运营</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                将通知任务自愈闭环审计归档删除申请纳入安全中心运营看板，联动待审、拒绝风险、删除生效和运营告警闭环。
+              </p>
+            </div>
+            <Button asChild type="button" variant="outline">
+              <Link href="/security/recovery">
+                <Archive className="size-4" />
+                查看自愈归档审批
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {notificationTaskRecoveryArchiveDeleteMetrics.map((metric) => (
+              <OperationMetricTile
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={String(metric.value)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      <OperationAlertSlaCard
-        loading={slaLoading}
-        notificationLoading={slaNotificationLoading}
-        notificationOverview={slaNotificationOverview}
-        notificationRetryLoading={slaNotificationRetryLoading}
-        notificationRetryOverview={slaNotificationRetryOverview}
-        notificationRetryRunning={slaNotificationRetryRunning}
-        notificationRunning={slaNotificationRunning}
-        onNotifyOverdue={onNotifySlaOverdue}
-        onRefresh={onRefreshSla}
-        onRefreshNotification={onRefreshSlaNotification}
-        onRefreshNotificationRetry={onRefreshSlaNotificationRetry}
-        onRunEscalation={onRunSlaEscalation}
-        onRunNotificationAutoRetry={onRunSlaNotificationAutoRetry}
-        onRetryNotification={onRetrySlaNotification}
-        overview={slaOverview}
-        retryingNotification={retryingSlaNotification}
-        retryingNotificationEventId={retryingSlaNotificationEventId}
-        running={slaRunning}
-        deadLetterLoading={slaDeadLetterLoading}
-        deadLetterNote={slaDeadLetterNote}
-        deadLetterOverview={slaDeadLetterOverview}
-        deadLetterPendingAction={slaDeadLetterPendingAction}
-        deadLetterPendingEventId={slaDeadLetterPendingEventId}
-        deadLetterRunning={slaDeadLetterRunning}
-        deadLetterAuditAction={slaDeadLetterAuditAction}
-        deadLetterAuditCategory={slaDeadLetterAuditCategory}
-        deadLetterAuditKeyword={slaDeadLetterAuditKeyword}
-        deadLetterAuditLoading={slaDeadLetterAuditLoading}
-        deadLetterAuditPage={slaDeadLetterAuditPage}
-        deadLetterAuditPageCount={slaDeadLetterAuditPageCount}
-        deadLetterAuditResult={slaDeadLetterAuditResult}
-        deadLetterAuditStatus={slaDeadLetterAuditStatus}
-        deadLetterAuditExportState={slaDeadLetterAuditExportState}
-        deadLetterAuditArchives={slaDeadLetterAuditArchives}
-        deadLetterAuditArchiveError={slaDeadLetterAuditArchiveError}
-        deadLetterAuditArchiveLoading={slaDeadLetterAuditArchiveLoading}
-        deadLetterAuditArchiveMessage={slaDeadLetterAuditArchiveMessage}
-        deadLetterAuditArchiveSummary={slaDeadLetterAuditArchiveSummary}
-        deadLetterAuditCreatingArchive={slaDeadLetterAuditCreatingArchive}
-        deadLetterAuditDownloadingArchive={slaDeadLetterAuditDownloadingArchive}
-        deadLetterAuditDeletingArchive={slaDeadLetterAuditDeletingArchive}
-        deadLetterAuditArchiveApproving={slaDeadLetterAuditArchiveApproving}
-        deadLetterAuditArchiveRejecting={slaDeadLetterAuditArchiveRejecting}
-        deadLetterAuditArchiveApprovalNote={slaDeadLetterAuditArchiveApprovalNote}
-        deadLetterAuditArchiveApprovalOverview={slaDeadLetterAuditArchiveApprovalOverview}
-        deadLetterAuditArchiveApprovals={slaDeadLetterAuditArchiveApprovals}
-        deadLetterAuditArchiveApprovalsLoading={slaDeadLetterAuditArchiveApprovalsLoading}
-        onDeadLetterNoteChange={onSlaDeadLetterNoteChange}
-        onHandleDeadLetter={onHandleSlaDeadLetter}
-        onRefreshDeadLetter={onRefreshSlaDeadLetter}
-        onDeadLetterAuditActionChange={onSlaDeadLetterAuditActionChange}
-        onDeadLetterAuditCategoryChange={onSlaDeadLetterAuditCategoryChange}
-        onDeadLetterAuditArchiveApprove={onSlaDeadLetterAuditArchiveApprove}
-        onDeadLetterAuditArchiveCreate={onSlaDeadLetterAuditArchiveCreate}
-        onDeadLetterAuditArchiveDelete={onSlaDeadLetterAuditArchiveDelete}
-        onDeadLetterAuditArchiveDownload={onSlaDeadLetterAuditArchiveDownload}
-        onDeadLetterAuditArchiveNoteChange={onSlaDeadLetterAuditArchiveNoteChange}
-        onDeadLetterAuditArchiveReject={onSlaDeadLetterAuditArchiveReject}
-        onDeadLetterAuditArchiveRefresh={onSlaDeadLetterAuditArchiveRefresh}
-        onDeadLetterAuditArchiveApprovalRefresh={onSlaDeadLetterAuditArchiveApprovalRefresh}
-        onDeadLetterAuditExport={onSlaDeadLetterAuditExport}
-        onDeadLetterAuditKeywordChange={onSlaDeadLetterAuditKeywordChange}
-        onDeadLetterAuditStatusChange={onSlaDeadLetterAuditStatusChange}
-        onDeadLetterAuditPageChange={onSlaDeadLetterAuditPageChange}
-        onRefreshDeadLetterAudit={onRefreshSlaDeadLetterAudit}
-      />
+      {showRecoveryOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="ready">M102</StatusBadge>
+                <StatusBadge tone={notificationTaskRisk ? 'degraded' : 'healthy'}>
+                  {notificationTaskRisk ? '通知任务风险' : '任务正常'}
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">通知任务失败聚合</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                聚合首发自动通知与失败自动重试任务的执行结果，连续失败或失败率偏高会进入运营告警闭环。
+              </p>
+            </div>
+            <Button asChild type="button" variant="outline">
+              <Link href="/security/recovery">
+                <Activity className="size-4" />
+                查看任务历史
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {notificationTaskMetrics.map((metric) => (
+              <OperationMetricTile
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={String(metric.value)}
+              />
+            ))}
+          </div>
 
-      <OperationAlertNotificationTaskCard
-        history={taskRunHistory}
-        historyKeyword={taskRunHistoryKeyword}
-        historyLoading={taskRunHistoryLoading}
-        historyStatus={taskRunHistoryStatus}
-        historyTask={taskRunHistoryTask}
-        loading={taskLoading}
-        recoveryAudit={taskRecoveryAudit}
-        recoveryAuditAction={taskRecoveryAuditAction}
-        recoveryAuditArchiveError={taskRecoveryAuditArchiveError}
-        recoveryAuditArchiveLoading={taskRecoveryAuditArchiveLoading}
-        recoveryAuditArchiveMessage={taskRecoveryAuditArchiveMessage}
-        recoveryAuditArchives={taskRecoveryAuditArchives}
-        recoveryAuditArchiveSummary={taskRecoveryAuditArchiveSummary}
-        recoveryAuditCreatingArchive={taskRecoveryAuditCreatingArchive}
-        recoveryAuditDeletingArchive={taskRecoveryAuditDeletingArchive}
-        recoveryAuditDownloadingArchive={taskRecoveryAuditDownloadingArchive}
-        recoveryAuditArchiveApproving={taskRecoveryAuditArchiveApproving}
-        recoveryAuditArchiveRejecting={taskRecoveryAuditArchiveRejecting}
-        recoveryAuditArchiveApprovalNote={taskRecoveryAuditArchiveApprovalNote}
-        recoveryAuditArchiveApprovalOverview={taskRecoveryAuditArchiveApprovalOverview}
-        recoveryAuditArchiveApprovals={taskRecoveryAuditArchiveApprovals}
-        recoveryAuditArchiveApprovalsLoading={taskRecoveryAuditArchiveApprovalsLoading}
-        recoveryAuditExportState={taskRecoveryAuditExportState}
-        recoveryAuditFailureSource={taskRecoveryAuditFailureSource}
-        recoveryAuditKeyword={taskRecoveryAuditKeyword}
-        recoveryAuditLoading={taskRecoveryAuditLoading}
-        recoveryAuditReason={taskRecoveryAuditReason}
-        recoveryAuditStatus={taskRecoveryAuditStatus}
-        onRefresh={onRefreshTask}
-        onRefreshRecoveryAudit={onRefreshTaskRecoveryAudit}
-        onRefreshHistory={onRefreshTaskRunHistory}
-        onRunAutoNotify={onRunAutoNotify}
-        onRunAutoRetry={onRunAutoRetry}
-        onHistoryKeywordChange={onTaskRunHistoryKeywordChange}
-        onHistoryStatusChange={onTaskRunHistoryStatusChange}
-        onHistoryTaskChange={onTaskRunHistoryTaskChange}
-        onRecoveryAuditActionChange={onTaskRecoveryAuditActionChange}
-        onRecoveryAuditArchiveApprove={onTaskRecoveryAuditArchiveApprove}
-        onRecoveryAuditArchiveCreate={onTaskRecoveryAuditArchiveCreate}
-        onRecoveryAuditArchiveDelete={onTaskRecoveryAuditArchiveDelete}
-        onRecoveryAuditArchiveDownload={onTaskRecoveryAuditArchiveDownload}
-        onRecoveryAuditArchiveNoteChange={onTaskRecoveryAuditArchiveNoteChange}
-        onRecoveryAuditArchiveReject={onTaskRecoveryAuditArchiveReject}
-        onRecoveryAuditArchiveRefresh={onTaskRecoveryAuditArchiveRefresh}
-        onRecoveryAuditArchiveApprovalRefresh={onTaskRecoveryAuditArchiveApprovalRefresh}
-        onRecoveryAuditExport={onTaskRecoveryAuditExport}
-        onRecoveryAuditFailureSourceChange={onTaskRecoveryAuditFailureSourceChange}
-        onRecoveryAuditKeywordChange={onTaskRecoveryAuditKeywordChange}
-        onRecoveryAuditReasonChange={onTaskRecoveryAuditReasonChange}
-        onRecoveryAuditStatusChange={onTaskRecoveryAuditStatusChange}
-        overview={taskOverview}
-        running={taskAutoNotifyRunning || taskAutoRetryRunning}
-        runningAutoNotify={taskAutoNotifyRunning}
-        runningAutoRetry={taskAutoRetryRunning}
-      />
+          <NotificationTaskRecoverySuggestionsCard
+            actionResults={notificationTaskRecoveryActionResults}
+            onAction={onNotificationTaskRecoveryAction}
+            pendingAction={notificationTaskRecoveryPendingAction}
+            pendingSuggestionId={notificationTaskRecoveryPendingSuggestionId}
+            suggestions={operations.notification_task_recovery_suggestions}
+            updating={notificationTaskRecoveryUpdating}
+          />
+        </div>
+      ) : null}
+
+      {showAlertOperations ? (
+        <div className="border-t bg-muted/10 p-5">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge
+                  tone={operations.operational_alerts.length > 0 ? 'degraded' : 'healthy'}
+                >
+                  M83 告警闭环
+                </StatusBadge>
+                <StatusBadge tone="planned">
+                  {operations.operational_alerts.length} 条告警
+                </StatusBadge>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold">运营告警闭环</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                根据审批积压、归档删除、自愈归档删除、审计失败、Trace
+                覆盖和归档存储状态自动推导处理项。
+              </p>
+            </div>
+            <Button asChild type="button" variant="outline">
+              <Link href="/monitor">
+                <Activity className="size-4" />
+                查看监控告警
+              </Link>
+            </Button>
+          </div>
+
+          {operations.operational_alerts.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {operations.operational_alerts.map((alert) => (
+                <OperationAlertCard
+                  actionResult={actionResults[alert.id] ?? null}
+                  alert={alert}
+                  key={alert.id}
+                  notificationResult={notificationResults[alert.id] ?? null}
+                  notifying={notifying && notifyingAlertId === alert.id}
+                  onAction={onAction}
+                  onNotify={onNotify}
+                  pendingAction={pendingAction}
+                  updatingAction={updatingAction && pendingActionAlertId === alert.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <EmptyState
+                description="当前审批积压、归档存储、审批审计和 Trace 覆盖没有触发运营告警。"
+                title="审批与归档运营平稳"
+              />
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {showAlertOperations ? (
+        <div className="grid gap-4 border-t bg-muted/10 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-5">
+            <div>
+              <span className="font-medium text-foreground">工具审批：</span>
+              已通过 {operations.tool_approved}，已拒绝 {operations.tool_rejected}
+            </div>
+            <div>
+              <span className="font-medium text-foreground">审计归档删除：</span>
+              已通过 {operations.archive_delete_approved}，已拒绝{' '}
+              {operations.archive_delete_rejected}
+            </div>
+            <div>
+              <span className="font-medium text-foreground">团队报告归档：</span>
+              待审 {operations.agent_team_report_archive_delete_pending}，拒绝{' '}
+              {operations.agent_team_report_archive_delete_rejected}，生效{' '}
+              {operations.agent_team_report_archive_delete_applied}
+            </div>
+            <div>
+              <span className="font-medium text-foreground">自愈归档删除：</span>
+              待审 {operations.notification_task_recovery_audit_archive_delete_pending}，拒绝{' '}
+              {operations.notification_task_recovery_audit_archive_delete_rejected}，生效{' '}
+              {operations.notification_task_recovery_audit_archive_delete_applied}
+            </div>
+            <div>
+              <span className="font-medium text-foreground">审计质量：</span>
+              {auditRiskTotal > 0 ? '存在失败或告警事件' : '最近 24 小时无失败告警'}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild type="button">
+              <Link href="/approvals">
+                <ClipboardCheck className="size-4" />
+                处理审批
+              </Link>
+            </Button>
+            <Button asChild type="button" variant="outline">
+              <Link href="/approval-audits">
+                <Archive className="size-4" />
+                查看审批审计
+              </Link>
+            </Button>
+            <Button asChild type="button" variant="outline">
+              <Link href="/audit">
+                <FileSearch className="size-4" />
+                打开审计中心
+              </Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {showAlertOperations ? (
+        <OperationAlertNotificationAuditCard
+          archiveError={notificationArchiveError}
+          archiveLoading={notificationArchiveLoading}
+          archiveMessage={notificationArchiveMessage}
+          archives={notificationArchives}
+          archiveSummary={notificationArchiveSummary}
+          archiving={operationNotificationArchiving}
+          approvingArchive={operationNotificationArchiveApproving}
+          archiveApprovalNote={notificationArchiveApprovalNote}
+          archiveApprovalOverview={notificationArchiveApprovalOverview}
+          archiveApprovals={notificationArchiveApprovals}
+          archiveApprovalsLoading={notificationArchiveApprovalsLoading}
+          category={notificationCategory}
+          deletingArchive={operationNotificationArchiveDeleting}
+          downloadingArchive={operationNotificationDownloading}
+          exportState={notificationExportState}
+          keyword={notificationKeyword}
+          loading={notificationAuditLoading}
+          onArchiveApprove={onNotificationArchiveApprove}
+          onArchiveCreate={onNotificationArchiveCreate}
+          onArchiveDelete={onNotificationArchiveDelete}
+          onArchiveDownload={onNotificationArchiveDownload}
+          onArchiveNoteChange={onNotificationArchiveNoteChange}
+          onArchiveReject={onNotificationArchiveReject}
+          onArchiveRefresh={onNotificationArchiveRefresh}
+          onArchiveApprovalRefresh={onNotificationArchiveApprovalRefresh}
+          onCategoryChange={onNotificationCategoryChange}
+          onExport={onNotificationExport}
+          onKeywordChange={onNotificationKeywordChange}
+          onRetry={onRetryNotification}
+          onStatusChange={onNotificationStatusChange}
+          overview={notificationAudit}
+          rejectingArchive={operationNotificationArchiveRejecting}
+          retrying={retryingNotification}
+          retryingNotificationEventId={retryingNotificationEventId}
+          status={notificationStatus}
+        />
+      ) : null}
+
+      {showAlertOperations ? (
+        <OperationAlertSlaCard
+          loading={slaLoading}
+          notificationLoading={slaNotificationLoading}
+          notificationOverview={slaNotificationOverview}
+          notificationRetryLoading={slaNotificationRetryLoading}
+          notificationRetryOverview={slaNotificationRetryOverview}
+          notificationRetryRunning={slaNotificationRetryRunning}
+          notificationRunning={slaNotificationRunning}
+          onNotifyOverdue={onNotifySlaOverdue}
+          onRefresh={onRefreshSla}
+          onRefreshNotification={onRefreshSlaNotification}
+          onRefreshNotificationRetry={onRefreshSlaNotificationRetry}
+          onRunEscalation={onRunSlaEscalation}
+          onRunNotificationAutoRetry={onRunSlaNotificationAutoRetry}
+          onRetryNotification={onRetrySlaNotification}
+          overview={slaOverview}
+          retryingNotification={retryingSlaNotification}
+          retryingNotificationEventId={retryingSlaNotificationEventId}
+          running={slaRunning}
+          deadLetterLoading={slaDeadLetterLoading}
+          deadLetterNote={slaDeadLetterNote}
+          deadLetterOverview={slaDeadLetterOverview}
+          deadLetterPendingAction={slaDeadLetterPendingAction}
+          deadLetterPendingEventId={slaDeadLetterPendingEventId}
+          deadLetterRunning={slaDeadLetterRunning}
+          deadLetterAuditAction={slaDeadLetterAuditAction}
+          deadLetterAuditCategory={slaDeadLetterAuditCategory}
+          deadLetterAuditKeyword={slaDeadLetterAuditKeyword}
+          deadLetterAuditLoading={slaDeadLetterAuditLoading}
+          deadLetterAuditPage={slaDeadLetterAuditPage}
+          deadLetterAuditPageCount={slaDeadLetterAuditPageCount}
+          deadLetterAuditResult={slaDeadLetterAuditResult}
+          deadLetterAuditStatus={slaDeadLetterAuditStatus}
+          deadLetterAuditExportState={slaDeadLetterAuditExportState}
+          deadLetterAuditArchives={slaDeadLetterAuditArchives}
+          deadLetterAuditArchiveError={slaDeadLetterAuditArchiveError}
+          deadLetterAuditArchiveLoading={slaDeadLetterAuditArchiveLoading}
+          deadLetterAuditArchiveMessage={slaDeadLetterAuditArchiveMessage}
+          deadLetterAuditArchiveSummary={slaDeadLetterAuditArchiveSummary}
+          deadLetterAuditCreatingArchive={slaDeadLetterAuditCreatingArchive}
+          deadLetterAuditDownloadingArchive={slaDeadLetterAuditDownloadingArchive}
+          deadLetterAuditDeletingArchive={slaDeadLetterAuditDeletingArchive}
+          deadLetterAuditArchiveApproving={slaDeadLetterAuditArchiveApproving}
+          deadLetterAuditArchiveRejecting={slaDeadLetterAuditArchiveRejecting}
+          deadLetterAuditArchiveApprovalNote={slaDeadLetterAuditArchiveApprovalNote}
+          deadLetterAuditArchiveApprovalOverview={slaDeadLetterAuditArchiveApprovalOverview}
+          deadLetterAuditArchiveApprovals={slaDeadLetterAuditArchiveApprovals}
+          deadLetterAuditArchiveApprovalsLoading={slaDeadLetterAuditArchiveApprovalsLoading}
+          onDeadLetterNoteChange={onSlaDeadLetterNoteChange}
+          onHandleDeadLetter={onHandleSlaDeadLetter}
+          onRefreshDeadLetter={onRefreshSlaDeadLetter}
+          onDeadLetterAuditActionChange={onSlaDeadLetterAuditActionChange}
+          onDeadLetterAuditCategoryChange={onSlaDeadLetterAuditCategoryChange}
+          onDeadLetterAuditArchiveApprove={onSlaDeadLetterAuditArchiveApprove}
+          onDeadLetterAuditArchiveCreate={onSlaDeadLetterAuditArchiveCreate}
+          onDeadLetterAuditArchiveDelete={onSlaDeadLetterAuditArchiveDelete}
+          onDeadLetterAuditArchiveDownload={onSlaDeadLetterAuditArchiveDownload}
+          onDeadLetterAuditArchiveNoteChange={onSlaDeadLetterAuditArchiveNoteChange}
+          onDeadLetterAuditArchiveReject={onSlaDeadLetterAuditArchiveReject}
+          onDeadLetterAuditArchiveRefresh={onSlaDeadLetterAuditArchiveRefresh}
+          onDeadLetterAuditArchiveApprovalRefresh={onSlaDeadLetterAuditArchiveApprovalRefresh}
+          onDeadLetterAuditExport={onSlaDeadLetterAuditExport}
+          onDeadLetterAuditKeywordChange={onSlaDeadLetterAuditKeywordChange}
+          onDeadLetterAuditStatusChange={onSlaDeadLetterAuditStatusChange}
+          onDeadLetterAuditPageChange={onSlaDeadLetterAuditPageChange}
+          onRefreshDeadLetterAudit={onRefreshSlaDeadLetterAudit}
+        />
+      ) : null}
+
+      {showRecoveryOperations ? (
+        <OperationAlertNotificationTaskCard
+          history={taskRunHistory}
+          historyKeyword={taskRunHistoryKeyword}
+          historyLoading={taskRunHistoryLoading}
+          historyStatus={taskRunHistoryStatus}
+          historyTask={taskRunHistoryTask}
+          loading={taskLoading}
+          recoveryAudit={taskRecoveryAudit}
+          recoveryAuditAction={taskRecoveryAuditAction}
+          recoveryAuditArchiveError={taskRecoveryAuditArchiveError}
+          recoveryAuditArchiveLoading={taskRecoveryAuditArchiveLoading}
+          recoveryAuditArchiveMessage={taskRecoveryAuditArchiveMessage}
+          recoveryAuditArchives={taskRecoveryAuditArchives}
+          recoveryAuditArchiveSummary={taskRecoveryAuditArchiveSummary}
+          recoveryAuditCreatingArchive={taskRecoveryAuditCreatingArchive}
+          recoveryAuditDeletingArchive={taskRecoveryAuditDeletingArchive}
+          recoveryAuditDownloadingArchive={taskRecoveryAuditDownloadingArchive}
+          recoveryAuditArchiveApproving={taskRecoveryAuditArchiveApproving}
+          recoveryAuditArchiveRejecting={taskRecoveryAuditArchiveRejecting}
+          recoveryAuditArchiveApprovalNote={taskRecoveryAuditArchiveApprovalNote}
+          recoveryAuditArchiveApprovalOverview={taskRecoveryAuditArchiveApprovalOverview}
+          recoveryAuditArchiveApprovals={taskRecoveryAuditArchiveApprovals}
+          recoveryAuditArchiveApprovalsLoading={taskRecoveryAuditArchiveApprovalsLoading}
+          recoveryAuditExportState={taskRecoveryAuditExportState}
+          recoveryAuditFailureSource={taskRecoveryAuditFailureSource}
+          recoveryAuditKeyword={taskRecoveryAuditKeyword}
+          recoveryAuditLoading={taskRecoveryAuditLoading}
+          recoveryAuditReason={taskRecoveryAuditReason}
+          recoveryAuditStatus={taskRecoveryAuditStatus}
+          onRefresh={onRefreshTask}
+          onRefreshRecoveryAudit={onRefreshTaskRecoveryAudit}
+          onRefreshHistory={onRefreshTaskRunHistory}
+          onRunAutoNotify={onRunAutoNotify}
+          onRunAutoRetry={onRunAutoRetry}
+          onHistoryKeywordChange={onTaskRunHistoryKeywordChange}
+          onHistoryStatusChange={onTaskRunHistoryStatusChange}
+          onHistoryTaskChange={onTaskRunHistoryTaskChange}
+          onRecoveryAuditActionChange={onTaskRecoveryAuditActionChange}
+          onRecoveryAuditArchiveApprove={onTaskRecoveryAuditArchiveApprove}
+          onRecoveryAuditArchiveCreate={onTaskRecoveryAuditArchiveCreate}
+          onRecoveryAuditArchiveDelete={onTaskRecoveryAuditArchiveDelete}
+          onRecoveryAuditArchiveDownload={onTaskRecoveryAuditArchiveDownload}
+          onRecoveryAuditArchiveNoteChange={onTaskRecoveryAuditArchiveNoteChange}
+          onRecoveryAuditArchiveReject={onTaskRecoveryAuditArchiveReject}
+          onRecoveryAuditArchiveRefresh={onTaskRecoveryAuditArchiveRefresh}
+          onRecoveryAuditArchiveApprovalRefresh={onTaskRecoveryAuditArchiveApprovalRefresh}
+          onRecoveryAuditExport={onTaskRecoveryAuditExport}
+          onRecoveryAuditFailureSourceChange={onTaskRecoveryAuditFailureSourceChange}
+          onRecoveryAuditKeywordChange={onTaskRecoveryAuditKeywordChange}
+          onRecoveryAuditReasonChange={onTaskRecoveryAuditReasonChange}
+          onRecoveryAuditStatusChange={onTaskRecoveryAuditStatusChange}
+          overview={taskOverview}
+          running={taskAutoNotifyRunning || taskAutoRetryRunning}
+          runningAutoNotify={taskAutoNotifyRunning}
+          runningAutoRetry={taskAutoRetryRunning}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -4572,13 +5353,17 @@ function OperationAlertCard({
             <StatusBadge tone={operationAlertStatusTone(currentStatus)}>
               {operationAlertStatusLabel(currentStatus)}
             </StatusBadge>
-            <StatusBadge tone={operationAlertNotificationCategoryRisk(alertCategory) ? 'degraded' : 'planned'}>
+            <StatusBadge
+              tone={operationAlertNotificationCategoryRisk(alertCategory) ? 'degraded' : 'planned'}
+            >
               {operationAlertNotificationCategoryLabel(alertCategory)}
             </StatusBadge>
             <span className="text-xs text-muted-foreground">{alert.metric}</span>
           </div>
           <h4 className="mt-2 text-sm font-semibold">{alert.title}</h4>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{alert.description}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            {alert.description}
+          </p>
           {lastAction ? (
             <div className="mt-2 text-xs text-muted-foreground">
               最近{securityOperationActionVerb(lastAction)}：{lastNote ?? '无备注'}
@@ -4586,7 +5371,10 @@ function OperationAlertCard({
             </div>
           ) : null}
         </div>
-        <Link className="group mt-1 inline-flex shrink-0 items-center text-muted-foreground" href={alert.href}>
+        <Link
+          className="group mt-1 inline-flex shrink-0 items-center text-muted-foreground"
+          href={alert.href}
+        >
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>
@@ -4600,7 +5388,9 @@ function OperationAlertCard({
             <span>{notificationResult.message}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-2">
-            <span>渠道：{notificationResult.channels.map(notificationChannelLabel).join('、')}</span>
+            <span>
+              渠道：{notificationResult.channels.map(notificationChannelLabel).join('、')}
+            </span>
             <span>目标：{notificationResult.targets.join('、') || '未记录目标'}</span>
             <span>Webhook：{notificationResult.webhook_status ?? '未配置'}</span>
             <span>{formatDateTime(notificationResult.delivered_at)}</span>
@@ -4636,7 +5426,13 @@ function OperationAlertCard({
           pendingAction={pendingAction}
           updatingAction={updatingAction}
         />
-        <Button disabled={notifying} onClick={() => onNotify(alert.id)} size="sm" type="button" variant="outline">
+        <Button
+          disabled={notifying}
+          onClick={() => onNotify(alert.id)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           {notifying ? '正在通知' : '通知'}
         </Button>
       </div>
@@ -4653,7 +5449,10 @@ function NotificationTaskRecoverySuggestionsCard({
   updating,
 }: {
   actionResults: Record<string, SecurityOperationAlertNotificationTaskRecoveryActionResult>;
-  onAction: (suggestionId: string, action: SecurityOperationAlertNotificationTaskRecoveryAction) => void;
+  onAction: (
+    suggestionId: string,
+    action: SecurityOperationAlertNotificationTaskRecoveryAction,
+  ) => void;
   pendingAction: SecurityOperationAlertNotificationTaskRecoveryAction | null;
   pendingSuggestionId: string | null;
   suggestions: SecurityOperationAlertNotificationTaskRecoverySuggestion[];
@@ -4681,7 +5480,7 @@ function NotificationTaskRecoverySuggestionsCard({
           </p>
         </div>
         <Button asChild size="sm" type="button" variant="outline">
-          <Link href="/security">
+          <Link href="/security/recovery">
             <Search className="size-4" />
             查看任务历史
           </Link>
@@ -4705,7 +5504,7 @@ function NotificationTaskRecoverySuggestionsCard({
         <EmptyState
           action={
             <Button asChild size="sm" type="button" variant="outline">
-              <Link href="/security">查看任务历史</Link>
+              <Link href="/security/recovery">查看任务历史</Link>
             </Button>
           }
           className="mt-4 rounded-md border bg-muted/15 p-6"
@@ -4725,7 +5524,10 @@ function NotificationTaskRecoverySuggestionItem({
   updating,
 }: {
   actionResult: SecurityOperationAlertNotificationTaskRecoveryActionResult | null;
-  onAction: (suggestionId: string, action: SecurityOperationAlertNotificationTaskRecoveryAction) => void;
+  onAction: (
+    suggestionId: string,
+    action: SecurityOperationAlertNotificationTaskRecoveryAction,
+  ) => void;
   pendingAction: SecurityOperationAlertNotificationTaskRecoveryAction | null;
   suggestion: SecurityOperationAlertNotificationTaskRecoverySuggestion;
   updating: boolean;
@@ -4739,8 +5541,12 @@ function NotificationTaskRecoverySuggestionItem({
   return (
     <div className="grid gap-3 rounded-lg border bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge tone={securityRiskTone(suggestion.severity)}>{securityRiskLevelLabel(suggestion.severity)}</StatusBadge>
-        <StatusBadge tone="planned">{notificationTaskRecoveryReasonLabel(suggestion.reason_code)}</StatusBadge>
+        <StatusBadge tone={securityRiskTone(suggestion.severity)}>
+          {securityRiskLevelLabel(suggestion.severity)}
+        </StatusBadge>
+        <StatusBadge tone="planned">
+          {notificationTaskRecoveryReasonLabel(suggestion.reason_code)}
+        </StatusBadge>
         <StatusBadge tone={notificationTaskRecoveryFailureSourceTone(suggestion.failure_source)}>
           {notificationTaskRecoveryFailureSourceLabel(suggestion.failure_source)}
         </StatusBadge>
@@ -4764,10 +5570,16 @@ function NotificationTaskRecoverySuggestionItem({
           <StatusBadge tone={suggestion.sla_dead_letter_failed_count > 0 ? 'degraded' : 'planned'}>
             SLA 死信 {suggestion.sla_dead_letter_failed_count}
           </StatusBadge>
-          <StatusBadge tone={suggestion.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={
+              suggestion.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'
+            }
+          >
             团队报告 {suggestion.agent_team_report_archive_delete_failed_count}
           </StatusBadge>
-          <StatusBadge tone={suggestion.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={suggestion.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}
+          >
             自愈归档 {suggestion.recovery_archive_delete_failed_count}
           </StatusBadge>
         </div>
@@ -4822,7 +5634,10 @@ function NotificationTaskRecoveryActionButton({
 }: {
   action: SecurityOperationAlertNotificationTaskRecoveryAction;
   closed: boolean;
-  onAction: (suggestionId: string, action: SecurityOperationAlertNotificationTaskRecoveryAction) => void;
+  onAction: (
+    suggestionId: string,
+    action: SecurityOperationAlertNotificationTaskRecoveryAction,
+  ) => void;
   pendingAction: SecurityOperationAlertNotificationTaskRecoveryAction | null;
   suggestionId: string;
   updating: boolean;
@@ -4947,8 +5762,12 @@ function OperationAlertNotificationAuditCard({
 }) {
   const items = overview?.items ?? [];
   const exporting = exportState === 'exporting';
-  const sourceRiskCount = items.filter((item) => operationAlertNotificationCategoryRisk(item.alert_category)).length;
-  const failedOrPartialCount = items.filter((item) => item.status === 'FAILED' || item.status === 'PARTIAL').length;
+  const sourceRiskCount = items.filter((item) =>
+    operationAlertNotificationCategoryRisk(item.alert_category),
+  ).length;
+  const failedOrPartialCount = items.filter(
+    (item) => item.status === 'FAILED' || item.status === 'PARTIAL',
+  ).length;
   const hasFilters = Boolean(status || category || keyword);
   const hasTaskRecoveryArchiveDeleteNotification = items.some(
     (item) => item.alert_category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
@@ -4962,7 +5781,9 @@ function OperationAlertNotificationAuditCard({
     SecurityOperationAlertNotificationArchiveApprovalItem['status'] | ''
   >('');
   const [archiveApprovalPendingOnly, setArchiveApprovalPendingOnly] = useState(false);
-  const pendingArchiveApprovals = archiveApprovals.filter((approval) => approval.status === 'PENDING');
+  const pendingArchiveApprovals = archiveApprovals.filter(
+    (approval) => approval.status === 'PENDING',
+  );
   const filteredArchiveApprovals = useMemo(() => {
     const normalizedKeyword = archiveApprovalKeyword.trim().toLowerCase();
     return archiveApprovals
@@ -4986,20 +5807,26 @@ function OperationAlertNotificationAuditCard({
       });
   }, [archiveApprovalKeyword, archiveApprovalPendingOnly, archiveApprovalStatus, archiveApprovals]);
   const selectedArchiveApproval = selectedArchiveApprovalId
-    ? filteredArchiveApprovals.find((approval) => approval.id === selectedArchiveApprovalId) ??
+    ? (filteredArchiveApprovals.find((approval) => approval.id === selectedArchiveApprovalId) ??
       archiveApprovals.find((approval) => approval.id === selectedArchiveApprovalId) ??
-      null
-    : filteredArchiveApprovals[0] ?? null;
+      null)
+    : (filteredArchiveApprovals[0] ?? null);
   const activeArchiveApprovalId = selectedArchiveApproval?.id ?? null;
   const archiveApprovalDetailQuery = useQuery({
     enabled: Boolean(activeArchiveApprovalId),
     queryKey: ['security-operation-alert-notification-archive-approval', activeArchiveApprovalId],
-    queryFn: () => getSecurityOperationAlertNotificationArchiveApproval(activeArchiveApprovalId ?? ''),
+    queryFn: () =>
+      getSecurityOperationAlertNotificationArchiveApproval(activeArchiveApprovalId ?? ''),
   });
-  const hasArchiveApprovalFilters = Boolean(archiveApprovalKeyword || archiveApprovalStatus || archiveApprovalPendingOnly);
+  const hasArchiveApprovalFilters = Boolean(
+    archiveApprovalKeyword || archiveApprovalStatus || archiveApprovalPendingOnly,
+  );
 
   useEffect(() => {
-    if (selectedArchiveApprovalId && !archiveApprovals.some((approval) => approval.id === selectedArchiveApprovalId)) {
+    if (
+      selectedArchiveApprovalId &&
+      !archiveApprovals.some((approval) => approval.id === selectedArchiveApprovalId)
+    ) {
       setSelectedArchiveApprovalId(null);
     }
   }, [archiveApprovals, selectedArchiveApprovalId]);
@@ -5015,7 +5842,9 @@ function OperationAlertNotificationAuditCard({
   }, [filteredArchiveApprovals, selectedArchiveApprovalId]);
 
   const handleArchiveDelete = (archive: SecurityOperationAlertNotificationArchiveItem) => {
-    const confirmed = window.confirm(`确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`);
+    const confirmed = window.confirm(
+      `确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`,
+    );
     if (confirmed) {
       onArchiveDelete(archive);
     }
@@ -5028,7 +5857,18 @@ function OperationAlertNotificationAuditCard({
   };
 
   const exportFilteredArchiveApprovals = () => {
-    const header = ['审批ID', '状态', '归档文件', '对象路径', '大小', '申请人', '申请时间', '审批人', '审批时间', '审批意见'];
+    const header = [
+      '审批ID',
+      '状态',
+      '归档文件',
+      '对象路径',
+      '大小',
+      '申请人',
+      '申请时间',
+      '审批人',
+      '审批时间',
+      '审批意见',
+    ];
     const rows = filteredArchiveApprovals.map((approval) => [
       approval.id,
       archiveApprovalStatusLabel(approval.status),
@@ -5042,7 +5882,10 @@ function OperationAlertNotificationAuditCard({
       approval.reason ?? '',
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
-    downloadBlob(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }), `通知审计归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadBlob(
+      new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }),
+      `通知审计归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
   };
 
   return (
@@ -5051,10 +5894,18 @@ function OperationAlertNotificationAuditCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M86 投递审计</StatusBadge>
-            <StatusBadge tone={overview && overview.summary.retryable_count > 0 ? 'degraded' : 'healthy'}>
+            <StatusBadge
+              tone={overview && overview.summary.retryable_count > 0 ? 'degraded' : 'healthy'}
+            >
               {overview?.summary.retryable_count ?? 0} 条可重试
             </StatusBadge>
-            <StatusBadge tone={items.some((item) => operationAlertNotificationCategoryRisk(item.alert_category)) ? 'degraded' : 'planned'}>
+            <StatusBadge
+              tone={
+                items.some((item) => operationAlertNotificationCategoryRisk(item.alert_category))
+                  ? 'degraded'
+                  : 'planned'
+              }
+            >
               M99/M102/M109 风险通知
             </StatusBadge>
             {hasTaskRecoveryArchiveDeleteNotification ? (
@@ -5071,11 +5922,21 @@ function OperationAlertNotificationAuditCard({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={loading || exporting || items.length === 0} onClick={onExport} type="button" variant="outline">
+          <Button
+            disabled={loading || exporting || items.length === 0}
+            onClick={onExport}
+            type="button"
+            variant="outline"
+          >
             <Download className="size-4" />
             {exporting ? '正在导出' : '导出 CSV'}
           </Button>
-          <Button disabled={loading || archiving || items.length === 0} onClick={onArchiveCreate} type="button" variant="outline">
+          <Button
+            disabled={loading || archiving || items.length === 0}
+            onClick={onArchiveCreate}
+            type="button"
+            variant="outline"
+          >
             <Archive className="size-4" />
             {archiving ? '归档中' : '创建归档'}
           </Button>
@@ -5103,16 +5964,30 @@ function OperationAlertNotificationAuditCard({
       ) : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="当前筛选结果" label="投递记录" value={`${overview?.summary.total_count ?? 0}`} />
-        <MetricCard helper="失败或部分成功" label="可重试" value={`${overview?.summary.retryable_count ?? 0}`} />
+        <MetricCard
+          helper="当前筛选结果"
+          label="投递记录"
+          value={`${overview?.summary.total_count ?? 0}`}
+        />
+        <MetricCard
+          helper="失败或部分成功"
+          label="可重试"
+          value={`${overview?.summary.retryable_count ?? 0}`}
+        />
         <MetricCard helper="来源型风险通知" label="来源风险" value={`${sourceRiskCount}`} />
-        <MetricCard helper="FAILED / PARTIAL" label="失败或部分" value={`${failedOrPartialCount}`} />
+        <MetricCard
+          helper="FAILED / PARTIAL"
+          label="失败或部分"
+          value={`${failedOrPartialCount}`}
+        />
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-[150px_240px_1fr_auto]">
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onStatusChange(event.target.value as SecurityOperationAlertNotificationStatus | '')}
+          onChange={(event) =>
+            onStatusChange(event.target.value as SecurityOperationAlertNotificationStatus | '')
+          }
           value={status}
         >
           <option value="">全部状态</option>
@@ -5162,7 +6037,10 @@ function OperationAlertNotificationAuditCard({
         </div>
       ) : items.length === 0 ? (
         <div className="mt-4">
-          <EmptyState description="触发运营告警通知后，这里会展示投递状态、渠道和重试链路。" title="暂无通知投递记录" />
+          <EmptyState
+            description="触发运营告警通知后，这里会展示投递状态、渠道和重试链路。"
+            title="暂无通知投递记录"
+          />
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-md border">
@@ -5179,7 +6057,8 @@ function OperationAlertNotificationAuditCard({
             <tbody>
               {items.slice(0, 8).map((item) => {
                 const retryable = item.status === 'FAILED' || item.status === 'PARTIAL';
-                const pending = retrying && retryingNotificationEventId === item.notification_event_id;
+                const pending =
+                  retrying && retryingNotificationEventId === item.notification_event_id;
 
                 return (
                   <tr className="border-b last:border-0" key={item.notification_event_id}>
@@ -5193,7 +6072,13 @@ function OperationAlertNotificationAuditCard({
                       <div className="text-xs text-muted-foreground">{item.message}</div>
                       {item.alert_category ? (
                         <div className="mt-1">
-                          <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'planned'}>
+                          <StatusBadge
+                            tone={
+                              operationAlertNotificationCategoryRisk(item.alert_category)
+                                ? 'degraded'
+                                : 'planned'
+                            }
+                          >
                             {operationAlertNotificationCategoryLabel(item.alert_category)}
                           </StatusBadge>
                         </div>
@@ -5205,13 +6090,21 @@ function OperationAlertNotificationAuditCard({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {item.webhook_status ?? '未配置'}
-                      {item.webhook_error ? <div className="line-clamp-1 text-xs text-destructive">{item.webhook_error}</div> : null}
+                      {item.webhook_error ? (
+                        <div className="line-clamp-1 text-xs text-destructive">
+                          {item.webhook_error}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{item.retry_count}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       <div>{formatDateTime(item.delivered_at)}</div>
-                      <div className="mt-1 max-w-[180px] truncate text-xs">{item.request_id ?? '无 request_id'}</div>
-                      <div className="mt-1 max-w-[180px] truncate text-xs">{item.trace_id ?? '无 trace_id'}</div>
+                      <div className="mt-1 max-w-[180px] truncate text-xs">
+                        {item.request_id ?? '无 request_id'}
+                      </div>
+                      <div className="mt-1 max-w-[180px] truncate text-xs">
+                        {item.trace_id ?? '无 trace_id'}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <Button
@@ -5240,15 +6133,23 @@ function OperationAlertNotificationAuditCard({
               <StatusBadge tone={(archiveSummary?.archive_count ?? 0) > 0 ? 'healthy' : 'planned'}>
                 {archiveSummary?.archive_count ?? 0} 个归档
               </StatusBadge>
-              <StatusBadge tone={(archiveApprovalOverview?.pending_count ?? 0) > 0 ? 'degraded' : 'healthy'}>
+              <StatusBadge
+                tone={(archiveApprovalOverview?.pending_count ?? 0) > 0 ? 'degraded' : 'healthy'}
+              >
                 M116 删除审批
               </StatusBadge>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              当前筛选结果可以归档为 CSV，归档总容量 {formatBytes(archiveSummary?.total_size_bytes ?? 0)}；归档删除需要审批后生效。
+              当前筛选结果可以归档为 CSV，归档总容量{' '}
+              {formatBytes(archiveSummary?.total_size_bytes ?? 0)}；归档删除需要审批后生效。
             </p>
           </div>
-          <Button disabled={archiveLoading} onClick={onArchiveRefresh} type="button" variant="outline">
+          <Button
+            disabled={archiveLoading}
+            onClick={onArchiveRefresh}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${archiveLoading ? 'animate-spin' : ''}`} />
             刷新归档
           </Button>
@@ -5256,23 +6157,43 @@ function OperationAlertNotificationAuditCard({
         {archiveLoading ? (
           <div className="mt-4 text-sm text-muted-foreground">正在加载通知审计归档...</div>
         ) : archives.length === 0 ? (
-          <EmptyState className="mt-4 rounded-md border bg-muted/15 p-5" description="创建归档后，CSV 文件会出现在这里。" title="暂无通知审计归档" />
+          <EmptyState
+            className="mt-4 rounded-md border bg-muted/15 p-5"
+            description="创建归档后，CSV 文件会出现在这里。"
+            title="暂无通知审计归档"
+          />
         ) : (
           <div className="mt-4 grid gap-2">
             {archives.map((archive) => (
-              <div className="flex flex-col justify-between gap-3 rounded-md border bg-muted/10 p-3 md:flex-row md:items-center" key={archive.id}>
+              <div
+                className="flex flex-col justify-between gap-3 rounded-md border bg-muted/10 p-3 md:flex-row md:items-center"
+                key={archive.id}
+              >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{archive.file_name}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {formatBytes(archive.size_bytes)} · {formatDateTime(archive.last_modified ?? '')}
+                    {formatBytes(archive.size_bytes)} ·{' '}
+                    {formatDateTime(archive.last_modified ?? '')}
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button disabled={downloadingArchive} onClick={() => onArchiveDownload(archive)} size="sm" type="button" variant="outline">
+                  <Button
+                    disabled={downloadingArchive}
+                    onClick={() => onArchiveDownload(archive)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <Download className="size-4" />
                     下载
                   </Button>
-                  <Button disabled={deletingArchive} onClick={() => handleArchiveDelete(archive)} size="sm" type="button" variant="outline">
+                  <Button
+                    disabled={deletingArchive}
+                    onClick={() => handleArchiveDelete(archive)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <Trash2 className="size-4" />
                     {deletingArchive ? '提交中' : '申请删除'}
                   </Button>
@@ -5288,7 +6209,9 @@ function OperationAlertNotificationAuditCard({
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge tone="ready">M116</StatusBadge>
                 <StatusBadge tone={pendingArchiveApprovals.length > 0 ? 'degraded' : 'planned'}>
-                  {pendingArchiveApprovals.length > 0 ? `${pendingArchiveApprovals.length} 个待审批` : '删除审批'}
+                  {pendingArchiveApprovals.length > 0
+                    ? `${pendingArchiveApprovals.length} 个待审批`
+                    : '删除审批'}
                 </StatusBadge>
               </div>
               <h4 className="mt-3 text-sm font-semibold">通知归档删除审批</h4>
@@ -5297,11 +6220,21 @@ function OperationAlertNotificationAuditCard({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button disabled={archiveApprovalsLoading} onClick={onArchiveApprovalRefresh} type="button" variant="outline">
+              <Button
+                disabled={archiveApprovalsLoading}
+                onClick={onArchiveApprovalRefresh}
+                type="button"
+                variant="outline"
+              >
                 <RefreshCw className={`size-4 ${archiveApprovalsLoading ? 'animate-spin' : ''}`} />
                 刷新审批
               </Button>
-              <Button disabled={archiveApprovalsLoading || filteredArchiveApprovals.length === 0} onClick={exportFilteredArchiveApprovals} type="button" variant="outline">
+              <Button
+                disabled={archiveApprovalsLoading || filteredArchiveApprovals.length === 0}
+                onClick={exportFilteredArchiveApprovals}
+                type="button"
+                variant="outline"
+              >
                 <Download className="size-4" />
                 导出当前筛选
               </Button>
@@ -5309,10 +6242,26 @@ function OperationAlertNotificationAuditCard({
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <ArchiveMetric helper="等待处理" label="待审批" value={`${archiveApprovalOverview?.pending_count ?? 0}`} />
-            <ArchiveMetric helper="已通过申请" label="已批准" value={`${archiveApprovalOverview?.approved_count ?? 0}`} />
-            <ArchiveMetric helper="申请被拒绝" label="已拒绝" value={`${archiveApprovalOverview?.rejected_count ?? 0}`} />
-            <ArchiveMetric helper="对象已删除" label="已生效" value={`${archiveApprovalOverview?.applied_count ?? 0}`} />
+            <ArchiveMetric
+              helper="等待处理"
+              label="待审批"
+              value={`${archiveApprovalOverview?.pending_count ?? 0}`}
+            />
+            <ArchiveMetric
+              helper="已通过申请"
+              label="已批准"
+              value={`${archiveApprovalOverview?.approved_count ?? 0}`}
+            />
+            <ArchiveMetric
+              helper="申请被拒绝"
+              label="已拒绝"
+              value={`${archiveApprovalOverview?.rejected_count ?? 0}`}
+            />
+            <ArchiveMetric
+              helper="对象已删除"
+              label="已生效"
+              value={`${archiveApprovalOverview?.applied_count ?? 0}`}
+            />
           </div>
 
           <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_auto_auto]">
@@ -5327,7 +6276,13 @@ function OperationAlertNotificationAuditCard({
             </label>
             <select
               className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-              onChange={(event) => setArchiveApprovalStatus(event.target.value as SecurityOperationAlertNotificationArchiveApprovalItem['status'] | '')}
+              onChange={(event) =>
+                setArchiveApprovalStatus(
+                  event.target.value as
+                    | SecurityOperationAlertNotificationArchiveApprovalItem['status']
+                    | '',
+                )
+              }
               value={archiveApprovalStatus}
             >
               <option value="">全部状态</option>
@@ -5343,13 +6298,20 @@ function OperationAlertNotificationAuditCard({
             >
               只看待审批
             </Button>
-            <Button disabled={!hasArchiveApprovalFilters} onClick={resetArchiveApprovalFilters} type="button" variant="outline">
+            <Button
+              disabled={!hasArchiveApprovalFilters}
+              onClick={resetArchiveApprovalFilters}
+              type="button"
+              variant="outline"
+            >
               清空筛选
             </Button>
           </div>
 
           {archiveApprovalsLoading ? (
-            <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载通知归档删除审批...</div>
+            <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+              正在加载通知归档删除审批...
+            </div>
           ) : filteredArchiveApprovals.length === 0 ? (
             <EmptyState
               className="mt-4 rounded-md border bg-slate-50/60 p-5"
@@ -5362,9 +6324,13 @@ function OperationAlertNotificationAuditCard({
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40">
-                      {['状态', '归档文件', '申请人', '申请时间', '审批人', '操作'].map((column) => (
-                        <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
-                      ))}
+                      {['状态', '归档文件', '申请人', '申请时间', '审批人', '操作'].map(
+                        (column) => (
+                          <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>
+                            {column}
+                          </th>
+                        ),
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -5385,7 +6351,9 @@ function OperationAlertNotificationAuditCard({
                 approving={approvingArchive}
                 detail={archiveApprovalDetailQuery.data ?? null}
                 fallbackApproval={selectedArchiveApproval}
-                loading={archiveApprovalDetailQuery.isLoading || archiveApprovalDetailQuery.isFetching}
+                loading={
+                  archiveApprovalDetailQuery.isLoading || archiveApprovalDetailQuery.isFetching
+                }
                 onApprove={onArchiveApprove}
                 onNoteChange={onArchiveNoteChange}
                 onReject={onArchiveReject}
@@ -5411,18 +6379,24 @@ function OperationAlertNotificationArchiveApprovalRow({
   return (
     <tr className={`border-b last:border-0 ${active ? 'bg-blue-50/50' : ''}`}>
       <td className="px-3 py-2">
-        <StatusBadge tone={archiveApprovalStatusTone(approval.status)}>{archiveApprovalStatusLabel(approval.status)}</StatusBadge>
+        <StatusBadge tone={archiveApprovalStatusTone(approval.status)}>
+          {archiveApprovalStatusLabel(approval.status)}
+        </StatusBadge>
         <div className="mt-1 font-mono text-xs text-muted-foreground">{shortId(approval.id)}</div>
       </td>
       <td className="px-3 py-2">
         <div className="font-medium">{approval.archive_file_name}</div>
-        <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{approval.archive_key}</div>
+        <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+          {approval.archive_key}
+        </div>
       </td>
       <td className="px-3 py-2 text-muted-foreground">{approval.requested_by?.name ?? '系统'}</td>
       <td className="px-3 py-2 text-muted-foreground">{formatDateTime(approval.requested_at)}</td>
       <td className="px-3 py-2 text-muted-foreground">
         {approval.reviewed_by?.name ?? '未审批'}
-        {approval.reviewed_at ? <div className="mt-1 text-xs">{formatDateTime(approval.reviewed_at)}</div> : null}
+        {approval.reviewed_at ? (
+          <div className="mt-1 text-xs">{formatDateTime(approval.reviewed_at)}</div>
+        ) : null}
       </td>
       <td className="px-3 py-2">
         <Button onClick={() => onSelect(approval.id)} size="sm" type="button" variant="outline">
@@ -5471,7 +6445,8 @@ function OperationAlertNotificationArchiveApprovalDetailPanel({
           </div>
           <h5 className="mt-3 text-sm font-semibold">详情与审计时间线</h5>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            查看通知审计归档删除从申请、审批到生效的完整事件链路，并可通过请求 ID 和 Trace ID 跳转定位。
+            查看通知审计归档删除从申请、审批到生效的完整事件链路，并可通过请求 ID 和 Trace ID
+            跳转定位。
           </p>
         </div>
         {current ? (
@@ -5482,7 +6457,9 @@ function OperationAlertNotificationArchiveApprovalDetailPanel({
       </div>
 
       {loading ? (
-        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载审批详情...</div>
+        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+          正在加载审批详情...
+        </div>
       ) : !current ? (
         <EmptyState
           className="mt-4 rounded-md border bg-slate-50/60 p-5"
@@ -5512,10 +6489,22 @@ function OperationAlertNotificationArchiveApprovalDetailPanel({
                 value={approvalNote}
               />
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button disabled={approving || rejecting} onClick={() => onApprove(current.id)} size="sm" type="button" variant="outline">
+                <Button
+                  disabled={approving || rejecting}
+                  onClick={() => onApprove(current.id)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   {approving ? '批准中' : '批准删除'}
                 </Button>
-                <Button disabled={approving || rejecting} onClick={() => onReject(current.id)} size="sm" type="button" variant="outline">
+                <Button
+                  disabled={approving || rejecting}
+                  onClick={() => onReject(current.id)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   {rejecting ? '拒绝中' : '拒绝'}
                 </Button>
               </div>
@@ -5542,7 +6531,10 @@ function OperationAlertNotificationArchiveApprovalDetailPanel({
             ) : (
               <div className="grid gap-3">
                 {detail.audit_timeline.map((event) => (
-                  <OperationAlertNotificationArchiveApprovalTimelineRow event={event} key={event.event_id} />
+                  <OperationAlertNotificationArchiveApprovalTimelineRow
+                    event={event}
+                    key={event.event_id}
+                  />
                 ))}
               </div>
             )}
@@ -5566,11 +6558,19 @@ function OperationAlertNotificationArchiveApprovalTimelineRow({
             <StatusBadge tone={archiveApprovalEventTone(event.event_type)}>
               {archiveApprovalEventLabel(event.event_type)}
             </StatusBadge>
-            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>{event.status}</StatusBadge>
-            <span className="font-mono text-xs text-muted-foreground">{shortId(event.event_id)}</span>
+            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>
+              {event.status}
+            </StatusBadge>
+            <span className="font-mono text-xs text-muted-foreground">
+              {shortId(event.event_id)}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{event.title}</div>
-          {event.note ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">备注：{event.note}</div> : null}
+          {event.note ? (
+            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              备注：{event.note}
+            </div>
+          ) : null}
         </div>
         <div className="shrink-0 text-xs text-muted-foreground md:text-right">
           <div>{formatDateTime(event.occurred_at)}</div>
@@ -5682,25 +6682,39 @@ function OperationAlertNotificationTaskCard({
   recoveryAuditReason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '';
   recoveryAuditStatus: SecurityOperationAlertNotificationTaskRecoveryStatus | '';
   onHistoryKeywordChange: (keyword: string) => void;
-  onHistoryStatusChange: (status: SecurityOperationAlertNotificationTaskRunResult['status'] | '') => void;
+  onHistoryStatusChange: (
+    status: SecurityOperationAlertNotificationTaskRunResult['status'] | '',
+  ) => void;
   onHistoryTaskChange: (task: SecurityOperationAlertNotificationTaskName | '') => void;
   onRefresh: () => void;
   onRefreshRecoveryAudit: () => void;
   onRefreshHistory: () => void;
-  onRecoveryAuditActionChange: (action: SecurityOperationAlertNotificationTaskRecoveryAction | '') => void;
+  onRecoveryAuditActionChange: (
+    action: SecurityOperationAlertNotificationTaskRecoveryAction | '',
+  ) => void;
   onRecoveryAuditArchiveApprove: (approvalId: string) => void;
   onRecoveryAuditArchiveCreate: () => void;
-  onRecoveryAuditArchiveDelete: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
-  onRecoveryAuditArchiveDownload: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
+  onRecoveryAuditArchiveDelete: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
+  onRecoveryAuditArchiveDownload: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
   onRecoveryAuditArchiveNoteChange: (note: string) => void;
   onRecoveryAuditArchiveReject: (approvalId: string) => void;
   onRecoveryAuditArchiveRefresh: () => void;
   onRecoveryAuditArchiveApprovalRefresh: () => void;
   onRecoveryAuditExport: () => void;
-  onRecoveryAuditFailureSourceChange: (source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '') => void;
+  onRecoveryAuditFailureSourceChange: (
+    source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '',
+  ) => void;
   onRecoveryAuditKeywordChange: (keyword: string) => void;
-  onRecoveryAuditReasonChange: (reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '') => void;
-  onRecoveryAuditStatusChange: (status: SecurityOperationAlertNotificationTaskRecoveryStatus | '') => void;
+  onRecoveryAuditReasonChange: (
+    reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '',
+  ) => void;
+  onRecoveryAuditStatusChange: (
+    status: SecurityOperationAlertNotificationTaskRecoveryStatus | '',
+  ) => void;
   onRunAutoNotify: () => void;
   onRunAutoRetry: () => void;
   overview: SecurityOperationAlertNotificationTaskOverview | null;
@@ -5713,15 +6727,43 @@ function OperationAlertNotificationTaskCard({
   const hasNotifyWork = (summary?.pending_auto_notify_count ?? 0) > 0;
   const hasRetryWork = (summary?.pending_auto_retry_count ?? 0) > 0;
   const notifyMetrics = [
-    { label: '待自动通知', value: `${summary?.pending_auto_notify_count ?? 0}`, helper: 'SLA / 团队 / 自愈归档删除' },
-    { label: '已自动覆盖', value: `${summary?.auto_notified_count ?? 0}`, helper: '回看窗口内已通知告警' },
-    { label: '最早待通知', value: formatDateTime(summary?.oldest_auto_notify_at ?? ''), helper: '按触发时间优先' },
+    {
+      label: '待自动通知',
+      value: `${summary?.pending_auto_notify_count ?? 0}`,
+      helper: 'SLA / 团队 / 自愈归档删除',
+    },
+    {
+      label: '已自动覆盖',
+      value: `${summary?.auto_notified_count ?? 0}`,
+      helper: '回看窗口内已通知告警',
+    },
+    {
+      label: '最早待通知',
+      value: formatDateTime(summary?.oldest_auto_notify_at ?? ''),
+      helper: '按触发时间优先',
+    },
   ];
   const retryMetrics = [
-    { label: '待自动重试', value: `${summary?.pending_auto_retry_count ?? 0}`, helper: '满足退避与次数限制' },
-    { label: '失败投递', value: `${summary?.failed_notification_count ?? 0}`, helper: '最近投递失败' },
-    { label: '部分成功', value: `${summary?.partial_notification_count ?? 0}`, helper: '站内或外部部分成功' },
-    { label: '已重试', value: `${summary?.retried_notification_count ?? 0}`, helper: '已有重试链路' },
+    {
+      label: '待自动重试',
+      value: `${summary?.pending_auto_retry_count ?? 0}`,
+      helper: '满足退避与次数限制',
+    },
+    {
+      label: '失败投递',
+      value: `${summary?.failed_notification_count ?? 0}`,
+      helper: '最近投递失败',
+    },
+    {
+      label: '部分成功',
+      value: `${summary?.partial_notification_count ?? 0}`,
+      helper: '站内或外部部分成功',
+    },
+    {
+      label: '已重试',
+      value: `${summary?.retried_notification_count ?? 0}`,
+      helper: '已有重试链路',
+    },
   ];
 
   return (
@@ -5742,7 +6784,8 @@ function OperationAlertNotificationTaskCard({
           </div>
           <h3 className="mt-3 text-sm font-semibold">通知任务中心</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            对 SLA 死信归档删除、团队运行报告归档删除与通知任务自愈归档删除审批运营告警执行首发自动通知，并继续扫描失败或部分成功的投递做自动重试。
+            对 SLA
+            死信归档删除、团队运行报告归档删除与通知任务自愈归档删除审批运营告警执行首发自动通知，并继续扫描失败或部分成功的投递做自动重试。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -5754,7 +6797,12 @@ function OperationAlertNotificationTaskCard({
             <RefreshCw className={`size-4 ${runningAutoNotify ? 'animate-spin' : ''}`} />
             {runningAutoNotify ? '通知中' : '立即自动通知'}
           </Button>
-          <Button disabled={loading || running} onClick={onRunAutoRetry} type="button" variant="outline">
+          <Button
+            disabled={loading || running}
+            onClick={onRunAutoRetry}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${runningAutoRetry ? 'animate-spin' : ''}`} />
             {runningAutoRetry ? '扫描中' : '立即扫描重试'}
           </Button>
@@ -5771,24 +6819,49 @@ function OperationAlertNotificationTaskCard({
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 text-sm font-semibold">调度状态</div>
               <div className="grid gap-2 text-sm">
-                <SummaryTile label="任务开关" value={overview?.scheduler_enabled ? '已启用' : '未启用'} />
-                <SummaryTile label="运行状态" value={overview?.running || running ? '执行中' : '空闲'} />
-                <SummaryTile label="最近扫描" value={formatDateTime(overview?.last_tick_at ?? '')} />
-                <SummaryTile label="扫描间隔" value={overview?.next_tick_after_seconds ? `${overview.next_tick_after_seconds} 秒` : '未配置'} />
+                <SummaryTile
+                  label="任务开关"
+                  value={overview?.scheduler_enabled ? '已启用' : '未启用'}
+                />
+                <SummaryTile
+                  label="运行状态"
+                  value={overview?.running || running ? '执行中' : '空闲'}
+                />
+                <SummaryTile
+                  label="最近扫描"
+                  value={formatDateTime(overview?.last_tick_at ?? '')}
+                />
+                <SummaryTile
+                  label="扫描间隔"
+                  value={
+                    overview?.next_tick_after_seconds
+                      ? `${overview.next_tick_after_seconds} 秒`
+                      : '未配置'
+                  }
+                />
               </div>
             </Card>
 
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 text-sm font-semibold">当前策略</div>
               <div className="grid gap-2 text-sm md:grid-cols-2">
-                <SummaryTile label="首发通知" value={policy?.auto_notify_enabled ? '已启用' : '未启用'} />
+                <SummaryTile
+                  label="首发通知"
+                  value={policy?.auto_notify_enabled ? '已启用' : '未启用'}
+                />
                 <SummaryTile label="通知单批" value={`${policy?.auto_notify_batch_size ?? 0}`} />
-                <SummaryTile label="重试任务" value={policy?.auto_retry_enabled ? '已启用' : '未启用'} />
+                <SummaryTile
+                  label="重试任务"
+                  value={policy?.auto_retry_enabled ? '已启用' : '未启用'}
+                />
                 <SummaryTile label="重试单批" value={`${policy?.retry_batch_size ?? 0}`} />
                 <SummaryTile label="最大重试" value={`${policy?.max_retry_count ?? 0} 次`} />
                 <SummaryTile label="退避时间" value={`${policy?.retry_backoff_seconds ?? 0} 秒`} />
                 <SummaryTile label="回看窗口" value={`${policy?.lookback_hours ?? 0} 小时`} />
-                <SummaryTile label="策略来源" value={notificationTaskPolicySourceLabel(policy?.source)} />
+                <SummaryTile
+                  label="策略来源"
+                  value={notificationTaskPolicySourceLabel(policy?.source)}
+                />
               </div>
             </Card>
           </div>
@@ -5805,17 +6878,28 @@ function OperationAlertNotificationTaskCard({
                   </div>
                   <h4 className="mt-3 text-sm font-semibold">归档删除审批告警首发通知</h4>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    扫描待审或拒绝风险类 SLA 死信归档删除、团队运行报告归档删除和自愈归档删除运营告警，跳过回看窗口内已有通知的告警。
+                    扫描待审或拒绝风险类 SLA
+                    死信归档删除、团队运行报告归档删除和自愈归档删除运营告警，跳过回看窗口内已有通知的告警。
                   </p>
                 </div>
-                <Button disabled={loading || running} onClick={onRunAutoNotify} size="sm" type="button">
+                <Button
+                  disabled={loading || running}
+                  onClick={onRunAutoNotify}
+                  size="sm"
+                  type="button"
+                >
                   <RefreshCw className={`size-4 ${runningAutoNotify ? 'animate-spin' : ''}`} />
                   {runningAutoNotify ? '通知中' : '立即通知'}
                 </Button>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {notifyMetrics.map((metric) => (
-                  <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+                  <MetricCard
+                    helper={metric.helper}
+                    key={metric.label}
+                    label={metric.label}
+                    value={metric.value}
+                  />
                 ))}
               </div>
               {!hasNotifyWork ? (
@@ -5827,7 +6911,9 @@ function OperationAlertNotificationTaskCard({
                 </div>
               ) : null}
               <div className="mt-4">
-                <OperationAlertNotificationTaskResult result={overview?.last_auto_notify_result ?? null} />
+                <OperationAlertNotificationTaskResult
+                  result={overview?.last_auto_notify_result ?? null}
+                />
               </div>
             </Card>
 
@@ -5845,14 +6931,25 @@ function OperationAlertNotificationTaskCard({
                     对失败或部分成功的运营告警通知执行退避重试，超过最大次数后保留审计线索。
                   </p>
                 </div>
-                <Button disabled={loading || running} onClick={onRunAutoRetry} size="sm" type="button" variant="outline">
+                <Button
+                  disabled={loading || running}
+                  onClick={onRunAutoRetry}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   <RefreshCw className={`size-4 ${runningAutoRetry ? 'animate-spin' : ''}`} />
                   {runningAutoRetry ? '扫描中' : '立即重试'}
                 </Button>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {retryMetrics.map((metric) => (
-                  <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+                  <MetricCard
+                    helper={metric.helper}
+                    key={metric.label}
+                    label={metric.label}
+                    value={metric.value}
+                  />
                 ))}
               </div>
               {!hasRetryWork ? (
@@ -5864,7 +6961,9 @@ function OperationAlertNotificationTaskCard({
                 </div>
               ) : null}
               <div className="mt-4">
-                <OperationAlertNotificationTaskResult result={overview?.last_auto_retry_result ?? null} />
+                <OperationAlertNotificationTaskResult
+                  result={overview?.last_auto_retry_result ?? null}
+                />
               </div>
             </Card>
           </div>
@@ -5952,16 +7051,36 @@ function OperationAlertNotificationTaskRunHistoryCard({
     { label: '执行记录', value: `${summary?.total_count ?? 0}`, helper: '最近 100 条任务事件' },
     { label: '成功执行', value: `${summary?.success_count ?? 0}`, helper: 'SUCCESS' },
     { label: '失败执行', value: `${summary?.failed_count ?? 0}`, helper: 'FAILED' },
-    { label: '手动触发', value: `${summary?.manual_count ?? 0}`, helper: `调度 ${summary?.scheduled_count ?? 0} 次` },
-    { label: '首发通知', value: `${summary?.auto_notify_count ?? 0}`, helper: `重试 ${summary?.auto_retry_count ?? 0} 次` },
-    { label: 'SLA 覆盖', value: `${summary?.sla_dead_letter_notify_count ?? 0}`, helper: '死信归档删除' },
+    {
+      label: '手动触发',
+      value: `${summary?.manual_count ?? 0}`,
+      helper: `调度 ${summary?.scheduled_count ?? 0} 次`,
+    },
+    {
+      label: '首发通知',
+      value: `${summary?.auto_notify_count ?? 0}`,
+      helper: `重试 ${summary?.auto_retry_count ?? 0} 次`,
+    },
+    {
+      label: 'SLA 覆盖',
+      value: `${summary?.sla_dead_letter_notify_count ?? 0}`,
+      helper: '死信归档删除',
+    },
     {
       label: '团队覆盖',
       value: `${summary?.agent_team_report_archive_delete_notify_count ?? 0}`,
       helper: '团队报告归档删除',
     },
-    { label: '自愈覆盖', value: `${summary?.recovery_archive_delete_notify_count ?? 0}`, helper: '自愈归档删除' },
-    { label: '最近完成', value: formatDateTime(summary?.latest_finished_at ?? ''), helper: '任务完成时间' },
+    {
+      label: '自愈覆盖',
+      value: `${summary?.recovery_archive_delete_notify_count ?? 0}`,
+      helper: '自愈归档删除',
+    },
+    {
+      label: '最近完成',
+      value: formatDateTime(summary?.latest_finished_at ?? ''),
+      helper: '任务完成时间',
+    },
   ];
 
   return (
@@ -5977,7 +7096,8 @@ function OperationAlertNotificationTaskRunHistoryCard({
           </div>
           <h4 className="mt-3 text-sm font-semibold">任务执行历史与审计检索</h4>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            从平台事件投影自动通知与自动重试任务执行记录，区分 SLA 死信归档删除与自愈归档删除覆盖数量，并保留 request_id 和 trace_id 便于审计追踪。
+            从平台事件投影自动通知与自动重试任务执行记录，区分 SLA
+            死信归档删除与自愈归档删除覆盖数量，并保留 request_id 和 trace_id 便于审计追踪。
           </p>
         </div>
         <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
@@ -5988,14 +7108,21 @@ function OperationAlertNotificationTaskRunHistoryCard({
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricCard
+            helper={metric.helper}
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+          />
         ))}
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[180px_180px_1fr_auto]">
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onTaskChange(event.target.value as SecurityOperationAlertNotificationTaskName | '')}
+          onChange={(event) =>
+            onTaskChange(event.target.value as SecurityOperationAlertNotificationTaskName | '')
+          }
           value={task}
         >
           <option value="">全部任务</option>
@@ -6004,7 +7131,11 @@ function OperationAlertNotificationTaskRunHistoryCard({
         </select>
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onStatusChange(event.target.value as SecurityOperationAlertNotificationTaskRunResult['status'] | '')}
+          onChange={(event) =>
+            onStatusChange(
+              event.target.value as SecurityOperationAlertNotificationTaskRunResult['status'] | '',
+            )
+          }
           value={status}
         >
           <option value="">全部状态</option>
@@ -6066,7 +7197,11 @@ function OperationAlertNotificationTaskRunHistoryCard({
   );
 }
 
-function OperationAlertNotificationTaskRunRow({ item }: { item: SecurityOperationAlertNotificationTaskRunItem }) {
+function OperationAlertNotificationTaskRunRow({
+  item,
+}: {
+  item: SecurityOperationAlertNotificationTaskRunItem;
+}) {
   return (
     <tr className="align-top">
       <td className="px-4 py-3">
@@ -6074,22 +7209,32 @@ function OperationAlertNotificationTaskRunRow({ item }: { item: SecurityOperatio
         <div className="mt-1 text-xs text-muted-foreground">{item.event_id.slice(0, 8)}</div>
       </td>
       <td className="px-4 py-3">
-        <StatusBadge tone={item.trigger_type === 'MANUAL' ? 'ready' : 'mock'}>{taskTriggerLabel(item.trigger_type)}</StatusBadge>
+        <StatusBadge tone={item.trigger_type === 'MANUAL' ? 'ready' : 'mock'}>
+          {taskTriggerLabel(item.trigger_type)}
+        </StatusBadge>
       </td>
       <td className="px-4 py-3">
         <StatusBadge tone={taskRunTone(item.status)}>{taskRunLabel(item.status)}</StatusBadge>
-        {item.error_message ? <div className="mt-1 line-clamp-2 text-xs text-destructive">{item.error_message}</div> : null}
+        {item.error_message ? (
+          <div className="mt-1 line-clamp-2 text-xs text-destructive">{item.error_message}</div>
+        ) : null}
       </td>
       <td className="px-4 py-3 text-muted-foreground">
-        <div>{item.scanned_count} / {item.notified_count} / {item.retried_count}</div>
+        <div>
+          {item.scanned_count} / {item.notified_count} / {item.retried_count}
+        </div>
         <div className="mt-1 flex flex-wrap gap-1 text-xs">
           <StatusBadge tone={item.sla_dead_letter_notify_count > 0 ? 'degraded' : 'planned'}>
             SLA {item.sla_dead_letter_notify_count}
           </StatusBadge>
-          <StatusBadge tone={item.agent_team_report_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={item.agent_team_report_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}
+          >
             团队 {item.agent_team_report_archive_delete_notify_count}
           </StatusBadge>
-          <StatusBadge tone={item.recovery_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={item.recovery_archive_delete_notify_count > 0 ? 'degraded' : 'planned'}
+          >
             自愈 {item.recovery_archive_delete_notify_count}
           </StatusBadge>
         </div>
@@ -6184,16 +7329,24 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
   onActionChange: (action: SecurityOperationAlertNotificationTaskRecoveryAction | '') => void;
   onArchiveApprove: (approvalId: string) => void;
   onArchiveCreate: () => void;
-  onArchiveDelete: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
-  onArchiveDownload: (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => void;
+  onArchiveDelete: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
+  onArchiveDownload: (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => void;
   onArchiveNoteChange: (note: string) => void;
   onArchiveReject: (approvalId: string) => void;
   onArchiveRefresh: () => void;
   onArchiveApprovalRefresh: () => void;
   onExport: () => void;
-  onFailureSourceChange: (source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '') => void;
+  onFailureSourceChange: (
+    source: SecurityOperationAlertNotificationTaskRecoveryFailureSource | '',
+  ) => void;
   onKeywordChange: (keyword: string) => void;
-  onReasonChange: (reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '') => void;
+  onReasonChange: (
+    reason: SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '',
+  ) => void;
   onRefresh: () => void;
   rejectingArchive: boolean;
   onStatusChange: (status: SecurityOperationAlertNotificationTaskRecoveryStatus | '') => void;
@@ -6221,7 +7374,11 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
       value: `${summary?.recovery_archive_delete_source_count ?? 0}`,
       helper: `未知 ${summary?.unknown_source_count ?? 0}`,
     },
-    { label: '最近处理', value: formatDateTime(summary?.latest_action_at ?? ''), helper: '处理时间' },
+    {
+      label: '最近处理',
+      value: formatDateTime(summary?.latest_action_at ?? ''),
+      helper: '处理时间',
+    },
   ];
   const hasFilters = Boolean(action || status || reason || failureSource || keyword);
   const exporting = exportState === 'exporting';
@@ -6242,7 +7399,12 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={loading || exporting || (summary?.total_count ?? 0) === 0} onClick={onExport} type="button" variant="outline">
+          <Button
+            disabled={loading || exporting || (summary?.total_count ?? 0) === 0}
+            onClick={onExport}
+            type="button"
+            variant="outline"
+          >
             <Download className="size-4" />
             {exporting ? '正在导出' : '导出 CSV'}
           </Button>
@@ -6265,14 +7427,23 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricCard
+            helper={metric.helper}
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+          />
         ))}
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-[140px_140px_180px_190px_1fr_auto]">
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onActionChange(event.target.value as SecurityOperationAlertNotificationTaskRecoveryAction | '')}
+          onChange={(event) =>
+            onActionChange(
+              event.target.value as SecurityOperationAlertNotificationTaskRecoveryAction | '',
+            )
+          }
           value={action}
         >
           <option value="">全部动作</option>
@@ -6282,7 +7453,11 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
         </select>
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onStatusChange(event.target.value as SecurityOperationAlertNotificationTaskRecoveryStatus | '')}
+          onChange={(event) =>
+            onStatusChange(
+              event.target.value as SecurityOperationAlertNotificationTaskRecoveryStatus | '',
+            )
+          }
           value={status}
         >
           <option value="">全部状态</option>
@@ -6292,7 +7467,13 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
         </select>
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onReasonChange(event.target.value as SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code'] | '')}
+          onChange={(event) =>
+            onReasonChange(
+              event.target.value as
+                | SecurityOperationAlertNotificationTaskRecoverySuggestion['reason_code']
+                | '',
+            )
+          }
           value={reason}
         >
           <option value="">全部原因</option>
@@ -6305,7 +7486,13 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
         </select>
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          onChange={(event) => onFailureSourceChange(event.target.value as SecurityOperationAlertNotificationTaskRecoveryFailureSource | '')}
+          onChange={(event) =>
+            onFailureSourceChange(
+              event.target.value as
+                | SecurityOperationAlertNotificationTaskRecoveryFailureSource
+                | '',
+            )
+          }
           value={failureSource}
         >
           <option value="">全部来源</option>
@@ -6342,7 +7529,10 @@ function OperationAlertNotificationTaskRecoveryAuditCard({
         </div>
       ) : !audit || audit.items.length === 0 ? (
         <div className="mt-4">
-          <EmptyState description="当前筛选条件下没有通知任务自愈闭环记录。" title="暂无闭环审计记录" />
+          <EmptyState
+            description="当前筛选条件下没有通知任务自愈闭环记录。"
+            title="暂无闭环审计记录"
+          />
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-md border bg-background/70">
@@ -6444,7 +7634,9 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
 }) {
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
   const [approvalKeyword, setApprovalKeyword] = useState('');
-  const [approvalStatus, setApprovalStatus] = useState<SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem['status'] | ''>('');
+  const [approvalStatus, setApprovalStatus] = useState<
+    SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem['status'] | ''
+  >('');
   const [approvalPendingOnly, setApprovalPendingOnly] = useState(false);
   const pendingApprovals = approvals.filter((approval) => approval.status === 'PENDING');
   const filteredApprovals = useMemo(() => {
@@ -6470,15 +7662,19 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
       });
   }, [approvalKeyword, approvalPendingOnly, approvalStatus, approvals]);
   const selectedApproval = selectedApprovalId
-    ? filteredApprovals.find((approval) => approval.id === selectedApprovalId) ??
+    ? (filteredApprovals.find((approval) => approval.id === selectedApprovalId) ??
       approvals.find((approval) => approval.id === selectedApprovalId) ??
-      null
-    : filteredApprovals[0] ?? null;
+      null)
+    : (filteredApprovals[0] ?? null);
   const activeApprovalId = selectedApproval?.id ?? null;
   const approvalDetailQuery = useQuery({
     enabled: Boolean(activeApprovalId),
-    queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approval', activeApprovalId],
-    queryFn: () => getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval(activeApprovalId ?? ''),
+    queryKey: [
+      'security-operation-alert-notification-task-recovery-audit-archive-approval',
+      activeApprovalId,
+    ],
+    queryFn: () =>
+      getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval(activeApprovalId ?? ''),
   });
   const hasApprovalFilters = Boolean(approvalKeyword || approvalStatus || approvalPendingOnly);
 
@@ -6489,13 +7685,21 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
   }, [approvals, selectedApprovalId]);
 
   useEffect(() => {
-    if (selectedApprovalId && filteredApprovals.length > 0 && !filteredApprovals.some((approval) => approval.id === selectedApprovalId)) {
+    if (
+      selectedApprovalId &&
+      filteredApprovals.length > 0 &&
+      !filteredApprovals.some((approval) => approval.id === selectedApprovalId)
+    ) {
       setSelectedApprovalId(filteredApprovals[0]?.id ?? null);
     }
   }, [filteredApprovals, selectedApprovalId]);
 
-  const handleDelete = (archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem) => {
-    const confirmed = window.confirm(`确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`);
+  const handleDelete = (
+    archive: SecurityOperationAlertNotificationTaskRecoveryAuditArchiveItem,
+  ) => {
+    const confirmed = window.confirm(
+      `确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`,
+    );
     if (confirmed) {
       onDelete(archive);
     }
@@ -6506,7 +7710,18 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
     setApprovalPendingOnly(false);
   };
   const exportFilteredApprovals = () => {
-    const header = ['审批ID', '状态', '归档文件', '对象路径', '大小', '申请人', '申请时间', '审批人', '审批时间', '审批意见'];
+    const header = [
+      '审批ID',
+      '状态',
+      '归档文件',
+      '对象路径',
+      '大小',
+      '申请人',
+      '申请时间',
+      '审批人',
+      '审批时间',
+      '审批意见',
+    ];
     const rows = filteredApprovals.map((approval) => [
       approval.id,
       archiveApprovalStatusLabel(approval.status),
@@ -6520,7 +7735,10 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
       approval.reason ?? '',
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
-    downloadBlob(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }), `自愈闭环归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadBlob(
+      new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }),
+      `自愈闭环归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
   };
 
   return (
@@ -6536,7 +7754,8 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
           </div>
           <h5 className="mt-3 text-sm font-semibold">自愈闭环审计归档下载</h5>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            将当前筛选条件下的自愈闭环审计生成 CSV 归档，保存到对象存储；归档删除需要先提交审批，通过后才会删除对象文件。
+            将当前筛选条件下的自愈闭环审计生成 CSV
+            归档，保存到对象存储；归档删除需要先提交审批，通过后才会删除对象文件。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -6564,10 +7783,26 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
         <div className="grid gap-3">
-          <ArchiveMetric helper="对象存储文件" label="归档文件" value={`${summary?.archive_count ?? 0}`} />
-          <ArchiveMetric helper="CSV 总容量" label="归档容量" value={formatBytes(summary?.total_size_bytes ?? 0)} />
-          <ArchiveMetric helper="等待安全管理员处理" label="删除待审" value={`${approvalOverview?.pending_count ?? 0}`} />
-          <ArchiveMetric helper="审批通过且已删除" label="删除生效" value={`${approvalOverview?.applied_count ?? 0}`} />
+          <ArchiveMetric
+            helper="对象存储文件"
+            label="归档文件"
+            value={`${summary?.archive_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="CSV 总容量"
+            label="归档容量"
+            value={formatBytes(summary?.total_size_bytes ?? 0)}
+          />
+          <ArchiveMetric
+            helper="等待安全管理员处理"
+            label="删除待审"
+            value={`${approvalOverview?.pending_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="审批通过且已删除"
+            label="删除生效"
+            value={`${approvalOverview?.applied_count ?? 0}`}
+          />
         </div>
 
         {loading ? (
@@ -6586,7 +7821,9 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
               <thead>
                 <tr className="border-b bg-muted/40">
                   {['文件名', '目录', '大小', '更新时间', '对象路径', '操作'].map((column) => (
-                    <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                    <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>
+                      {column}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -6595,16 +7832,34 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
                   <tr className="border-b last:border-0" key={archive.id}>
                     <td className="px-3 py-2 font-medium">{archive.file_name}</td>
                     <td className="px-3 py-2 text-muted-foreground">{archive.folder}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{formatBytes(archive.size_bytes)}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{formatDateTime(archive.last_modified)}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{archive.key}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {formatBytes(archive.size_bytes)}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {formatDateTime(archive.last_modified)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {archive.key}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button disabled={isDownloading} onClick={() => onDownload(archive)} size="sm" type="button" variant="outline">
+                        <Button
+                          disabled={isDownloading}
+                          onClick={() => onDownload(archive)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
                           <Download className="size-4" />
                           下载
                         </Button>
-                        <Button disabled={isDeleting} onClick={() => handleDelete(archive)} size="sm" type="button" variant="outline">
+                        <Button
+                          disabled={isDeleting}
+                          onClick={() => handleDelete(archive)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
                           <Trash2 className="size-4" />
                           {isDeleting ? '提交中' : '申请删除'}
                         </Button>
@@ -6633,11 +7888,21 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button disabled={approvalsLoading} onClick={onApprovalRefresh} type="button" variant="outline">
+            <Button
+              disabled={approvalsLoading}
+              onClick={onApprovalRefresh}
+              type="button"
+              variant="outline"
+            >
               <RefreshCw className={`size-4 ${approvalsLoading ? 'animate-spin' : ''}`} />
               刷新审批
             </Button>
-            <Button disabled={approvalsLoading || filteredApprovals.length === 0} onClick={exportFilteredApprovals} type="button" variant="outline">
+            <Button
+              disabled={approvalsLoading || filteredApprovals.length === 0}
+              onClick={exportFilteredApprovals}
+              type="button"
+              variant="outline"
+            >
               <Download className="size-4" />
               导出当前筛选
             </Button>
@@ -6645,10 +7910,26 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <ArchiveMetric helper="等待处理" label="待审批" value={`${approvalOverview?.pending_count ?? 0}`} />
-          <ArchiveMetric helper="已通过申请" label="已批准" value={`${approvalOverview?.approved_count ?? 0}`} />
-          <ArchiveMetric helper="申请被拒绝" label="已拒绝" value={`${approvalOverview?.rejected_count ?? 0}`} />
-          <ArchiveMetric helper="对象已删除" label="已生效" value={`${approvalOverview?.applied_count ?? 0}`} />
+          <ArchiveMetric
+            helper="等待处理"
+            label="待审批"
+            value={`${approvalOverview?.pending_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="已通过申请"
+            label="已批准"
+            value={`${approvalOverview?.approved_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="申请被拒绝"
+            label="已拒绝"
+            value={`${approvalOverview?.rejected_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="对象已删除"
+            label="已生效"
+            value={`${approvalOverview?.applied_count ?? 0}`}
+          />
         </div>
 
         <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_auto_auto]">
@@ -6663,7 +7944,13 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
           </label>
           <select
             className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-            onChange={(event) => setApprovalStatus(event.target.value as SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem['status'] | '')}
+            onChange={(event) =>
+              setApprovalStatus(
+                event.target.value as
+                  | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem['status']
+                  | '',
+              )
+            }
             value={approvalStatus}
           >
             <option value="">全部状态</option>
@@ -6679,13 +7966,20 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
           >
             只看待审批
           </Button>
-          <Button disabled={!hasApprovalFilters} onClick={resetApprovalFilters} type="button" variant="outline">
+          <Button
+            disabled={!hasApprovalFilters}
+            onClick={resetApprovalFilters}
+            type="button"
+            variant="outline"
+          >
             清空筛选
           </Button>
         </div>
 
         {approvalsLoading ? (
-          <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载归档删除审批...</div>
+          <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+            正在加载归档删除审批...
+          </div>
         ) : filteredApprovals.length === 0 ? (
           <EmptyState
             className="mt-4 rounded-md border bg-slate-50/60 p-5"
@@ -6699,7 +7993,9 @@ function OperationAlertNotificationTaskRecoveryAuditArchivePanel({
                 <thead>
                   <tr className="border-b bg-muted/40">
                     {['状态', '归档文件', '申请人', '申请时间', '审批人', '操作'].map((column) => (
-                      <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                      <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>
+                        {column}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -6747,24 +8043,34 @@ function OperationAlertNotificationTaskRecoveryAuditRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-2">
-          <StatusBadge tone="planned">{notificationTaskRecoveryReasonLabel(item.reason_code)}</StatusBadge>
+          <StatusBadge tone="planned">
+            {notificationTaskRecoveryReasonLabel(item.reason_code)}
+          </StatusBadge>
           <StatusBadge tone={notificationTaskRecoveryFailureSourceTone(item.failure_source)}>
             {notificationTaskRecoveryFailureSourceLabel(item.failure_source)}
           </StatusBadge>
-          <StatusBadge tone={securityRiskTone(item.severity)}>{securityRiskLevelLabel(item.severity)}</StatusBadge>
+          <StatusBadge tone={securityRiskTone(item.severity)}>
+            {securityRiskLevelLabel(item.severity)}
+          </StatusBadge>
         </div>
         <div className="mt-1 flex flex-wrap gap-1 text-xs">
           <StatusBadge tone={item.sla_dead_letter_failed_count > 0 ? 'degraded' : 'planned'}>
             SLA {item.sla_dead_letter_failed_count}
           </StatusBadge>
-          <StatusBadge tone={item.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={item.agent_team_report_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}
+          >
             团队 {item.agent_team_report_archive_delete_failed_count}
           </StatusBadge>
-          <StatusBadge tone={item.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}>
+          <StatusBadge
+            tone={item.recovery_archive_delete_failed_count > 0 ? 'degraded' : 'planned'}
+          >
             自愈 {item.recovery_archive_delete_failed_count}
           </StatusBadge>
         </div>
-        {item.evidence ? <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.evidence}</div> : null}
+        {item.evidence ? (
+          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.evidence}</div>
+        ) : null}
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-2">
@@ -6812,18 +8118,24 @@ function NotificationTaskRecoveryAuditArchiveApprovalRow({
   return (
     <tr className={`border-b last:border-0 ${active ? 'bg-blue-50/50' : ''}`}>
       <td className="px-3 py-2">
-        <StatusBadge tone={archiveApprovalStatusTone(approval.status)}>{archiveApprovalStatusLabel(approval.status)}</StatusBadge>
+        <StatusBadge tone={archiveApprovalStatusTone(approval.status)}>
+          {archiveApprovalStatusLabel(approval.status)}
+        </StatusBadge>
         <div className="mt-1 font-mono text-xs text-muted-foreground">{shortId(approval.id)}</div>
       </td>
       <td className="px-3 py-2">
         <div className="font-medium">{approval.archive_file_name}</div>
-        <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{approval.archive_key}</div>
+        <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+          {approval.archive_key}
+        </div>
       </td>
       <td className="px-3 py-2 text-muted-foreground">{approval.requested_by?.name ?? '系统'}</td>
       <td className="px-3 py-2 text-muted-foreground">{formatDateTime(approval.requested_at)}</td>
       <td className="px-3 py-2 text-muted-foreground">
         {approval.reviewed_by?.name ?? '未审批'}
-        {approval.reviewed_at ? <div className="mt-1 text-xs">{formatDateTime(approval.reviewed_at)}</div> : null}
+        {approval.reviewed_at ? (
+          <div className="mt-1 text-xs">{formatDateTime(approval.reviewed_at)}</div>
+        ) : null}
       </td>
       <td className="px-3 py-2">
         <Button onClick={() => onSelect(approval.id)} size="sm" type="button" variant="outline">
@@ -6883,7 +8195,9 @@ function NotificationTaskRecoveryAuditArchiveApprovalDetailPanel({
       </div>
 
       {loading ? (
-        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载审批详情...</div>
+        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+          正在加载审批详情...
+        </div>
       ) : !current ? (
         <EmptyState
           className="mt-4 rounded-md border bg-slate-50/60 p-5"
@@ -6913,10 +8227,22 @@ function NotificationTaskRecoveryAuditArchiveApprovalDetailPanel({
                 value={approvalNote}
               />
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button disabled={approving || rejecting} onClick={() => onApprove(current.id)} size="sm" type="button" variant="outline">
+                <Button
+                  disabled={approving || rejecting}
+                  onClick={() => onApprove(current.id)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   {approving ? '批准中' : '批准删除'}
                 </Button>
-                <Button disabled={approving || rejecting} onClick={() => onReject(current.id)} size="sm" type="button" variant="outline">
+                <Button
+                  disabled={approving || rejecting}
+                  onClick={() => onReject(current.id)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   {rejecting ? '拒绝中' : '拒绝'}
                 </Button>
               </div>
@@ -6943,7 +8269,10 @@ function NotificationTaskRecoveryAuditArchiveApprovalDetailPanel({
             ) : (
               <div className="grid gap-3">
                 {detail.audit_timeline.map((event) => (
-                  <NotificationTaskRecoveryAuditArchiveApprovalTimelineRow event={event} key={event.event_id} />
+                  <NotificationTaskRecoveryAuditArchiveApprovalTimelineRow
+                    event={event}
+                    key={event.event_id}
+                  />
                 ))}
               </div>
             )}
@@ -6967,11 +8296,19 @@ function NotificationTaskRecoveryAuditArchiveApprovalTimelineRow({
             <StatusBadge tone={archiveApprovalEventTone(event.event_type)}>
               {archiveApprovalEventLabel(event.event_type)}
             </StatusBadge>
-            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>{event.status}</StatusBadge>
-            <span className="font-mono text-xs text-muted-foreground">{shortId(event.event_id)}</span>
+            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>
+              {event.status}
+            </StatusBadge>
+            <span className="font-mono text-xs text-muted-foreground">
+              {shortId(event.event_id)}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{event.title}</div>
-          {event.note ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">备注：{event.note}</div> : null}
+          {event.note ? (
+            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              备注：{event.note}
+            </div>
+          ) : null}
         </div>
         <div className="shrink-0 text-xs text-muted-foreground md:text-right">
           <div>{formatDateTime(event.occurred_at)}</div>
@@ -7011,7 +8348,9 @@ function OperationAlertNotificationTaskResult({
           <span className="text-sm font-semibold">最近执行结果</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">任务执行后会显示最近一次扫描、通知或重试摘要。</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          任务执行后会显示最近一次扫描、通知或重试摘要。
+        </p>
       </div>
     );
   }
@@ -7019,7 +8358,9 @@ function OperationAlertNotificationTaskResult({
   return (
     <div className="rounded-md border bg-background/70 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold">最近执行结果 · {notificationTaskNameLabel(result.task)}</span>
+        <span className="text-sm font-semibold">
+          最近执行结果 · {notificationTaskNameLabel(result.task)}
+        </span>
         <StatusBadge tone={taskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge>
       </div>
       <div className="grid gap-2 text-sm md:grid-cols-3">
@@ -7027,7 +8368,10 @@ function OperationAlertNotificationTaskResult({
         <SummaryTile label="通知" value={`${result.notified_count}`} />
         <SummaryTile label="重试" value={`${result.retried_count}`} />
         <SummaryTile label="SLA 覆盖" value={`${result.sla_dead_letter_notify_count}`} />
-        <SummaryTile label="团队覆盖" value={`${result.agent_team_report_archive_delete_notify_count}`} />
+        <SummaryTile
+          label="团队覆盖"
+          value={`${result.agent_team_report_archive_delete_notify_count}`}
+        />
         <SummaryTile label="自愈覆盖" value={`${result.recovery_archive_delete_notify_count}`} />
         <SummaryTile label="成功" value={`${result.success_count}`} />
         <SummaryTile label="失败" value={`${result.failed_count}`} />
@@ -7158,21 +8502,30 @@ function OperationAlertSlaCard({
   deadLetterAuditArchiveApprovals: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem[];
   deadLetterAuditArchiveApprovalsLoading: boolean;
   onDeadLetterNoteChange: (note: string) => void;
-  onHandleDeadLetter: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onHandleDeadLetter: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   onRefreshDeadLetter: () => void;
   onDeadLetterAuditActionChange: (action: SecurityOperationAlertSlaDeadLetterAction | '') => void;
   onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
-  onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
-  onDeadLetterAuditArchiveDownload: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
+  onDeadLetterAuditArchiveDelete: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
+  onDeadLetterAuditArchiveDownload: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
   onDeadLetterAuditArchiveNoteChange: (note: string) => void;
   onDeadLetterAuditArchiveReject: (approvalId: string) => void;
   onDeadLetterAuditArchiveRefresh: () => void;
   onDeadLetterAuditArchiveApprovalRefresh: () => void;
   onDeadLetterAuditExport: () => void;
   onDeadLetterAuditKeywordChange: (keyword: string) => void;
-  onDeadLetterAuditStatusChange: (status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '') => void;
+  onDeadLetterAuditStatusChange: (
+    status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '',
+  ) => void;
   onDeadLetterAuditPageChange: (page: number) => void;
   onRefreshDeadLetterAudit: () => void;
 }) {
@@ -7182,9 +8535,17 @@ function OperationAlertSlaCard({
   const hasRisk = (summary?.warning_count ?? 0) + (summary?.overdue_count ?? 0) > 0;
   const metrics = [
     { label: 'SLA 内', value: `${summary?.within_sla_count ?? 0}`, helper: '仍有处理时间' },
-    { label: '临近超时', value: `${summary?.warning_count ?? 0}`, helper: `预警窗口 ${policy?.warning_minutes ?? 0} 分钟` },
+    {
+      label: '临近超时',
+      value: `${summary?.warning_count ?? 0}`,
+      helper: `预警窗口 ${policy?.warning_minutes ?? 0} 分钟`,
+    },
     { label: '已超时', value: `${summary?.overdue_count ?? 0}`, helper: '需要升级或关闭' },
-    { label: '自动升级', value: `${summary?.auto_escalated_count ?? 0}`, helper: '由系统写入升级事件' },
+    {
+      label: '自动升级',
+      value: `${summary?.auto_escalated_count ?? 0}`,
+      helper: '由系统写入升级事件',
+    },
   ];
 
   return (
@@ -7210,7 +8571,12 @@ function OperationAlertSlaCard({
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
             刷新 SLA
           </Button>
-          <Button disabled={loading || running || !policy?.enabled || !policy?.auto_escalate_enabled} onClick={onRunEscalation} type="button" variant="outline">
+          <Button
+            disabled={loading || running || !policy?.enabled || !policy?.auto_escalate_enabled}
+            onClick={onRunEscalation}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${running ? 'animate-spin' : ''}`} />
             {running ? '扫描中' : '立即扫描升级'}
           </Button>
@@ -7225,7 +8591,12 @@ function OperationAlertSlaCard({
         <div className="mt-4 grid gap-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <MetricCard
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+              />
             ))}
           </div>
 
@@ -7233,11 +8604,24 @@ function OperationAlertSlaCard({
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 text-sm font-semibold">SLA 策略</div>
               <div className="grid gap-2 text-sm">
-                <SummaryTile label="任务开关" value={overview?.scheduler_enabled ? '已启用' : '未启用'} />
+                <SummaryTile
+                  label="任务开关"
+                  value={overview?.scheduler_enabled ? '已启用' : '未启用'}
+                />
                 <SummaryTile label="处理时限" value={`${policy?.due_minutes ?? 0} 分钟`} />
                 <SummaryTile label="预警窗口" value={`${policy?.warning_minutes ?? 0} 分钟`} />
-                <SummaryTile label="扫描间隔" value={overview?.next_tick_after_seconds ? `${overview.next_tick_after_seconds} 秒` : '未配置'} />
-                <SummaryTile label="最近扫描" value={formatDateTime(overview?.last_tick_at ?? '')} />
+                <SummaryTile
+                  label="扫描间隔"
+                  value={
+                    overview?.next_tick_after_seconds
+                      ? `${overview.next_tick_after_seconds} 秒`
+                      : '未配置'
+                  }
+                />
+                <SummaryTile
+                  label="最近扫描"
+                  value={formatDateTime(overview?.last_tick_at ?? '')}
+                />
                 <SummaryTile label="下次到期" value={formatDateTime(summary?.next_due_at ?? '')} />
               </div>
             </Card>
@@ -7435,8 +8819,12 @@ function OperationAlertSlaNotificationCard({
   onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
-  onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
-  onDeadLetterAuditArchiveDownload: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
+  onDeadLetterAuditArchiveDelete: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
+  onDeadLetterAuditArchiveDownload: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
   onDeadLetterAuditArchiveNoteChange: (note: string) => void;
   onDeadLetterAuditArchiveReject: (approvalId: string) => void;
   onDeadLetterAuditArchiveRefresh: () => void;
@@ -7444,8 +8832,13 @@ function OperationAlertSlaNotificationCard({
   onDeadLetterAuditExport: () => void;
   onDeadLetterAuditKeywordChange: (keyword: string) => void;
   onDeadLetterAuditPageChange: (page: number) => void;
-  onDeadLetterAuditStatusChange: (status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '') => void;
-  onHandleDeadLetter: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onDeadLetterAuditStatusChange: (
+    status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '',
+  ) => void;
+  onHandleDeadLetter: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   onNotifyOverdue: () => void;
   onRefresh: () => void;
   onRefreshDeadLetterAudit: () => void;
@@ -7463,7 +8856,11 @@ function OperationAlertSlaNotificationCard({
   const items = overview?.items ?? [];
   const hasDeliveryRisk = (summary?.failed_count ?? 0) + (summary?.partial_count ?? 0) > 0;
   const metrics = [
-    { label: '待通知超时', value: `${summary?.pending_overdue_count ?? 0}`, helper: '未投递的超时告警' },
+    {
+      label: '待通知超时',
+      value: `${summary?.pending_overdue_count ?? 0}`,
+      helper: '未投递的超时告警',
+    },
     { label: '已投递', value: `${summary?.sent_count ?? 0}`, helper: 'SLA 超时通知' },
     { label: '部分成功', value: `${summary?.partial_count ?? 0}`, helper: '站内或外部部分成功' },
     { label: '投递失败', value: `${summary?.failed_count ?? 0}`, helper: '需要检查 Webhook' },
@@ -7492,7 +8889,12 @@ function OperationAlertSlaNotificationCard({
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
             刷新通知
           </Button>
-          <Button disabled={loading || running || !policy?.enabled} onClick={onNotifyOverdue} type="button" variant="outline">
+          <Button
+            disabled={loading || running || !policy?.enabled}
+            onClick={onNotifyOverdue}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${running ? 'animate-spin' : ''}`} />
             {running ? '通知中' : '通知超时项'}
           </Button>
@@ -7507,7 +8909,12 @@ function OperationAlertSlaNotificationCard({
         <div className="mt-4 grid gap-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <MetricCard
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+              />
             ))}
           </div>
 
@@ -7515,19 +8922,39 @@ function OperationAlertSlaNotificationCard({
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 text-sm font-semibold">订阅策略</div>
               <div className="grid gap-2 text-sm">
-                <SummaryTile label="渠道" value={policy?.channels.map(notificationChannelLabel).join('、') || '未配置'} />
-                <SummaryTile label="Webhook" value={policy?.webhook_configured ? '已配置' : '未配置'} />
-                <SummaryTile label="默认目标" value={policy?.default_targets.join('、') || '未配置'} />
-                <SummaryTile label="高风险目标" value={policy?.high_risk_targets.join('、') || '未配置'} />
-                <SummaryTile label="归档目标" value={policy?.archive_targets.join('、') || '未配置'} />
-                <SummaryTile label="最近投递" value={formatDateTime(summary?.last_delivered_at ?? '')} />
+                <SummaryTile
+                  label="渠道"
+                  value={policy?.channels.map(notificationChannelLabel).join('、') || '未配置'}
+                />
+                <SummaryTile
+                  label="Webhook"
+                  value={policy?.webhook_configured ? '已配置' : '未配置'}
+                />
+                <SummaryTile
+                  label="默认目标"
+                  value={policy?.default_targets.join('、') || '未配置'}
+                />
+                <SummaryTile
+                  label="高风险目标"
+                  value={policy?.high_risk_targets.join('、') || '未配置'}
+                />
+                <SummaryTile
+                  label="归档目标"
+                  value={policy?.archive_targets.join('、') || '未配置'}
+                />
+                <SummaryTile
+                  label="最近投递"
+                  value={formatDateTime(summary?.last_delivered_at ?? '')}
+                />
               </div>
             </Card>
 
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold">最近投递审计</span>
-                <StatusBadge tone={running ? 'loading' : 'mock'}>{running ? '投递中' : `${summary?.total_count ?? 0} 条`}</StatusBadge>
+                <StatusBadge tone={running ? 'loading' : 'mock'}>
+                  {running ? '投递中' : `${summary?.total_count ?? 0} 条`}
+                </StatusBadge>
               </div>
               {items.length === 0 ? (
                 <EmptyState
@@ -7538,14 +8965,19 @@ function OperationAlertSlaNotificationCard({
               ) : (
                 <div className="grid gap-3">
                   {items.slice(0, 5).map((item) => (
-                    <OperationAlertSlaNotificationRow item={item} key={item.notification_event_id} />
+                    <OperationAlertSlaNotificationRow
+                      item={item}
+                      key={item.notification_event_id}
+                    />
                   ))}
                 </div>
               )}
             </Card>
           </div>
 
-          <OperationAlertSlaNotificationResultCard result={overview?.last_notification_result ?? null} />
+          <OperationAlertSlaNotificationResultCard
+            result={overview?.last_notification_result ?? null}
+          />
 
           <OperationAlertSlaNotificationRetryCard
             loading={notificationRetryLoading}
@@ -7702,8 +9134,12 @@ function OperationAlertSlaNotificationRetryCard({
   onDeadLetterAuditCategoryChange: (category: string) => void;
   onDeadLetterAuditArchiveApprove: (approvalId: string) => void;
   onDeadLetterAuditArchiveCreate: () => void;
-  onDeadLetterAuditArchiveDelete: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
-  onDeadLetterAuditArchiveDownload: (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => void;
+  onDeadLetterAuditArchiveDelete: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
+  onDeadLetterAuditArchiveDownload: (
+    archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem,
+  ) => void;
   onDeadLetterAuditArchiveNoteChange: (note: string) => void;
   onDeadLetterAuditArchiveReject: (approvalId: string) => void;
   onDeadLetterAuditArchiveRefresh: () => void;
@@ -7711,8 +9147,13 @@ function OperationAlertSlaNotificationRetryCard({
   onDeadLetterAuditExport: () => void;
   onDeadLetterAuditKeywordChange: (keyword: string) => void;
   onDeadLetterAuditPageChange: (page: number) => void;
-  onDeadLetterAuditStatusChange: (status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '') => void;
-  onHandleDeadLetter: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onDeadLetterAuditStatusChange: (
+    status: SecurityOperationAlertSlaDeadLetterDispositionStatus | '',
+  ) => void;
+  onHandleDeadLetter: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   onRefresh: () => void;
   onRefreshDeadLetterAudit: () => void;
   onRefreshDeadLetter: () => void;
@@ -7729,9 +9170,21 @@ function OperationAlertSlaNotificationRetryCard({
   const deadLetterItems = overview?.dead_letter_items ?? [];
   const hasDeadLetters = (summary?.dead_letter_count ?? 0) > 0;
   const metrics = [
-    { label: '待自动重试', value: `${summary?.pending_auto_retry_count ?? 0}`, helper: '满足退避与次数限制' },
-    { label: '失败投递', value: `${summary?.failed_notification_count ?? 0}`, helper: '最近窗口内失败' },
-    { label: '部分成功', value: `${summary?.partial_notification_count ?? 0}`, helper: '站内或外部部分成功' },
+    {
+      label: '待自动重试',
+      value: `${summary?.pending_auto_retry_count ?? 0}`,
+      helper: '满足退避与次数限制',
+    },
+    {
+      label: '失败投递',
+      value: `${summary?.failed_notification_count ?? 0}`,
+      helper: '最近窗口内失败',
+    },
+    {
+      label: '部分成功',
+      value: `${summary?.partial_notification_count ?? 0}`,
+      helper: '站内或外部部分成功',
+    },
     { label: '死信', value: `${summary?.dead_letter_count ?? 0}`, helper: '达到最大重试次数' },
   ];
 
@@ -7744,13 +9197,26 @@ function OperationAlertSlaNotificationRetryCard({
             <StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>
               {overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}
             </StatusBadge>
-            <StatusBadge tone={hasDeadLetters ? 'unavailable' : (summary?.pending_auto_retry_count ?? 0) > 0 ? 'degraded' : 'healthy'}>
-              {hasDeadLetters ? '存在死信' : (summary?.pending_auto_retry_count ?? 0) > 0 ? '待重试' : '链路正常'}
+            <StatusBadge
+              tone={
+                hasDeadLetters
+                  ? 'unavailable'
+                  : (summary?.pending_auto_retry_count ?? 0) > 0
+                    ? 'degraded'
+                    : 'healthy'
+              }
+            >
+              {hasDeadLetters
+                ? '存在死信'
+                : (summary?.pending_auto_retry_count ?? 0) > 0
+                  ? '待重试'
+                  : '链路正常'}
             </StatusBadge>
           </div>
           <h4 className="mt-3 text-sm font-semibold">SLA 通知自动重试与失败死信</h4>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            自动扫描失败或部分成功的 SLA 超时通知，满足退避和次数限制后追加重试事件；超过最大重试次数的记录进入死信队列。
+            自动扫描失败或部分成功的 SLA
+            超时通知，满足退避和次数限制后追加重试事件；超过最大重试次数的记录进入死信队列。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -7758,7 +9224,12 @@ function OperationAlertSlaNotificationRetryCard({
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
             刷新重试
           </Button>
-          <Button disabled={loading || running || !policy?.auto_retry_enabled} onClick={onRunAutoRetry} type="button" variant="outline">
+          <Button
+            disabled={loading || running || !policy?.auto_retry_enabled}
+            onClick={onRunAutoRetry}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${running ? 'animate-spin' : ''}`} />
             {running ? '扫描中' : '立即扫描重试'}
           </Button>
@@ -7773,7 +9244,12 @@ function OperationAlertSlaNotificationRetryCard({
         <div className="mt-4 grid gap-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <MetricCard
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+              />
             ))}
           </div>
 
@@ -7781,13 +9257,22 @@ function OperationAlertSlaNotificationRetryCard({
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 text-sm font-semibold">重试策略</div>
               <div className="grid gap-2 text-sm">
-                <SummaryTile label="任务开关" value={overview?.scheduler_enabled ? '已启用' : '未启用'} />
+                <SummaryTile
+                  label="任务开关"
+                  value={overview?.scheduler_enabled ? '已启用' : '未启用'}
+                />
                 <SummaryTile label="单批数量" value={`${policy?.retry_batch_size ?? 0}`} />
                 <SummaryTile label="最大重试" value={`${policy?.max_retry_count ?? 0} 次`} />
                 <SummaryTile label="退避时间" value={`${policy?.retry_backoff_seconds ?? 0} 秒`} />
                 <SummaryTile label="回看窗口" value={`${policy?.lookback_hours ?? 0} 小时`} />
-                <SummaryTile label="最早可重试" value={formatDateTime(summary?.oldest_retryable_at ?? '')} />
-                <SummaryTile label="最近死信" value={formatDateTime(summary?.last_dead_letter_at ?? '')} />
+                <SummaryTile
+                  label="最早可重试"
+                  value={formatDateTime(summary?.oldest_retryable_at ?? '')}
+                />
+                <SummaryTile
+                  label="最近死信"
+                  value={formatDateTime(summary?.last_dead_letter_at ?? '')}
+                />
               </div>
             </Card>
 
@@ -7811,7 +9296,10 @@ function OperationAlertSlaNotificationRetryCard({
                       item={item}
                       key={item.notification_event_id}
                       onRetry={onRetryNotification}
-                      retrying={retryingNotification && retryingNotificationEventId === item.notification_event_id}
+                      retrying={
+                        retryingNotification &&
+                        retryingNotificationEventId === item.notification_event_id
+                      }
                     />
                   ))}
                 </div>
@@ -7894,7 +9382,9 @@ function OperationAlertSlaNotificationRetryCard({
             status={deadLetterAuditStatus}
           />
 
-          <OperationAlertSlaNotificationRetryResultCard result={overview?.last_auto_retry_result ?? null} />
+          <OperationAlertSlaNotificationRetryResultCard
+            result={overview?.last_auto_retry_result ?? null}
+          />
         </div>
       )}
     </Card>
@@ -7915,19 +9405,33 @@ function OperationAlertSlaNotificationRetryRow({
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            <StatusBadge tone={notificationStatusTone(item.status)}>
+              {notificationStatusLabel(item.status)}
+            </StatusBadge>
             {item.alert_category ? (
-              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+              <StatusBadge
+                tone={
+                  operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'
+                }
+              >
                 {operationAlertNotificationCategoryLabel(item.alert_category)}
               </StatusBadge>
             ) : null}
             <span className="text-xs text-muted-foreground">重试 {item.retry_count} 次</span>
-            <span className="text-xs text-muted-foreground">{item.channels.map(notificationChannelLabel).join('、') || '未配置渠道'}</span>
+            <span className="text-xs text-muted-foreground">
+              {item.channels.map(notificationChannelLabel).join('、') || '未配置渠道'}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
           <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.message}</div>
         </div>
-        <Button disabled={retrying || item.dead_lettered} onClick={() => onRetry(item.notification_event_id)} size="sm" type="button" variant="outline">
+        <Button
+          disabled={retrying || item.dead_lettered}
+          onClick={() => onRetry(item.notification_event_id)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           {retrying ? '重试中' : '重试'}
         </Button>
       </div>
@@ -7953,7 +9457,10 @@ function OperationAlertSlaDeadLetterDispositionCard({
 }: {
   loading: boolean;
   note: string;
-  onHandle: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onHandle: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   onNoteChange: (note: string) => void;
   onRefresh: () => void;
   overview: SecurityOperationAlertSlaDeadLetterOverview | null;
@@ -7963,7 +9470,9 @@ function OperationAlertSlaDeadLetterDispositionCard({
 }) {
   const summary = overview?.summary;
   const items = overview?.items ?? [];
-  const activeItems = items.filter((item) => item.disposition_status === 'OPEN' || item.disposition_status === 'CLAIMED');
+  const activeItems = items.filter(
+    (item) => item.disposition_status === 'OPEN' || item.disposition_status === 'CLAIMED',
+  );
   const metrics = [
     { label: '待处理', value: `${summary?.open_count ?? 0}`, helper: '未认领死信' },
     { label: '已认领', value: `${summary?.claimed_count ?? 0}`, helper: '处理中死信' },
@@ -8000,7 +9509,12 @@ function OperationAlertSlaDeadLetterDispositionCard({
         <div className="mt-4 grid gap-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <MetricCard
+                helper={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+              />
             ))}
           </div>
 
@@ -8014,16 +9528,26 @@ function OperationAlertSlaDeadLetterDispositionCard({
                 value={note}
               />
               <div className="mt-3 grid gap-2 text-sm">
-                <SummaryTile label="最早待处理" value={formatDateTime(summary?.oldest_open_at ?? '')} />
-                <SummaryTile label="最近处置" value={formatDateTime(summary?.last_action_at ?? '')} />
+                <SummaryTile
+                  label="最早待处理"
+                  value={formatDateTime(summary?.oldest_open_at ?? '')}
+                />
+                <SummaryTile
+                  label="最近处置"
+                  value={formatDateTime(summary?.last_action_at ?? '')}
+                />
               </div>
-              <OperationAlertSlaDeadLetterActionResultCard result={overview?.last_action_result ?? null} />
+              <OperationAlertSlaDeadLetterActionResultCard
+                result={overview?.last_action_result ?? null}
+              />
             </Card>
 
             <Card className="border-border/70 p-4 shadow-none">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold">处置队列</span>
-                <StatusBadge tone={running ? 'loading' : 'mock'}>{running ? '处理中' : `${activeItems.length} 条`}</StatusBadge>
+                <StatusBadge tone={running ? 'loading' : 'mock'}>
+                  {running ? '处理中' : `${activeItems.length} 条`}
+                </StatusBadge>
               </div>
               {activeItems.length === 0 ? (
                 <EmptyState
@@ -8059,7 +9583,10 @@ function OperationAlertSlaDeadLetterDispositionRow({
   pendingAction,
 }: {
   item: SecurityOperationAlertSlaDeadLetterItem;
-  onHandle: (notificationEventId: string, action: SecurityOperationAlertSlaDeadLetterAction) => void;
+  onHandle: (
+    notificationEventId: string,
+    action: SecurityOperationAlertSlaDeadLetterAction,
+  ) => void;
   pending: boolean;
   pendingAction: SecurityOperationAlertSlaDeadLetterAction | null;
 }) {
@@ -8073,28 +9600,56 @@ function OperationAlertSlaDeadLetterDispositionRow({
             <StatusBadge tone={deadLetterDispositionTone(item.disposition_status)}>
               {deadLetterDispositionLabel(item.disposition_status)}
             </StatusBadge>
-            <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            <StatusBadge tone={notificationStatusTone(item.status)}>
+              {notificationStatusLabel(item.status)}
+            </StatusBadge>
             {item.alert_category ? (
-              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+              <StatusBadge
+                tone={
+                  operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'
+                }
+              >
                 {operationAlertNotificationCategoryLabel(item.alert_category)}
               </StatusBadge>
             ) : null}
             <span className="text-xs text-muted-foreground">重试 {item.retry_count} 次</span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
-          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.dead_letter_reason}</div>
+          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+            {item.dead_letter_reason}
+          </div>
           {item.disposition_note ? (
-            <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">备注：{item.disposition_note}</div>
+            <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+              备注：{item.disposition_note}
+            </div>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button disabled={pending || closed || item.disposition_status === 'CLAIMED'} onClick={() => onHandle(item.notification_event_id, 'CLAIM')} size="sm" type="button" variant="outline">
+          <Button
+            disabled={pending || closed || item.disposition_status === 'CLAIMED'}
+            onClick={() => onHandle(item.notification_event_id, 'CLAIM')}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             {pending && pendingAction === 'CLAIM' ? '认领中' : '认领'}
           </Button>
-          <Button disabled={pending || closed} onClick={() => onHandle(item.notification_event_id, 'REQUEUE')} size="sm" type="button" variant="outline">
+          <Button
+            disabled={pending || closed}
+            onClick={() => onHandle(item.notification_event_id, 'REQUEUE')}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             {pending && pendingAction === 'REQUEUE' ? '重投中' : '重新投递'}
           </Button>
-          <Button disabled={pending || closed} onClick={() => onHandle(item.notification_event_id, 'CLOSE')} size="sm" type="button" variant="outline">
+          <Button
+            disabled={pending || closed}
+            onClick={() => onHandle(item.notification_event_id, 'CLOSE')}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             {pending && pendingAction === 'CLOSE' ? '关闭中' : '关闭'}
           </Button>
         </div>
@@ -8120,7 +9675,9 @@ function OperationAlertSlaDeadLetterActionResultCard({
           <span className="text-sm font-semibold">最近处置</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-xs leading-5 text-muted-foreground">执行认领、重新投递或关闭后会显示处置摘要。</p>
+        <p className="text-xs leading-5 text-muted-foreground">
+          执行认领、重新投递或关闭后会显示处置摘要。
+        </p>
       </div>
     );
   }
@@ -8137,7 +9694,9 @@ function OperationAlertSlaDeadLetterActionResultCard({
         <SummaryTile label="状态" value={deadLetterDispositionLabel(result.disposition_status)} />
         <SummaryTile label="完成时间" value={formatDateTime(result.handled_at)} />
       </div>
-      {result.note ? <div className="mt-2 text-xs text-muted-foreground">备注：{result.note}</div> : null}
+      {result.note ? (
+        <div className="mt-2 text-xs text-muted-foreground">备注：{result.note}</div>
+      ) : null}
     </div>
   );
 }
@@ -8240,15 +9799,23 @@ function OperationAlertSlaDeadLetterAuditCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M92 处置审计</StatusBadge>
-            <StatusBadge tone={total > 0 ? 'healthy' : 'planned'}>{total > 0 ? `${total} 条记录` : '暂无记录'}</StatusBadge>
+            <StatusBadge tone={total > 0 ? 'healthy' : 'planned'}>
+              {total > 0 ? `${total} 条记录` : '暂无记录'}
+            </StatusBadge>
           </div>
           <h4 className="mt-3 text-sm font-semibold">SLA 死信处置审计时间线</h4>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            按死信处置事件追踪认领、重新投递和关闭动作，支持通过标题、备注、请求 ID 与 Trace ID 快速定位。
+            按死信处置事件追踪认领、重新投递和关闭动作，支持通过标题、备注、请求 ID 与 Trace ID
+            快速定位。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={loading || exporting || total === 0} onClick={onExport} type="button" variant="outline">
+          <Button
+            disabled={loading || exporting || total === 0}
+            onClick={onExport}
+            type="button"
+            variant="outline"
+          >
             <Download className="size-4" />
             {exporting ? '正在导出' : '导出 CSV'}
           </Button>
@@ -8295,7 +9862,9 @@ function OperationAlertSlaDeadLetterAuditCard({
         </select>
         <select
           className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-          onChange={(event) => onActionChange(event.target.value as SecurityOperationAlertSlaDeadLetterAction | '')}
+          onChange={(event) =>
+            onActionChange(event.target.value as SecurityOperationAlertSlaDeadLetterAction | '')
+          }
           value={action}
         >
           <option value="">全部动作</option>
@@ -8305,7 +9874,11 @@ function OperationAlertSlaDeadLetterAuditCard({
         </select>
         <select
           className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-          onChange={(event) => onStatusChange(event.target.value as SecurityOperationAlertSlaDeadLetterDispositionStatus | '')}
+          onChange={(event) =>
+            onStatusChange(
+              event.target.value as SecurityOperationAlertSlaDeadLetterDispositionStatus | '',
+            )
+          }
           value={status}
         >
           <option value="">全部状态</option>
@@ -8327,7 +9900,11 @@ function OperationAlertSlaDeadLetterAuditCard({
         <div className="mt-4">
           <EmptyState
             className="rounded-md border bg-slate-50/60 p-5"
-            description={hasFilters ? '当前筛选条件下没有匹配的死信处置审计记录。' : '执行死信认领、重新投递或关闭后，这里会形成审计时间线。'}
+            description={
+              hasFilters
+                ? '当前筛选条件下没有匹配的死信处置审计记录。'
+                : '执行死信认领、重新投递或关闭后，这里会形成审计时间线。'
+            }
             title={hasFilters ? '未找到审计记录' : '暂无处置审计'}
           />
         </div>
@@ -8344,11 +9921,23 @@ function OperationAlertSlaDeadLetterAuditCard({
           共 {total} 条，第 {page} / {pageCount} 页
         </span>
         <div className="flex gap-2">
-          <Button disabled={loading || page <= 1} onClick={() => onPageChange(Math.max(1, page - 1))} size="sm" type="button" variant="outline">
+          <Button
+            disabled={loading || page <= 1}
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <ChevronLeft className="size-4" />
             上一页
           </Button>
-          <Button disabled={loading || page >= pageCount} onClick={() => onPageChange(Math.min(pageCount, page + 1))} size="sm" type="button" variant="outline">
+          <Button
+            disabled={loading || page >= pageCount}
+            onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             下一页
             <ChevronRight className="size-4" />
           </Button>
@@ -8432,7 +10021,9 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
 }) {
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
   const [approvalKeyword, setApprovalKeyword] = useState('');
-  const [approvalStatus, setApprovalStatus] = useState<SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status'] | ''>('');
+  const [approvalStatus, setApprovalStatus] = useState<
+    SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status'] | ''
+  >('');
   const [approvalPendingOnly, setApprovalPendingOnly] = useState(false);
   const pendingApprovals = approvals.filter((approval) => approval.status === 'PENDING');
   const filteredApprovals = useMemo(() => {
@@ -8457,18 +10048,21 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
           .some((value) => String(value).toLowerCase().includes(keyword));
       });
   }, [approvalKeyword, approvalPendingOnly, approvalStatus, approvals]);
-  const filteredPendingCount = filteredApprovals.filter((approval) => approval.status === 'PENDING').length;
+  const filteredPendingCount = filteredApprovals.filter(
+    (approval) => approval.status === 'PENDING',
+  ).length;
   const hasApprovalFilters = Boolean(approvalKeyword || approvalStatus || approvalPendingOnly);
   const selectedApproval = selectedApprovalId
-    ? filteredApprovals.find((approval) => approval.id === selectedApprovalId) ??
+    ? (filteredApprovals.find((approval) => approval.id === selectedApprovalId) ??
       approvals.find((approval) => approval.id === selectedApprovalId) ??
-      null
-    : filteredApprovals[0] ?? null;
+      null)
+    : (filteredApprovals[0] ?? null);
   const activeApprovalId = selectedApproval?.id ?? null;
   const approvalDetailQuery = useQuery({
     enabled: Boolean(activeApprovalId),
     queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approval', activeApprovalId],
-    queryFn: () => getSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(activeApprovalId ?? ''),
+    queryFn: () =>
+      getSecurityOperationAlertSlaDeadLetterAuditArchiveApproval(activeApprovalId ?? ''),
   });
 
   useEffect(() => {
@@ -8478,13 +10072,19 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
   }, [approvals, selectedApprovalId]);
 
   useEffect(() => {
-    if (selectedApprovalId && filteredApprovals.length > 0 && !filteredApprovals.some((approval) => approval.id === selectedApprovalId)) {
+    if (
+      selectedApprovalId &&
+      filteredApprovals.length > 0 &&
+      !filteredApprovals.some((approval) => approval.id === selectedApprovalId)
+    ) {
       setSelectedApprovalId(filteredApprovals[0]?.id ?? null);
     }
   }, [filteredApprovals, selectedApprovalId]);
 
   const handleDelete = (archive: SecurityOperationAlertSlaDeadLetterAuditArchiveItem) => {
-    const confirmed = window.confirm(`确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`);
+    const confirmed = window.confirm(
+      `确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`,
+    );
     if (confirmed) {
       onDelete(archive);
     }
@@ -8495,7 +10095,18 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
     setApprovalPendingOnly(false);
   };
   const exportFilteredApprovals = () => {
-    const header = ['审批ID', '状态', '归档文件', '对象路径', '大小', '申请人', '申请时间', '审批人', '审批时间', '审批意见'];
+    const header = [
+      '审批ID',
+      '状态',
+      '归档文件',
+      '对象路径',
+      '大小',
+      '申请人',
+      '申请时间',
+      '审批人',
+      '审批时间',
+      '审批意见',
+    ];
     const rows = filteredApprovals.map((approval) => [
       approval.id,
       archiveApprovalStatusLabel(approval.status),
@@ -8509,7 +10120,10 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
       approval.reason ?? '',
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
-    downloadBlob(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }), `SLA死信归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadBlob(
+      new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }),
+      `SLA死信归档删除审批-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
   };
 
   return (
@@ -8525,7 +10139,8 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
           </div>
           <h5 className="mt-3 text-sm font-semibold">SLA 死信审计归档下载</h5>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            将当前筛选条件下的处置审计生成 CSV 归档，保存到对象存储；归档删除需要先提交审批，通过后才会删除对象文件。
+            将当前筛选条件下的处置审计生成 CSV
+            归档，保存到对象存储；归档删除需要先提交审批，通过后才会删除对象文件。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -8553,14 +10168,32 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
         <div className="grid gap-3">
-          <ArchiveMetric helper="对象存储文件" label="归档文件" value={`${summary?.archive_count ?? 0}`} />
-          <ArchiveMetric helper="CSV 总容量" label="归档容量" value={formatBytes(summary?.total_size_bytes ?? 0)} />
-          <ArchiveMetric helper="等待安全管理员处理" label="删除待审" value={`${approvalOverview?.pending_count ?? 0}`} />
-          <ArchiveMetric helper="审批通过且已删除" label="删除生效" value={`${approvalOverview?.applied_count ?? 0}`} />
+          <ArchiveMetric
+            helper="对象存储文件"
+            label="归档文件"
+            value={`${summary?.archive_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="CSV 总容量"
+            label="归档容量"
+            value={formatBytes(summary?.total_size_bytes ?? 0)}
+          />
+          <ArchiveMetric
+            helper="等待安全管理员处理"
+            label="删除待审"
+            value={`${approvalOverview?.pending_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="审批通过且已删除"
+            label="删除生效"
+            value={`${approvalOverview?.applied_count ?? 0}`}
+          />
         </div>
 
         {loading ? (
-          <div className="rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载 SLA 死信审计归档...</div>
+          <div className="rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+            正在加载 SLA 死信审计归档...
+          </div>
         ) : archives.length === 0 ? (
           <EmptyState
             className="rounded-md border bg-slate-50/60 p-5"
@@ -8573,7 +10206,9 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
               <thead>
                 <tr className="border-b bg-muted/40">
                   {['文件名', '目录', '大小', '更新时间', '对象路径', '操作'].map((column) => (
-                    <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
+                    <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>
+                      {column}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -8582,16 +10217,34 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
                   <tr className="border-b last:border-0" key={archive.id}>
                     <td className="px-3 py-2 font-medium">{archive.file_name}</td>
                     <td className="px-3 py-2 text-muted-foreground">{archive.folder}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{formatBytes(archive.size_bytes)}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{formatDateTime(archive.last_modified)}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{archive.key}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {formatBytes(archive.size_bytes)}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {formatDateTime(archive.last_modified)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {archive.key}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
-                        <Button disabled={isDownloading} onClick={() => onDownload(archive)} size="sm" type="button" variant="outline">
+                        <Button
+                          disabled={isDownloading}
+                          onClick={() => onDownload(archive)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
                           <Download className="size-4" />
                           下载
                         </Button>
-                        <Button disabled={isDeleting} onClick={() => handleDelete(archive)} size="sm" type="button" variant="outline">
+                        <Button
+                          disabled={isDeleting}
+                          onClick={() => handleDelete(archive)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
                           <Trash2 className="size-4" />
                           {isDeleting ? '提交中' : '申请删除'}
                         </Button>
@@ -8619,21 +10272,47 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
               删除申请写入平台事件审计；审批通过会立即删除对象存储文件，拒绝会保留归档。
             </p>
           </div>
-          <Button disabled={approvalsLoading} onClick={onApprovalRefresh} type="button" variant="outline">
+          <Button
+            disabled={approvalsLoading}
+            onClick={onApprovalRefresh}
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className={`size-4 ${approvalsLoading ? 'animate-spin' : ''}`} />
             刷新审批
           </Button>
-          <Button disabled={approvalsLoading || filteredApprovals.length === 0} onClick={exportFilteredApprovals} type="button" variant="outline">
+          <Button
+            disabled={approvalsLoading || filteredApprovals.length === 0}
+            onClick={exportFilteredApprovals}
+            type="button"
+            variant="outline"
+          >
             <Download className="size-4" />
             导出当前筛选
           </Button>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <ArchiveMetric helper="等待处理" label="待审批" value={`${approvalOverview?.pending_count ?? 0}`} />
-          <ArchiveMetric helper="已通过申请" label="已批准" value={`${approvalOverview?.approved_count ?? 0}`} />
-          <ArchiveMetric helper="申请被拒绝" label="已拒绝" value={`${approvalOverview?.rejected_count ?? 0}`} />
-          <ArchiveMetric helper="对象已删除" label="已生效" value={`${approvalOverview?.applied_count ?? 0}`} />
+          <ArchiveMetric
+            helper="等待处理"
+            label="待审批"
+            value={`${approvalOverview?.pending_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="已通过申请"
+            label="已批准"
+            value={`${approvalOverview?.approved_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="申请被拒绝"
+            label="已拒绝"
+            value={`${approvalOverview?.rejected_count ?? 0}`}
+          />
+          <ArchiveMetric
+            helper="对象已删除"
+            label="已生效"
+            value={`${approvalOverview?.applied_count ?? 0}`}
+          />
         </div>
 
         <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_auto_auto]">
@@ -8648,7 +10327,13 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
           </label>
           <select
             className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-            onChange={(event) => setApprovalStatus(event.target.value as SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status'] | '')}
+            onChange={(event) =>
+              setApprovalStatus(
+                event.target.value as
+                  | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status']
+                  | '',
+              )
+            }
             value={approvalStatus}
           >
             <option value="">全部状态</option>
@@ -8664,15 +10349,32 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
           >
             只看待办
           </Button>
-          <Button disabled={!hasApprovalFilters} onClick={resetApprovalFilters} type="button" variant="outline">
+          <Button
+            disabled={!hasApprovalFilters}
+            onClick={resetApprovalFilters}
+            type="button"
+            variant="outline"
+          >
             重置筛选
           </Button>
         </div>
 
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <ArchiveMetric helper={`全部 ${approvals.length} 条`} label="当前筛选" value={`${filteredApprovals.length}`} />
-          <ArchiveMetric helper="当前筛选内待处理" label="筛选待办" value={`${filteredPendingCount}`} />
-          <ArchiveMetric helper={hasApprovalFilters ? '已应用筛选条件' : '未设置筛选'} label="筛选状态" value={hasApprovalFilters ? '已筛选' : '全部'} />
+          <ArchiveMetric
+            helper={`全部 ${approvals.length} 条`}
+            label="当前筛选"
+            value={`${filteredApprovals.length}`}
+          />
+          <ArchiveMetric
+            helper="当前筛选内待处理"
+            label="筛选待办"
+            value={`${filteredPendingCount}`}
+          />
+          <ArchiveMetric
+            helper={hasApprovalFilters ? '已应用筛选条件' : '未设置筛选'}
+            label="筛选状态"
+            value={hasApprovalFilters ? '已筛选' : '全部'}
+          />
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,320px)_1fr]">
@@ -8690,7 +10392,9 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
           </div>
 
           {approvalsLoading ? (
-            <div className="rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载归档删除审批...</div>
+            <div className="rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+              正在加载归档删除审批...
+            </div>
           ) : approvals.length === 0 ? (
             <EmptyState
               className="rounded-md border bg-slate-50/60 p-5"
@@ -8723,7 +10427,9 @@ function OperationAlertSlaDeadLetterAuditArchivePanel({
 
         <SlaDeadLetterAuditArchiveApprovalDetailPanel
           detail={approvalDetailQuery.data ?? null}
-          errorMessage={approvalDetailQuery.error instanceof Error ? approvalDetailQuery.error.message : null}
+          errorMessage={
+            approvalDetailQuery.error instanceof Error ? approvalDetailQuery.error.message : null
+          }
           fallbackApproval={selectedApproval}
           loading={approvalDetailQuery.isLoading || approvalDetailQuery.isFetching}
         />
@@ -8752,7 +10458,9 @@ function SlaDeadLetterAuditArchiveApprovalRow({
   const pending = approval.status === 'PENDING';
 
   return (
-    <div className={`rounded-md border bg-background/75 p-3 ${selected ? 'border-blue-200 bg-blue-50/40' : ''}`}>
+    <div
+      className={`rounded-md border bg-background/75 p-3 ${selected ? 'border-blue-200 bg-blue-50/40' : ''}`}
+    >
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -8760,12 +10468,18 @@ function SlaDeadLetterAuditArchiveApprovalRow({
               {archiveApprovalStatusLabel(approval.status)}
             </StatusBadge>
             <span className="font-mono text-xs text-muted-foreground">{shortId(approval.id)}</span>
-            <span className="text-xs text-muted-foreground">{formatBytes(approval.archive_size_bytes)}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatBytes(approval.archive_size_bytes)}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{approval.archive_file_name}</div>
-          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{approval.archive_key}</div>
+          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+            {approval.archive_key}
+          </div>
           {approval.reason ? (
-            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">意见：{approval.reason}</div>
+            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              意见：{approval.reason}
+            </div>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -8774,12 +10488,24 @@ function SlaDeadLetterAuditArchiveApprovalRow({
           </Button>
           {pending ? (
             <>
-            <Button disabled={isApproving || isRejecting} onClick={() => onApprove(approval.id)} size="sm" type="button" variant="outline">
-              {isApproving ? '批准中' : '批准删除'}
-            </Button>
-            <Button disabled={isApproving || isRejecting} onClick={() => onReject(approval.id)} size="sm" type="button" variant="outline">
-              {isRejecting ? '拒绝中' : '拒绝'}
-            </Button>
+              <Button
+                disabled={isApproving || isRejecting}
+                onClick={() => onApprove(approval.id)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {isApproving ? '批准中' : '批准删除'}
+              </Button>
+              <Button
+                disabled={isApproving || isRejecting}
+                onClick={() => onReject(approval.id)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {isRejecting ? '拒绝中' : '拒绝'}
+              </Button>
             </>
           ) : null}
         </div>
@@ -8788,7 +10514,9 @@ function SlaDeadLetterAuditArchiveApprovalRow({
         <span>申请人：{approval.requested_by?.name ?? '系统'}</span>
         <span>申请时间：{formatDateTime(approval.requested_at)}</span>
         {approval.reviewed_by ? <span>审批人：{approval.reviewed_by.name}</span> : null}
-        {approval.reviewed_at ? <span>审批时间：{formatDateTime(approval.reviewed_at)}</span> : null}
+        {approval.reviewed_at ? (
+          <span>审批时间：{formatDateTime(approval.reviewed_at)}</span>
+        ) : null}
       </div>
     </div>
   );
@@ -8832,7 +10560,9 @@ function SlaDeadLetterAuditArchiveApprovalDetailPanel({
       </div>
 
       {loading ? (
-        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">正在加载审批详情...</div>
+        <div className="mt-4 rounded-md border bg-muted/20 p-5 text-sm text-muted-foreground">
+          正在加载审批详情...
+        </div>
       ) : errorMessage ? (
         <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {errorMessage}
@@ -8879,7 +10609,10 @@ function SlaDeadLetterAuditArchiveApprovalDetailPanel({
             ) : (
               <div className="grid gap-3">
                 {detail.audit_timeline.map((event) => (
-                  <SlaDeadLetterAuditArchiveApprovalTimelineRow event={event} key={event.event_id} />
+                  <SlaDeadLetterAuditArchiveApprovalTimelineRow
+                    event={event}
+                    key={event.event_id}
+                  />
                 ))}
               </div>
             )}
@@ -8903,11 +10636,19 @@ function SlaDeadLetterAuditArchiveApprovalTimelineRow({
             <StatusBadge tone={archiveApprovalEventTone(event.event_type)}>
               {archiveApprovalEventLabel(event.event_type)}
             </StatusBadge>
-            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>{event.status}</StatusBadge>
-            <span className="font-mono text-xs text-muted-foreground">{shortId(event.event_id)}</span>
+            <StatusBadge tone={archiveApprovalEventStatusTone(event.status)}>
+              {event.status}
+            </StatusBadge>
+            <span className="font-mono text-xs text-muted-foreground">
+              {shortId(event.event_id)}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{event.title}</div>
-          {event.note ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">备注：{event.note}</div> : null}
+          {event.note ? (
+            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              备注：{event.note}
+            </div>
+          ) : null}
         </div>
         <div className="shrink-0 text-xs text-muted-foreground md:text-right">
           <div>{formatDateTime(event.occurred_at)}</div>
@@ -8935,7 +10676,11 @@ function SlaDeadLetterAuditArchiveApprovalTimelineRow({
   );
 }
 
-function OperationAlertSlaDeadLetterAuditRow({ item }: { item: SecurityOperationAlertSlaDeadLetterAuditItem }) {
+function OperationAlertSlaDeadLetterAuditRow({
+  item,
+}: {
+  item: SecurityOperationAlertSlaDeadLetterAuditItem;
+}) {
   const identifiers = [
     item.notification_event_id ? `通知 ${shortId(item.notification_event_id)}` : null,
     item.delivery_event_id ? `投递 ${shortId(item.delivery_event_id)}` : null,
@@ -8953,18 +10698,30 @@ function OperationAlertSlaDeadLetterAuditRow({ item }: { item: SecurityOperation
             </StatusBadge>
             <StatusBadge tone="mock">{deadLetterActionLabel(item.action)}</StatusBadge>
             {item.alert_category ? (
-              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+              <StatusBadge
+                tone={
+                  operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'
+                }
+              >
                 {operationAlertNotificationCategoryLabel(item.alert_category)}
               </StatusBadge>
             ) : null}
-            <span className="font-mono text-xs text-muted-foreground">{shortId(item.event_id)}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {shortId(item.event_id)}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
-          {item.note ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">备注：{item.note}</div> : null}
+          {item.note ? (
+            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              备注：{item.note}
+            </div>
+          ) : null}
         </div>
         <div className="shrink-0 text-xs text-muted-foreground md:text-right">
           <div>{formatDateTime(item.occurred_at)}</div>
-          <div className="mt-1">{item.handled_by ? `操作人：${item.handled_by}` : '操作人：系统'}</div>
+          <div className="mt-1">
+            {item.handled_by ? `操作人：${item.handled_by}` : '操作人：系统'}
+          </div>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -8999,7 +10756,11 @@ function ArchiveMetric({ helper, label, value }: { helper: string; label: string
   );
 }
 
-function OperationAlertSlaDeadLetterRow({ item }: { item: SecurityOperationAlertSlaNotificationItem | SecurityOperationAlertSlaDeadLetterItem }) {
+function OperationAlertSlaDeadLetterRow({
+  item,
+}: {
+  item: SecurityOperationAlertSlaNotificationItem | SecurityOperationAlertSlaDeadLetterItem;
+}) {
   const disposition = 'disposition_status' in item ? item.disposition_status : null;
 
   return (
@@ -9007,14 +10768,20 @@ function OperationAlertSlaDeadLetterRow({ item }: { item: SecurityOperationAlert
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone="unavailable">死信</StatusBadge>
         {item.alert_category ? (
-          <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+          <StatusBadge
+            tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}
+          >
             {operationAlertNotificationCategoryLabel(item.alert_category)}
           </StatusBadge>
         ) : null}
         {disposition ? (
-          <StatusBadge tone={deadLetterDispositionTone(disposition)}>{deadLetterDispositionLabel(disposition)}</StatusBadge>
+          <StatusBadge tone={deadLetterDispositionTone(disposition)}>
+            {deadLetterDispositionLabel(disposition)}
+          </StatusBadge>
         ) : null}
-        <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+        <StatusBadge tone={notificationStatusTone(item.status)}>
+          {notificationStatusLabel(item.status)}
+        </StatusBadge>
         <span className="text-xs text-muted-foreground">重试 {item.retry_count} 次</span>
       </div>
       <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
@@ -9024,7 +10791,9 @@ function OperationAlertSlaDeadLetterRow({ item }: { item: SecurityOperationAlert
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span>最近投递：{formatDateTime(item.delivered_at)}</span>
         <span>Webhook：{item.webhook_status ?? '未配置'}</span>
-        {'handled_at' in item && item.handled_at ? <span>处置：{formatDateTime(item.handled_at)}</span> : null}
+        {'handled_at' in item && item.handled_at ? (
+          <span>处置：{formatDateTime(item.handled_at)}</span>
+        ) : null}
       </div>
     </div>
   );
@@ -9042,7 +10811,9 @@ function OperationAlertSlaNotificationRetryResultCard({
           <span className="text-sm font-semibold">最近重试扫描</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">执行 SLA 通知自动重试后会显示最近一次扫描摘要。</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          执行 SLA 通知自动重试后会显示最近一次扫描摘要。
+        </p>
       </div>
     );
   }
@@ -9051,7 +10822,9 @@ function OperationAlertSlaNotificationRetryResultCard({
     <div className="rounded-md border bg-background/70 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="text-sm font-semibold">最近重试扫描</span>
-        <StatusBadge tone={slaTaskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge>
+        <StatusBadge tone={slaTaskRunTone(result.status)}>
+          {taskRunLabel(result.status)}
+        </StatusBadge>
       </div>
       <div className="grid gap-2 text-sm md:grid-cols-4">
         <SummaryTile label="扫描" value={`${result.scanned_count}`} />
@@ -9071,19 +10844,31 @@ function OperationAlertSlaNotificationRetryResultCard({
   );
 }
 
-function OperationAlertSlaNotificationRow({ item }: { item: SecurityOperationAlertSlaNotificationItem }) {
+function OperationAlertSlaNotificationRow({
+  item,
+}: {
+  item: SecurityOperationAlertSlaNotificationItem;
+}) {
   return (
     <div className="rounded-md border bg-background/75 p-3">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+            <StatusBadge tone={notificationStatusTone(item.status)}>
+              {notificationStatusLabel(item.status)}
+            </StatusBadge>
             {item.alert_category ? (
-              <StatusBadge tone={operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'}>
+              <StatusBadge
+                tone={
+                  operationAlertNotificationCategoryRisk(item.alert_category) ? 'degraded' : 'mock'
+                }
+              >
                 {operationAlertNotificationCategoryLabel(item.alert_category)}
               </StatusBadge>
             ) : null}
-            <span className="text-xs text-muted-foreground">{item.channels.map(notificationChannelLabel).join('、')}</span>
+            <span className="text-xs text-muted-foreground">
+              {item.channels.map(notificationChannelLabel).join('、')}
+            </span>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
           <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.message}</div>
@@ -9113,7 +10898,9 @@ function OperationAlertSlaNotificationResultCard({
           <span className="text-sm font-semibold">最近通知结果</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">执行 SLA 超时通知后会显示最近一次投递摘要。</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          执行 SLA 超时通知后会显示最近一次投递摘要。
+        </p>
       </div>
     );
   }
@@ -9122,7 +10909,9 @@ function OperationAlertSlaNotificationResultCard({
     <div className="rounded-md border bg-background/70 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="text-sm font-semibold">最近通知结果</span>
-        <StatusBadge tone={slaTaskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge>
+        <StatusBadge tone={slaTaskRunTone(result.status)}>
+          {taskRunLabel(result.status)}
+        </StatusBadge>
       </div>
       <div className="grid gap-2 text-sm md:grid-cols-4">
         <SummaryTile label="扫描" value={`${result.scanned_count}`} />
@@ -9147,9 +10936,15 @@ function OperationAlertSlaRow({ item }: { item: SecurityOperationAlertSlaItem })
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={slaStatusTone(item.sla_status)}>{slaStatusLabel(item.sla_status)}</StatusBadge>
-            <StatusBadge tone={operationAlertStatusTone(item.status)}>{operationAlertStatusLabel(item.status)}</StatusBadge>
-            <StatusBadge tone={securityRiskTone(item.severity)}>{securityRiskLevelLabel(item.severity)}</StatusBadge>
+            <StatusBadge tone={slaStatusTone(item.sla_status)}>
+              {slaStatusLabel(item.sla_status)}
+            </StatusBadge>
+            <StatusBadge tone={operationAlertStatusTone(item.status)}>
+              {operationAlertStatusLabel(item.status)}
+            </StatusBadge>
+            <StatusBadge tone={securityRiskTone(item.severity)}>
+              {securityRiskLevelLabel(item.severity)}
+            </StatusBadge>
           </div>
           <div className="mt-2 truncate text-sm font-medium">{item.title}</div>
           <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.metric}</div>
@@ -9160,11 +10955,22 @@ function OperationAlertSlaRow({ item }: { item: SecurityOperationAlertSlaItem })
         </div>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${slaProgressClass(item.sla_status)}`} style={{ width: `${progress}%` }} />
+        <div
+          className={`h-full rounded-full ${slaProgressClass(item.sla_status)}`}
+          style={{ width: `${progress}%` }}
+        />
       </div>
       <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-        <span>{item.sla_status === 'OVERDUE' ? `已超时 ${item.overdue_minutes} 分钟` : `剩余 ${item.minutes_remaining} 分钟`}</span>
-        <span>{item.auto_escalated ? `已自动升级 · ${formatDateTime(item.auto_escalated_at)}` : '未自动升级'}</span>
+        <span>
+          {item.sla_status === 'OVERDUE'
+            ? `已超时 ${item.overdue_minutes} 分钟`
+            : `剩余 ${item.minutes_remaining} 分钟`}
+        </span>
+        <span>
+          {item.auto_escalated
+            ? `已自动升级 · ${formatDateTime(item.auto_escalated_at)}`
+            : '未自动升级'}
+        </span>
       </div>
     </div>
   );
@@ -9182,7 +10988,9 @@ function OperationAlertSlaTaskResult({
           <span className="text-sm font-semibold">最近 SLA 扫描</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">执行自动升级扫描后会显示最近一次处理结果。</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          执行自动升级扫描后会显示最近一次处理结果。
+        </p>
       </div>
     );
   }
@@ -9191,7 +10999,9 @@ function OperationAlertSlaTaskResult({
     <div className="rounded-md border bg-background/70 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="text-sm font-semibold">最近 SLA 扫描</span>
-        <StatusBadge tone={slaTaskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge>
+        <StatusBadge tone={slaTaskRunTone(result.status)}>
+          {taskRunLabel(result.status)}
+        </StatusBadge>
       </div>
       <div className="grid gap-2 text-sm md:grid-cols-4">
         <SummaryTile label="扫描" value={`${result.scanned_count}`} />
@@ -9208,7 +11018,15 @@ function OperationAlertSlaTaskResult({
   );
 }
 
-function OperationMetricTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+function OperationMetricTile({
+  helper,
+  label,
+  value,
+}: {
+  helper: string;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-lg border bg-background/70 p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -9232,13 +11050,21 @@ function SecurityDenialCard({
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="degraded">{securityDenialSourceLabel(denial.source)}</StatusBadge>
             <span className="text-xs text-muted-foreground">{denial.status_code}</span>
-            <span className="text-xs text-muted-foreground">{formatDateTime(denial.occurred_at)}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatDateTime(denial.occurred_at)}
+            </span>
           </div>
           <h3 className="mt-2 truncate text-sm font-semibold">{denial.title}</h3>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{denial.reason}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            {denial.reason}
+          </p>
           <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-            <span className="truncate">{denial.method} {denial.path}</span>
-            <span className="truncate">资源：{denial.resource_type ?? '未知'} / {denial.resource_id ?? '未记录'}</span>
+            <span className="truncate">
+              {denial.method} {denial.path}
+            </span>
+            <span className="truncate">
+              资源：{denial.resource_type ?? '未知'} / {denial.resource_id ?? '未记录'}
+            </span>
             <span className="truncate">链路：{denial.trace_id ?? denial.request_id}</span>
           </div>
         </div>
@@ -9297,11 +11123,16 @@ function PaginationBar({
 
 function RiskSignalCard({ risk }: { risk: SecurityCenterRiskSignal }) {
   return (
-    <Link className="group rounded-lg border bg-background/70 p-3 transition-colors hover:bg-muted/25" href={risk.href}>
+    <Link
+      className="group rounded-lg border bg-background/70 p-3 transition-colors hover:bg-muted/25"
+      href={risk.href}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={securityRiskTone(risk.severity)}>{securityRiskLevelLabel(risk.severity)}</StatusBadge>
+            <StatusBadge tone={securityRiskTone(risk.severity)}>
+              {securityRiskLevelLabel(risk.severity)}
+            </StatusBadge>
             <span className="text-xs text-muted-foreground">{risk.metric}</span>
           </div>
           <h3 className="mt-2 text-sm font-semibold">{risk.title}</h3>
@@ -9326,13 +11157,17 @@ function securityEventExportedCount(event: SecurityCenterEventDetail) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function securityEventExportFilterValue(event: SecurityCenterEventDetail, key: 'status' | 'type' | 'risk_domain') {
+function securityEventExportFilterValue(
+  event: SecurityCenterEventDetail,
+  key: 'status' | 'type' | 'risk_domain',
+) {
   const filter = event.request_summary?.filter;
   if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return '全部';
   const value = (filter as Record<string, unknown>)[key];
   if (typeof value !== 'string' || !value) return '全部';
   if (key === 'status') return archiveApprovalStatusLabel(value as SecurityApprovalWorkbenchStatus);
-  if (key === 'type') return securityApprovalWorkbenchTypeLabel(value as SecurityApprovalWorkbenchType);
+  if (key === 'type')
+    return securityApprovalWorkbenchTypeLabel(value as SecurityApprovalWorkbenchType);
   return securityApprovalWorkbenchRiskDomainLabel(value as SecurityApprovalWorkbenchRiskDomain);
 }
 
@@ -9354,7 +11189,9 @@ function moduleStatusLabel(status: SecurityCenterModuleSummary['status']) {
   return '未配置';
 }
 
-function storageStatusLabel(status: SecurityCenterOverview['approval_operations']['archive_storage_status']) {
+function storageStatusLabel(
+  status: SecurityCenterOverview['approval_operations']['archive_storage_status'],
+) {
   if (status === 'CONNECTED') return '归档正常';
   if (status === 'DEGRADED') return '归档降级';
   if (status === 'UNAVAILABLE') return '归档不可用';
@@ -9374,7 +11211,9 @@ function notificationStatusLabel(status: SecurityOperationAlertNotificationResul
   return '投递失败';
 }
 
-function notificationChannelLabel(channel: SecurityOperationAlertNotificationResult['channels'][number]) {
+function notificationChannelLabel(
+  channel: SecurityOperationAlertNotificationResult['channels'][number],
+) {
   if (channel === 'IN_APP') return '站内记录';
   return 'Webhook';
 }
@@ -9422,10 +11261,16 @@ function operationAlertCategory(alertId: string) {
   ) {
     return 'NOTIFICATION_TASK';
   }
-  if (alertId === 'sla-dead-letter-archive-delete-pending' || alertId === 'sla-dead-letter-archive-delete-rejected-risk') {
+  if (
+    alertId === 'sla-dead-letter-archive-delete-pending' ||
+    alertId === 'sla-dead-letter-archive-delete-rejected-risk'
+  ) {
     return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
   }
-  if (alertId === 'agent-team-report-archive-delete-pending' || alertId === 'agent-team-report-archive-delete-rejected-risk') {
+  if (
+    alertId === 'agent-team-report-archive-delete-pending' ||
+    alertId === 'agent-team-report-archive-delete-rejected-risk'
+  ) {
     return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
   }
   if (
@@ -9456,7 +11301,9 @@ function notificationTaskRecoveryReasonLabel(
   return '失败率偏高';
 }
 
-function notificationTaskRecoveryFailureSourceLabel(source: SecurityOperationAlertNotificationTaskRecoveryFailureSource) {
+function notificationTaskRecoveryFailureSourceLabel(
+  source: SecurityOperationAlertNotificationTaskRecoveryFailureSource,
+) {
   if (source === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档';
   if (source === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
   if (source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
@@ -9464,27 +11311,35 @@ function notificationTaskRecoveryFailureSourceLabel(source: SecurityOperationAle
   return '未知来源';
 }
 
-function notificationTaskRecoveryFailureSourceTone(source: SecurityOperationAlertNotificationTaskRecoveryFailureSource) {
+function notificationTaskRecoveryFailureSourceTone(
+  source: SecurityOperationAlertNotificationTaskRecoveryFailureSource,
+) {
   if (source === 'MIXED') return 'degraded';
   if (source === 'UNKNOWN') return 'planned';
   return 'ready';
 }
 
-function notificationTaskRecoveryStatusTone(status: SecurityOperationAlertNotificationTaskRecoveryStatus) {
+function notificationTaskRecoveryStatusTone(
+  status: SecurityOperationAlertNotificationTaskRecoveryStatus,
+) {
   if (status === 'OPEN') return 'planned';
   if (status === 'ACKNOWLEDGED') return 'degraded';
   if (status === 'IGNORED') return 'mock';
   return 'healthy';
 }
 
-function notificationTaskRecoveryStatusLabel(status: SecurityOperationAlertNotificationTaskRecoveryStatus) {
+function notificationTaskRecoveryStatusLabel(
+  status: SecurityOperationAlertNotificationTaskRecoveryStatus,
+) {
   if (status === 'OPEN') return '待处理';
   if (status === 'ACKNOWLEDGED') return '已确认';
   if (status === 'IGNORED') return '已忽略';
   return '已处理';
 }
 
-function notificationTaskRecoveryActionVerb(action: SecurityOperationAlertNotificationTaskRecoveryAction) {
+function notificationTaskRecoveryActionVerb(
+  action: SecurityOperationAlertNotificationTaskRecoveryAction,
+) {
   if (action === 'ACKNOWLEDGE') return '确认';
   if (action === 'IGNORE') return '忽略';
   return '标记已处理';
@@ -9500,7 +11355,9 @@ function formatDuration(value: number) {
   return `${(value / 1000).toFixed(1)} 秒`;
 }
 
-function notificationTaskPolicySourceLabel(source?: SecurityOperationAlertNotificationTaskOverview['policy']['source']) {
+function notificationTaskPolicySourceLabel(
+  source?: SecurityOperationAlertNotificationTaskOverview['policy']['source'],
+) {
   if (source === 'SYSTEM_SETTING') return '系统设置';
   if (source === 'ENVIRONMENT') return '环境变量';
   return '未配置';
@@ -9558,14 +11415,18 @@ function deadLetterActionLabel(action: SecurityOperationAlertSlaDeadLetterAction
   return '关闭';
 }
 
-function archiveApprovalStatusTone(status: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status']) {
+function archiveApprovalStatusTone(
+  status: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status'],
+) {
   if (status === 'PENDING') return 'degraded';
   if (status === 'APPROVED') return 'mock';
   if (status === 'REJECTED') return 'unavailable';
   return 'healthy';
 }
 
-function archiveApprovalStatusLabel(status: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status']) {
+function archiveApprovalStatusLabel(
+  status: SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem['status'],
+) {
   if (status === 'PENDING') return '待审批';
   if (status === 'APPROVED') return '已批准';
   if (status === 'REJECTED') return '已拒绝';
@@ -9600,7 +11461,9 @@ function securityApprovalWorkbenchTypeLabel(type: SecurityApprovalWorkbenchType)
 }
 
 function securityApprovalWorkbenchRiskDomainLabel(riskDomain: SecurityApprovalWorkbenchRiskDomain) {
-  return approvalWorkbenchRiskDomains.find((item) => item.value === riskDomain)?.label ?? riskDomain;
+  return (
+    approvalWorkbenchRiskDomains.find((item) => item.value === riskDomain)?.label ?? riskDomain
+  );
 }
 
 function securityApprovalWorkbenchRiskLevelLabel(riskLevel: SecurityApprovalWorkbenchRiskLevel) {
@@ -9650,9 +11513,14 @@ function securityApprovalMetadataLabel(key: string) {
   return labels[key] ?? key;
 }
 
-function readAgentTeamArchiveMetadata(metadata: Record<string, unknown>): SecurityApprovalAgentTeamArchiveMetadata {
+function readAgentTeamArchiveMetadata(
+  metadata: Record<string, unknown>,
+): SecurityApprovalAgentTeamArchiveMetadata {
   const archiveKey = metadataString(metadata.archive_key);
-  const archiveFileName = metadataString(metadata.archive_file_name) || archiveKey.split('/').at(-1) || '团队运行报告归档.csv';
+  const archiveFileName =
+    metadataString(metadata.archive_file_name) ||
+    archiveKey.split('/').at(-1) ||
+    '团队运行报告归档.csv';
   const inferred = inferAgentTeamArchiveMetadata(archiveKey);
 
   return {
@@ -9675,8 +11543,10 @@ function inferAgentTeamArchiveMetadata(archiveKey: string) {
   const fileName = parts.at(-1) ?? '';
   const fileNameWithoutExtension = fileName.endsWith('.csv') ? fileName.slice(0, -4) : fileName;
   const candidateRunId = fileNameWithoutExtension.slice(-36);
-  const teamId = parts.length >= 3 && parts[0] === 'agent-team-run-reports' ? parts[1] ?? '' : '';
-  const runId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidateRunId)
+  const teamId = parts.length >= 3 && parts[0] === 'agent-team-run-reports' ? (parts[1] ?? '') : '';
+  const runId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    candidateRunId,
+  )
     ? candidateRunId
     : '';
 
@@ -9698,7 +11568,8 @@ function metadataNumber(value: unknown) {
 
 function formatSecurityApprovalMetadataValue(value: unknown) {
   if (value === null || value === undefined || value === '') return '-';
-  if (typeof value === 'number' && Number.isFinite(value)) return value > 1024 ? formatBytes(value) : value.toString();
+  if (typeof value === 'number' && Number.isFinite(value))
+    return value > 1024 ? formatBytes(value) : value.toString();
   if (typeof value === 'string') return value;
   if (typeof value === 'boolean') return value ? '是' : '否';
   return JSON.stringify(value);
@@ -9709,7 +11580,10 @@ function slaProgressPercent(item: SecurityOperationAlertSlaItem) {
   const totalMinutes = item.minutes_remaining + item.overdue_minutes;
   if (item.sla_status === 'OVERDUE') return 100;
   if (totalMinutes <= 0) return item.sla_status === 'WITHIN_SLA' ? 25 : 80;
-  return Math.min(100, Math.max(8, 100 - Math.round((item.minutes_remaining / totalMinutes) * 100)));
+  return Math.min(
+    100,
+    Math.max(8, 100 - Math.round((item.minutes_remaining / totalMinutes) * 100)),
+  );
 }
 
 function slaProgressClass(status: SecurityOperationAlertSlaStatus) {

@@ -1,0 +1,12 @@
+{
+  "page": "TenantSettingsIA",
+  "route": "/tenants, /settings",
+  "feature": "第二批 IA 重构：租户与系统设置入口整理",
+  "created_at": "2026-05-06",
+  "artifacts": [
+    "00-project-ui-brief.md",
+    "01-product-ui-design-prompt.md",
+    "02-product-prototype-prompt.md",
+    "03-component-mapping.md"
+  ]
+}

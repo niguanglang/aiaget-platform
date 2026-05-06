@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { hasPermission, type TestToolResult, type ToolDetail, type UpdateToolInput } from '@aiaget/shared-types';
+import { hasPermission, type TestToolResult, type ToolDetail } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
 import { ArrowLeft, Copy, Edit, Power, Send, ShieldAlert, Trash2, Wrench } from 'lucide-react';
 import Link from 'next/link';
@@ -9,14 +9,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import {
-  createInputDefaultsFromSchema,
-  parseJsonObjectText,
-  parseJsonStringRecordText,
-  stringifyJson,
-} from '@/components/tools/tool-json';
+import { createInputDefaultsFromSchema, parseJsonObjectText, stringifyJson } from '@/components/tools/tool-json';
 import { ToolCenterBackground } from '@/components/tools/tool-center-background';
-import { ToolFormPanel, type ToolFormValues } from '@/components/tools/tool-form-panel';
 import {
   formatDateTime,
   formatLatency,
@@ -40,7 +34,6 @@ import {
   enableTool,
   getTool,
   testTool,
-  updateTool,
   type ApiClientError,
 } from '@/lib/api-client';
 
@@ -48,9 +41,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ToolDetail | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [testInput, setTestInput] = useState('{}');
@@ -93,16 +84,6 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
       { label: '待审批', value: `${approvalCount}`, helper: '最近 20 条' },
     ];
   }, [tool]);
-
-  const updateMutation = useMutation({
-    mutationFn: (values: UpdateToolInput) => updateTool(toolId, values),
-    onSuccess: async (result) => {
-      await refreshTool(result);
-      setIsEditing(false);
-      setFormError(null);
-    },
-    onError: (error: ApiClientError) => setFormError(error.message),
-  });
 
   const copyMutation = useMutation({
     mutationFn: copyTool,
@@ -147,17 +128,6 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
   async function refreshTool(result: ToolDetail) {
     queryClient.setQueryData(['tool', result.id], result);
     await queryClient.invalidateQueries({ queryKey: ['tools'] });
-  }
-
-  function submitForm(values: ToolFormValues) {
-    setFormError(null);
-    const payload = toUpdateToolInput(values);
-    if (!payload.ok) {
-      setFormError(payload.message);
-      return;
-    }
-
-    updateMutation.mutate(payload.value);
   }
 
   function runTest() {
@@ -230,10 +200,19 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={!canWrite} onClick={() => setIsEditing(true)} variant="outline">
-            <Edit className="size-4" />
-            编辑
-          </Button>
+          {canWrite ? (
+            <Button asChild variant="outline">
+              <Link href={`/tools/${toolId}/edit`}>
+                <Edit className="size-4" />
+                编辑
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled variant="outline">
+              <Edit className="size-4" />
+              编辑
+            </Button>
+          )}
           <Button disabled={!canWrite || copyMutation.isPending} onClick={() => copyMutation.mutate(tool.id)} variant="outline">
             <Copy className="size-4" />
             复制
@@ -294,20 +273,6 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
         <AgentReferencesCard tool={tool} />
         <UsageCard tool={tool} />
       </section>
-
-      {isEditing ? (
-        <ToolFormPanel
-          error={formError}
-          isPending={updateMutation.isPending}
-          mode="edit"
-          onClose={() => {
-            setFormError(null);
-            setIsEditing(false);
-          }}
-          onSubmit={submitForm}
-          tool={tool}
-        />
-      ) : null}
 
       {deleteTarget ? (
         <ConfirmDialog
@@ -588,42 +553,4 @@ function ConfirmDialog({
       </div>
     </section>
   );
-}
-
-function toUpdateToolInput(values: ToolFormValues): { ok: true; value: UpdateToolInput } | { ok: false; message: string } {
-  const headers = parseJsonStringRecordText(values.headers_text, '默认请求头', { allowEmpty: true });
-  if (!headers.ok) return headers;
-
-  const authConfig = parseJsonObjectText(values.auth_config_text, '鉴权配置', { allowEmpty: true });
-  if (!authConfig.ok) return authConfig;
-
-  const inputSchema = parseJsonObjectText(values.input_schema_text, '输入结构', { allowEmpty: true });
-  if (!inputSchema.ok) return inputSchema;
-
-  const outputSchema = parseJsonObjectText(values.output_schema_text, '输出结构', { allowEmpty: true });
-  if (!outputSchema.ok) return outputSchema;
-
-  return {
-    ok: true as const,
-    value: {
-      name: values.name,
-      description: nullableText(values.description),
-      method: values.method,
-      url: values.url,
-      status: values.status,
-      risk_level: values.risk_level,
-      timeout_ms: values.timeout_ms,
-      require_approval: values.require_approval,
-      auth_type: values.auth_type,
-      headers: headers.value,
-      auth_config: authConfig.value,
-      input_schema: inputSchema.value,
-      output_schema: outputSchema.value,
-    },
-  };
-}
-
-function nullableText(value?: string) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
 }

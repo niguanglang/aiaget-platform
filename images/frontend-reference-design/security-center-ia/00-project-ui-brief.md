@@ -1,0 +1,11 @@
+# Project UI Brief
+
+- Page: Security Center IA
+- Route: `/security`, `/security/policies`, `/security/events`, `/security/alerts`, `/security/recovery`
+- Feature goal: 将原 `/security` 聚合页拆成安全治理总览入口，并提供策略治理、事件追踪、告警运营、自愈恢复四个聚焦工作台；四个子路由组件必须拥有本页数据查询、筛选、状态和操作入口，不再只是把 `view` 传给巨型总览组件。
+- Target users/roles: 租户管理员、安全管理员、运维运营人员；策略写入受 `tenant_admin` 或 `security:rule:manage` 控制，审批查看/处理受 `security:approval:view`、`security:approval:handle` 控制。
+- APIs/services: 复用 `apps/web/src/lib/api-client.ts` 中现有安全中心服务，不新增后端接口；包括 `getSecurityCenterOverview`, `getSecurityPolicyOverview`, `listSecurityPolicies`, `listSecurityPolicyEvaluations`, `simulateSecurityPolicy`, `listSecurityCenterEvents`, `getSecurityCenterEvent`, `getSecurityApprovalWorkbenchOverview`, `listSecurityApprovalWorkbenchItems`, `getSecurityApprovalWorkbenchItem`, `reviewSecurityApprovalWorkbenchItem`, operation alert notification/SLA/recovery/archive list/export/approve/reject/retry/run services.
+- Entities/fields/statuses: `SecurityCenterOverview`, `SecurityCenterEventListItem`, `SecurityCenterEventDetail`, `SecurityPolicyListItem`, `SecurityPolicyDetail`, `SecurityPolicyEvaluationItem`, `SecurityApprovalWorkbenchItem`, `SecurityCenterOperationalAlert`, `SecurityOperationAlertNotificationOverview`, `SecurityOperationAlertSlaOverview`, `SecurityOperationAlertNotificationTaskOverview`, recovery audit/archive/approval DTOs；状态包含 `ACTIVE/DISABLED/DELETED`, `ALLOW/DENY`, `PENDING/APPROVED/REJECTED/APPLIED`, operation alert lifecycle, notification delivery/retry/recovery states。
+- Existing components/design system: Next App Router under `apps/web/src/app/(console)`, client components under `apps/web/src/components/security`, React Query, `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`, lucide icons, Tailwind utility classes, existing `SecurityPolicyBackground` background, and shared security status label helpers.
+- Required states: loading, empty, error, validation, disabled, success, permission-denied
+- Constraints: 写入范围只限 `apps/web/src/components/security/**`、`apps/web/src/app/(console)/security/**`、`images/frontend-reference-design/security-center-ia/**`；不改后端 API，不删除功能，不复制 3000+ 行业务逻辑；`/security` 总览继续使用 `SecurityPolicyContent`，四个子页面改为直接复用现有 API 与安全状态 helper 形成精简真实工作台。

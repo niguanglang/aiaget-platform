@@ -1,0 +1,289 @@
+'use client';
+
+import type {
+  SecurityCenterEventListItem,
+  SecurityCenterEventSource,
+  SecurityCenterEventWindow,
+} from '@aiaget/shared-types';
+import { useQuery } from '@tanstack/react-query';
+import { Activity, ArrowRight, Search } from 'lucide-react';
+import { useState } from 'react';
+
+import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
+import {
+  DetailLine,
+  JsonBlock,
+  LoadingRows,
+  PageError,
+  RefreshButton,
+  SecurityWorkspaceHeader,
+  formatDateTime,
+  securityEventSourceLabel,
+  securityRiskLevelLabel,
+  securityRiskTone,
+  shortId,
+} from '@/components/security/security-page-shared';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MetricCard } from '@/components/ui/metric-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { getSecurityCenterEvent, listSecurityCenterEvents } from '@/lib/api-client';
+
+const eventSources: Array<{ label: string; value: SecurityCenterEventSource }> = [
+  { label: '数据权限', value: 'DATA_SCOPE' },
+  { label: '资源授权', value: 'RESOURCE_ACL' },
+  { label: '安全策略', value: 'SECURITY_POLICY' },
+  { label: '操作拒绝', value: 'OPERATION' },
+  { label: '审批工作台', value: 'APPROVAL_WORKBENCH' },
+];
+const eventWindows: Array<{ label: string; value: SecurityCenterEventWindow }> = [
+  { label: '最近 1 小时', value: '1h' },
+  { label: '最近 24 小时', value: '24h' },
+  { label: '最近 7 天', value: '7d' },
+  { label: '最近 30 天', value: '30d' },
+];
+const pageSize = 20;
+
+export function SecurityEventsContent() {
+  const [keyword, setKeyword] = useState('');
+  const [source, setSource] = useState<SecurityCenterEventSource | ''>('');
+  const [windowValue, setWindowValue] = useState<SecurityCenterEventWindow>('24h');
+  const [traceOnly, setTraceOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const eventsQuery = useQuery({
+    queryKey: ['security-events-page-list', keyword, source, windowValue, traceOnly, page],
+    queryFn: () =>
+      listSecurityCenterEvents({
+        page,
+        page_size: pageSize,
+        keyword,
+        source,
+        trace_only: traceOnly,
+        window: windowValue,
+      }),
+  });
+
+  const detailQuery = useQuery({
+    enabled: Boolean(selectedEventId),
+    queryKey: ['security-events-page-detail', selectedEventId],
+    queryFn: () => getSecurityCenterEvent(selectedEventId ?? ''),
+  });
+
+  const events = eventsQuery.data?.items ?? [];
+  const total = eventsQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const tracedCount = events.filter((event) => event.has_trace).length;
+
+  function resetFilters() {
+    setKeyword('');
+    setSource('');
+    setWindowValue('24h');
+    setTraceOnly(false);
+    setPage(1);
+  }
+
+  return (
+    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+      <SecurityPolicyBackground />
+
+      <SecurityWorkspaceHeader
+        actions={
+          <RefreshButton loading={eventsQuery.isFetching || detailQuery.isFetching} onClick={() => {
+            void eventsQuery.refetch();
+            if (selectedEventId) void detailQuery.refetch();
+          }} />
+        }
+        badge="Trace"
+        description="检索拒绝事件、审批导出事件和安全策略命中记录，详情侧栏保留 request_id、trace_id 与上下文 JSON。"
+        title="安全事件"
+      />
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetricCard helper={`${windowValue} 窗口`} label="事件总数" value={`${total}`} />
+        <MetricCard helper="当前页可跳转链路" label="Trace 事件" value={`${tracedCount}`} />
+        <MetricCard helper={traceOnly ? '仅看可追踪事件' : '包含无 Trace 事件'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
+        <Card className="min-w-0 overflow-hidden">
+          <div className="border-b p-4">
+            <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Activity className="size-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold">事件列表</h2>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">当前筛选命中 {total} 条安全事件。</p>
+              </div>
+              <Button disabled={!keyword && !source && !traceOnly && windowValue === '24h'} onClick={resetFilters} type="button" variant="outline">
+                清空筛选
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_180px_150px_auto]">
+              <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+                <Search className="size-4 shrink-0 text-muted-foreground" />
+                <input
+                  className="min-w-0 flex-1 bg-transparent outline-none"
+                  onChange={(event) => {
+                    setKeyword(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="搜索标题、原因、request_id、trace_id"
+                  value={keyword}
+                />
+              </label>
+              <select
+                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) => {
+                  setSource(event.target.value as SecurityCenterEventSource | '');
+                  setPage(1);
+                }}
+                value={source}
+              >
+                <option value="">全部来源</option>
+                {eventSources.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
+              <select
+                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
+                onChange={(event) => {
+                  setWindowValue(event.target.value as SecurityCenterEventWindow);
+                  setPage(1);
+                }}
+                value={windowValue}
+              >
+                {eventWindows.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
+              <label className="flex h-9 items-center gap-2 rounded-md border bg-background/80 px-3 text-sm">
+                <input
+                  checked={traceOnly}
+                  className="size-4"
+                  onChange={(event) => {
+                    setTraceOnly(event.target.checked);
+                    setPage(1);
+                  }}
+                  type="checkbox"
+                />
+                仅 Trace
+              </label>
+            </div>
+          </div>
+
+          {eventsQuery.isError ? (
+            <div className="p-4"><PageError>安全事件加载失败。</PageError></div>
+          ) : eventsQuery.isLoading ? (
+            <LoadingRows count={6} />
+          ) : events.length === 0 ? (
+            <EmptyState description="当前筛选下暂无安全事件。" title="暂无事件" />
+          ) : (
+            <div className="divide-y">
+              {events.map((event) => (
+                <SecurityEventRow
+                  active={event.id === selectedEventId}
+                  event={event}
+                  key={event.id}
+                  onOpen={() => setSelectedEventId(event.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col justify-between gap-3 border-t p-4 text-sm text-muted-foreground sm:flex-row sm:items-center">
+            <span>第 {page} / {pageCount} 页</span>
+            <div className="flex gap-2">
+              <Button disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} size="sm" type="button" variant="outline">
+                上一页
+              </Button>
+              <Button disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} size="sm" type="button" variant="outline">
+                下一页
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="h-fit p-5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">事件详情</h2>
+              <p className="mt-1 text-sm text-muted-foreground">选择左侧事件查看请求摘要、主体、资源和上下文。</p>
+            </div>
+            {selectedEventId ? <StatusBadge tone="mock">{shortId(selectedEventId)}</StatusBadge> : null}
+          </div>
+
+          {!selectedEventId ? (
+            <EmptyState className="px-0" description="从事件列表选择一条记录查看详情。" title="未选择事件" />
+          ) : detailQuery.isError ? (
+            <PageError>事件详情加载失败。</PageError>
+          ) : detailQuery.isLoading ? (
+            <LoadingRows count={3} />
+          ) : detailQuery.data ? (
+            <div className="mt-4 grid gap-3">
+              <DetailLine label="标题" value={detailQuery.data.title} />
+              <DetailLine label="来源" value={securityEventSourceLabel(detailQuery.data.source)} />
+              <DetailLine label="Request ID" value={detailQuery.data.request_id} />
+              <DetailLine label="Trace ID" value={detailQuery.data.trace_id ?? '暂无'} />
+              <DetailLine label="路径" value={`${detailQuery.data.method} ${detailQuery.data.path}`} />
+              <DetailLine label="原因" value={detailQuery.data.reason} />
+              <div>
+                <div className="mb-2 text-sm font-medium">请求摘要</div>
+                <JsonBlock value={detailQuery.data.request_summary} />
+              </div>
+              <div>
+                <div className="mb-2 text-sm font-medium">主体 / 资源 / 上下文</div>
+                <div className="grid gap-3">
+                  <JsonBlock value={detailQuery.data.subject} />
+                  <JsonBlock value={detailQuery.data.resource} />
+                  <JsonBlock value={detailQuery.data.context} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      </section>
+    </main>
+  );
+}
+
+function SecurityEventRow({
+  active,
+  event,
+  onOpen,
+}: {
+  active: boolean;
+  event: SecurityCenterEventListItem;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      className={`grid w-full gap-3 p-4 text-left transition-colors hover:bg-muted/40 xl:grid-cols-[1fr_170px_150px_110px] xl:items-center ${active ? 'bg-primary/5' : ''}`}
+      onClick={onOpen}
+      type="button"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone={securityRiskTone(event.severity)}>{securityRiskLevelLabel(event.severity)}</StatusBadge>
+          <StatusBadge tone="planned">{securityEventSourceLabel(event.source)}</StatusBadge>
+          {event.has_trace ? <StatusBadge tone="mock">Trace</StatusBadge> : null}
+          <span className="font-medium">{event.title}</span>
+        </div>
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{event.reason}</p>
+        <p className="mt-1 break-all text-xs text-muted-foreground">
+          {event.method} {event.path} · request_id {event.request_id}
+        </p>
+      </div>
+      <div className="text-sm text-muted-foreground">资源：{event.resource_type ?? '暂无'}</div>
+      <div className="text-sm text-muted-foreground">{formatDateTime(event.occurred_at)}</div>
+      <div className="flex items-center gap-2 text-sm text-primary">
+        详情
+        <ArrowRight className="size-4" />
+      </div>
+    </button>
+  );
+}

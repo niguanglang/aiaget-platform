@@ -38,6 +38,7 @@ import type {
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
   CreateRoleScenarioInput,
+  CreateSolutionPackageInput,
   CreateTenantApiKeyInput,
   CreateTenantApiKeyResult,
   RotateTenantApiKeyResult,
@@ -187,6 +188,8 @@ import type {
   RoleOverview,
   RoleScenarioDetail,
   RoleScenarioListItem,
+  SolutionPackageDetail,
+  SolutionPackageListItem,
   RollbackAgentInput,
   RollbackPromptInput,
   ExternalApiObservabilityOverview,
@@ -286,6 +289,7 @@ import type {
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
   UpdateRoleScenarioInput,
+  UpdateSolutionPackageInput,
   UpdateAgentKnowledgeBindingInput,
   UpdateAgentToolBindingInput,
   UpdateDepartmentInput,
@@ -2065,6 +2069,43 @@ export function updateRoleScenario(scenarioId: string, input: UpdateRoleScenario
 
 export function deleteRoleScenario(scenarioId: string) {
   return request<{ success: boolean }>(`/role-scenarios/${scenarioId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listSolutionPackages(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  customer_type?: string;
+  package_stage?: string;
+  status?: string;
+  priority?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<SolutionPackageListItem>>(`/solution-packages?${toSearchParams(params)}`);
+}
+
+export function createSolutionPackage(input: CreateSolutionPackageInput) {
+  return request<SolutionPackageDetail>('/solution-packages', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getSolutionPackage(packageId: string) {
+  return request<SolutionPackageDetail>(`/solution-packages/${packageId}`);
+}
+
+export function updateSolutionPackage(packageId: string, input: UpdateSolutionPackageInput) {
+  return request<SolutionPackageDetail>(`/solution-packages/${packageId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteSolutionPackage(packageId: string) {
+  return request<{ success: boolean }>(`/solution-packages/${packageId}`, {
     method: 'DELETE',
   });
 }

@@ -1,0 +1,12 @@
+{
+  "page": "AI 落地方案包中心",
+  "route": "/solution-packages",
+  "feature": "承接客户评估与岗位场景，沉淀方案摘要、交付路线图、验收计划、ROI 摘要和商务推进策略",
+  "created_at": "2026-05-09",
+  "assets": [
+    "00-project-ui-brief.md",
+    "01-product-ui-design-prompt.md",
+    "02-product-prototype-prompt.md",
+    "03-component-mapping.md"
+  ]
+}

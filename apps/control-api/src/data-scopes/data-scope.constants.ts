@@ -19,6 +19,7 @@ export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
   'ROLE_SCENARIO',
+  'SOLUTION_PACKAGE',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -49,6 +50,12 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: '岗位场景',
     description: '控制岗位场景包、流程编排、样板成果、验收标准和关联资产的可访问范围。',
     permission_codes: ['scenario:package:view', 'scenario:package:manage'],
+  },
+  {
+    resource_type: 'SOLUTION_PACKAGE',
+    name: '落地方案包',
+    description: '控制 AI 落地方案包、交付路线图、验收计划、ROI 摘要和商务推进策略的可访问范围。',
+    permission_codes: ['solution:package:view', 'solution:package:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

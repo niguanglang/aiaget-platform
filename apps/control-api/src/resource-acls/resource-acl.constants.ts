@@ -8,6 +8,7 @@ export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
   'ROLE_SCENARIO',
+  'SOLUTION_PACKAGE',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -63,6 +64,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: '岗位场景',
     description: '控制具体岗位场景包的查看、编辑、归档和关联资产编排。',
     permission_codes: ['scenario:package:view', 'scenario:package:manage'],
+  },
+  {
+    resource_type: 'SOLUTION_PACKAGE',
+    name: '落地方案包',
+    description: '控制具体 AI 落地方案包的查看、编辑、归档、验收和商务推进。',
+    permission_codes: ['solution:package:view', 'solution:package:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

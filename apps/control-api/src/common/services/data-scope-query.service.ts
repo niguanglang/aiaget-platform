@@ -199,6 +199,7 @@ function userOwnedWhere(resourceType: DataScopeResourceType, userIds: string[]) 
     case 'AGENT':
     case 'AGENT_TEAM':
     case 'ROLE_SCENARIO':
+    case 'SOLUTION_PACKAGE':
     case 'CUSTOMER_ASSESSMENT':
     case 'PLUGIN':
     case 'KNOWLEDGE_BASE':
@@ -235,6 +236,7 @@ function departmentOwnedWhere(resourceType: DataScopeResourceType, departmentIds
     case 'AGENT':
     case 'AGENT_TEAM':
     case 'ROLE_SCENARIO':
+    case 'SOLUTION_PACKAGE':
     case 'CUSTOMER_ASSESSMENT':
     case 'PLUGIN':
     case 'KNOWLEDGE_BASE':

@@ -470,6 +470,38 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'SOLUTION_PACKAGE': {
+        const items = await this.prisma.solutionPackage.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { customerName: contains },
+                    { industry: contains },
+                    { executiveSummary: contains },
+                    { deliveryRoadmap: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'SOLUTION_PACKAGE',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.industry ?? '未填写行业'}`,
+          status: item.status,
+        }));
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const items = await this.prisma.customerAssessment.findMany({
           where: {
@@ -790,6 +822,19 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: `${item.roleName} / ${item.departmentName}`,
+          status: item.status,
+        }));
+      }
+      case 'SOLUTION_PACKAGE': {
+        const items = await this.prisma.solutionPackage.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'SOLUTION_PACKAGE',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.industry ?? '未填写行业'}`,
           status: item.status,
         }));
       }

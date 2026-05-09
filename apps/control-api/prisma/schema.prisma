@@ -42,6 +42,7 @@ model Tenant {
   agentTeamFeedback         AgentTeamFeedback[]
   roleScenarios             RoleScenario[]
   customerAssessments       CustomerAssessment[]
+  solutionPackages          SolutionPackage[]
   agentVersions             AgentVersion[]
   agentModelBindings        AgentModelBinding[]
   agentPromptBindings       AgentPromptBinding[]
@@ -138,6 +139,7 @@ model User {
   decidedAgentTeamHandoffs      AgentTeamHandoff[]         @relation("AgentTeamHandoffDecider")
   createdAgentTeamFeedback      AgentTeamFeedback[]        @relation("AgentTeamFeedbackAuthor")
   ownedRoleScenarios            RoleScenario[]             @relation("RoleScenarioOwner")
+  ownedSolutionPackages         SolutionPackage[]          @relation("SolutionPackageOwner")
   createdAgentVersions          AgentVersion[]             @relation("AgentVersionCreator")
   agentAuditLogs                AgentAuditLog[]            @relation("AgentAuditOperator")
   ownedPromptTemplates          PromptTemplate[]           @relation("PromptTemplateOwner")
@@ -2552,6 +2554,7 @@ model CustomerAssessment {
   updatedBy           String?   @map("updated_by") @db.Uuid
   tenant              Tenant    @relation(fields: [tenantId], references: [id])
   owner               User?     @relation("CustomerAssessmentOwner", fields: [ownerId], references: [id])
+  solutionPackages    SolutionPackage[]
 
   @@index([tenantId])
   @@index([ownerId])
@@ -2604,6 +2607,7 @@ model RoleScenario {
   knowledge          KnowledgeBase?  @relation(fields: [knowledgeId], references: [id])
   tool               Tool?           @relation(fields: [toolId], references: [id])
   prompt             PromptTemplate? @relation(fields: [promptId], references: [id])
+  solutionPackages   SolutionPackage[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2624,6 +2628,62 @@ model RoleScenario {
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("role_scenario")
+}
+
+model SolutionPackage {
+  id                   String              @id @default(uuid()) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  ownerId              String?             @map("owner_id") @db.Uuid
+  customerAssessmentId String?             @map("customer_assessment_id") @db.Uuid
+  roleScenarioId       String?             @map("role_scenario_id") @db.Uuid
+  name                 String              @db.VarChar(180)
+  code                 String              @db.VarChar(100)
+  customerName         String              @map("customer_name") @db.VarChar(160)
+  industry             String?             @db.VarChar(120)
+  customerType         String              @default("UNKNOWN") @map("customer_type") @db.VarChar(40)
+  packageStage         String              @default("DISCOVERY") @map("package_stage") @db.VarChar(40)
+  status               String              @default("DRAFT") @db.VarChar(40)
+  priority             String              @default("MEDIUM") @db.VarChar(20)
+  executiveSummary     String              @map("executive_summary") @db.Text
+  businessObjectives   String              @map("business_objectives") @db.Text
+  scopeSummary         String              @map("scope_summary") @db.Text
+  scenarioBlueprint    String              @map("scenario_blueprint") @db.Text
+  deliveryRoadmap      String              @map("delivery_roadmap") @db.Text
+  acceptancePlan       String              @map("acceptance_plan") @db.Text
+  roiSummary           String              @map("roi_summary") @db.Text
+  riskMitigation       String              @map("risk_mitigation") @db.Text
+  commercialStrategy   String              @map("commercial_strategy") @db.Text
+  nextMilestone        String              @map("next_milestone") @db.Text
+  packageScore         Int                 @default(0) @map("package_score")
+  tags                 String[]            @default([])
+  notes                String?             @db.Text
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  deletedAt            DateTime?           @map("deleted_at")
+  createdBy            String?             @map("created_by") @db.Uuid
+  updatedBy            String?             @map("updated_by") @db.Uuid
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  owner                User?               @relation("SolutionPackageOwner", fields: [ownerId], references: [id])
+  customerAssessment   CustomerAssessment? @relation(fields: [customerAssessmentId], references: [id])
+  roleScenario         RoleScenario?       @relation(fields: [roleScenarioId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([customerAssessmentId])
+  @@index([roleScenarioId])
+  @@index([customerName])
+  @@index([industry])
+  @@index([customerType])
+  @@index([packageStage])
+  @@index([status])
+  @@index([priority])
+  @@index([packageScore])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("solution_package")
 }
 
 model Skill {

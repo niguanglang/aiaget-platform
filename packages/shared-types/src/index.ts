@@ -79,6 +79,8 @@ export const PERMISSION_CODES = {
   agentTeamHandoffReview: 'security:approval:handle',
   roleScenarioView: 'scenario:package:view',
   roleScenarioManage: 'scenario:package:manage',
+  solutionPackageView: 'solution:package:view',
+  solutionPackageManage: 'solution:package:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -373,6 +375,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     legacy_code: 'scenario.write',
     name: 'Scenario Package Manage',
     module: 'scenario',
+    resource: 'package',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.solutionPackageView,
+    legacy_code: 'solution_package.read',
+    name: 'Solution Package View',
+    module: 'solution',
+    resource: 'package',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.solutionPackageManage,
+    legacy_code: 'solution_package.write',
+    name: 'Solution Package Manage',
+    module: 'solution',
     resource: 'package',
     action: 'manage',
   },
@@ -938,6 +956,7 @@ export type DataScopeResourceType =
   | 'AGENT'
   | 'AGENT_TEAM'
   | 'ROLE_SCENARIO'
+  | 'SOLUTION_PACKAGE'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5311,6 +5330,128 @@ export interface UpdateRoleScenarioInput {
   knowledge_id?: string | null;
   tool_id?: string | null;
   prompt_id?: string | null;
+}
+
+export type SolutionPackageCustomerType = CustomerAssessmentType;
+export type SolutionPackageStage = 'DISCOVERY' | 'SOLUTION_DESIGN' | 'PILOT_DESIGN' | 'DELIVERY_PLAN' | 'EXPANSION';
+export type SolutionPackageStatus = 'DRAFT' | 'REVIEWING' | 'APPROVED' | 'DELIVERING' | 'CLOSED' | 'ARCHIVED';
+export type SolutionPackagePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface SolutionPackageOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface SolutionPackageCustomerAssessmentSummary {
+  id: string;
+  customer_name: string;
+  customer_type: CustomerAssessmentType;
+  decision_stage: CustomerAssessmentDecisionStage;
+  readiness_score: number;
+}
+
+export interface SolutionPackageRoleScenarioSummary {
+  id: string;
+  name: string;
+  code: string;
+  role_name: string;
+  department_name: string;
+  impact_score: number;
+}
+
+export interface SolutionPackageLinkedResources {
+  customer_assessment: SolutionPackageCustomerAssessmentSummary | null;
+  role_scenario: SolutionPackageRoleScenarioSummary | null;
+}
+
+export interface SolutionPackageListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  industry: string | null;
+  customer_type: SolutionPackageCustomerType;
+  package_stage: SolutionPackageStage;
+  status: SolutionPackageStatus;
+  priority: SolutionPackagePriority;
+  package_score: number;
+  executive_summary_preview: string;
+  roadmap_preview: string;
+  roi_preview: string;
+  owner: SolutionPackageOwnerSummary | null;
+  linked_resources: SolutionPackageLinkedResources;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SolutionPackageDetail extends SolutionPackageListItem {
+  executive_summary: string;
+  business_objectives: string;
+  scope_summary: string;
+  scenario_blueprint: string;
+  delivery_roadmap: string;
+  acceptance_plan: string;
+  roi_summary: string;
+  risk_mitigation: string;
+  commercial_strategy: string;
+  next_milestone: string;
+  notes: string | null;
+}
+
+export interface CreateSolutionPackageInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  industry?: string | null;
+  customer_type?: SolutionPackageCustomerType;
+  package_stage?: SolutionPackageStage;
+  status?: SolutionPackageStatus;
+  priority?: SolutionPackagePriority;
+  executive_summary: string;
+  business_objectives: string;
+  scope_summary: string;
+  scenario_blueprint: string;
+  delivery_roadmap: string;
+  acceptance_plan: string;
+  roi_summary: string;
+  risk_mitigation: string;
+  commercial_strategy: string;
+  next_milestone: string;
+  package_score?: number;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  customer_assessment_id?: string | null;
+  role_scenario_id?: string | null;
+}
+
+export interface UpdateSolutionPackageInput {
+  name?: string;
+  customer_name?: string;
+  industry?: string | null;
+  customer_type?: SolutionPackageCustomerType;
+  package_stage?: SolutionPackageStage;
+  status?: SolutionPackageStatus;
+  priority?: SolutionPackagePriority;
+  executive_summary?: string;
+  business_objectives?: string;
+  scope_summary?: string;
+  scenario_blueprint?: string;
+  delivery_roadmap?: string;
+  acceptance_plan?: string;
+  roi_summary?: string;
+  risk_mitigation?: string;
+  commercial_strategy?: string;
+  next_milestone?: string;
+  package_score?: number;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  customer_assessment_id?: string | null;
+  role_scenario_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

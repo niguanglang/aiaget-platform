@@ -34,6 +34,7 @@ import { RuntimeHealthController } from './runtime-health.controller';
 import { RuntimeHealthService } from './runtime-health.service';
 import { SecurityPoliciesModule } from './security-policies/security-policies.module';
 import { SkillsModule } from './skills/skills.module';
+import { SolutionPackagesModule } from './solution-packages/solution-packages.module';
 import { StorageModule } from './storage/storage.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { TenantsModule } from './tenants/tenants.module';
@@ -42,7 +43,7 @@ import { ToolsModule } from './tools/tools.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, DepartmentsModule, AgentsModule, AgentTeamsModule, RoleScenariosModule, CustomerAssessmentsModule, SkillsModule, ModelsModule, PromptsModule, KnowledgeModule, ToolGatewayModule, ToolsModule, ConversationsModule, RuntimeExecutionModule, ExternalApiModule, ApprovalsModule, MonitorModule, AuditModule, BillingModule, ChannelsModule, RolesModule, ApiKeysModule, StorageModule, SystemSettingsModule, SecurityPoliciesModule, SecurityCenterModule, MenusModule, DataScopesModule, ResourceAclsModule, PlatformEventsModule, PluginsModule],
+  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, DepartmentsModule, AgentsModule, AgentTeamsModule, RoleScenariosModule, SolutionPackagesModule, CustomerAssessmentsModule, SkillsModule, ModelsModule, PromptsModule, KnowledgeModule, ToolGatewayModule, ToolsModule, ConversationsModule, RuntimeExecutionModule, ExternalApiModule, ApprovalsModule, MonitorModule, AuditModule, BillingModule, ChannelsModule, RolesModule, ApiKeysModule, StorageModule, SystemSettingsModule, SecurityPoliciesModule, SecurityCenterModule, MenusModule, DataScopesModule, ResourceAclsModule, PlatformEventsModule, PluginsModule],
   controllers: [HealthController, RuntimeHealthController],
   providers: [
     RuntimeHealthService,

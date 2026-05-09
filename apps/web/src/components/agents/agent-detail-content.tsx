@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { hasPermission, type AgentDetail } from '@aiaget/shared-types';
+import { hasPermission, type AgentDetail, type AgentVersionItem } from '@aiaget/shared-types';
 import {
   Archive,
   ArrowLeft,
@@ -18,6 +18,7 @@ import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { AgentBindingManager } from '@/components/agents/agent-binding-manager';
+import { AgentConfirmDialog } from '@/components/agents/agent-confirm-dialog';
 import { AgentConversationTestPanel } from '@/components/agents/agent-conversation-test-panel';
 import { agentStatusLabel, agentStatusTone, agentVersionStatusLabel, formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
@@ -33,11 +34,16 @@ import {
   type ApiClientError,
 } from '@/lib/api-client';
 
+type AgentLifecycleAction = 'PUBLISH' | 'DISABLE' | 'ARCHIVE';
+
 export function AgentDetailContent({ agentId }: { agentId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useAuth();
   const [deleteTarget, setDeleteTarget] = useState<AgentDetail | null>(null);
+  const [versionCreateTarget, setVersionCreateTarget] = useState<{ id: string; name: string; changeNote: string } | null>(null);
+  const [lifecycleTarget, setLifecycleTarget] = useState<AgentLifecycleAction | null>(null);
+  const [rollbackTarget, setRollbackTarget] = useState<AgentVersionItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [versionNote, setVersionNote] = useState('');
 
@@ -52,12 +58,13 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
   });
 
   const createVersionMutation = useMutation({
-    mutationFn: (id: string) =>
+    mutationFn: ({ id, changeNote }: { id: string; changeNote: string }) =>
       createAgentVersion(id, {
-        change_note: versionNote.trim() || null,
+        change_note: changeNote.trim() || null,
       }),
     onSuccess: (agent) => {
       applyAgentResult(agent);
+      setVersionCreateTarget(null);
       setVersionNote('');
       setActionError(null);
     },
@@ -68,6 +75,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     mutationFn: publishAgent,
     onSuccess: (agent) => {
       applyAgentResult(agent);
+      setLifecycleTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -77,6 +85,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     mutationFn: ({ id, version }: { id: string; version: number }) => rollbackAgent(id, { version }),
     onSuccess: (agent) => {
       applyAgentResult(agent);
+      setRollbackTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -86,6 +95,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     mutationFn: disableAgent,
     onSuccess: (agent) => {
       applyAgentResult(agent);
+      setLifecycleTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -95,6 +105,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     mutationFn: archiveAgent,
     onSuccess: (agent) => {
       applyAgentResult(agent);
+      setLifecycleTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -122,6 +133,68 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
     rollbackMutation.isPending ||
     disableMutation.isPending ||
     archiveMutation.isPending;
+
+  function confirmVersionCreate() {
+    if (!versionCreateTarget) return;
+    createVersionMutation.mutate({
+      changeNote: versionCreateTarget.changeNote,
+      id: versionCreateTarget.id,
+    });
+  }
+
+  function confirmLifecycleAction() {
+    if (!agent || !lifecycleTarget) return;
+
+    if (lifecycleTarget === 'PUBLISH') {
+      publishMutation.mutate(agent.id);
+      return;
+    }
+
+    if (lifecycleTarget === 'DISABLE') {
+      disableMutation.mutate(agent.id);
+      return;
+    }
+
+    archiveMutation.mutate(agent.id);
+  }
+
+  function lifecycleDialogCopy(action: AgentLifecycleAction) {
+    if (!agent) {
+      return {
+        body: '',
+        confirmLabel: '确认',
+        title: '',
+      };
+    }
+
+    if (action === 'PUBLISH') {
+      return {
+        body: `这会发布智能体 ${agent.name}，外部调用和已授权用户将按当前版本配置使用它。`,
+        confirmLabel: '确认发布',
+        title: '发布智能体？',
+      };
+    }
+
+    if (action === 'DISABLE') {
+      return {
+        body: `这会停用智能体 ${agent.name}，已授权用户和外部 API Key 将无法继续调用它。`,
+        confirmLabel: '确认停用',
+        title: '停用智能体？',
+      };
+    }
+
+    return {
+      body: `这会归档智能体 ${agent.name}，后续需要重新启用或复制后才能继续维护。`,
+      confirmLabel: '确认归档',
+      title: '归档智能体？',
+    };
+  }
+
+  function lifecycleDialogPending(action: AgentLifecycleAction) {
+    if (action === 'PUBLISH') return publishMutation.isPending;
+    if (action === 'DISABLE') return disableMutation.isPending;
+    return archiveMutation.isPending;
+  }
 
   if (agentQuery.isLoading) {
     return (
@@ -184,7 +257,13 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
           </Button>
           <Button
             disabled={!canWrite || isActionPending}
-            onClick={() => createVersionMutation.mutate(agent.id)}
+            onClick={() =>
+              setVersionCreateTarget({
+                changeNote: versionNote,
+                id: agent.id,
+                name: agent.name,
+              })
+            }
             variant="outline"
           >
             <GitBranch className="size-4" />
@@ -192,14 +271,14 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
           </Button>
           <Button
             disabled={!canWrite || isActionPending || agent.versions.length === 0}
-            onClick={() => publishMutation.mutate(agent.id)}
+            onClick={() => setLifecycleTarget('PUBLISH')}
           >
             <Send className="size-4" />
             发布
           </Button>
           <Button
             disabled={!canWrite || isActionPending || agent.status === 'DISABLED' || agent.status === 'ARCHIVED'}
-            onClick={() => disableMutation.mutate(agent.id)}
+            onClick={() => setLifecycleTarget('DISABLE')}
             variant="outline"
           >
             <Power className="size-4" />
@@ -207,7 +286,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
           </Button>
           <Button
             disabled={!canWrite || isActionPending || agent.status === 'ARCHIVED'}
-            onClick={() => archiveMutation.mutate(agent.id)}
+            onClick={() => setLifecycleTarget('ARCHIVE')}
             variant="outline"
           >
             <Archive className="size-4" />
@@ -312,7 +391,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
                       <td className="px-4 py-3">
                         <Button
                           disabled={!canWrite || rollbackMutation.isPending}
-                          onClick={() => rollbackMutation.mutate({ id: agent.id, version: version.version })}
+                          onClick={() => setRollbackTarget(version)}
                           size="sm"
                           variant="outline"
                         >
@@ -354,26 +433,47 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
       </section>
 
       {deleteTarget ? (
-        <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">删除智能体？</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              这会软删除 `{deleteTarget.name}` 并返回列表。
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button onClick={() => setDeleteTarget(null)} variant="outline">
-                取消
-              </Button>
-              <Button
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget.id)}
-                variant="destructive"
-              >
-                删除
-              </Button>
-            </div>
-          </div>
-        </section>
+        <AgentConfirmDialog
+          body={`这会软删除 ${deleteTarget.name} 并返回列表，版本和审计历史会保留。`}
+          confirmLabel="确认删除"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          pending={deleteMutation.isPending}
+          title="删除智能体？"
+        />
+      ) : null}
+
+      {versionCreateTarget ? (
+        <AgentConfirmDialog
+          body={`创建 Agent 版本快照会记录智能体 ${versionCreateTarget.name} 当前资料、运行配置和资源绑定，用于后续发布或回滚。`}
+          confirmLabel="确认创建"
+          onCancel={() => setVersionCreateTarget(null)}
+          onConfirm={confirmVersionCreate}
+          pending={createVersionMutation.isPending}
+          title="创建 Agent 版本快照"
+        />
+      ) : null}
+
+      {lifecycleTarget ? (
+        <AgentConfirmDialog
+          body={lifecycleDialogCopy(lifecycleTarget).body}
+          confirmLabel={lifecycleDialogCopy(lifecycleTarget).confirmLabel}
+          onCancel={() => setLifecycleTarget(null)}
+          onConfirm={confirmLifecycleAction}
+          pending={lifecycleDialogPending(lifecycleTarget)}
+          title={lifecycleDialogCopy(lifecycleTarget).title}
+        />
+      ) : null}
+
+      {rollbackTarget ? (
+        <AgentConfirmDialog
+          body={`这会将智能体 ${agent.name} 回滚到 v${rollbackTarget.version}，当前运行配置将被历史快照覆盖。`}
+          confirmLabel="确认回滚"
+          onCancel={() => setRollbackTarget(null)}
+          onConfirm={() => rollbackMutation.mutate({ id: agent.id, version: rollbackTarget.version })}
+          pending={rollbackMutation.isPending}
+          title="回滚版本？"
+        />
       ) : null}
     </main>
   );

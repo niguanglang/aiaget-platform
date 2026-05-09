@@ -3,6 +3,7 @@ import type {
   PluginInstallationStatus,
   PluginManifestValidationIssue,
   PluginManifestValidationResult,
+  PluginPackageSignatureType,
   PluginRiskLevel,
   PluginSourceType,
   PluginToolBindingPreview,
@@ -150,6 +151,9 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
     package_source: packageMetadata.sourceUrl,
     package_sha256: packageMetadata.sha256,
     signature_present: Boolean(packageMetadata.signature),
+    package_signature: packageMetadata.signature,
+    package_signature_type: packageMetadata.signatureType,
+    package_signature_verification_url: packageMetadata.signatureVerificationUrl,
     permission_codes: permissions,
     menu_codes: menuCodes.map((code) => buildNamespacedCode('plugin', manifestCode, code, 100)),
     hook_codes: hookCodes,
@@ -241,6 +245,16 @@ function readPackageMetadata(manifest: Record<string, unknown>) {
     ),
     sha256: readString(packageObject.sha256) ?? readString(packageObject.integrity_sha256) ?? readString(manifest.package_sha256),
     signature: readString(packageObject.signature) ?? readString(packageObject.signature_bundle) ?? readString(manifest.package_signature),
+    signatureType: normalizePackageSignatureType(
+      readString(packageObject.signature_type)
+      ?? readString(packageObject.signatureType)
+      ?? readString(packageObject.type)
+      ?? readString(manifest.package_signature_type),
+    ),
+    signatureVerificationUrl:
+      readString(packageObject.verification_url)
+      ?? readString(packageObject.verificationUrl)
+      ?? readString(manifest.package_signature_verification_url),
   };
 }
 
@@ -332,6 +346,13 @@ function normalizePackageSource(value: string | null) {
   if (!value) return null;
   if (value.startsWith('s3://') || value.startsWith('minio://')) return value;
   return normalizeUrl(value);
+}
+
+function normalizePackageSignatureType(value: string | null): PluginPackageSignatureType | null {
+  const normalized = value?.trim().toUpperCase();
+  if (normalized === 'SIGSTORE' || normalized === 'PGP') return normalized;
+  if (normalized) return 'CUSTOM';
+  return null;
 }
 
 function readBoolean(value: unknown, fallback: boolean) {

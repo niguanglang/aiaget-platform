@@ -43,6 +43,7 @@ Interface contract that must appear in the UI:
   - error
   - disabled without permission
   - inline edit/save/cancel state for knowledge and tool bindings
+  - remove binding confirmation dialog before every delete API call
 
 Design requirements:
 - Make it look like a serious modern SaaS control surface, not a marketing mockup.
@@ -51,6 +52,7 @@ Design requirements:
 - Use thin borders, subtle glass surfaces, soft shadow, backdrop blur, and very restrained gradient mesh depth.
 - Keep hierarchy clean: section icon, title, short helper text, form row, then bound items list.
 - Show small operational details like binding counts, approval state, weight, and role tags.
+- Row delete icon should open a confirmation dialog explaining that the agent will stop using the selected resource.
 - Use compact, production-ready spacing and controls that clearly map to existing components.
 - Add subtle microinteraction cues only through hover and focus states; no flashy animation.
 - Overall visual direction: minimal, technical, premium, quiet, Chinese enterprise product UI.

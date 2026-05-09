@@ -14,8 +14,8 @@ Interface contract that must appear in the UI:
 - API/service functions: `listTools`, `copyTool`, `enableTool`, `disableTool`, `deleteTool`; route links to `/tools/create`, `/tools/[id]`, `/tools/[id]/edit`.
 - Main entities and fields: `name`, `code`, `tool_type`, `method`, `url`, `status`, `risk_level`, `require_approval`, `auth_type`, `call_count_today`, `failure_count_today`, `agent_reference_count`, `last_call_at`, `updated_at`.
 - Status values/enums: `ACTIVE`, `DISABLED`, `DELETED`; risk `LOW`, `MEDIUM`, `HIGH`; method `GET`, `POST`, `PUT`, `PATCH`, `DELETE`.
-- User actions: 新建工具、搜索、按类型/状态/风险筛选、清空筛选、查看详情、编辑、复制、启用/停用、删除确认。
-- Required states: loading, empty, error, disabled, permission-denied, mutation pending, delete confirmation.
+- User actions: 新建工具、搜索、按类型/状态/风险筛选、清空筛选、查看详情、编辑、复制、启用/停用确认、删除确认。
+- Required states: loading, empty, error, disabled, permission-denied, mutation pending, status confirmation, delete confirmation.
 
 Design requirements:
 - Make it look like a production SaaS/admin product, not a generic mockup.
@@ -24,10 +24,12 @@ Design requirements:
 - Use bento metrics above the table: 工具总数、已启用、今日调用、失败率.
 - Keep list rows compact and scannable; do not render JSON schemas, test panels, call logs, or full detail blocks.
 - Use a coherent component system: hero/status badges, metric cards, filter toolbar, table, row actions, confirmation dialog, empty/error states.
+- Enable/disable actions must show an impact confirmation that explains authorized Agent tool calls will be blocked or restored.
 - Style direction: 极简、科技、高级、产品感强；细边框、轻阴影、轻微玻璃质感、克制动效感。
 
 Avoid:
 - invented API fields not listed above
 - complete details embedded beside the table
 - quick test panel, JSON editor, call log cards, or agent binding lists on the list page
+- direct enable/disable mutation without confirmation
 - unreadable tiny text, decorative heavy glow, overpacked tables

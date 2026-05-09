@@ -1,17 +1,40 @@
 # Project UI Brief
 
 - Page: Channel Operations IA
-- Route family: `/channels`, `/channels/publish`, `/channels/accounts`, `/channels/templates`, `/channels/route-rules`, `/channels/jobs`, `/channels/deliveries`
+- Route family: `/channels`, `/channels/publish`, `/channels/providers`, `/channels/providers/create`, `/channels/providers/:providerId/edit`, `/channels/accounts`, `/channels/accounts/create`, `/channels/accounts/:accountId/edit`, `/channels/templates`, `/channels/templates/create`, `/channels/templates/:templateId/edit`, `/channels/route-rules`, `/channels/route-rules/create`, `/channels/route-rules/:routeRuleId/edit`, `/channels/jobs`, `/channels/jobs/:jobId`, `/channels/deliveries`, `/channels/deliveries/:deliveryId`, `/channels/replies`, `/channels/replies/:replyId`, `/channels/release`, `/channels/release/control`, `/channels/release/pipeline`, `/channels/release/gate`, `/channels/release/automation`, `/channels/release/self-healing`, `/channels/release/scheduler`, `/channels/release/reports`
 - Feature goal: Keep `/channels` as the compatible channel command center, and make each `/channels/*` route a real, focused page with its own title, query, filters, list/detail summary, and actions instead of passing a mode into `ChannelContent`.
 - Target users/roles: 渠道管理员、Agent 管理员、运营人员；view/read surfaces are gated by `channel:publish:view`, mutating configuration by `channel:publish:manage`, deploy/retry/cancel operations by `channel:publish:deploy`, disable/delete operations by `channel:publish:disable`; tenant admins bypass these checks through existing auth conventions.
 - API/service contract from `apps/web/src/lib/api-client.ts`:
   - `/channels`: `getPublishChannelOverview`, `enablePublishChannel`, `disablePublishChannel`, `checkPublishChannel`
+  - `/channels/providers`: `listChannelProviders`, `enableChannelProvider`, `disableChannelProvider`, `deleteChannelProvider`
+  - `/channels/providers/create`: `createChannelProvider`
+  - `/channels/providers/:providerId/edit`: `getChannelProvider`, `updateChannelProvider`
   - `/channels/accounts`: `listChannelProviders`, `listChannelAccounts`, `enableChannelAccount`, `disableChannelAccount`, `deleteChannelAccount`
+  - `/channels/accounts/create`: `listChannelProviders`, `createChannelAccount`
+  - `/channels/accounts/:accountId/edit`: `getChannelAccount`, `listChannelProviders`, `updateChannelAccount`
   - `/channels/templates`: `listChannelTemplates`, `enableChannelTemplate`, `disableChannelTemplate`, `deleteChannelTemplate`
+  - `/channels/templates/create`: `listChannelProviders`, `createChannelTemplate`
+  - `/channels/templates/:templateId/edit`: `getChannelTemplate`, `listChannelProviders`, `updateChannelTemplate`
   - `/channels/route-rules`: `listChannelRouteRules`, `enableChannelRouteRule`, `disableChannelRouteRule`, `deleteChannelRouteRule`
-  - `/channels/jobs`: `listChannelPublishJobs`, `cancelChannelPublishJob`, `retryChannelPublishJob`
+  - `/channels/route-rules/create`: `listChannelProviders`, `createChannelRouteRule`
+  - `/channels/route-rules/:routeRuleId/edit`: `getChannelRouteRule`, `listChannelProviders`, `updateChannelRouteRule`
+  - `/channels/jobs`: `listChannelPublishJobs`
+  - `/channels/jobs/:jobId`: `getChannelPublishJob`, `cancelChannelPublishJob`, `retryChannelPublishJob`
   - `/channels/deliveries`: `listChannelDeliveries`
-- Entities/fields/statuses: `PublishChannelListItem` (name, agent, channel, status, health_status, endpoint_url, request_count_24h, success_rate_24h), `ChannelAccountItem` (account_name, provider_name, account_key, owner, environment, readiness, credential_rotation, status), `ChannelTemplateItem` (name, template_code, template_type, language, version, provider_name, status), `ChannelRouteRuleItem` (name, priority, provider_name, match_type, target_type, fallback_target, status), `ChannelPublishJobItem` (job_no, title, job_type, status, progress_percent, retry_count, scheduled_at/started_at/finished_at, error_message), `ChannelDeliveryItem` (delivery_id, status, provider_name, account_name, target, response_status, latency_ms, retry_count, trace_id, error_message).
+  - `/channels/deliveries/:deliveryId`: `getChannelDelivery`
+  - `/channels/replies`: `listChannelReplies`
+  - `/channels/replies/:replyId`: `getChannelReply`
+- Release governance contract:
+  - `/channels/release`: `getPublishChannelOverview`, `getChannelReleaseSchedulerOverview`
+  - `/channels/release/control`: `getPublishChannelOverview`, `getChannelPublishControl`, `updateChannelPublishControl`, `requestChannelPublishApproval`, `approveChannelPublish`, `rejectChannelPublish`, `updateChannelRollout`, `rollbackChannelPublish`
+  - `/channels/release/pipeline`: `getPublishChannelOverview`, `getChannelReleasePipeline`, `startChannelReleaseBatch`, `markChannelReleaseFull`, `abortChannelReleaseBatch`
+  - `/channels/release/gate`: `getPublishChannelOverview`, `getChannelReleaseGate`, `updateChannelReleaseGate`, `evaluateChannelReleaseGate`
+  - `/channels/release/automation`: `getPublishChannelOverview`, `getChannelReleaseAutomation`, `updateChannelReleaseAutomation`, `runChannelReleaseAutomation`
+  - `/channels/release/self-healing`: `getPublishChannelOverview`, `getChannelReleaseSelfHealing`, `updateChannelReleaseSelfHealing`, `runChannelReleaseSelfHealing`
+  - `/channels/release/scheduler`: `getChannelReleaseSchedulerOverview`, `runChannelReleaseSchedulerOnce`
+  - `/channels/release/reports`: `getPublishChannelOverview`, `getChannelReleaseReport`, `listChannelReleaseReportSnapshots`, `createChannelReleaseReportSnapshot`
+- Entities/fields/statuses: `PublishChannelListItem` (name, agent, channel, status, health_status, endpoint_url, request_count_24h, success_rate_24h), `ChannelAccountItem` (account_name, provider_name, account_key, owner, environment, readiness, credential_rotation, status), `ChannelTemplateItem` (name, template_code, template_type, language, version, provider_name, status), `ChannelRouteRuleItem` (name, priority, provider_name, match_type, target_type, fallback_target, status), `ChannelPublishJobItem` (job_no, title, job_type, status, progress_percent, retry_count, updated_at), `ChannelPublishJobDetail` (scheduled_at, started_at, finished_at, error_message, timeline, payload, result), `ChannelDeliveryItem` (delivery_id, status, provider_name, account_name, target, response_status, latency_ms, retry_count), `ChannelDeliveryDetail` (request_url, request_headers, request_body, response_body, error_message, trace_id, conversation_id, run_id, external_conversation_id, external_message_id), `ChannelReplyItem` (reply_id, status, provider, channel_name, delivery_id, external_conversation_id, trace_id, replied_at), `ChannelReplyDetail` (external_message_id, conversation_id, run_id, sender, recipient, content, payload, received_at, processed_at).
 - Existing components/design system: Next App Router, React Query, `useAuth`, `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`, Tailwind utility classes, lucide icons. `ChannelContent` remains only for the legacy `/channels` overview route.
-- Required states: loading skeletons, empty states, API error banner, action success/error banner, disabled buttons for missing permission, compact filter reset, pagination, row-level details via a contained details/action area.
-- IA constraints: 子页面文件不能 import `ChannelContent`，不能传 `initialOperationsModule` 或 `focusOperationsOnly`；列表只展示核心字段，低频动作进入行内“更多”区域；不改后端 API，不做 Docker/container/middleware，不提交 git。
+- High-impact action rule: configuration enable/disable/delete, publish-channel enable/disable, job cancel/retry, Sender retry/auto-retry/cleanup, release control save/request/approve/reject/rollout/rollback, release pipeline batch start/full/abort, release gate policy save/evaluation, automation policy save/run, self-healing policy save/run, scheduler run, and release report snapshot creation must open a Chinese confirmation dialog before mutation.
+- Required states: loading skeletons, empty states, API error banner, action success/error banner, disabled buttons for missing permission, compact filter reset, pagination, row-level details via a contained details/action area, confirmation pending state.
+- IA constraints: 子页面文件不能 import `ChannelContent`，不能传 `initialOperationsModule` 或 `focusOperationsOnly`；提供方、账号、模板、路由规则列表不能嵌入对应表单，创建和编辑配置必须进入独立路由；发布任务列表不承载取消/重试和执行载荷，投递/回复列表不承载请求响应、错误全文、Trace 链路和消息载荷；发布治理总览不承载发布控制、流水线、门禁、自动推进、自愈、调度运行和报告快照工作流，这些业务对象必须进入 `/channels/release/*` 子页面；列表只展示核心字段，完整排障进入独立详情页；不做 Docker/container/middleware。

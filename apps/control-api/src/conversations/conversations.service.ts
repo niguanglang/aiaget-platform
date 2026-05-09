@@ -25,6 +25,7 @@ import {
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret } from '../models/model-secrets';
 import {
@@ -191,6 +192,8 @@ interface ModelExecutionContext {
   apiKey: string;
   model: string;
   temperature: number;
+  apiVersion: string | null;
+  maxOutputTokens: number | null;
   inputPrice: number;
   outputPrice: number;
   providerKeyId: string;
@@ -247,6 +250,8 @@ interface RuntimeModelConfig {
   api_key: string;
   model: string;
   temperature: number;
+  api_version: string | null;
+  max_output_tokens: number | null;
   input_price: number;
   output_price: number;
 }
@@ -271,6 +276,7 @@ export class ConversationsService {
     @Inject(KnowledgeService) private readonly knowledgeService: KnowledgeService,
     @Inject(ToolsService) private readonly toolsService: ToolsService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
   ) {}
 
   async list(
@@ -919,6 +925,8 @@ export class ConversationsService {
       apiKey: decryptSecret(activeKey.encryptedKey),
       model: model.model,
       temperature: Number(agent.temperature),
+      apiVersion: model.apiVersion,
+      maxOutputTokens: model.maxOutputTokens,
       inputPrice: Number(model.inputPrice),
       outputPrice: Number(model.outputPrice),
       providerKeyId: activeKey.id,
@@ -931,19 +939,13 @@ export class ConversationsService {
     preparation: PreparedConversationExecution,
   ): Promise<RuntimeConversationResponse> {
     const payload = preparation.runtimePayload;
-    if (modelContext.providerType !== 'OPENAI_COMPATIBLE') {
-      return buildProviderFailureResponse(
-        payload,
-        modelContext.model,
-        '当前仅支持 OPENAI_COMPATIBLE 模型供应商参与会话执行。',
-        preparation,
-      );
-    }
-
     const messages = await this.buildModelMessages(currentUser.tenantId, payload);
     const execution = await executeOpenAiCompatibleChat({
+      providerType: modelContext.providerType,
       apiKey: modelContext.apiKey,
       baseUrl: modelContext.baseUrl,
+      apiVersion: modelContext.apiVersion,
+      maxOutputTokens: modelContext.maxOutputTokens,
       model: modelContext.model,
       temperature: modelContext.temperature,
       messages,
@@ -967,19 +969,13 @@ export class ConversationsService {
     onDelta: (delta: string) => void,
   ): Promise<RuntimeConversationResponse> {
     const payload = preparation.runtimePayload;
-    if (modelContext.providerType !== 'OPENAI_COMPATIBLE') {
-      return buildProviderFailureResponse(
-        payload,
-        modelContext.model,
-        '当前仅支持 OPENAI_COMPATIBLE 模型供应商参与会话执行。',
-        preparation,
-      );
-    }
-
     const messages = await this.buildModelMessages(currentUser.tenantId, payload);
     const execution = await streamOpenAiCompatibleChat({
+      providerType: modelContext.providerType,
       apiKey: modelContext.apiKey,
       baseUrl: modelContext.baseUrl,
+      apiVersion: modelContext.apiVersion,
+      maxOutputTokens: modelContext.maxOutputTokens,
       model: modelContext.model,
       temperature: modelContext.temperature,
       messages,
@@ -1151,7 +1147,7 @@ export class ConversationsService {
     const outputCost = (execution.completionTokens / 1000) * modelContext.outputPrice;
     const totalCost = inputCost + outputCost;
 
-    await this.prisma.modelCallLog.create({
+    const log = await this.prisma.modelCallLog.create({
       data: {
         tenantId: currentUser.tenantId,
         providerId: modelContext.providerId,
@@ -1170,6 +1166,19 @@ export class ConversationsService {
         responseSummary: execution.responseSummary as unknown as Prisma.InputJsonValue,
         errorMessage: execution.errorMessage,
       },
+    });
+
+    await this.projectModelCall(currentUser, modelContext, {
+      traceId: execution.traceId,
+      status: execution.errorMessage ? 'FAILED' : 'SUCCESS',
+      requestModel: execution.requestModel,
+      promptTokens: execution.promptTokens,
+      completionTokens: execution.completionTokens,
+      totalTokens: execution.totalTokens,
+      totalCost,
+      latencyMs: execution.latencyMs,
+      errorMessage: execution.errorMessage,
+      sourceId: log.id,
     });
 
     await this.prisma.modelApiKey.update({
@@ -1343,7 +1352,7 @@ export class ConversationsService {
     const outputCost = (modelCall.completion_tokens / 1000) * modelContext.outputPrice;
     const totalCost = inputCost + outputCost;
 
-    await this.prisma.modelCallLog.create({
+    const log = await this.prisma.modelCallLog.create({
       data: {
         tenantId: currentUser.tenantId,
         providerId: modelContext.providerId,
@@ -1364,6 +1373,19 @@ export class ConversationsService {
       },
     });
 
+    await this.projectModelCall(currentUser, modelContext, {
+      traceId: modelCall.trace_id,
+      status: modelCall.status,
+      requestModel: modelCall.request_model,
+      promptTokens: modelCall.prompt_tokens,
+      completionTokens: modelCall.completion_tokens,
+      totalTokens: modelCall.total_tokens,
+      totalCost,
+      latencyMs: modelCall.latency_ms,
+      errorMessage: modelCall.error_message,
+      sourceId: log.id,
+    });
+
     await this.prisma.modelApiKey.update({
       where: {
         id: modelContext.providerKeyId,
@@ -1372,6 +1394,99 @@ export class ConversationsService {
         lastUsedAt: new Date(),
         updatedBy: currentUser.id,
       },
+    });
+  }
+
+  private async projectModelCall(
+    currentUser: AuthenticatedUser,
+    modelContext: ModelExecutionContext,
+    input: {
+      traceId: string;
+      status: 'SUCCESS' | 'FAILED';
+      requestModel: string;
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      totalCost: number;
+      latencyMs: number;
+      errorMessage: string | null;
+      sourceId: string;
+    },
+  ) {
+    const event = await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'RUNTIME',
+      resourceType: 'MODEL',
+      resourceId: modelContext.modelConfigId,
+      requestId: currentUser.requestId ?? null,
+      traceId: input.traceId,
+      eventSource: 'runtime',
+      eventType: input.status === 'SUCCESS' ? 'runtime.model.call.finished' : 'runtime.model.call.failed',
+      status: input.status,
+      severity: input.status === 'FAILED' ? 'ERROR' : 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: input.totalCost > 0,
+      summary: `Runtime 模型调用 ${input.requestModel}：${input.status}`,
+      payloadJson: {
+        provider_id: modelContext.providerId,
+        model_config_id: modelContext.modelConfigId,
+        provider_type: modelContext.providerType,
+        request_model: input.requestModel,
+        prompt_tokens: input.promptTokens,
+        completion_tokens: input.completionTokens,
+        total_tokens: input.totalTokens,
+        latency_ms: input.latencyMs,
+        error_message: input.errorMessage,
+      },
+      sourceSystem: 'model_call_log',
+      sourceId: input.sourceId,
+      dedupeKey: `model_call_log:${input.sourceId}:runtime.model.call`,
+    });
+
+    await this.platformEvents.recordUsage({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      subjectType: 'USER',
+      subjectId: currentUser.id,
+      resourceType: 'MODEL',
+      resourceId: modelContext.modelConfigId,
+      metricType: 'model_tokens',
+      unit: 'token',
+      quantity: input.totalTokens,
+      amount: 0,
+      currency: 'USD',
+      billable: false,
+      costSource: 'model_call_log',
+      traceId: input.traceId,
+      requestId: currentUser.requestId ?? null,
+      eventId: event.id,
+      sourceSystem: 'model_call_log',
+      sourceId: input.sourceId,
+    });
+
+    await this.platformEvents.recordUsage({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      subjectType: 'USER',
+      subjectId: currentUser.id,
+      resourceType: 'MODEL',
+      resourceId: modelContext.modelConfigId,
+      metricType: 'model_cost',
+      unit: 'usd',
+      quantity: input.totalCost,
+      amount: input.totalCost,
+      currency: 'USD',
+      billable: input.totalCost > 0,
+      costSource: 'model_call_log',
+      traceId: input.traceId,
+      requestId: currentUser.requestId ?? null,
+      eventId: event.id,
+      sourceSystem: 'model_call_log',
+      sourceId: input.sourceId,
     });
   }
 
@@ -1649,6 +1764,8 @@ function buildRuntimeExecutionPayload(
           api_key: modelContext.apiKey,
           model: modelContext.model,
           temperature: modelContext.temperature,
+          api_version: modelContext.apiVersion,
+          max_output_tokens: modelContext.maxOutputTokens,
           input_price: modelContext.inputPrice,
           output_price: modelContext.outputPrice,
         }

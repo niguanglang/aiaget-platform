@@ -91,9 +91,10 @@ const productionSecretKeys = [
   'MINIO_ROOT_PASSWORD',
 ];
 const workflowModeKeys = [
-  'AGENT_TEAM_WORKFLOW_MODE',
   'CHANNEL_RELEASE_WORKFLOW_MODE',
   'CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE',
+  'PLUGIN_ROLLBACK_WORKFLOW_MODE',
+  'PLUGIN_HOOK_WORKFLOW_MODE',
 ];
 
 const placeholderFragments = [
@@ -184,6 +185,10 @@ export function collectProductionEnvIssues(env) {
 
   if (hasValue(env.KNOWLEDGE_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.KNOWLEDGE_WORKFLOW_MODE)) {
     issues.push('KNOWLEDGE_WORKFLOW_MODE must be one of local, temporal_first, temporal');
+  }
+
+  if (hasValue(env.AGENT_TEAM_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.AGENT_TEAM_WORKFLOW_MODE)) {
+    issues.push('AGENT_TEAM_WORKFLOW_MODE must be one of local, temporal_first, temporal');
   }
 
   if (hasValue(env.OTEL_EXPORTER_OTLP_PROTOCOL) && !['http/protobuf', 'grpc'].includes(env.OTEL_EXPORTER_OTLP_PROTOCOL)) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Edit, FileArchive, ListChecks, MessageSquare, UsersRound } from 'lucide-react';
+import { Activity, ArrowLeft, Edit, FileArchive, ListChecks, MessageSquare, ShieldCheck, UsersRound } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -35,6 +35,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
   const latestRun = team?.runs[0] ?? null;
   const pendingHandoffs = team?.handoffs.filter((handoff) => handoff.status === 'PENDING').length ?? 0;
   const feedbackCount = team?.feedback.length ?? 0;
+  const qualityGateText = team ? (team.quality_gate_enabled ? '开启' : '关闭') : '-';
 
   if (teamQuery.isLoading) {
     return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载团队详情..." /></main>;
@@ -78,7 +79,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
         <MetricCard helper="反馈入口" label="反馈" value={formatInteger(feedbackCount)} />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-4">
         <div className="rounded-lg border bg-background p-5">
           <h2 className="text-sm font-semibold">基础信息</h2>
           <div className="mt-4 grid gap-3 text-sm">
@@ -86,6 +87,18 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
             <DetailRow label="负责人" value={team.owner ? `${team.owner.name} (${team.owner.email})` : '-'} />
             <DetailRow label="失败策略" value={failurePolicyLabel(team.failure_policy)} />
             <DetailRow label="更新时间" value={formatDateTime(team.updated_at)} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-background p-5">
+          <h2 className="text-sm font-semibold">策略摘要</h2>
+          <div className="mt-4 grid gap-3 text-sm">
+            <DetailRow label="主管模型" value={team.supervisor_model_name ?? '未指定'} />
+            <DetailRow label="质检门禁" value={qualityGateText} />
+            <DetailRow label="质量阈值" value={`${Math.round(team.quality_threshold * 100)}%`} />
+            <DetailRow label="Token 预算上限" value={team.budget_token_limit ? formatInteger(team.budget_token_limit) : '不限制'} />
+            <DetailRow label="成本预算上限" value={team.budget_cost_limit ? formatMoney(team.budget_cost_limit) : '不限制'} />
+            <DetailRow label="主管提示词" value={team.supervisor_prompt ?? '未配置'} />
           </div>
         </div>
 
@@ -134,7 +147,63 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
           </Link>
         </div>
       </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border bg-background p-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div>
+              <div className="flex items-center gap-2">
+                <Activity className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold">Trace 关联</h2>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">从团队详情进入最新运行的链路追踪，完整步骤图谱仍由运行详情页承载。</p>
+            </div>
+            {latestRun?.trace_id ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/monitor/traces/${encodeURIComponent(latestRun.trace_id)}`}>查看 Trace</Link>
+              </Button>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <DetailRow label="最新运行 Trace" value={latestRun?.trace_id ?? '-'} />
+            <DetailRow label="最新请求 ID" value={latestRun?.request_id ?? '-'} />
+            <DetailRow label="运行状态" value={latestRun ? teamRunStatusLabel(latestRun.status) : '-'} />
+            <DetailRow label="最近错误" value={latestRun?.error_message ?? '-'} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-background p-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold">资源授权提示</h2>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">团队运行会继续经过 RBAC、数据范围、Resource ACL 和安全策略校验。</p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={{
+                  pathname: '/resource-acls/check',
+                  query: {
+                    permission_code: 'agent:team:run',
+                    resource_id: team.id,
+                    resource_type: 'AGENT_TEAM',
+                  },
+                }}
+              >
+                模拟检查
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <DetailRow label="资源类型" value="AGENT_TEAM" />
+            <DetailRow label="资源 ID" value={team.id} />
+            <DetailRow label="运行权限" value="agent:team:run" />
+            <DetailRow label="授权入口" value="资源授权中心 / 模拟检查" />
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
-

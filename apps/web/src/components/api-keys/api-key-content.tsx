@@ -10,7 +10,16 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { deleteTenantApiKey, getExternalAgentChatEndpoint, listAgents, listTenantApiKeys, type ApiClientError } from '@/lib/api-client';
+import {
+  deleteTenantApiKey,
+  disableTenantApiKey,
+  enableTenantApiKey,
+  getExternalAgentChatEndpoint,
+  listAgents,
+  listTenantApiKeys,
+  rotateTenantApiKey,
+  type ApiClientError,
+} from '@/lib/api-client';
 
 import {
   ApiKeyRow,
@@ -33,6 +42,8 @@ export function ApiKeyContent() {
   const [notice, setNotice] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Awaited<ReturnType<typeof listTenantApiKeys>>[number] | null>(null);
+  const [apiKeyActionTarget, setApiKeyActionTarget] = useState<ApiKeyActionTarget | null>(null);
+  const [rotatedSecret, setRotatedSecret] = useState<{ name: string; secret: string } | null>(null);
 
   const apiKeysQuery = useQuery({
     queryKey: ['tenant-api-keys'],
@@ -50,6 +61,49 @@ export function ApiKeyContent() {
       setNotice(deleteTarget ? `已删除接口密钥 ${deleteTarget.name}。` : '接口密钥已删除。');
       setErrorMessage(null);
       setDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-api-keys'] });
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const disableMutation = useMutation({
+    mutationFn: disableTenantApiKey,
+    onSuccess: async (item) => {
+      setNotice(`已停用接口密钥 ${item.name}。`);
+      setErrorMessage(null);
+      setApiKeyActionTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-api-keys'] });
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const enableMutation = useMutation({
+    mutationFn: enableTenantApiKey,
+    onSuccess: async (item) => {
+      setNotice(`已启用接口密钥 ${item.name}。`);
+      setErrorMessage(null);
+      setApiKeyActionTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-api-keys'] });
+    },
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setErrorMessage(error.message);
+    },
+  });
+
+  const rotateMutation = useMutation({
+    mutationFn: rotateTenantApiKey,
+    onSuccess: async (result) => {
+      setRotatedSecret({ name: result.item.name, secret: result.api_key });
+      setNotice('接口密钥已轮换，请立即保存新密钥。');
+      setErrorMessage(null);
+      setApiKeyActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['tenant-api-keys'] });
     },
     onError: (error: ApiClientError) => {
@@ -112,6 +166,41 @@ export function ApiKeyContent() {
     void Promise.all([apiKeysQuery.refetch(), agentsQuery.refetch()]);
   }
 
+  function confirmApiKeyAction() {
+    if (!apiKeyActionTarget) return;
+    if (apiKeyActionTarget.type === 'DISABLE') {
+      disableMutation.mutate(apiKeyActionTarget.apiKey.id);
+      return;
+    }
+    if (apiKeyActionTarget.type === 'ENABLE') {
+      enableMutation.mutate(apiKeyActionTarget.apiKey.id);
+      return;
+    }
+    rotateMutation.mutate(apiKeyActionTarget.apiKey.id);
+  }
+
+  function apiKeyActionCopy(target: ApiKeyActionTarget) {
+    if (target.type === 'DISABLE') {
+      return {
+        title: '确认停用 API Key？',
+        body: `停用「${target.apiKey.name}」后，外部系统会立即无法继续使用该密钥调用 Agent。`,
+      };
+    }
+    if (target.type === 'ENABLE') {
+      return {
+        title: '确认启用 API Key？',
+        body: `启用「${target.apiKey.name}」后，外部系统可以重新使用该密钥调用授权 Agent。`,
+      };
+    }
+
+    return {
+      title: '确认轮换 API Key？',
+      body: `轮换「${target.apiKey.name}」会立即废弃旧密钥，并只在当前页面展示一次新密钥。`,
+    };
+  }
+
+  const actionPending = disableMutation.isPending || enableMutation.isPending || rotateMutation.isPending;
+
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <motion.section
@@ -155,6 +244,22 @@ export function ApiKeyContent() {
 
       <NoticeBanner message={notice} />
       <ErrorBanner message={errorMessage ?? (apiKeysQuery.isError || agentsQuery.isError ? 'API Key 数据加载失败，请检查登录状态或接口权限。' : null)} />
+
+      {rotatedSecret ? (
+        <Card className="grid gap-3 border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-sm font-semibold">请立即保存新密钥</h2>
+              <p className="mt-1 text-sm">「{rotatedSecret.name}」的新密钥只会展示一次。</p>
+            </div>
+            <Button onClick={() => void copyText(rotatedSecret.secret, '新密钥已复制。')} type="button" variant="outline">
+              <Copy className="size-4" />
+              复制新密钥
+            </Button>
+          </div>
+          <div className="break-all rounded-md border border-emerald-200 bg-white/70 px-3 py-2 font-mono text-xs">{rotatedSecret.secret}</div>
+        </Card>
+      ) : null}
 
       <Card className="grid gap-3 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -228,7 +333,16 @@ export function ApiKeyContent() {
           ) : (
             <div className="grid gap-3">
               {filteredKeys.map((apiKey) => (
-                <ApiKeyRow agents={agents} apiKey={apiKey} canManage={canManageApiKeys} key={apiKey.id} onDelete={() => setDeleteTarget(apiKey)} />
+                <ApiKeyRow
+                  agents={agents}
+                  apiKey={apiKey}
+                  canManage={canManageApiKeys}
+                  key={apiKey.id}
+                  onDelete={() => setDeleteTarget(apiKey)}
+                  onDisable={() => setApiKeyActionTarget({ apiKey, type: 'DISABLE' })}
+                  onEnable={() => setApiKeyActionTarget({ apiKey, type: 'ENABLE' })}
+                  onRotate={() => setApiKeyActionTarget({ apiKey, type: 'ROTATE' })}
+                />
               ))}
             </div>
           )}
@@ -246,6 +360,20 @@ export function ApiKeyContent() {
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
         />
       ) : null}
+      {apiKeyActionTarget ? (
+        <ConfirmDialog
+          body={apiKeyActionCopy(apiKeyActionTarget).body}
+          pending={actionPending}
+          title={apiKeyActionCopy(apiKeyActionTarget).title}
+          onCancel={() => setApiKeyActionTarget(null)}
+          onConfirm={confirmApiKeyAction}
+        />
+      ) : null}
     </main>
   );
 }
+
+type ApiKeyActionTarget = {
+  apiKey: Awaited<ReturnType<typeof listTenantApiKeys>>[number];
+  type: 'DISABLE' | 'ENABLE' | 'ROTATE';
+};

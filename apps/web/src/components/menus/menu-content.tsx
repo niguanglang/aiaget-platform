@@ -36,6 +36,7 @@ export function MenuContent() {
   const [visible, setVisible] = useState('');
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
   const [deleteTarget, setDeleteTarget] = useState<MenuListItem | null>(null);
+  const [menuStatusTarget, setMenuStatusTarget] = useState<{ id: string; name: string; enabled: boolean } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -83,6 +84,7 @@ export function MenuContent() {
   const statusMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => (enabled ? enableMenu(id) : disableMenu(id)),
     onSuccess: async () => {
+      setMenuStatusTarget(null);
       await refreshMenus();
       setActionError(null);
     },
@@ -133,6 +135,11 @@ export function MenuContent() {
       }
       return next;
     });
+  }
+
+  function confirmMenuStatusChange() {
+    if (!menuStatusTarget) return;
+    statusMutation.mutate({ id: menuStatusTarget.id, enabled: menuStatusTarget.enabled });
   }
 
   return (
@@ -282,7 +289,7 @@ export function MenuContent() {
             hierarchyPathById={hierarchyPathById}
             menus={menus}
             onDelete={setDeleteTarget}
-            onToggle={(menu) => statusMutation.mutate({ id: menu.id, enabled: !menu.enabled })}
+            onToggle={(menu) => setMenuStatusTarget({ id: menu.id, name: menu.name, enabled: !menu.enabled })}
             onToggleCollapsed={toggleCollapsed}
             pending={statusMutation.isPending}
           />
@@ -296,6 +303,17 @@ export function MenuContent() {
           title="删除菜单节点？"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
+      ) : null}
+
+      {menuStatusTarget ? (
+        <ConfirmDialog
+          body={`这会${menuStatusTarget.enabled ? '启用' : '停用'}菜单节点「${menuStatusTarget.name}」，并影响控制台导航入口、角色菜单授权入口和用户可见状态。`}
+          confirmLabel={menuStatusTarget.enabled ? '确认启用' : '确认停用'}
+          pending={statusMutation.isPending}
+          title="确认更新菜单状态"
+          onCancel={() => setMenuStatusTarget(null)}
+          onConfirm={confirmMenuStatusChange}
         />
       ) : null}
     </main>
@@ -430,12 +448,14 @@ function MenuTable({
 
 function ConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -451,7 +471,7 @@ function ConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

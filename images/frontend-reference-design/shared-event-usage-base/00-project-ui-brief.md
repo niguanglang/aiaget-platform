@@ -2,7 +2,7 @@
 
 - Project/module: Enterprise Agent Platform
 - Page: shared-event-usage-base
-- Route: /monitor
+- Route: /monitor/platform-usage 页面组
 - Feature goal: 统一平台事件、用量事件、关系链路和 rollup 聚合，作为监控、审计、成本与安全中心共用的数据底座
 - Target users/roles: 平台管理员、租户管理员、审计员、成本管理员、安全管理员
 - APIs/services:
@@ -19,10 +19,17 @@
   - `platform_usage_rollup`: period_type, period_start, period_end, event_count, quantity_total, amount_total, cost_total, error_count, success_count, retry_count
 - Existing components/design system: Next.js App Router, React Query, Tailwind CSS, lucide-react, Card, MetricCard, StatusBadge, EmptyState, Button, table-based admin layouts
 - Required states: loading, empty, error, validation, disabled, success, permission-denied
+- M73 信息架构拆分:
+  - `/monitor` 只保留监控总览、服务健康、监控事件列表和平台事件用量入口。
+  - `/monitor/platform-usage` 承载平台事件、用量趋势、账本和 Rollup 总览。
+  - `/monitor/platform-usage/events/:eventId` 承载单条平台事件详情、Payload、关联用量和事件关系。
+  - `/monitor/platform-usage/alerts` 承载异常检测、Rollup 重建和告警生命周期动作。
+  - `/monitor/platform-usage/notifications` 承载告警通知投递审计和单条重试。
+  - `/monitor/platform-usage/tasks` 承载告警通知自动重试任务和策略状态。
 - M64 收口增强:
-  - 在 `PlatformEventUsagePanel` 内提供统一筛选条。
+  - 在 `PlatformUsageOverviewContent` 内提供统一筛选条。
   - 支持按窗口、事件来源、事件类型、资源类型、指标类型、Trace ID、Request ID、关键字筛选。
-  - 支持选择平台事件并直接加载 `PlatformEventDetail`。
-  - 事件详情展示 payload、关联关系和关联用量账本。
-  - 用量账本按选中的事件、Trace 或 Request 联动筛选。
-  - 仍复用监控中心和成本中心承载，不新增一级菜单。
+  - 平台事件列表只展示核心识别字段，完整信息进入独立事件详情页。
+  - 事件详情展示 payload、关联关系和关联用量账本，不再塞入总览页。
+  - 告警生命周期、通知审计和自动重试任务拆为独立子页面。
+  - 仍复用监控中心承载，不新增一级菜单。

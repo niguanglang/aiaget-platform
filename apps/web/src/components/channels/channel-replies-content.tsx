@@ -1,6 +1,8 @@
 'use client';
 
 import type { ChannelReplyItem } from '@aiaget/shared-types';
+import { Eye } from 'lucide-react';
+import Link from 'next/link';
 
 import {
   ChannelOperationRow,
@@ -10,6 +12,7 @@ import {
   formatOptionalDateTime,
   type ChannelOperationMetric,
 } from '@/components/channels/channel-operations-pages';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listChannelReplies } from '@/lib/api-client';
 
@@ -29,7 +32,7 @@ export function ChannelRepliesContent() {
       activeRoute="replies"
       badge="回复记录"
       buildMetrics={(input) => buildReplyMetrics(input.items, input.total)}
-      description="查看入站消息回复链路，聚焦外部会话、外部消息、内部会话、运行 ID 和 Trace，便于从第三方 IM 回溯到 Agent 执行。"
+      description="查看入站消息回复链路的状态、平台、会话摘要和 Trace 覆盖情况。完整消息链路进入独立详情页。"
       emptyDescription="当前没有回复记录。外部平台回调触发 Agent 并产生回复后，会在这里形成链路记录。"
       emptyTitle="暂无回复记录"
       errorMessage="回复记录列表加载失败。"
@@ -37,7 +40,7 @@ export function ChannelRepliesContent() {
       listQuery={listChannelReplies}
       providerFilterLabel="平台/渠道"
       queryKey={repliesQueryKey}
-      renderItem={({ item, onToggle, selected }) => (
+      renderItem={({ item, onToggle, permissions, selected }) => (
         <ChannelOperationRow
           badges={
             <>
@@ -51,12 +54,7 @@ export function ChannelRepliesContent() {
             { label: '发布渠道', value: item.channel_name ?? item.channel_id ?? '未绑定' },
             { label: '投递记录', value: item.delivery_id ?? '未关联投递' },
             { label: '外部会话', value: item.external_conversation_id ?? '未记录' },
-            { label: '外部消息', value: item.external_message_id ?? '未记录' },
-            { label: '内部会话', value: item.conversation_id ?? '未生成' },
-            { label: '运行 ID', value: item.run_id ?? '未生成' },
             { label: 'Trace', value: item.trace_id ?? '未记录' },
-            { label: '内容预览', value: item.content_preview ?? '无内容预览' },
-            { label: '错误原因', value: item.error_message ?? '暂无错误' },
             { label: '回复时间', value: formatOptionalDateTime(item.replied_at ?? item.created_at) },
           ]}
           selected={selected}
@@ -66,11 +64,18 @@ export function ChannelRepliesContent() {
           ]}
           subtitle={
             <span>
-              外部会话：{item.external_conversation_id ?? '未记录'} · 外部消息：{item.external_message_id ?? '未记录'} · Trace：
-              {item.trace_id ?? '未记录'}
+              外部会话：{item.external_conversation_id ?? '未记录'} · 类型：{item.reply_type ?? '默认回复'} · Trace：{item.trace_id ? '有' : '无'}
             </span>
           }
           title={item.reply_id ?? item.external_message_id ?? item.id}
+          actions={
+            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
+              <Link href={`/channels/replies/${encodeURIComponent(item.id)}`}>
+                <Eye className="size-4" />
+                查看详情
+              </Link>
+            </Button>
+          }
           onToggle={onToggle}
         />
       )}

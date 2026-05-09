@@ -778,7 +778,7 @@ def build_model_provider_payload(
 def build_model_provider_url(config: RuntimeModelConfig) -> str:
     provider_type = config.provider_type.upper()
     if provider_type == "AZURE_OPENAI":
-        return build_azure_chat_url(config.base_url)
+        return build_azure_chat_url(config.base_url, config.api_version or "2024-06-01")
     if provider_type == "ANTHROPIC":
         return build_anthropic_messages_url(config.base_url)
     return build_chat_url(config.base_url)

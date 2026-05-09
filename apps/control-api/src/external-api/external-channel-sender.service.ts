@@ -1363,11 +1363,6 @@ function parseHeaders(value: Prisma.JsonValue | null): Record<string, string> {
   );
 }
 
-function isSensitiveKey(key: string) {
-  const normalized = key.toLowerCase();
-
-  return normalized.includes('token') || normalized.includes('key') || normalized.includes('secret') || normalized.includes('authorization') || normalized.includes('sign');
-}
 function toDeliveryStatus(status: ChannelSenderResult['status']): ChannelSenderDeliveryStatus {
   if (status === 'SENT') return 'SUCCESS';
   if (status === 'SKIPPED') return 'SKIPPED';

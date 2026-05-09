@@ -2,7 +2,6 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 
 import type {
-  ApprovalAuditEventItem,
   PaginatedResult,
   SecurityApprovalWorkbenchDetail,
   SecurityApprovalWorkbenchItem,

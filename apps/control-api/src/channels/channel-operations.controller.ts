@@ -3,12 +3,14 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import type {
   ChannelAccountItem,
+  ChannelDeliveryDetail,
   ChannelDeliveryItem,
   ChannelOperationsListResult,
   ChannelProviderItem,
   ChannelPublishJobActionResult,
   ChannelPublishJobDetail,
   ChannelPublishJobItem,
+  ChannelReplyDetail,
   ChannelReplyItem,
   ChannelRouteRuleItem,
   ChannelTemplateItem,
@@ -50,6 +52,13 @@ export class ChannelOperationsController {
     @Query() query: ListChannelOperationsDto,
   ): Promise<ChannelOperationsListResult<ChannelProviderItem>> {
     return this.operations.listProviders(currentUser, query);
+  }
+
+  @Get('providers/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get channel provider detail' })
+  async getProvider(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelProviderItem> {
+    return this.operations.getProvider(currentUser, id);
   }
 
   @Post('providers')
@@ -104,6 +113,13 @@ export class ChannelOperationsController {
     return this.operations.listAccounts(currentUser, query);
   }
 
+  @Get('accounts/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get channel account detail' })
+  async getAccount(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelAccountItem> {
+    return this.operations.getAccount(currentUser, id);
+  }
+
   @Post('accounts')
   @Permissions('channel:publish:manage')
   @ApiOkResponse({ description: 'Create channel account' })
@@ -156,6 +172,13 @@ export class ChannelOperationsController {
     return this.operations.listTemplates(currentUser, query);
   }
 
+  @Get('templates/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get channel template detail' })
+  async getTemplate(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelTemplateItem> {
+    return this.operations.getTemplate(currentUser, id);
+  }
+
   @Post('templates')
   @Permissions('channel:publish:manage')
   @ApiOkResponse({ description: 'Create channel template' })
@@ -206,6 +229,13 @@ export class ChannelOperationsController {
     @Query() query: ListChannelOperationsDto,
   ): Promise<ChannelOperationsListResult<ChannelRouteRuleItem>> {
     return this.operations.listRouteRules(currentUser, query);
+  }
+
+  @Get('route-rules/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get channel route rule detail' })
+  async getRouteRule(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelRouteRuleItem> {
+    return this.operations.getRouteRule(currentUser, id);
   }
 
   @Post('route-rules')
@@ -300,6 +330,13 @@ export class ChannelOperationsController {
     return this.operations.listDeliveries(currentUser, query);
   }
 
+  @Get('deliveries/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get normalized channel delivery detail' })
+  async getDelivery(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelDeliveryDetail> {
+    return this.operations.getDelivery(currentUser, id);
+  }
+
   @Get('replies')
   @Permissions('channel:publish:view')
   @ApiOkResponse({ description: 'List normalized channel replies' })
@@ -308,5 +345,12 @@ export class ChannelOperationsController {
     @Query() query: ListChannelOperationsDto,
   ): Promise<ChannelOperationsListResult<ChannelReplyItem>> {
     return this.operations.listReplies(currentUser, query);
+  }
+
+  @Get('replies/:id')
+  @Permissions('channel:publish:view')
+  @ApiOkResponse({ description: 'Get normalized channel reply detail' })
+  async getReply(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string): Promise<ChannelReplyDetail> {
+    return this.operations.getReply(currentUser, id);
   }
 }

@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 
 export function PromptConfirmDialog({
   body,
+  confirmLabel = '删除',
   pending,
   title,
   onCancel,
   onConfirm,
 }: {
   body: string;
+  confirmLabel?: string;
   pending: boolean;
   title: string;
   onCancel: () => void;
@@ -25,7 +27,7 @@ export function PromptConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} variant="destructive">
-            删除
+            {confirmLabel}
           </Button>
         </div>
       </div>

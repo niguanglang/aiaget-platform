@@ -42,6 +42,49 @@ def make_request(provider_type: str, base_url: str = "https://api.example.com/v1
     )
 
 
+def test_azure_openai_uses_configured_api_version(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request: urllib.request.Request, timeout: int):
+        captured["url"] = request.full_url
+        return FakeHttpResponse({
+            "model": "gpt-4o",
+            "choices": [{"message": {"content": "Azure OK"}}],
+        })
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    request = make_request("AZURE_OPENAI", "https://azure.example.com/openai/deployments/prod-gpt")
+    request.runtime_model_config.api_version = "2025-01-01-preview"
+
+    result = execute_openai_compatible_chat(request, "a" * 32)
+
+    assert result.status == "SUCCESS"
+    assert captured["url"] == "https://azure.example.com/openai/deployments/prod-gpt/chat/completions?api-version=2025-01-01-preview"
+
+
+def test_anthropic_uses_configured_max_output_tokens(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request: urllib.request.Request, timeout: int):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeHttpResponse({
+            "model": "claude-3-5-sonnet",
+            "content": [{"type": "text", "text": "Claude 已响应。"}],
+            "usage": {"input_tokens": 12, "output_tokens": 7},
+        })
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    request = make_request("ANTHROPIC", "https://api.anthropic.com/v1")
+    request.runtime_model_config.max_output_tokens = 4096
+
+    result = execute_openai_compatible_chat(request, "b" * 32)
+
+    assert result.status == "SUCCESS"
+    assert captured["body"]["max_tokens"] == 4096
+
+
 def test_deepseek_uses_openai_compatible_protocol(monkeypatch):
     captured: dict[str, object] = {}
 

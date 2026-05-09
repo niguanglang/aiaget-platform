@@ -28,7 +28,7 @@ Interface contract that must appear in the UI:
   - 添加脱敏密钥、删除密钥
   - 运行兼容性测试
   - 查看调用日志和成本规则
-- Required states: loading, empty, error, validation, disabled, success, permission-denied, no-models, no-api-keys, no-call-logs, test-running, test-failed
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, no-models, no-api-keys, no-call-logs, test-running, test-failed, confirmation dialogs for provider/model enable-disable and delete actions
 
 Design requirements:
 - Make it look like a production SaaS/admin product, not a generic mockup.
@@ -38,6 +38,7 @@ Design requirements:
 - Create/edit provider should be full-page forms for stronger separation.
 - Keep model create/edit as detail-owned actions, shown as drawer or panel inside provider detail.
 - Use a coherent component system: cards, table, status badges, forms, confirmation dialogs, test result panel, call log list.
+- Provider/model enable-disable actions must open a confirmation dialog that explains impact on Agent bindings and model dispatch before mutating state.
 - Use Chinese labels and clear enterprise admin copy.
 - Visual language: subtle border, soft shadow, backdrop-blur, restrained gradient mesh, clean product-grade spacing.
 
@@ -45,5 +46,6 @@ Avoid:
 - fake API fields not listed above
 - random charts or irrelevant model marketplace visuals
 - placing API key/test/log sections inside the provider list page
+- direct provider/model enable-disable mutation without confirmation
 - unreadable tiny text or excessive gradients
 ```

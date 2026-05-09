@@ -79,13 +79,14 @@ export class DataScopeGuard implements CanActivate {
       return true;
     }
 
+    const canonicalResourceId = resource.resourceId;
     for (const scope of scopes) {
       const allowed = await this.scopeAllowsResource(
         user.tenantId,
         user.id,
         user.departmentId ?? null,
         requirement.resourceType,
-        resourceId,
+        canonicalResourceId,
         normalizeScopeType(scope.scopeType),
         normalizeScopeValue(scope.scopeValue),
         resource.userIds,
@@ -98,11 +99,12 @@ export class DataScopeGuard implements CanActivate {
     await this.securityEvents.recordDeny(request, {
       source: 'DATA_SCOPE',
       resourceType: requirement.resourceType,
-      resourceId,
+      resourceId: canonicalResourceId,
       reason: 'Data scope denied',
       resource: {
-        id: resourceId,
+        id: canonicalResourceId,
         type: requirement.resourceType,
+        requested_id: resourceId,
         user_ids: resource.userIds,
         department_ids: resource.departmentIds,
       },

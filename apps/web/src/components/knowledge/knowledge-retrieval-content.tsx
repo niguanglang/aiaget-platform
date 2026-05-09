@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import { formatDateTime, knowledgeRetrievalModeLabel, knowledgeStatusLabel, knowledgeStatusTone } from '@/components/knowledge/knowledge-status';
 import {
+  KnowledgeConfirmDialog,
   KnowledgeWorkspaceHeader,
   PageMessage,
   RefreshButton,
@@ -29,6 +30,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
   const [retrievalMode, setRetrievalMode] = useState<KnowledgeRetrievalMode>('HYBRID');
   const [topK, setTopK] = useState(5);
   const [retrievalResult, setRetrievalResult] = useState<KnowledgeRetrievalTestResult | null>(null);
+  const [rebuildIndexTarget, setRebuildIndexTarget] = useState<{ id: string; name: string } | null>(null);
 
   const baseQuery = useQuery({
     queryKey: ['knowledge-base', knowledgeId],
@@ -44,6 +46,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
   const rebuildMutation = useMutation({
     mutationFn: rebuildKnowledgeIndex,
     onSuccess: async () => {
+      setRebuildIndexTarget(null);
       await baseQuery.refetch();
       setRetrievalError(null);
     },
@@ -74,6 +77,11 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
     retrievalMutation.mutate();
   }
 
+  function confirmRebuildIndex() {
+    if (!rebuildIndexTarget) return;
+    rebuildMutation.mutate(rebuildIndexTarget.id);
+  }
+
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <KnowledgeCenterBackground />
@@ -81,7 +89,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
         actions={
           <>
             <RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />
-            <Button disabled={!canWrite || rebuildMutation.isPending} onClick={() => rebuildMutation.mutate(knowledgeId)} variant="outline">
+            <Button disabled={!canWrite || rebuildMutation.isPending} onClick={() => setRebuildIndexTarget({ id: knowledgeId, name: base?.name ?? knowledgeId })} variant="outline">
               <Database className="size-4" />
               {rebuildMutation.isPending ? '正在重建...' : '重建索引'}
             </Button>
@@ -132,6 +140,16 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
           </div>
         )}
       </Card>
+      {rebuildIndexTarget ? (
+        <KnowledgeConfirmDialog
+          body={`确认重建知识库索引「${rebuildIndexTarget.name}」？系统会重新提交向量和关键词索引构建任务，可能影响当前 RAG 召回结果和检索延迟。`}
+          confirmLabel="确认重建"
+          onCancel={() => setRebuildIndexTarget(null)}
+          onConfirm={confirmRebuildIndex}
+          pending={rebuildMutation.isPending}
+          title="确认重建知识库索引"
+        />
+      ) : null}
     </main>
   );
 }

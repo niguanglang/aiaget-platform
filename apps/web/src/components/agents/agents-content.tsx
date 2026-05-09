@@ -6,6 +6,7 @@ import { Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { AgentConfirmDialog } from '@/components/agents/agent-confirm-dialog';
 import { useAuth } from '@/components/auth/auth-provider';
 import { agentStatusLabel, agentStatusTone, formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
@@ -280,26 +281,14 @@ export function AgentsContent() {
       </section>
 
       {deleteTarget ? (
-        <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">删除智能体？</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              这会软删除 `{deleteTarget.name}`，并保留版本和审计历史。
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button onClick={() => setDeleteTarget(null)} variant="outline">
-                取消
-              </Button>
-              <Button
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget.id)}
-                variant="destructive"
-              >
-                删除
-              </Button>
-            </div>
-          </div>
-        </section>
+        <AgentConfirmDialog
+          body={`这会软删除「${deleteTarget.name}」，并保留版本和审计历史。已发布入口和绑定关系会受到影响。`}
+          confirmLabel="确认删除"
+          pending={deleteMutation.isPending}
+          title="删除智能体？"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
       ) : null}
     </main>
   );

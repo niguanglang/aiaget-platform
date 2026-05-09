@@ -12,6 +12,8 @@ node scripts/validate-production-env.mjs .env.production
 
 The script is intentionally local and dependency-free. It does not connect to external services and does not start containers.
 
+Optional plugin package signature verification is configured through `PLUGIN_SIGNATURE_VERIFIER_URL`, `PLUGIN_SIGNATURE_VERIFIER_TOKEN`, and `PLUGIN_SIGNATURE_VERIFIER_TIMEOUT_MS`. Production validation only checks environment shape; the verifier endpoint itself should be tested by the deployment runbook against an already-running enterprise verifier service.
+
 ## Observability Template Validation
 
 `verify-observability-template.mjs` checks the production Compose OTEL env wiring and the offline monitoring templates under `deploy/monitoring`.
@@ -34,8 +36,40 @@ node scripts/verify-trace-propagation.mjs \
 
 The probe connects only to already-running endpoints. It does not start services and it uses a deterministic Runtime request without model provider credentials.
 
+## Production Smoke Probe
+
+`production-smoke.mjs` checks already-running production application endpoints:
+
+```bash
+node scripts/production-smoke.mjs \
+  --control-api https://api.example.com/api/v1 \
+  --runtime https://runtime.example.com/runtime \
+  --web https://console.example.com
+```
+
+It verifies Control API health, Runtime health through Control API, Runtime direct health, and the Web console login page. It does not start containers or touch middleware.
+
+## Production Runbook Validation
+
+`verify-production-runbook.mjs` checks that the P0-12 release runbook keeps the required release safety sections and commands.
+
+```bash
+node scripts/verify-production-runbook.mjs
+```
+
 Run its focused tests with:
 
 ```bash
 node --test scripts/tests/*.test.mjs
 ```
+
+## External API SDK Package Validation
+
+`validate-external-sdk-package.mjs` checks whether the external API SDK is ready for npm packaging. It validates package metadata, public export paths, publish config, package file allowlist, workspace dependency leakage, and the required SDK build / pack check documentation.
+
+```bash
+node scripts/validate-external-sdk-package.mjs
+pnpm --filter @aiaget/external-api-sdk pack:check
+```
+
+The validation is local and offline. It does not publish to npm, does not contact a registry, and only checks the package contract expected before release.

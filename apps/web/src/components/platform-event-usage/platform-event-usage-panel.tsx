@@ -46,9 +46,18 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
+import { PlatformUsageConfirmDialog } from '@/components/platform-event-usage/platform-usage-shared';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDateTime, formatMoney } from '@/components/monitor/monitor-status';
 import { cn } from '@/lib/utils';
+
+type PlatformUsageActionTarget =
+  | { type: 'detect-anomalies'; window: PlatformEventWindow }
+  | { type: 'rebuild-rollups'; window: PlatformEventWindow }
+  | { alertId: string; title: string; type: 'notify-alert' }
+  | { action: PlatformUsageAlertAction; alertId: string; title: string; type: 'update-alert' }
+  | { notificationEventId: string; type: 'retry-notification' }
+  | { type: 'run-auto-retry' };
 
 export function PlatformEventUsagePanel({
   compact = false,
@@ -69,6 +78,7 @@ export function PlatformEventUsagePanel({
   const [rollupNotice, setRollupNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
   const [anomalyOverview, setAnomalyOverview] = useState<PlatformUsageAnomalyOverview | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<PlatformUsageAlertNotificationStatus | ''>('');
+  const [platformUsageActionTarget, setPlatformUsageActionTarget] = useState<PlatformUsageActionTarget | null>(null);
   const activeWindow = compact ? windowValue : localWindow;
   const period = activeWindow === '24h' ? 'hour' : 'day';
   const normalizedTraceId = traceId.trim();
@@ -156,6 +166,7 @@ export function PlatformEventUsagePanel({
     },
     onSuccess: async (result) => {
       setRollupNotice({ tone: 'success', message: `Rollup 已重建 ${result.rebuilt_count} 个汇总桶。` });
+      setPlatformUsageActionTarget(null);
       await Promise.all([overviewQuery.refetch(), trendsQuery.refetch(), ledgerQuery.refetch()]);
     },
     onError: () => {
@@ -175,6 +186,7 @@ export function PlatformEventUsagePanel({
           ? `检测到 ${result.summary.anomaly_count} 条用量异常信号。`
           : '用量异常检测完成，当前窗口未发现异常信号。',
       });
+      setPlatformUsageActionTarget(null);
       await Promise.all([overviewQuery.refetch(), eventsQuery.refetch(), trendsQuery.refetch(), ledgerQuery.refetch()]);
     },
     onError: () => {
@@ -185,6 +197,7 @@ export function PlatformEventUsagePanel({
     mutationFn: ({ action, alertId }: { action: PlatformUsageAlertAction; alertId: string }) => updatePlatformUsageAlert(alertId, { action }),
     onSuccess: async (alert, variables) => {
       setRollupNotice({ tone: 'success', message: `告警已${usageAlertActionLabel(variables.action)}。` });
+      setPlatformUsageActionTarget(null);
       await Promise.all([alertsQuery.refetch(), eventsQuery.refetch(), overviewQuery.refetch()]);
       if (alert.source_event_id === selectedEventId) {
         void eventDetailQuery.refetch();
@@ -202,6 +215,7 @@ export function PlatformEventUsagePanel({
         tone: result.status === 'FAILED' ? 'error' : 'success',
         message: result.message,
       });
+      setPlatformUsageActionTarget(null);
       await Promise.all([
         alertsQuery.refetch(),
         alertNotificationsQuery.refetch(),
@@ -222,6 +236,7 @@ export function PlatformEventUsagePanel({
         tone: result.status === 'FAILED' ? 'error' : 'success',
         message: `重试完成：${result.message}`,
       });
+      setPlatformUsageActionTarget(null);
       await Promise.all([
         alertNotificationsQuery.refetch(),
         alertNotificationTaskQuery.refetch(),
@@ -242,6 +257,7 @@ export function PlatformEventUsagePanel({
         tone: result.status === 'FAILED' ? 'error' : 'success',
         message: `自动重试任务完成：扫描 ${result.scanned_count} 条，重试 ${result.retried_count} 条，成功 ${result.success_count} 条，失败 ${result.failed_count} 条。`,
       });
+      setPlatformUsageActionTarget(null);
       await Promise.all([
         alertNotificationTaskQuery.refetch(),
         alertNotificationsQuery.refetch(),
@@ -254,6 +270,50 @@ export function PlatformEventUsagePanel({
       setRollupNotice({ tone: 'error', message: '告警通知自动重试任务执行失败。' });
     },
   });
+
+  function confirmPlatformUsageAction() {
+    if (!platformUsageActionTarget) return;
+
+    if (platformUsageActionTarget.type === 'detect-anomalies') {
+      detectAnomaliesMutation.mutate();
+      return;
+    }
+
+    if (platformUsageActionTarget.type === 'rebuild-rollups') {
+      rebuildRollupsMutation.mutate();
+      return;
+    }
+
+    if (platformUsageActionTarget.type === 'notify-alert') {
+      notifyAlertMutation.mutate({ alertId: platformUsageActionTarget.alertId });
+      return;
+    }
+
+    if (platformUsageActionTarget.type === 'update-alert') {
+      updateAlertMutation.mutate({
+        action: platformUsageActionTarget.action,
+        alertId: platformUsageActionTarget.alertId,
+      });
+      return;
+    }
+
+    if (platformUsageActionTarget.type === 'retry-notification') {
+      retryAlertNotificationMutation.mutate({
+        notificationEventId: platformUsageActionTarget.notificationEventId,
+      });
+      return;
+    }
+
+    runAlertNotificationTaskMutation.mutate();
+  }
+
+  const platformUsageActionPending =
+    detectAnomaliesMutation.isPending ||
+    rebuildRollupsMutation.isPending ||
+    notifyAlertMutation.isPending ||
+    updateAlertMutation.isPending ||
+    retryAlertNotificationMutation.isPending ||
+    runAlertNotificationTaskMutation.isPending;
 
   const overview = overviewQuery.data;
   const summary = overview?.summary;
@@ -296,11 +356,21 @@ export function PlatformEventUsagePanel({
           <div className="flex flex-wrap gap-2">
             {!compact ? (
               <>
-                <Button disabled={detectAnomaliesMutation.isPending} onClick={() => detectAnomaliesMutation.mutate()} type="button" variant="outline">
+                <Button
+                  disabled={detectAnomaliesMutation.isPending}
+                  onClick={() => setPlatformUsageActionTarget({ type: 'detect-anomalies', window: activeWindow })}
+                  type="button"
+                  variant="outline"
+                >
                   <AlertTriangle className={cn('size-4', detectAnomaliesMutation.isPending && 'animate-pulse')} />
                   {detectAnomaliesMutation.isPending ? '正在检测' : '检测异常'}
                 </Button>
-                <Button disabled={rebuildRollupsMutation.isPending} onClick={() => rebuildRollupsMutation.mutate()} type="button" variant="outline">
+                <Button
+                  disabled={rebuildRollupsMutation.isPending}
+                  onClick={() => setPlatformUsageActionTarget({ type: 'rebuild-rollups', window: activeWindow })}
+                  type="button"
+                  variant="outline"
+                >
                   <GitBranch className={cn('size-4', rebuildRollupsMutation.isPending && 'animate-pulse')} />
                   {rebuildRollupsMutation.isPending ? '正在重建' : '重建 Rollup'}
                 </Button>
@@ -405,13 +475,13 @@ export function PlatformEventUsagePanel({
         <UsageAlertLifecycleCard
           loading={alertsQuery.isLoading}
           notifying={notifyAlertMutation.isPending}
-          onNotify={(alertId) => notifyAlertMutation.mutate({ alertId })}
+          onNotify={(alert) => setPlatformUsageActionTarget({ alertId: alert.alert_id, title: alert.title, type: 'notify-alert' })}
           overview={alertsQuery.data ?? null}
           pendingAlertId={updateAlertMutation.variables?.alertId ?? null}
           pendingAction={updateAlertMutation.variables?.action ?? null}
           pendingNotifyAlertId={notifyAlertMutation.variables?.alertId ?? null}
           updating={updateAlertMutation.isPending}
-          onAction={(alertId, action) => updateAlertMutation.mutate({ alertId, action })}
+          onAction={(alert, action) => setPlatformUsageActionTarget({ action, alertId: alert.alert_id, title: alert.title, type: 'update-alert' })}
           onSelectEvent={(eventId) => setSelectedEventId(eventId)}
         />
       ) : null}
@@ -419,7 +489,7 @@ export function PlatformEventUsagePanel({
       {!compact ? (
         <UsageAlertNotificationAuditCard
           loading={alertNotificationsQuery.isLoading}
-          onRetry={(notificationEventId) => retryAlertNotificationMutation.mutate({ notificationEventId })}
+          onRetry={(notificationEventId) => setPlatformUsageActionTarget({ notificationEventId, type: 'retry-notification' })}
           onSelectEvent={(eventId) => setSelectedEventId(eventId)}
           onStatusChange={setNotificationStatus}
           overview={alertNotificationsQuery.data ?? null}
@@ -433,7 +503,7 @@ export function PlatformEventUsagePanel({
         <UsageAlertNotificationTaskCard
           loading={alertNotificationTaskQuery.isLoading}
           onRefresh={() => void alertNotificationTaskQuery.refetch()}
-          onRunAutoRetry={() => runAlertNotificationTaskMutation.mutate()}
+          onRunAutoRetry={() => setPlatformUsageActionTarget({ type: 'run-auto-retry' })}
           overview={alertNotificationTaskQuery.data ?? null}
           running={runAlertNotificationTaskMutation.isPending}
         />
@@ -476,6 +546,17 @@ export function PlatformEventUsagePanel({
         <section>
           <RecentLedgerCard items={ledgerQuery.data?.items ?? []} loading={ledgerQuery.isLoading} />
         </section>
+      ) : null}
+
+      {platformUsageActionTarget ? (
+        <PlatformUsageConfirmDialog
+          body={platformUsageActionConfirmBody(platformUsageActionTarget)}
+          confirmLabel={platformUsageActionConfirmLabel(platformUsageActionTarget)}
+          onCancel={() => setPlatformUsageActionTarget(null)}
+          onConfirm={confirmPlatformUsageAction}
+          pending={platformUsageActionPending}
+          title={platformUsageActionConfirmTitle(platformUsageActionTarget)}
+        />
       ) : null}
     </section>
   );
@@ -774,8 +855,8 @@ function UsageAlertLifecycleCard({
 }: {
   loading: boolean;
   notifying: boolean;
-  onAction: (alertId: string, action: PlatformUsageAlertAction) => void;
-  onNotify: (alertId: string) => void;
+  onAction: (alert: PlatformUsageAlertItem, action: PlatformUsageAlertAction) => void;
+  onNotify: (alert: PlatformUsageAlertItem) => void;
   onSelectEvent: (eventId: string) => void;
   overview: PlatformUsageAlertOverview | null;
   pendingAction: PlatformUsageAlertAction | null;
@@ -896,7 +977,7 @@ function AlertNotifyButton({
 }: {
   alert: PlatformUsageAlertItem;
   notifying: boolean;
-  onNotify: (alertId: string) => void;
+  onNotify: (alert: PlatformUsageAlertItem) => void;
   pendingNotifyAlertId: string | null;
 }) {
   const pending = notifying && pendingNotifyAlertId === alert.alert_id;
@@ -904,7 +985,7 @@ function AlertNotifyButton({
   return (
     <Button
       disabled={pending || alert.status === 'CLOSED'}
-      onClick={() => onNotify(alert.alert_id)}
+      onClick={() => onNotify(alert)}
       size="sm"
       type="button"
       variant="outline"
@@ -924,7 +1005,7 @@ function AlertActionButton({
 }: {
   action: PlatformUsageAlertAction;
   alert: PlatformUsageAlertItem;
-  onAction: (alertId: string, action: PlatformUsageAlertAction) => void;
+  onAction: (alert: PlatformUsageAlertItem, action: PlatformUsageAlertAction) => void;
   pendingAction: PlatformUsageAlertAction | null;
   pendingAlertId: string | null;
   updating: boolean;
@@ -934,7 +1015,7 @@ function AlertActionButton({
   return (
     <Button
       disabled={pending || !canRunUsageAlertAction(alert, action)}
-      onClick={() => onAction(alert.alert_id, action)}
+      onClick={() => onAction(alert, action)}
       size="sm"
       type="button"
       variant="outline"
@@ -1602,6 +1683,33 @@ function usageAlertActionLabel(action: PlatformUsageAlertAction) {
     CLOSE: '关闭',
   };
   return labels[action];
+}
+
+function platformUsageActionConfirmTitle(target: PlatformUsageActionTarget) {
+  if (target.type === 'detect-anomalies') return '确认检测用量异常';
+  if (target.type === 'rebuild-rollups') return '确认重建 Rollup';
+  if (target.type === 'notify-alert') return '确认通知用量告警';
+  if (target.type === 'update-alert') return '确认更新告警状态';
+  if (target.type === 'retry-notification') return '确认重试告警通知';
+  return '确认运行自动重试任务';
+}
+
+function platformUsageActionConfirmLabel(target: PlatformUsageActionTarget) {
+  if (target.type === 'detect-anomalies') return '确认检测';
+  if (target.type === 'rebuild-rollups') return '确认重建';
+  if (target.type === 'notify-alert') return '确认通知';
+  if (target.type === 'update-alert') return '确认更新';
+  if (target.type === 'retry-notification') return '确认重试';
+  return '确认运行';
+}
+
+function platformUsageActionConfirmBody(target: PlatformUsageActionTarget) {
+  if (target.type === 'detect-anomalies') return `确认检测 ${target.window} 窗口内的用量异常？系统会基于 Rollup 和历史基线生成异常信号，并刷新告警队列。`;
+  if (target.type === 'rebuild-rollups') return `确认重建 ${target.window} 窗口的 Rollup 汇总？系统会重新聚合平台事件和用量账本，可能影响当前告警、趋势和成本汇总。`;
+  if (target.type === 'notify-alert') return `确认通知用量告警「${target.title}」？系统会向站内和 Webhook 目标重新投递告警通知，并记录通知审计事件。`;
+  if (target.type === 'update-alert') return `确认将用量告警「${target.title}」更新为“${usageAlertActionLabel(target.action)}”？该动作会写入统一事件流和告警生命周期记录。`;
+  if (target.type === 'retry-notification') return `确认重试告警通知「${shortId(target.notificationEventId)}」？系统会重新投递失败或部分成功的通知，并追加重试事件。`;
+  return '确认立即运行告警通知自动重试任务？系统会扫描可重试通知并追加重试投递事件。';
 }
 
 function canRunUsageAlertAction(alert: PlatformUsageAlertItem, action: PlatformUsageAlertAction) {

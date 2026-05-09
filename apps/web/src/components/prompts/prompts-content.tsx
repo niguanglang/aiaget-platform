@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type PromptStatus, type PromptTemplateListItem, type PromptType } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Copy, Edit, Eye, Plus, Search, Send, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -25,7 +25,6 @@ import {
   deletePromptTemplate,
   listPromptTemplates,
   listUsers,
-  publishPromptTemplate,
   type ApiClientError,
 } from '@/lib/api-client';
 
@@ -41,6 +40,7 @@ export function PromptsContent() {
   const [status, setStatus] = useState('');
   const [ownerId, setOwnerId] = useState('');
   const [page, setPage] = useState(1);
+  const [copyTarget, setCopyTarget] = useState<PromptTemplateListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PromptTemplateListItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -103,19 +103,7 @@ export function PromptsContent() {
     onSuccess: async (prompt) => {
       queryClient.setQueryData(['prompt-template', prompt.id], prompt);
       await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
-      setActionError(null);
-    },
-    onError: (error: ApiClientError) => setActionError(error.message),
-  });
-
-  const publishMutation = useMutation({
-    mutationFn: (id: string) =>
-      publishPromptTemplate(id, {
-        change_note: '从提示词中心列表发布',
-      }),
-    onSuccess: async (prompt) => {
-      queryClient.setQueryData(['prompt-template', prompt.id], prompt);
-      await queryClient.invalidateQueries({ queryKey: ['prompt-templates'] });
+      setCopyTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -142,6 +130,11 @@ export function PromptsContent() {
   function updateFilter(setter: (value: string) => void, value: string) {
     setter(value);
     setPage(1);
+  }
+
+  function confirmCopyPrompt() {
+    if (!copyTarget) return;
+    copyMutation.mutate(copyTarget.id);
   }
 
   return (
@@ -348,23 +341,13 @@ export function PromptsContent() {
                           </Button>
                           <Button
                             disabled={!canWrite || copyMutation.isPending}
-                            onClick={() => copyMutation.mutate(prompt.id)}
+                            onClick={() => setCopyTarget(prompt)}
                             size="sm"
                             type="button"
                             variant="outline"
                           >
                             <Copy className="size-4" />
                             复制
-                          </Button>
-                          <Button
-                            disabled={!canWrite || publishMutation.isPending || prompt.status === 'ARCHIVED'}
-                            onClick={() => publishMutation.mutate(prompt.id)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Send className="size-4" />
-                            发布
                           </Button>
                           <Button
                             disabled={!canWrite}
@@ -390,9 +373,21 @@ export function PromptsContent() {
         )}
       </Card>
 
+      {copyTarget ? (
+        <ConfirmDialog
+          body={`确认复制提示词 ${copyTarget.name}？系统会创建一份新的模板副本，后续可进入详情页调整内容、变量和版本。`}
+          confirmLabel="确认复制"
+          onCancel={() => setCopyTarget(null)}
+          onConfirm={confirmCopyPrompt}
+          pending={copyMutation.isPending}
+          title="确认复制提示词"
+        />
+      ) : null}
+
       {deleteTarget ? (
         <ConfirmDialog
           body={`这会归档提示词 ${deleteTarget.name}，并保留版本历史和审计记录。`}
+          confirmLabel="确认删除"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
           pending={deleteMutation.isPending}
@@ -447,12 +442,14 @@ function PaginationBar({
 
 function ConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -468,7 +465,7 @@ function ConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

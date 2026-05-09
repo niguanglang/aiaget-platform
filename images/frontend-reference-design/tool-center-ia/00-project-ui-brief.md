@@ -27,9 +27,10 @@
   - Open detail.
   - Edit route-level tool.
   - Copy, enable, disable, delete with disabled and error states.
+  - Enable/disable must open a confirmation dialog before mutating because it affects authorized Agent tool calls.
   - Run test only from detail page.
   - Inspect call logs and approval links only from detail page.
-- Required states: loading, empty, error, validation, disabled, permission-denied, mutation pending, delete confirmation, no logs, no agent references, test pending, test error.
+- Required states: loading, empty, error, validation, disabled, permission-denied, mutation pending, status confirmation, delete confirmation, no logs, no agent references, test pending, test error.
 - Existing components/design system:
   - Next.js App Router console shell.
   - Tailwind CSS.

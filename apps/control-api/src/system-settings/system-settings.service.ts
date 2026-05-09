@@ -53,8 +53,6 @@ const operationLogInclude = {
   },
 } satisfies Prisma.OperationLogInclude;
 
-type OperationLogRecord = Prisma.OperationLogGetPayload<{ include: typeof operationLogInclude }>;
-
 const snapshotInclude = {
   creator: {
     select: {

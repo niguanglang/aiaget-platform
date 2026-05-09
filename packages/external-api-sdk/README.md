@@ -14,6 +14,22 @@ pnpm add @aiaget/external-api-sdk
 import { createAiagetExternalApiClient } from '@aiaget/external-api-sdk';
 ```
 
+## 发布前检查
+
+SDK 已按可发布 npm 包整理，运行时不依赖 monorepo workspace 包。发布前执行：
+
+```bash
+pnpm --filter @aiaget/external-api-sdk typecheck
+pnpm --filter @aiaget/external-api-sdk build
+pnpm --filter @aiaget/external-api-sdk pack:check
+```
+
+版本号按语义化版本维护：
+
+- PATCH：兼容修复、文档或内部实现调整。
+- MINOR：新增兼容 API、事件字段或辅助函数。
+- MAJOR：移除或改变公开类型、方法签名、鉴权语义或错误结构。
+
 ## 创建客户端
 
 ```ts

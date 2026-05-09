@@ -2,15 +2,18 @@
 
 import type { ChannelRouteRuleItem } from '@aiaget/shared-types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Power, PowerOff, Trash2 } from 'lucide-react';
+import { Edit, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import {
+  ChannelActionConfirmDialog,
   ChannelOperationRow,
   ChannelOperationsListPage,
   ChannelOperationStatusBadge,
   formatNumber,
   formatOptionalDateTime,
+  useChannelOperationPermissions,
   type ChannelOperationMetric,
 } from '@/components/channels/channel-operations-pages';
 import { Button } from '@/components/ui/button';
@@ -32,8 +35,14 @@ const routeRuleStatusOptions = [
   { label: '草稿', value: 'DRAFT' },
 ];
 
+type RouteRuleActionTarget = {
+  action: 'enable' | 'disable' | 'delete';
+  item: ChannelRouteRuleItem;
+};
+
 export function ChannelRouteRulesContent() {
   const queryClient = useQueryClient();
+  const [routeRuleActionTarget, setRouteRuleActionTarget] = useState<RouteRuleActionTarget | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -43,6 +52,7 @@ export function ChannelRouteRulesContent() {
     onSuccess: async (_, variables) => {
       setActionNotice(variables.nextStatus === 'ACTIVE' ? '路由规则已启用。' : '路由规则已停用。');
       setActionError(null);
+      setRouteRuleActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: [routeRulesQueryKey] });
     },
     onError: (error: ApiClientError) => {
@@ -56,6 +66,7 @@ export function ChannelRouteRulesContent() {
     onSuccess: async () => {
       setActionNotice('路由规则已删除。');
       setActionError(null);
+      setRouteRuleActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: [routeRulesQueryKey] });
     },
     onError: (error: ApiClientError) => {
@@ -65,6 +76,7 @@ export function ChannelRouteRulesContent() {
   });
 
   return (
+    <>
     <ChannelOperationsListPage
       activeRoute="route-rules"
       actionError={actionError}
@@ -76,6 +88,9 @@ export function ChannelRouteRulesContent() {
       emptyTitle="暂无路由规则"
       errorMessage="路由规则列表加载失败。"
       getItemId={(item) => item.id}
+      headerActions={
+        <RouteRuleCreateButton />
+      }
       listQuery={listChannelRouteRules}
       providerFilterLabel="供应商/渠道"
       queryKey={routeRulesQueryKey}
@@ -111,10 +126,23 @@ export function ChannelRouteRulesContent() {
           title={item.name}
           actions={
             <>
+              {permissions.canManage ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/channels/route-rules/${encodeURIComponent(item.id)}/edit`}>
+                    <Edit className="size-4" />
+                    编辑规则
+                  </Link>
+                </Button>
+              ) : (
+                <Button disabled size="sm" type="button" variant="outline">
+                  <Edit className="size-4" />
+                  编辑规则
+                </Button>
+              )}
               {item.status === 'ACTIVE' ? (
                 <Button
                   disabled={!permissions.canDisable || routeRuleStatusMutation.isPending}
-                  onClick={() => routeRuleStatusMutation.mutate({ routeRuleId: item.id, nextStatus: 'DISABLED' })}
+                  onClick={() => setRouteRuleActionTarget({ action: 'disable', item })}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -125,7 +153,7 @@ export function ChannelRouteRulesContent() {
               ) : (
                 <Button
                   disabled={!permissions.canManage || routeRuleStatusMutation.isPending}
-                  onClick={() => routeRuleStatusMutation.mutate({ routeRuleId: item.id, nextStatus: 'ACTIVE' })}
+                  onClick={() => setRouteRuleActionTarget({ action: 'enable', item })}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -134,7 +162,7 @@ export function ChannelRouteRulesContent() {
                   启用规则
                 </Button>
               )}
-              <Button disabled={!permissions.canManage || deleteMutation.isPending} onClick={() => deleteMutation.mutate(item.id)} size="sm" type="button" variant="outline">
+              <Button disabled={!permissions.canManage || deleteMutation.isPending} onClick={() => setRouteRuleActionTarget({ action: 'delete', item })} size="sm" type="button" variant="outline">
                 <Trash2 className="size-4" />
                 删除规则
               </Button>
@@ -147,7 +175,72 @@ export function ChannelRouteRulesContent() {
       subtitle="/channels/route-rules"
       title="路由规则"
     />
+    {routeRuleActionTarget ? (
+      <ChannelActionConfirmDialog
+        body={getRouteRuleActionBody(routeRuleActionTarget)}
+        confirmLabel={getRouteRuleActionConfirmLabel(routeRuleActionTarget.action)}
+        onCancel={() => setRouteRuleActionTarget(null)}
+        onConfirm={() => {
+          if (routeRuleActionTarget.action === 'delete') {
+            deleteMutation.mutate(routeRuleActionTarget.item.id);
+            return;
+          }
+
+          routeRuleStatusMutation.mutate({
+            routeRuleId: routeRuleActionTarget.item.id,
+            nextStatus: routeRuleActionTarget.action === 'enable' ? 'ACTIVE' : 'DISABLED',
+          });
+        }}
+        pending={routeRuleActionTarget.action === 'delete' ? deleteMutation.isPending : routeRuleStatusMutation.isPending}
+        title={getRouteRuleActionTitle(routeRuleActionTarget.action)}
+        variant={routeRuleActionTarget.action === 'delete' ? 'destructive' : 'default'}
+      />
+    ) : null}
+    </>
   );
+}
+
+function RouteRuleCreateButton() {
+  const permissions = useChannelOperationPermissions();
+
+  return permissions.canManage ? (
+    <Button asChild>
+      <Link href="/channels/route-rules/create">
+        <Plus className="size-4" />
+        新建路由规则
+      </Link>
+    </Button>
+  ) : (
+    <Button disabled type="button">
+      <Plus className="size-4" />
+      新建路由规则
+    </Button>
+  );
+}
+
+function getRouteRuleActionTitle(action: RouteRuleActionTarget['action']) {
+  if (action === 'enable') return '确认启用路由规则';
+  if (action === 'disable') return '确认停用路由规则';
+
+  return '确认删除路由规则';
+}
+
+function getRouteRuleActionConfirmLabel(action: RouteRuleActionTarget['action']) {
+  if (action === 'enable') return '确认启用';
+  if (action === 'disable') return '确认停用';
+
+  return '确认删除';
+}
+
+function getRouteRuleActionBody(target: RouteRuleActionTarget) {
+  if (target.action === 'enable') {
+    return `确认启用路由规则“${target.item.name}”？启用后符合匹配条件的入站或出站流量会按该规则路由到目标渠道。`;
+  }
+  if (target.action === 'disable') {
+    return `确认停用路由规则“${target.item.name}”？停用后符合匹配条件的流量将跳过该规则，可能落入后续规则或兜底目标。`;
+  }
+
+  return `确认删除路由规则“${target.item.name}”？删除会影响匹配方式、目标渠道和兜底链路，请确认相关流量已经迁移到其他规则。`;
 }
 
 function buildRouteRuleMetrics(items: ChannelRouteRuleItem[], total: number): ChannelOperationMetric[] {

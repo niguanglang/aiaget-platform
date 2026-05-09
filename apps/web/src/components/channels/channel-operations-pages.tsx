@@ -76,6 +76,7 @@ interface ChannelOperationsPageProps<TItem> {
   errorMessage: string;
   getItemId: (item: TItem) => string;
   listQuery: (params: ChannelOperationsListParams) => Promise<ChannelOperationsListResult<TItem>>;
+  headerActions?: ReactNode;
   pageSize?: number;
   providerFilterLabel?: string;
   queryKey: string;
@@ -109,6 +110,7 @@ export function ChannelOperationsListPage<TItem>({
   emptyTitle,
   errorMessage,
   getItemId,
+  headerActions,
   listQuery,
   pageSize = 20,
   providerFilterLabel = '渠道提供方',
@@ -177,6 +179,8 @@ export function ChannelOperationsListPage<TItem>({
         onRefresh={() => void listResultQuery.refetch()}
         refreshing={listResultQuery.isFetching}
       />
+
+      {headerActions ? <div className="flex flex-wrap justify-end gap-2">{headerActions}</div> : null}
 
       <ChannelAlert tone="ready" message={actionNotice} />
       <ChannelAlert tone="error" message={actionError ?? (listResultQuery.isError ? errorMessage : null)} />
@@ -421,6 +425,41 @@ export function ChannelAlert({ message, tone }: { message?: string | null; tone:
     <Card className={tone === 'error' ? 'border-destructive/30 p-4 text-sm text-destructive' : 'border-emerald-200 p-4 text-sm text-emerald-700'}>
       {message}
     </Card>
+  );
+}
+
+export function ChannelActionConfirmDialog({
+  body,
+  confirmLabel = '确认',
+  onCancel,
+  onConfirm,
+  pending,
+  title,
+  variant = 'default',
+}: {
+  body: string;
+  confirmLabel?: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  title: string;
+  variant?: 'default' | 'destructive';
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
+      <Card className="w-full max-w-md p-5 shadow-lg">
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="outline">
+            取消
+          </Button>
+          <Button disabled={pending} onClick={onConfirm} type="button" variant={variant}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }
 

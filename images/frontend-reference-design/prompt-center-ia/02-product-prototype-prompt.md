@@ -7,6 +7,7 @@ Project context:
 - Main task flow: find a prompt in the list -> open detail -> edit content/variables -> render/test -> publish version -> review test records and Agent references
 - API/service contract: listPromptTemplates, getPromptTemplate, createPromptTemplate, updatePromptTemplate, deletePromptTemplate, copyPromptTemplate, publishPromptTemplate, rollbackPromptTemplate, renderPromptTemplate, testPromptTemplate, variable CRUD, listUsers
 - Data fields: prompt name/code/type/status/version/preview/owner/counts/updated_at; detail content/variables/versions/test_records/agent_references/audit_records
+- Responsibility boundary: publishing and rollback are version workflows inside `/prompts/[id]`; the `/prompts` list is only for discovery and single-record navigation/copy/delete.
 
 Prototype requirements:
 - Low to mid fidelity wireframe style with clear Chinese section labels.
@@ -14,7 +15,7 @@ Prototype requirements:
   - header and metrics
   - search/filter toolbar
   - table with limited fields
-  - row actions
+  - row actions: view, edit, copy, delete only
   - empty/error/loading placeholders
 - Show detail page as:
   - header actions
@@ -29,4 +30,5 @@ Avoid:
 - polished-only visuals without interaction states
 - adding unrelated prompt marketplace/plugin concepts
 - combining detail, form, and list into one page
+- placing publish, rollback, render, or test controls in the list table
 Paste the low/mid-fidelity prototype prompt here.

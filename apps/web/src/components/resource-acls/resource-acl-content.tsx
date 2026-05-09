@@ -30,6 +30,7 @@ import {
   ResourceAclPermissionNotice,
   useCanManageResourceAcl,
 } from '@/components/resource-acls/resource-acl-shared';
+import { ConfirmDialog } from '@/components/roles/role-ia-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -43,6 +44,17 @@ import {
   type ApiClientError,
 } from '@/lib/api-client';
 
+type AclActionTarget =
+  | {
+      type: 'STATUS';
+      acl: ResourceAclItem;
+      status: Exclude<ResourceAclStatus, 'DELETED'>;
+    }
+  | {
+      type: 'DELETE';
+      acl: ResourceAclItem;
+    };
+
 export function ResourceAclContent() {
   const queryClient = useQueryClient();
   const canWrite = useCanManageResourceAcl();
@@ -50,6 +62,7 @@ export function ResourceAclContent() {
   const [subjectType, setSubjectType] = useState<ResourceAclSubjectType | ''>('');
   const [effectFilter, setEffectFilter] = useState<ResourceAclEffect | ''>('');
   const [statusFilter, setStatusFilter] = useState<Exclude<ResourceAclStatus, 'DELETED'> | ''>('');
+  const [aclActionTarget, setAclActionTarget] = useState<AclActionTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -95,6 +108,7 @@ export function ResourceAclContent() {
   const deleteMutation = useMutation({
     mutationFn: deleteResourceAcl,
     onSuccess: async () => {
+      setAclActionTarget(null);
       setActionError(null);
       setSuccessMessage('资源授权已删除。');
       await refreshAcls();
@@ -108,6 +122,7 @@ export function ResourceAclContent() {
     mutationFn: ({ id, status }: { id: string; status: Exclude<ResourceAclStatus, 'DELETED'> }) =>
       updateResourceAcl(id, { status }),
     onSuccess: async () => {
+      setAclActionTarget(null);
       setActionError(null);
       setSuccessMessage('资源授权状态已更新。');
       await refreshAcls();
@@ -130,6 +145,20 @@ export function ResourceAclContent() {
     setSubjectType('');
     setEffectFilter('');
     setStatusFilter('');
+  }
+
+  function confirmAclAction() {
+    if (!aclActionTarget) return;
+
+    if (aclActionTarget.type === 'DELETE') {
+      deleteMutation.mutate(aclActionTarget.acl.id);
+      return;
+    }
+
+    statusMutation.mutate({
+      id: aclActionTarget.acl.id,
+      status: aclActionTarget.status,
+    });
   }
 
   const pending = deleteMutation.isPending || statusMutation.isPending;
@@ -195,16 +224,67 @@ export function ResourceAclContent() {
         loading={aclsQuery.isLoading}
         onDelete={(acl) => {
           if (!canWrite || deleteMutation.isPending) return;
-          deleteMutation.mutate(acl.id);
+          setAclActionTarget({ type: 'DELETE', acl });
         }}
         onToggleStatus={(acl) => {
           if (!canWrite || statusMutation.isPending) return;
-          statusMutation.mutate({ id: acl.id, status: acl.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' });
+          setAclActionTarget({
+            type: 'STATUS',
+            acl,
+            status: acl.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+          });
         }}
         pending={pending}
         writeDisabled={!canWrite}
       />
+
+      {aclActionTarget ? (
+        <AclActionConfirmDialog
+          target={aclActionTarget}
+          onCancel={() => setAclActionTarget(null)}
+          onConfirm={confirmAclAction}
+          pending={pending}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function AclActionConfirmDialog({
+  onCancel,
+  onConfirm,
+  pending,
+  target,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  target: AclActionTarget;
+}) {
+  const title =
+    target.type === 'DELETE'
+      ? '确认删除资源授权'
+      : target.status === 'ACTIVE'
+        ? '确认启用资源授权'
+        : '确认停用资源授权';
+  const body =
+    target.type === 'DELETE'
+      ? `这会删除「${target.acl.resource.name}」到「${target.acl.subject.name}」的资源授权，相关 ABAC 与对象级访问检查将立即失去该规则。`
+      : target.status === 'ACTIVE'
+        ? `这会启用「${target.acl.resource.name}」到「${target.acl.subject.name}」的资源授权，后续权限检查会重新纳入该规则。`
+        : `这会停用「${target.acl.resource.name}」到「${target.acl.subject.name}」的资源授权，后续权限检查会忽略该规则。`;
+  const confirmLabel =
+    target.type === 'DELETE' ? '确认删除' : target.status === 'ACTIVE' ? '确认启用' : '确认停用';
+
+  return (
+    <ConfirmDialog
+      body={body}
+      confirmLabel={confirmLabel}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      pending={pending}
+      title={title}
+    />
   );
 }
 

@@ -151,6 +151,8 @@ export class AgentTeamsController {
 
   @Post('runs/:runId/handoff')
   @Permissions('agent:team:run')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'runId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'runId', permissionCode: 'agent:team:run' })
   async createHandoff(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('runId') runId: string,
@@ -267,6 +269,8 @@ export class AgentTeamsController {
 
   @Post('runs/:runId/feedback')
   @Permissions('agent:team:run')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'runId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'runId', permissionCode: 'agent:team:run' })
   async createFeedback(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('runId') runId: string,

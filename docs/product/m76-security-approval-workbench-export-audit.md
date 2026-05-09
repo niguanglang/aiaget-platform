@@ -2,7 +2,7 @@
 
 ## 目标
 
-在 M117 和 M75 的统一审批工作台基础上，补齐筛选结果导出能力。安全管理员可以在 `/security` 按审批类型、状态、风险域和关键词筛选后，一键导出当前范围 CSV；平台同时写入导出审计事件，便于审计员追踪谁导出了哪些审批数据。
+在 M117 和 M75 的统一审批工作台基础上，补齐筛选结果导出能力。安全管理员可以在 `/security/alerts` 按审批类型、状态、风险域和关键词筛选后，一键导出当前范围 CSV；平台同时写入导出审计事件，便于审计员追踪谁导出了哪些审批数据。
 
 本模块不新增数据库表、不执行迁移、不启动容器、不安装中间件。
 
@@ -94,10 +94,10 @@ payload：
 
 ## 前端页面
 
-页面仍为：
+页面为：
 
 ```text
-/security
+/security/alerts
 ```
 
 统一审批工作台新增：
@@ -108,6 +108,17 @@ payload：
 3. 导出成功中文提示。
 4. 导出失败中文提示。
 5. 当前筛选命中数量说明。
+```
+
+已落地前端闭环：
+
+```text
+1. /security/alerts 的统一审批工作台筛选区展示“导出当前筛选”。
+2. 导出参数复用当前 keyword、type、status、risk_domain。
+3. 按钮在无查看权限、当前筛选无结果、列表刷新中或导出中禁用。
+4. 导出中显示“正在导出”，成功后直接下载 CSV。
+5. 成功提示展示当前筛选命中数量，失败提示使用中文错误文案。
+6. 导出不改变审批详情、通过/拒绝处理链路。
 ```
 
 ## 参考设计
@@ -146,3 +157,23 @@ manifest.json
 6. 导出成功和失败都有中文反馈。
 7. Control API typecheck 通过。
 8. Web typecheck 通过。
+
+## 验证记录
+
+已补充回归覆盖：
+
+```text
+apps/web/src/components/security/security-route-ia-contract.test.ts
+- 覆盖 /security/alerts 导出当前筛选、导出中禁用态、无结果禁用态、当前筛选命中说明和中文成功/失败反馈。
+
+apps/control-api/src/security-center/security-approval-workbench.service.test.ts
+- 覆盖导出筛选复用、CSV 字段输出和 `platform.security.approval_workbench.exported` 审计事件。
+```
+
+当前验证通过：
+
+```text
+pnpm --filter @aiaget/web test:ia
+pnpm --filter @aiaget/control-api exec tsx --test src/security-center/security-approval-workbench.service.test.ts
+pnpm --filter @aiaget/web typecheck
+```

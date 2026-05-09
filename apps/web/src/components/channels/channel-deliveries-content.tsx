@@ -1,6 +1,8 @@
 'use client';
 
 import type { ChannelDeliveryItem } from '@aiaget/shared-types';
+import { Eye } from 'lucide-react';
+import Link from 'next/link';
 
 import {
   ChannelOperationRow,
@@ -8,9 +10,9 @@ import {
   ChannelOperationStatusBadge,
   formatLatency,
   formatNumber,
-  formatOptionalDateTime,
   type ChannelOperationMetric,
 } from '@/components/channels/channel-operations-pages';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listChannelDeliveries } from '@/lib/api-client';
 
@@ -30,7 +32,7 @@ export function ChannelDeliveriesContent() {
       activeRoute="deliveries"
       badge="投递记录"
       buildMetrics={(input) => buildDeliveryMetrics(input.items, input.total)}
-      description="查看渠道投递记录的响应状态、耗时、重试次数和链路追踪标识。该页只做检索与排障，不承载配置表单。"
+      description="查看渠道投递记录的响应状态、耗时、重试次数和目标摘要。完整排障信息进入独立详情页。"
       emptyDescription="当前没有投递记录。渠道完成一次外部发送或回调后，投递记录会出现在这里。"
       emptyTitle="暂无投递记录"
       errorMessage="投递记录列表加载失败。"
@@ -38,7 +40,7 @@ export function ChannelDeliveriesContent() {
       listQuery={listChannelDeliveries}
       providerFilterLabel="供应商/渠道"
       queryKey={deliveriesQueryKey}
-      renderItem={({ item, onToggle, selected }) => (
+      renderItem={({ item, onToggle, permissions, selected }) => (
         <ChannelOperationRow
           badges={
             <>
@@ -55,10 +57,6 @@ export function ChannelDeliveriesContent() {
             { label: '响应状态', value: item.response_status ?? '无响应' },
             { label: '投递耗时', value: formatLatency(item.latency_ms) },
             { label: '重试次数', value: formatNumber(item.retry_count ?? 0) },
-            { label: '链路追踪', value: item.trace_id ?? '未记录' },
-            { label: '错误原因', value: item.error_message ?? '暂无错误' },
-            { label: '投递时间', value: formatOptionalDateTime(item.delivered_at) },
-            { label: '创建时间', value: formatOptionalDateTime(item.created_at) },
           ]}
           selected={selected}
           stats={[
@@ -67,10 +65,18 @@ export function ChannelDeliveriesContent() {
           ]}
           subtitle={
             <span>
-              响应状态：{item.response_status ?? '无'} · 链路追踪：{item.trace_id ?? '未记录'} · 目标：{item.target ?? '未记录'}
+              响应状态：{item.response_status ?? '无'} · 耗时：{formatLatency(item.latency_ms)} · 目标：{item.target ?? '未记录'}
             </span>
           }
           title={item.delivery_id ?? item.id}
+          actions={
+            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
+              <Link href={`/channels/deliveries/${encodeURIComponent(item.id)}`}>
+                <Eye className="size-4" />
+                查看详情
+              </Link>
+            </Button>
+          }
           onToggle={onToggle}
         />
       )}

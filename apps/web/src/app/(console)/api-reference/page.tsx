@@ -25,6 +25,40 @@ const externalStreamEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/c
 const externalContinueEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/conversations/{conversationId}/messages`;
 const externalContinueStreamEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/conversations/{conversationId}/messages/stream`;
 const swaggerUrl = controlApiBaseUrl.replace(/\/api\/v1\/?$/, '/api/docs');
+const sdkInstallExample = `pnpm add @aiaget/external-api-sdk
+
+import { createAiagetExternalApiClient } from "@aiaget/external-api-sdk";
+
+const client = createAiagetExternalApiClient({
+  baseUrl: "${controlApiBaseUrl}",
+  apiKey: process.env.AIAGET_API_KEY!
+});
+
+const result = await client.chat({
+  agentId: "agent-id",
+  message: "请总结今天的运行异常"
+});`;
+
+const sdkResources = [
+  {
+    title: 'SDK 包文档',
+    path: 'packages/external-api-sdk/README.md',
+    href: 'https://gitee.com/yufei_4/aiagent/blob/master/packages/external-api-sdk/README.md',
+    description: '查看安装方式、客户端初始化、非流式调用、流式调用和 Webhook 签名校验。',
+  },
+  {
+    title: '接口集成文档',
+    path: 'docs/api/external-api-sdk.md',
+    href: 'https://gitee.com/yufei_4/aiagent/blob/master/docs/api/external-api-sdk.md',
+    description: '查看 SDK 能力、发布形态、错误处理和企业集成建议。',
+  },
+  {
+    title: '发布前校验',
+    path: 'pnpm --filter @aiaget/external-api-sdk pack:check',
+    href: 'https://gitee.com/yufei_4/aiagent/blob/master/packages/external-api-sdk/package.json',
+    description: '发布或交付 SDK 前执行 typecheck、build 和 pack 检查。',
+  },
+];
 
 const curlExample = `curl -X POST "${externalChatEndpoint}" \\
   -H "Authorization: Bearer ak_xxx" \\
@@ -367,6 +401,44 @@ export default function ApiReferencePage() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]" id="sdk-package">
+        <Card className="grid gap-4 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Code2 className="size-4 text-primary" />
+            SDK 包文档
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            外部系统可以直接使用 `@aiaget/external-api-sdk` 接入 Agent 调用、流式响应和 Webhook 签名校验；包文档和发布前校验入口在这里统一暴露。
+          </p>
+          <div className="grid gap-3">
+            {sdkResources.map((resource) => (
+              <a
+                className="group grid gap-2 rounded-md border bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+                href={resource.href}
+                key={resource.path}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{resource.title}</span>
+                  <ExternalLink className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </div>
+                <div className="break-all font-mono text-xs text-muted-foreground">{resource.path}</div>
+                <p className="text-sm leading-6 text-muted-foreground">{resource.description}</p>
+              </a>
+            ))}
+          </div>
+        </Card>
+
+        <CodeCard
+          code={sdkInstallExample}
+          copied={copied === 'sdk-install'}
+          icon={<Code2 className="size-4 text-primary" />}
+          title="SDK 快速示例"
+          onCopy={() => void copyText('sdk-install', sdkInstallExample)}
+        />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">

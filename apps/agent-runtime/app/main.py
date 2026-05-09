@@ -11,6 +11,8 @@ from app.runtime.contracts import (
     ChannelReleaseAutomationWorkflowStartRequest,
     ChannelReleaseSelfHealingWorkflowStartRequest,
     HealthResponse,
+    PluginRollbackWorkflowStartRequest,
+    PluginHookWorkflowStartRequest,
     RuntimeAgentTeamRequest,
     RuntimeAgentTeamResponse,
     RuntimeConversationRequest,
@@ -28,6 +30,8 @@ from app.workflows.worker import (
     start_channel_release_automation_workflow,
     start_channel_release_self_healing_workflow,
     start_knowledge_task_workflow,
+    start_plugin_hook_workflow,
+    start_plugin_rollback_workflow,
 )
 
 
@@ -136,4 +140,24 @@ async def start_channel_release_self_healing_workflow_endpoint(
 ) -> WorkflowStartResponse:
     verify_runtime_internal_token(http_request)
     result = await start_channel_release_self_healing_workflow(request.channel_id)
+    return WorkflowStartResponse(**result)
+
+
+@app.post("/runtime/workflows/plugin-rollbacks/start", response_model=WorkflowStartResponse)
+async def start_plugin_rollback_workflow_endpoint(
+    request: PluginRollbackWorkflowStartRequest,
+    http_request: Request,
+) -> WorkflowStartResponse:
+    verify_runtime_internal_token(http_request)
+    result = await start_plugin_rollback_workflow(request.plugin_id, request.version_id, request.version)
+    return WorkflowStartResponse(**result)
+
+
+@app.post("/runtime/workflows/plugin-hooks/start", response_model=WorkflowStartResponse)
+async def start_plugin_hook_workflow_endpoint(
+    request: PluginHookWorkflowStartRequest,
+    http_request: Request,
+) -> WorkflowStartResponse:
+    verify_runtime_internal_token(http_request)
+    result = await start_plugin_hook_workflow(request.event_id, request.plugin_id, request.hook_id)
     return WorkflowStartResponse(**result)

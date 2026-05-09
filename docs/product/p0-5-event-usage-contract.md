@@ -178,6 +178,7 @@ security.approval.rejected
 billing.subscription.updated
 billing.quota_policy.updated
 billing.quota.blocked
+billing.quota.warned
 billing.invoice.recalculated
 billing.invoice.locked
 billing.invoice.paid
@@ -216,6 +217,19 @@ workflow.task.recovered
 | `agent_team_runs` | `run` | Agent Team |
 | `agent_team_cost` | `usd` | Agent Team 汇总成本 |
 | `approval_requests` | `request` | 安全审批 |
+
+## 计费额度抽象指标映射
+
+`/billing/quota/enforce` 不直接按抽象指标名查询用量，而是把策略指标映射到具体 `platform_usage_event.metric_type`：
+
+| quota metric | concrete usage metrics / source |
+| --- | --- |
+| `COST` | `model_cost`、`agent_team_cost`、`channel_external_tokens`、`channel_callback_tokens`、`knowledge_queries`、`plugin_invocations` 的 `amount` |
+| `TOKEN` | `model_tokens`、`channel_external_tokens`、`channel_callback_tokens` 的 `quantity` |
+| `MODEL_CALL` | `model_call_log` 条数 |
+| `API_CALL` | `external_agent_requests`、`api_key_requests`、`channel_external_requests`、`channel_callback_messages`、`channel_sender_messages`、`channel_sender_retry_messages`、`channel_sender_auto_retry_messages`、`tool_calls`、`knowledge_queries`、`plugin_invocations`、`webhook_deliveries`、`channel_deliveries`、`approval_requests` |
+| `AGENT_RUN` | `conversation_run` 条数 + `agent_team_runs` |
+| `STORAGE_GB` | `storage_bytes` 的 `quantity` 按 GiB 换算 |
 
 ## 资源类型规范
 

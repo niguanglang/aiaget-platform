@@ -1,24 +1,29 @@
 {
   "name": "@aiaget/external-api-sdk",
   "version": "0.1.0",
-  "private": true,
+  "description": "TypeScript SDK for AIAGET Enterprise Agent Platform external APIs.",
+  "license": "MIT",
   "type": "module",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "dependencies": {
-    "@aiaget/shared-types": "workspace:*"
-  },
-  "devDependencies": {
-    "@aiaget/tsconfig": "workspace:*"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm build",
+    "pack:check": "pnpm typecheck && pnpm build && npm pack --dry-run"
   }
 }

@@ -1,4 +1,4 @@
-import type { ModelProviderDetail } from '@aiaget/shared-types';
+import type { ModelApiKeyItem, ModelProviderDetail } from '@aiaget/shared-types';
 import { KeyRound, Trash2 } from 'lucide-react';
 
 import { formatDateTime } from '@/components/models/model-status';
@@ -26,7 +26,7 @@ export function ModelApiKeyCard({
   onAddKey: () => void;
   onChangeApiKey: (value: string) => void;
   onChangeKeyName: (value: string) => void;
-  onDeleteKey: (keyId: string) => void;
+  onDeleteKey: (key: ModelApiKeyItem) => void;
   provider: ModelProviderDetail;
 }) {
   return (
@@ -55,7 +55,7 @@ export function ModelApiKeyCard({
                   {key.masked_key} · 前缀 {key.key_prefix} · 最近使用 {formatDateTime(key.last_used_at)}
                 </div>
               </div>
-              <Button disabled={!canWrite || deleteKeyPending} onClick={() => onDeleteKey(key.id)} size="sm" type="button" variant="outline">
+              <Button disabled={!canWrite || deleteKeyPending} onClick={() => onDeleteKey(key)} size="sm" type="button" variant="outline">
                 <Trash2 className="size-4" />
                 删除
               </Button>

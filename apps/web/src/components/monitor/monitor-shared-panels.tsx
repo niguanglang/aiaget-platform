@@ -6,6 +6,7 @@ import type {
   MonitorTraceDetail,
   MonitorTraceSummaryItem,
   RuntimeWorkflowStatusOverview,
+  RuntimeWorkflowRecoverableTaskItem,
   RuntimeWorkflowTaskType,
 } from '@aiaget/shared-types';
 import { Copy, GitBranch, RotateCcw } from 'lucide-react';
@@ -273,7 +274,7 @@ export function WorkflowBackendCard({
   retrying,
   workflow,
 }: {
-  canRetry: boolean;
+  canRetry: (task: RuntimeWorkflowRecoverableTaskItem) => boolean;
   loading: boolean;
   onRefresh: () => void;
   onRetry: (taskType: RuntimeWorkflowTaskType, taskId: string) => void;
@@ -331,11 +332,13 @@ export function WorkflowBackendCard({
                   <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.error_message ?? '任务失败，等待恢复。'}</p>
                   <div className="mt-1 flex flex-wrap gap-2 font-mono text-xs text-muted-foreground">
                     <span>{task.task_id}</span>
+                    {task.team_id ? <span>团队 {task.team_id}</span> : null}
+                    {task.run_id ? <span>运行 {task.run_id}</span> : null}
                     {task.channel_id ? <span>渠道 {task.channel_id}</span> : null}
                     <span>{formatDateTime(task.updated_at)}</span>
                   </div>
                 </div>
-                <Button disabled={!canRetry || pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
+                <Button disabled={!canRetry(task) || pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
                   <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />
                   恢复重试
                 </Button>
@@ -436,8 +439,11 @@ function workflowBackendStatusLabel(value: RuntimeWorkflowStatusOverview['backen
 function workflowTaskTypeLabel(value: RuntimeWorkflowTaskType) {
   const labels: Record<RuntimeWorkflowTaskType, string> = {
     knowledge_task: '知识库任务',
+    agent_team_run: '团队协作运行',
     channel_release_automation: '渠道自动推进',
     channel_release_self_healing: '渠道发布自愈',
+    plugin_rollback: '插件回滚',
+    plugin_hook_execution: '插件 Hook 执行',
   };
 
   return labels[value];

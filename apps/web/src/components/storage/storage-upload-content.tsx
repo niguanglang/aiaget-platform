@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { uploadStorageObject } from '@/lib/api-client';
 
 import {
+  ConfirmCard,
   fileToBase64,
   formatBytes,
   invalidateStorage,
@@ -25,6 +26,7 @@ export function StorageUploadContent() {
   const storagePermissions = useStoragePermissions();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadFolder, setUploadFolder] = useState('uploads');
+  const [uploadTarget, setUploadTarget] = useState<{ fileName: string; fileSize: number; folder: string } | null>(null);
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -41,11 +43,16 @@ export function StorageUploadContent() {
     },
     onSuccess: async () => {
       setSelectedFile(null);
+      setUploadTarget(null);
       await invalidateStorage(queryClient);
     },
   });
 
   const uploadedItem = uploadMutation.data?.item ?? null;
+
+  function confirmUpload() {
+    uploadMutation.mutate();
+  }
 
   return (
     <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
@@ -108,7 +115,19 @@ export function StorageUploadContent() {
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button disabled={!storagePermissions.canManage || !selectedFile || uploadMutation.isPending} onClick={() => uploadMutation.mutate()} type="button">
+          <Button
+            disabled={!storagePermissions.canManage || !selectedFile || uploadMutation.isPending}
+            onClick={() =>
+              selectedFile
+                ? setUploadTarget({
+                    fileName: selectedFile.name,
+                    fileSize: selectedFile.size,
+                    folder: uploadFolder,
+                  })
+                : null
+            }
+            type="button"
+          >
             <UploadCloud className="size-4" />
             {uploadMutation.isPending ? '正在上传...' : '上传到 MinIO'}
           </Button>
@@ -118,6 +137,16 @@ export function StorageUploadContent() {
             </Button>
           ) : null}
         </div>
+        {uploadTarget ? (
+          <ConfirmCard
+            body={`确认上传文件到 MinIO：${uploadTarget.fileName}，大小 ${formatBytes(uploadTarget.fileSize)}，目标目录 ${uploadTarget.folder || '根目录'}。`}
+            confirmLabel="确认上传"
+            onCancel={() => setUploadTarget(null)}
+            onConfirm={confirmUpload}
+            pending={uploadMutation.isPending}
+            title="确认上传文件到 MinIO"
+          />
+        ) : null}
       </Card>
     </main>
   );

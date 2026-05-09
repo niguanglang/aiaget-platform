@@ -27,7 +27,7 @@ export function PromptVariablesCard({
   deletePending: boolean;
   prompt: PromptTemplateDetail;
   onCreate: () => void;
-  onDelete: (variableId: string) => void;
+  onDelete: (variable: PromptVariableItem) => void;
   onEdit: (variable: PromptVariableItem) => void;
 }) {
   return (
@@ -95,7 +95,7 @@ export function PromptVariablesCard({
                       </Button>
                       <Button
                         disabled={!canWrite || deletePending}
-                        onClick={() => onDelete(variable.id)}
+                        onClick={() => onDelete(variable)}
                         size="sm"
                         title="删除变量"
                         variant="outline"

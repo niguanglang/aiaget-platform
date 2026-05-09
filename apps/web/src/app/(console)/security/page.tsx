@@ -1,5 +1,5 @@
-import { SecurityPolicyContent } from '@/components/security/security-policy-content';
+import { SecurityOverviewContent } from '@/components/security/security-overview-content';
 
-export default function SecurityPolicyPage() {
-  return <SecurityPolicyContent />;
+export default function SecurityPage() {
+  return <SecurityOverviewContent />;
 }

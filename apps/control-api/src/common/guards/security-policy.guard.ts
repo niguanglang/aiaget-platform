@@ -2,8 +2,6 @@ import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable }
 import { Reflector } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
 
-import type { ResourceAclResourceType } from '@aiaget/shared-types';
-
 import { PrismaService } from '../../prisma/prisma.service';
 import { evaluateSecurityPolicies, type PolicyLike } from '../../security-policies/security-policy-evaluator';
 import { RESOURCE_ACL_KEY, type ResourceAclRequirement } from '../decorators/resource-acl.decorator';
@@ -32,6 +30,13 @@ export class SecurityPolicyGuard implements CanActivate {
     const resourceId = resolveRequestParam(request, requirement.idParam ?? 'id');
     if (!resourceId) return true;
 
+    const canonicalResourceId = await this.resourceAccess.resolveCanonicalResourceId(
+      user.tenantId,
+      requirement.resourceType,
+      resourceId,
+    );
+    if (!canonicalResourceId) return true;
+
     const policies = await this.prisma.securityPolicy.findMany({
       where: {
         tenantId: user.tenantId,
@@ -53,13 +58,14 @@ export class SecurityPolicyGuard implements CanActivate {
     const accessInfo = await this.resourceAccess.getResourceAccessInfo(
       user.tenantId,
       requirement.resourceType,
-      resourceId,
+      canonicalResourceId,
     );
     const subject = buildSubject(user);
     const resource = {
-      id: resourceId,
+      id: canonicalResourceId,
       type: requirement.resourceType.toLowerCase(),
       resource_type: requirement.resourceType,
+      requested_id: resourceId,
       user_ids: accessInfo?.userIds ?? [],
       department_ids: accessInfo?.departmentIds ?? [],
     };
@@ -80,7 +86,7 @@ export class SecurityPolicyGuard implements CanActivate {
       await this.securityEvents.recordDeny(request, {
         source: 'SECURITY_POLICY',
         resourceType: requirement.resourceType,
-        resourceId,
+        resourceId: canonicalResourceId,
         action,
         reason: result.reason,
         matchedCode: result.matchedPolicy?.code ?? null,

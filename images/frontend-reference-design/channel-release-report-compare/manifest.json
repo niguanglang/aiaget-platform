@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-08T09:21:20.825970+00:00",
+  "page": "Channel Release Report Compare",
+  "route": "/channels/release/reports",
+  "feature": "渠道发布复盘快照详情与版本对比",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

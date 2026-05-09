@@ -2,10 +2,12 @@
 
 import type { ChannelAccountItem, ChannelProviderItem } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Power, PowerOff, Trash2 } from 'lucide-react';
+import { Edit, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import {
+  ChannelActionConfirmDialog,
   ChannelOperationRow,
   ChannelOperationsListPage,
   channelReadinessLabel,
@@ -14,6 +16,7 @@ import {
   formatOptionalDateTime,
   formatPercent,
   ChannelOperationStatusBadge,
+  useChannelOperationPermissions,
   type ChannelOperationMetric,
 } from '@/components/channels/channel-operations-pages';
 import { Button } from '@/components/ui/button';
@@ -37,8 +40,15 @@ const accountStatusOptions = [
   { label: '已过期', value: 'EXPIRED' },
 ];
 
+type AccountActionTarget = {
+  action: 'enable' | 'disable' | 'delete';
+  item: ChannelAccountItem;
+};
+
 export function ChannelAccountsContent() {
+  const permissions = useChannelOperationPermissions();
   const queryClient = useQueryClient();
+  const [accountActionTarget, setAccountActionTarget] = useState<AccountActionTarget | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -50,6 +60,7 @@ export function ChannelAccountsContent() {
     onSuccess: async (_, variables) => {
       setActionNotice(variables.nextStatus === 'ACTIVE' ? '账号凭据已启用。' : '账号凭据已停用。');
       setActionError(null);
+      setAccountActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: [accountsQueryKey] });
     },
     onError: (error: ApiClientError) => {
@@ -63,6 +74,7 @@ export function ChannelAccountsContent() {
     onSuccess: async () => {
       setActionNotice('账号凭据已删除。');
       setActionError(null);
+      setAccountActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: [accountsQueryKey] });
     },
     onError: (error: ApiClientError) => {
@@ -74,6 +86,7 @@ export function ChannelAccountsContent() {
   const providers = providersQuery.data?.items ?? [];
 
   return (
+    <>
     <ChannelOperationsListPage
       activeRoute="accounts"
       actionError={actionError ?? (providersQuery.isError ? '渠道提供方加载失败，账号列表仍可单独查看。' : null)}
@@ -85,6 +98,21 @@ export function ChannelAccountsContent() {
       emptyTitle="暂无账号凭据"
       errorMessage="账号凭据列表加载失败。"
       getItemId={(item) => item.id}
+      headerActions={
+        permissions.canManage ? (
+          <Button asChild>
+            <Link href="/channels/accounts/create">
+              <Plus className="size-4" />
+              新建账号凭据
+            </Link>
+          </Button>
+        ) : (
+          <Button disabled type="button">
+            <Plus className="size-4" />
+            新建账号凭据
+          </Button>
+        )
+      }
       listQuery={listChannelAccounts}
       queryKey={accountsQueryKey}
       renderItem={({ item, onToggle, permissions, selected }) => (
@@ -117,10 +145,23 @@ export function ChannelAccountsContent() {
           title={item.account_name}
           actions={
             <>
+              {permissions.canManage ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/channels/accounts/${encodeURIComponent(item.id)}/edit`}>
+                    <Edit className="size-4" />
+                    编辑账号
+                  </Link>
+                </Button>
+              ) : (
+                <Button disabled size="sm" type="button" variant="outline">
+                  <Edit className="size-4" />
+                  编辑账号
+                </Button>
+              )}
               {item.status === 'ACTIVE' ? (
                 <Button
                   disabled={!permissions.canDisable || accountStatusMutation.isPending}
-                  onClick={() => accountStatusMutation.mutate({ accountId: item.id, nextStatus: 'DISABLED' })}
+                  onClick={() => setAccountActionTarget({ action: 'disable', item })}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -131,7 +172,7 @@ export function ChannelAccountsContent() {
               ) : (
                 <Button
                   disabled={!permissions.canManage || accountStatusMutation.isPending}
-                  onClick={() => accountStatusMutation.mutate({ accountId: item.id, nextStatus: 'ACTIVE' })}
+                  onClick={() => setAccountActionTarget({ action: 'enable', item })}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -140,7 +181,7 @@ export function ChannelAccountsContent() {
                   启用账号
                 </Button>
               )}
-              <Button disabled={!permissions.canManage || deleteMutation.isPending} onClick={() => deleteMutation.mutate(item.id)} size="sm" type="button" variant="outline">
+              <Button disabled={!permissions.canManage || deleteMutation.isPending} onClick={() => setAccountActionTarget({ action: 'delete', item })} size="sm" type="button" variant="outline">
                 <Trash2 className="size-4" />
                 删除账号
               </Button>
@@ -153,7 +194,54 @@ export function ChannelAccountsContent() {
       subtitle="/channels/accounts"
       title="账号凭据"
     />
+    {accountActionTarget ? (
+      <ChannelActionConfirmDialog
+        body={getAccountActionBody(accountActionTarget)}
+        confirmLabel={getAccountActionConfirmLabel(accountActionTarget.action)}
+        onCancel={() => setAccountActionTarget(null)}
+        onConfirm={() => {
+          if (accountActionTarget.action === 'delete') {
+            deleteMutation.mutate(accountActionTarget.item.id);
+            return;
+          }
+
+          accountStatusMutation.mutate({
+            accountId: accountActionTarget.item.id,
+            nextStatus: accountActionTarget.action === 'enable' ? 'ACTIVE' : 'DISABLED',
+          });
+        }}
+        pending={accountActionTarget.action === 'delete' ? deleteMutation.isPending : accountStatusMutation.isPending}
+        title={getAccountActionTitle(accountActionTarget.action)}
+        variant={accountActionTarget.action === 'delete' ? 'destructive' : 'default'}
+      />
+    ) : null}
+    </>
   );
+}
+
+function getAccountActionTitle(action: AccountActionTarget['action']) {
+  if (action === 'enable') return '确认启用账号凭据';
+  if (action === 'disable') return '确认停用账号凭据';
+
+  return '确认删除账号凭据';
+}
+
+function getAccountActionConfirmLabel(action: AccountActionTarget['action']) {
+  if (action === 'enable') return '确认启用';
+  if (action === 'disable') return '确认停用';
+
+  return '确认删除';
+}
+
+function getAccountActionBody(target: AccountActionTarget) {
+  if (target.action === 'enable') {
+    return `确认启用账号凭据“${target.item.account_name}”？启用后该账号可被渠道提供方、模板和路由规则选中参与消息发送。`;
+  }
+  if (target.action === 'disable') {
+    return `确认停用账号凭据“${target.item.account_name}”？停用后依赖该账号的发送任务和路由命中将无法继续使用这组凭据。`;
+  }
+
+  return `确认删除账号凭据“${target.item.account_name}”？删除会影响关联渠道、模板发送和路由规则，请确认业务已经切换到其他账号或不再使用。`;
 }
 
 function buildAccountMetrics(items: ChannelAccountItem[], total: number, providers: ChannelProviderItem[]): ChannelOperationMetric[] {

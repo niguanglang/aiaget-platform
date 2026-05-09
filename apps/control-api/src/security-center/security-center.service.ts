@@ -86,6 +86,11 @@ type PlatformSecurityEventRecord = Prisma.PlatformEventGetPayload<{
     user: true;
   };
 }>;
+type DedicatedSecurityEventRecord = Prisma.SecurityEventGetPayload<{
+  include: {
+    user: true;
+  };
+}>;
 
 type NotificationTaskStats = ReturnType<typeof summarizeNotificationTaskEvents>;
 type NotificationTaskPolicySnapshot = {
@@ -276,6 +281,7 @@ export class SecurityCenterService {
         event.request_id,
         event.trace_id,
         event.matched_code,
+        event.source_record_id,
       ].some((value) => value?.toLowerCase().includes(keyword));
     });
 
@@ -323,6 +329,7 @@ export class SecurityCenterService {
     const occurredAt = new Date();
     const status = securityOperationStatusFromAction(input.action);
     const eventType = securityOperationAlertEventType(input.action);
+    const alertCategory = securityOperationAlertCategory(alert);
     await this.prisma.platformEvent.create({
       data: {
         tenantId: currentUser.tenantId,
@@ -345,6 +352,7 @@ export class SecurityCenterService {
           severity: alert.severity,
           metric: alert.metric,
           href: alert.href,
+          alert_category: alertCategory,
           action: input.action,
           status,
           note: input.note ?? null,
@@ -1666,7 +1674,7 @@ export class SecurityCenterService {
   }
 
   private async loadAuditStats(tenantId: string, since: Date) {
-    const [loginTotal, operationTotal, failedLogin, failedOperation, configChanges] = await this.prisma.$transaction([
+    const [loginTotal, operationTotal, dedicatedSecurityEvents, failedLogin, failedOperation, configChanges] = await this.prisma.$transaction([
       this.prisma.loginLog.count({
         where: {
           tenantId,
@@ -1679,6 +1687,14 @@ export class SecurityCenterService {
         where: {
           tenantId,
           createdAt: {
+            gte: since,
+          },
+        },
+      }),
+      this.prisma.securityEvent.count({
+        where: {
+          tenantId,
+          occurredAt: {
             gte: since,
           },
         },
@@ -1721,7 +1737,7 @@ export class SecurityCenterService {
     return {
       loginTotal,
       operationTotal,
-      securityEvents: failed,
+      securityEvents: dedicatedSecurityEvents > 0 ? dedicatedSecurityEvents : failed,
       configChanges,
       successRate: ratioPercent(total - failed, total),
     };
@@ -2398,6 +2414,26 @@ export class SecurityCenterService {
   }
 
   private async loadSecurityEvents(tenantId: string, since: Date): Promise<SecurityCenterEventDetail[]> {
+    const dedicatedEvents = await this.prisma.securityEvent.findMany({
+      where: {
+        tenantId,
+        occurredAt: {
+          gte: since,
+        },
+      },
+      include: {
+        user: true,
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 900,
+    });
+
+    if (dedicatedEvents.length > 0) {
+      return dedicatedEvents.map(mapDedicatedSecurityEvent);
+    }
+
     const [operationLogs, policyEvaluations, platformEvents] = await this.prisma.$transaction([
       this.prisma.operationLog.findMany({
         where: {
@@ -2467,6 +2503,20 @@ export class SecurityCenterService {
   }
 
   private async findSecurityEvent(tenantId: string, eventId: string): Promise<SecurityCenterEventDetail | null> {
+    const dedicatedEvent = await this.prisma.securityEvent.findFirst({
+      where: {
+        tenantId,
+        id: eventId,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    if (dedicatedEvent) {
+      return mapDedicatedSecurityEvent(dedicatedEvent);
+    }
+
     const [sourceType, recordId] = eventId.split(':', 2);
 
     if (!sourceType || !recordId) {
@@ -4918,6 +4968,54 @@ function mapEvaluation(item: EvaluationRecord): SecurityPolicyEvaluationItem {
   };
 }
 
+function mapDedicatedSecurityEvent(item: DedicatedSecurityEventRecord): SecurityCenterEventDetail {
+  const source = normalizeDedicatedSecurityEventSource(item.source);
+  const severity = normalizeSecurityRiskLevel(item.severity);
+  const traceId = item.traceId;
+
+  return {
+    id: item.id,
+    source,
+    title: item.title,
+    reason: item.reason,
+    resource_type: item.resourceType,
+    resource_id: item.resourceId,
+    action: item.action,
+    matched_code: item.matchedCode,
+    path: item.path,
+    method: item.method,
+    status_code: item.statusCode,
+    request_id: item.requestId,
+    trace_id: traceId,
+    occurred_at: item.occurredAt.toISOString(),
+    severity,
+    has_trace: Boolean(traceId),
+    source_record_type: normalizeSecurityEventRecordType(item.sourceRecordType),
+    source_record_id: item.sourceRecordId,
+    subject: normalizeJsonObjectOutput(item.subject),
+    resource: normalizeJsonObjectOutput(item.resource),
+    context: normalizeJsonObjectOutput(item.context),
+    request_summary: normalizeJsonObjectOutput(item.requestSummary),
+    matched_policy: item.matchedPolicyId || item.matchedPolicyCode || item.matchedPolicyName
+      ? {
+          id: item.matchedPolicyId,
+          code: item.matchedPolicyCode,
+          name: item.matchedPolicyName,
+        }
+      : null,
+    operator: item.user
+      ? {
+          id: item.user.id,
+          name: item.user.name,
+          email: item.user.email,
+        }
+      : null,
+    ip: item.ip,
+    user_agent: item.userAgent,
+    error_message: item.errorMessage,
+  };
+}
+
 function mapOperationDenial(item: OperationSecurityEventRecord): SecurityCenterEventDetail {
   const summary = normalizeJsonObjectOutput(item.requestSummary);
   const source = normalizeDenialSource(summary?.guard_source);
@@ -5139,6 +5237,31 @@ function normalizeEventSource(value: string | undefined): SecurityCenterEventSou
     return value;
   }
   return null;
+}
+
+function normalizeDedicatedSecurityEventSource(value: string): SecurityCenterEventSource {
+  if (
+    value === 'DATA_SCOPE' ||
+    value === 'RESOURCE_ACL' ||
+    value === 'SECURITY_POLICY' ||
+    value === 'OPERATION' ||
+    value === 'APPROVAL_WORKBENCH'
+  ) {
+    return value;
+  }
+  return 'OPERATION';
+}
+
+function normalizeSecurityEventRecordType(value: string): SecurityCenterEventListItem['source_record_type'] {
+  if (
+    value === 'security_event' ||
+    value === 'operation_log' ||
+    value === 'security_policy_evaluation' ||
+    value === 'platform_event'
+  ) {
+    return value;
+  }
+  return 'security_event';
 }
 
 function normalizeEventWindow(value: string | undefined): SecurityCenterEventWindow {

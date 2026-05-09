@@ -64,7 +64,7 @@ POST /platform-usage/alerts/:alertId/actions
 
 ## 通知策略
 
-M69 先实现通知目标预览，不实际投递：
+M69 初版先实现通知目标预览：
 
 ```text
 CRITICAL -> 租户管理员、安全管理员、成本负责人
@@ -73,7 +73,13 @@ WARN     -> 成本负责人
 CLOSED   -> 无需通知
 ```
 
-后续可把这些目标接到渠道投递、Webhook、站内消息或企业 IM。
+后续通知投递已经在 M70-M72 继续完成：
+
+```text
+M70：POST /platform-usage/alerts/:alertId/notify，支持 IN_APP 和 WEBHOOK 投递。
+M71：GET /platform-usage/alert-notifications，支持投递审计、失败筛选和人工重试。
+M72：GET /platform-usage/alert-notification-tasks/overview 与手动自动重试扫描。
+```
 
 ## 前端承载
 
@@ -96,10 +102,11 @@ PlatformEventUsagePanel
 
 ## 边界
 
-1. 第一版是事件推导型告警，不支持独立 SLA、订阅和通知投递。
+1. 告警仍是事件推导型告警，不新增独立告警表。
 2. 不新增负责人分配表，`assignee_id` 由确认/升级动作的用户推导。
-3. 不支持批量操作和备注编辑。
-4. 后续如要长期运营，应升级为独立告警表，并接入通知投递与处理时限。
+3. 通知投递、投递审计和自动重试已由 M70-M72 扩展完成，仍不新增独立通知表或队列中间件。
+4. 当前不支持批量操作、备注编辑、订阅人偏好和独立 SLA 处理时限。
+5. 后续如要长期运营，可升级为独立告警表、通知投递表、退避队列、死信队列和 SLA。
 
 ## 验收标准
 

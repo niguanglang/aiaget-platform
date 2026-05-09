@@ -1,6 +1,6 @@
 'use client';
 
-import type { PromptTemplateDetail } from '@aiaget/shared-types';
+import type { PromptTemplateDetail, PromptVersionItem } from '@aiaget/shared-types';
 import { RotateCcw, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ export function PromptVersionsCard({
   rollbackPending: boolean;
   onChangeNote: (value: string) => void;
   onPublish: () => void;
-  onRollback: (version: number) => void;
+  onRollback: (version: PromptVersionItem) => void;
 }) {
   return (
     <Card>
@@ -85,7 +85,7 @@ export function PromptVersionsCard({
                   <td className="px-4 py-3">
                     <Button
                       disabled={!canWrite || rollbackPending}
-                      onClick={() => onRollback(version.version)}
+                      onClick={() => onRollback(version)}
                       size="sm"
                       variant="outline"
                     >

@@ -5,22 +5,15 @@ import {
   hasPermission,
   type KnowledgeBaseListItem,
   KnowledgeBaseStatus,
-  type KnowledgeOverview,
   KnowledgeVisibility,
 } from '@aiaget/shared-types';
 import { motion } from 'motion/react';
 import {
-  type LucideIcon,
-  Activity,
-  Database,
   Edit,
   Eye,
-  Layers3,
   Lock,
   Plus,
-  RefreshCcw,
   Search,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -30,12 +23,10 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import {
   formatDateTime,
-  knowledgeRetrievalModeLabel,
   knowledgeStatusLabel,
   knowledgeStatusTone,
   knowledgeVisibilityLabel,
 } from '@/components/knowledge/knowledge-status';
-import { formatPercent } from '@/components/monitor/monitor-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -43,7 +34,6 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteKnowledgeBase,
-  getKnowledgeOverview,
   listKnowledgeBases,
   listUsers,
   type ApiClientError,
@@ -90,22 +80,20 @@ export function KnowledgeContent() {
     enabled: canView,
     queryFn: () => listUsers({ page: 1, page_size: 100, status: 'ACTIVE' }),
   });
-  const overviewQuery = useQuery({
-    queryKey: ['knowledge-overview'],
-    enabled: canView,
-    queryFn: getKnowledgeOverview,
-  });
 
   const bases = basesQuery.data?.items ?? [];
   const owners = ownersQuery.data?.items ?? [];
+  const activeCount = bases.filter((base) => base.status === 'ACTIVE').length;
+  const documentCount = bases.reduce((sum, base) => sum + base.document_count, 0);
+  const segmentCount = bases.reduce((sum, base) => sum + base.segment_count, 0);
+  const failedTaskCount = bases.reduce((sum, base) => sum + base.failed_task_count, 0);
 
-  const permissionDenied = !canView || getErrorStatus(basesQuery.error) === 403 || getErrorStatus(overviewQuery.error) === 403;
+  const permissionDenied = !canView || getErrorStatus(basesQuery.error) === 403;
 
   const deleteMutation = useMutation({
     mutationFn: deleteKnowledgeBase,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-      await queryClient.invalidateQueries({ queryKey: ['knowledge-overview'] });
       setDeleteTarget(null);
       setActionError(null);
     },
@@ -150,23 +138,20 @@ export function KnowledgeContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M48</StatusBadge>
-            <StatusBadge tone="healthy">治理总览</StatusBadge>
-            <StatusBadge tone="healthy">MinIO 原文</StatusBadge>
-            <StatusBadge tone="healthy">Qdrant 向量库</StatusBadge>
-            <StatusBadge tone="healthy">OpenSearch 关键词</StatusBadge>
-            <StatusBadge tone="healthy">后台任务</StatusBadge>
-            <StatusBadge tone="healthy">混合检索</StatusBadge>
-            <StatusBadge tone="healthy">向量回退</StatusBadge>
+            <StatusBadge tone="healthy">目录列表</StatusBadge>
+            <StatusBadge tone="planned">活动 / 健康独立页</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">知识库中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合知识库健康、文档处理、索引就绪率和最近召回情况。列表页用于总览、筛选和进入知识库操作。
+            列表页只负责查询、筛选、概览和进入详情；文档处理活动与后端能力健康已拆到独立页面。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button className="w-full md:w-auto" disabled={overviewQuery.isFetching} onClick={() => void overviewQuery.refetch()} variant="outline">
-            <RefreshCcw className="size-4" />
-            刷新总览
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/knowledge/activity">处理活动</Link>
+          </Button>
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/knowledge/health">能力健康</Link>
           </Button>
           {canWrite ? (
             <Button asChild className="w-full md:w-auto">
@@ -185,14 +170,14 @@ export function KnowledgeContent() {
       </motion.section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {overviewQuery.isLoading && !overviewQuery.data
+        {basesQuery.isLoading && !basesQuery.data
           ? Array.from({ length: 4 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
           : (
               [
-                { label: '知识库', value: `${overviewQuery.data?.summary.knowledge_base_count ?? basesQuery.data?.total ?? 0}`, helper: '租户范围' },
-                { label: '处理中', value: `${overviewQuery.data?.summary.processing_document_count ?? 0}`, helper: '文档队列' },
-                { label: '索引就绪率', value: formatPercent(overviewQuery.data?.summary.keyword_ready_rate ?? 0), helper: 'OpenSearch' },
-                { label: '近 24h 召回成功率', value: formatPercent(overviewQuery.data?.summary.recall_success_rate_24h ?? 0), helper: '检索测试' },
+                { label: '知识库', value: `${basesQuery.data?.total ?? bases.length}`, helper: '当前筛选结果' },
+                { label: '启用中', value: `${activeCount}`, helper: '当前页启用数' },
+                { label: '文档', value: `${documentCount}`, helper: '当前页文档数' },
+                { label: '失败任务', value: `${failedTaskCount}`, helper: `${segmentCount} 个切片` },
               ] as const
             ).map((metric) => (
               <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
@@ -204,17 +189,6 @@ export function KnowledgeContent() {
           当前账号仅可查看知识库，无法新建、编辑、上传或重建索引。
         </div>
       ) : null}
-
-      {overviewQuery.isError ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          知识库总览加载失败。
-        </div>
-      ) : null}
-
-      <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <KnowledgeHealthCard overview={overviewQuery.data ?? null} loading={overviewQuery.isLoading} />
-        <KnowledgeQueueCard overview={overviewQuery.data ?? null} loading={overviewQuery.isLoading} />
-      </section>
 
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
@@ -341,138 +315,6 @@ export function KnowledgeContent() {
       ) : null}
     </main>
   );
-}
-
-function KnowledgeHealthCard({ overview, loading }: { overview: KnowledgeOverview | null; loading: boolean }) {
-  return (
-    <Card className="grid gap-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="size-4 text-primary" />
-            知识库健康
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">总览租户级知识库数量、处理状态和索引就绪情况。</p>
-        </div>
-        <StatusBadge tone={overview ? 'healthy' : 'planned'}>{overview ? '已更新' : '等待加载'}</StatusBadge>
-      </div>
-
-      {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载知识库总览...</div>
-      ) : !overview ? (
-        <EmptyState description="暂无知识库治理总览。" title="没有总览数据" />
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          <StatTile label="启用知识库" value={`${overview.summary.active_knowledge_base_count}/${overview.summary.knowledge_base_count}`} />
-          <StatTile label="文档总数" value={`${overview.summary.document_count}`} />
-          <StatTile label="切片总数" value={`${overview.summary.segment_count}`} />
-          <StatTile label="处理任务" value={`${overview.summary.active_task_count} 活跃 / ${overview.summary.failed_task_count} 失败`} />
-          <StatTile label="向量就绪率" value={formatPercent(overview.summary.vector_ready_rate)} />
-          <StatTile label="关键词就绪率" value={formatPercent(overview.summary.keyword_ready_rate)} />
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function KnowledgeQueueCard({ overview, loading }: { overview: KnowledgeOverview | null; loading: boolean }) {
-  return (
-    <Card className="grid gap-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Layers3 className="size-4 text-primary" />
-            任务与召回
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">最近文档、任务和召回记录，便于排查处理链路。</p>
-        </div>
-        <StatusBadge tone={overview ? 'healthy' : 'planned'}>{overview ? '在线' : '等待加载'}</StatusBadge>
-      </div>
-
-      {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载队列数据...</div>
-      ) : !overview ? (
-        <EmptyState description="暂无任务队列数据。" title="没有队列数据" />
-      ) : (
-        <div className="grid gap-4">
-          <TimelineList title="最近文档" icon={Database} items={overview.recent_documents.map((item) => ({
-            id: item.id,
-            title: item.title,
-            subtitle: `${item.knowledge_name} · ${item.segment_count} 切片 · ${formatDateTime(item.updated_at)}`,
-            status: item.status,
-          }))} />
-          <TimelineList title="最近任务" icon={Activity} items={overview.recent_tasks.map((item) => ({
-            id: item.id,
-            title: `${item.knowledge_name} · ${item.task_type}`,
-            subtitle: `${item.processed_items}/${item.total_items} 项 · ${item.started_at ? formatDateTime(item.started_at) : '未开始'}`,
-            status: item.status,
-          }))} />
-          <TimelineList title="最近召回" icon={Search} items={overview.recent_recall_logs.map((item) => ({
-            id: item.id,
-            title: `${item.knowledge_name} · ${item.query}`,
-            subtitle: `${knowledgeRetrievalModeLabel(item.mode)} · ${item.result_count} 条结果 · ${item.latency_ms}ms`,
-            status: item.status,
-          }))} />
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function TimelineList({
-  title,
-  icon: Icon,
-  items,
-}: {
-  title: string;
-  icon: LucideIcon;
-  items: Array<{ id: string; title: string; subtitle: string; status: string }>;
-}) {
-  return (
-    <div className="grid gap-3">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      {items.length === 0 ? (
-        <EmptyState className="rounded-md border bg-muted/20 p-4" description="暂无记录。" title="空" />
-      ) : (
-        <div className="grid gap-2">
-          {items.map((item) => (
-            <div className="flex items-start gap-3 rounded-md border bg-muted/20 px-3 py-2" key={item.id}>
-              <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md border bg-background">
-                <Icon className="size-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{item.title}</div>
-                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.subtitle}</div>
-                  </div>
-                  <StatusBadge tone={statusTone(item.status)}>{item.status}</StatusBadge>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/20 px-3 py-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
-type BadgeTone = Parameters<typeof StatusBadge>[0]['tone'];
-
-function statusTone(status: string): BadgeTone {
-  if (status === 'FAILED' || status === 'DELETED') return 'unavailable';
-  if (status === 'PROCESSING' || status === 'RUNNING' || status === 'PENDING') return 'degraded';
-  if (status === 'READY' || status === 'SUCCESS' || status === 'ACTIVE') return 'healthy';
-  return 'planned';
 }
 
 function getErrorStatus(error: unknown) {

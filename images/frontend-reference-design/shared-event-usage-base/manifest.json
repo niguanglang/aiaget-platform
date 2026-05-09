@@ -1,7 +1,7 @@
 {
   "created_at": "2026-05-02T04:16:02.482865+00:00",
   "page": "shared-event-usage-base",
-  "route": "/monitor",
+  "route": "/monitor/platform-usage",
   "feature": "统一平台事件、用量事件、关系链路和 rollup 聚合",
   "purpose": "Reference-first frontend UI design assets",
   "expected_files": {

@@ -64,6 +64,60 @@ export class SecurityEventService {
       },
     });
 
+    await this.prisma.securityEvent.upsert({
+      where: {
+        tenantId_sourceRecordType_sourceRecordId: {
+          tenantId: user.tenantId,
+          sourceRecordType: 'operation_log',
+          sourceRecordId: operationLog.id,
+        },
+      },
+      create: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        source: normalizeSecurityEventSource(input.source),
+        title: `${securityEventSourceLabel(input.source)}拒绝`,
+        reason: input.reason,
+        resourceType: input.resourceType ?? null,
+        resourceId: input.resourceId ?? null,
+        action: input.action ?? null,
+        matchedCode: input.matchedCode ?? null,
+        path,
+        method: request.method,
+        statusCode: input.statusCode ?? 403,
+        requestId: request.requestId ?? 'unknown',
+        traceId: request.traceId ?? null,
+        severity: securityEventSeverity(input.statusCode ?? 403, input.source),
+        sourceRecordType: 'operation_log',
+        sourceRecordId: operationLog.id,
+        subject: toJsonOrNull(input.subject),
+        resource: toJsonOrNull(input.resource),
+        context: toJsonOrNull(input.context),
+        requestSummary,
+        matchedPolicyId: null,
+        matchedPolicyCode: input.source === 'SECURITY_POLICY' ? input.matchedCode ?? null : null,
+        matchedPolicyName: null,
+        ip: request.ip,
+        userAgent: stringHeaderValue(request.headers['user-agent']),
+        errorMessage: input.reason,
+        occurredAt: operationLog.createdAt,
+      },
+      update: {
+        reason: input.reason,
+        resourceType: input.resourceType ?? null,
+        resourceId: input.resourceId ?? null,
+        action: input.action ?? null,
+        matchedCode: input.matchedCode ?? null,
+        traceId: request.traceId ?? null,
+        severity: securityEventSeverity(input.statusCode ?? 403, input.source),
+        subject: toJsonOrNull(input.subject),
+        resource: toJsonOrNull(input.resource),
+        context: toJsonOrNull(input.context),
+        requestSummary,
+        errorMessage: input.reason,
+      },
+    });
+
     await this.platformEvents.recordEvent({
       tenantId: user.tenantId,
       departmentId: user.departmentId ?? null,
@@ -92,4 +146,37 @@ export class SecurityEventService {
 
 function compactJson(value: Record<string, unknown>): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonObject;
+}
+
+function toJsonOrNull(value: Record<string, unknown> | null | undefined): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  return value ? compactJson(value) : Prisma.JsonNull;
+}
+
+function normalizeSecurityEventSource(value: SecurityDenyEventInput['source']) {
+  if (value === 'DATA_SCOPE' || value === 'RESOURCE_ACL' || value === 'SECURITY_POLICY') return value;
+  return 'OPERATION';
+}
+
+function securityEventSourceLabel(value: SecurityDenyEventInput['source']) {
+  switch (normalizeSecurityEventSource(value)) {
+    case 'DATA_SCOPE':
+      return '数据权限';
+    case 'RESOURCE_ACL':
+      return '资源授权';
+    case 'SECURITY_POLICY':
+      return '安全策略';
+    case 'OPERATION':
+      return '操作审计';
+  }
+}
+
+function securityEventSeverity(statusCode: number, source: SecurityDenyEventInput['source']) {
+  if (source === 'SECURITY_POLICY') return 'MEDIUM';
+  if (statusCode >= 500) return 'HIGH';
+  return 'LOW';
+}
+
+function stringHeaderValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value.join(', ');
+  return value ?? null;
 }

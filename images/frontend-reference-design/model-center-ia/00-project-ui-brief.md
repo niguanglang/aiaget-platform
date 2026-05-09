@@ -34,13 +34,13 @@
 - Actions:
   - list/search/filter providers
   - create/edit/delete provider
-  - enable/disable provider
+  - enable/disable provider with explicit confirmation
   - open provider detail
-  - create/edit/delete/enable/disable model config
+  - create/edit/delete/enable/disable model config with explicit confirmation for status and delete actions
   - add/delete masked API key
   - run compatibility test
   - inspect cost rules and call logs
-- Required states: loading, empty, error, validation, disabled, success, permission-denied, no-provider-selected, no-models, no-api-keys, no-call-logs, test-running, test-failed
+- Required states: loading, empty, error, validation, disabled, success, permission-denied, no-provider-selected, no-models, no-api-keys, no-call-logs, test-running, test-failed, status-confirmation
 - Existing components/design system:
   - Next.js App Router console shell
   - Tailwind CSS

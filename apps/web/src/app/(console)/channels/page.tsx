@@ -1,5 +1,5 @@
-import { ChannelContent } from '@/components/channels/channel-content';
+import { ChannelOverviewContent } from '@/components/channels/channel-overview-content';
 
 export default function ChannelsPage() {
-  return <ChannelContent />;
+  return <ChannelOverviewContent />;
 }

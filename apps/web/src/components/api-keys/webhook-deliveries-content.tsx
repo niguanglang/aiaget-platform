@@ -13,13 +13,20 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listTenantApiKeys, listWebhookDeliveries, retryWebhookDelivery, type ApiClientError } from '@/lib/api-client';
 
-import { ErrorBanner, NoticeBanner, average, formatLatency, formatWebhookTarget, isNumber, useCanManageApiKeys, webhookDeliveryLabel, webhookDeliveryTone } from './api-key-shared';
+import { ConfirmDialog, ErrorBanner, NoticeBanner, average, formatLatency, formatWebhookTarget, isNumber, useCanManageApiKeys, webhookDeliveryLabel, webhookDeliveryTone } from './api-key-shared';
+
+type WebhookRetryTarget = {
+  apiKeyName: string;
+  deliveryId: string;
+  targetUrl: string;
+};
 
 export function WebhookDeliveriesContent() {
   const canManageApiKeys = useCanManageApiKeys();
   const [deliveryFilterKeyId, setDeliveryFilterKeyId] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [webhookRetryTarget, setWebhookRetryTarget] = useState<WebhookRetryTarget | null>(null);
 
   const apiKeysQuery = useQuery({ queryKey: ['tenant-api-keys'], queryFn: listTenantApiKeys });
   const webhookDeliveriesQuery = useQuery({
@@ -32,6 +39,7 @@ export function WebhookDeliveriesContent() {
     onSuccess: async () => {
       setNotice('Webhook 投递已重新发送。');
       setErrorMessage(null);
+      setWebhookRetryTarget(null);
       await webhookDeliveriesQuery.refetch();
     },
     onError: (error: ApiClientError) => {
@@ -67,6 +75,11 @@ export function WebhookDeliveriesContent() {
     }
   }
 
+  function confirmWebhookRetry() {
+    if (!webhookRetryTarget) return;
+    retryMutation.mutate(webhookRetryTarget.deliveryId);
+  }
+
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -95,9 +108,28 @@ export function WebhookDeliveriesContent() {
       <Card className="grid gap-4 p-5">
         <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">最近投递</h2><p className="mt-1 text-sm text-muted-foreground">按最近时间排序，进入详情查看 payload 和响应正文。</p></div><StatusBadge tone="mock">{webhookDeliveriesQuery.data?.total ?? 0} 条</StatusBadge></div>
         {webhookDeliveriesQuery.isLoading ? <div className="grid gap-3">{Array.from({ length: 4 }).map((_, index) => <div className="h-28 rounded-md border bg-muted/30" key={index} />)}</div> : deliveries.length === 0 ? <EmptyState description="当前没有 Webhook 投递记录。完成一次外部 Agent 调用后，记录会出现在这里。" title="暂无投递日志" /> : (
-          <div className="grid gap-3">{deliveries.map((item) => <WebhookDeliveryRow canManage={canManageApiKeys} item={item} key={item.id} onCopy={copyText} onRetry={() => retryMutation.mutate(item.delivery_id)} />)}</div>
+          <div className="grid gap-3">
+            {deliveries.map((item) => (
+              <WebhookDeliveryRow
+                canManage={canManageApiKeys}
+                item={item}
+                key={item.id}
+                onCopy={copyText}
+                onRetry={() => setWebhookRetryTarget({ apiKeyName: item.api_key_name, deliveryId: item.delivery_id, targetUrl: item.target_url })}
+              />
+            ))}
+          </div>
         )}
       </Card>
+      {webhookRetryTarget ? (
+        <ConfirmDialog
+          body={`确认重试 Webhook 投递「${webhookRetryTarget.deliveryId}」？系统会再次向 ${formatWebhookTarget(webhookRetryTarget.targetUrl)} 发送 ${webhookRetryTarget.apiKeyName} 的回调内容，并刷新投递日志。`}
+          onCancel={() => setWebhookRetryTarget(null)}
+          onConfirm={confirmWebhookRetry}
+          pending={retryMutation.isPending}
+          title="确认重试 Webhook 投递"
+        />
+      ) : null}
     </main>
   );
 }

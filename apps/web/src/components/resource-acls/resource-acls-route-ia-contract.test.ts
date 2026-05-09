@@ -65,6 +65,15 @@ test('resource ACL dedicated pages own create, edit, and simulation workflows', 
   assert.doesNotMatch(checkSource, /\bupdateResourceAcl\b/);
 });
 
+test('resource ACL list status and delete actions require confirmation before mutation', () => {
+  assert.match(resourceAclListSource, /aclActionTarget/);
+  assert.match(resourceAclListSource, /function confirmAclAction/);
+  assert.match(resourceAclListSource, /确认停用资源授权|确认启用资源授权|确认删除资源授权/);
+  assert.match(resourceAclListSource, /onConfirm=\{confirmAclAction\}/);
+  assert.doesNotMatch(resourceAclListSource, /onDelete=\{\(acl\) => \{[\s\S]*?deleteMutation\.mutate\(acl\.id\);[\s\S]*?\}\}/);
+  assert.doesNotMatch(resourceAclListSource, /onToggleStatus=\{\(acl\) => \{[\s\S]*?statusMutation\.mutate\(\{ id: acl\.id/);
+});
+
 test('resource ACL api client exposes detail endpoint for edit route', () => {
   assert.match(apiClientSource, /export function getResourceAcl/);
   assert.match(apiClientSource, /\/resource-acls\/\$\{resourceAclId\}/);

@@ -14,6 +14,7 @@ import {
   approvalAuditSourceTypes,
   approvalAuditStatusLabel,
   approvalAuditWindows,
+  ApprovalAuditConfirmDialog,
   downloadBlob,
   formatBytes,
 } from '@/components/approval-audits/approval-audit-shared';
@@ -30,6 +31,7 @@ export function ApprovalAuditArchiveCreateContent() {
   const [eventStatus, setEventStatus] = useState<ApprovalAuditEventStatus | ''>('');
   const [traceOnly, setTraceOnly] = useState(false);
   const [csvState, setCsvState] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [archiveCreateTarget, setArchiveCreateTarget] = useState<Parameters<typeof createApprovalAuditArchive>[0] | null>(null);
 
   const archiveParams = {
     window: windowValue,
@@ -41,8 +43,14 @@ export function ApprovalAuditArchiveCreateContent() {
   };
 
   const createArchiveMutation = useMutation({
-    mutationFn: () => createApprovalAuditArchive(archiveParams),
+    mutationFn: (params: Parameters<typeof createApprovalAuditArchive>[0]) => createApprovalAuditArchive(params),
+    onSuccess: () => setArchiveCreateTarget(null),
   });
+
+  function confirmArchiveCreate() {
+    if (!archiveCreateTarget) return;
+    createArchiveMutation.mutate(archiveCreateTarget);
+  }
 
   async function handleExport() {
     setCsvState('exporting');
@@ -150,7 +158,7 @@ export function ApprovalAuditArchiveCreateContent() {
             <Download className="size-4" />
             {csvState === 'exporting' ? '正在导出' : '导出 CSV'}
           </Button>
-          <Button disabled={createArchiveMutation.isPending} onClick={() => createArchiveMutation.mutate()} type="button">
+          <Button disabled={createArchiveMutation.isPending} onClick={() => setArchiveCreateTarget(archiveParams)} type="button">
             <Archive className="size-4" />
             {createArchiveMutation.isPending ? '正在生成' : '生成归档'}
           </Button>
@@ -165,6 +173,16 @@ export function ApprovalAuditArchiveCreateContent() {
         ) : null}
         {createArchiveMutation.isError ? <Feedback tone="error" text={createArchiveMutation.error.message} /> : null}
       </Card>
+      {archiveCreateTarget ? (
+        <ApprovalAuditConfirmDialog
+          body={`确认生成审批审计归档？系统会按当前筛选条件写入对象存储并生成可下载归档，时间窗口为 ${archiveCreateTarget.window ?? '24h'}。`}
+          confirmLabel="确认生成"
+          onCancel={() => setArchiveCreateTarget(null)}
+          onConfirm={confirmArchiveCreate}
+          pending={createArchiveMutation.isPending}
+          title="确认生成审批审计归档"
+        />
+      ) : null}
     </main>
   );
 }
@@ -175,4 +193,3 @@ function Feedback({ text, tone }: { text: string; tone: 'success' | 'error' }) {
     : 'rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive';
   return <div className={className}>{text}</div>;
 }
-

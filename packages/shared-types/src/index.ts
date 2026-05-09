@@ -1082,6 +1082,36 @@ export interface PluginManifestValidationIssue {
   message: string;
 }
 
+export type PluginPackageIntegrityStatus = 'PASSED' | 'FAILED' | 'SKIPPED';
+export type PluginPackageSignatureStatus = 'PASSED' | 'FAILED' | 'SKIPPED';
+export type PluginPackageSignatureType = 'SIGSTORE' | 'PGP' | 'CUSTOM';
+
+export interface PluginPackageSignatureResult {
+  status: PluginPackageSignatureStatus;
+  verified: boolean;
+  signature_type: PluginPackageSignatureType | null;
+  signature_present: boolean;
+  verification_url: string | null;
+  subject: string | null;
+  issuer: string | null;
+  error_code: string | null;
+  error_message: string | null;
+}
+
+export interface PluginPackageIntegrityResult {
+  status: PluginPackageIntegrityStatus;
+  verified: boolean;
+  source_url: string | null;
+  final_url: string | null;
+  expected_sha256: string | null;
+  actual_sha256: string | null;
+  package_size_bytes: number | null;
+  content_type: string | null;
+  signature?: PluginPackageSignatureResult | null;
+  error_code: string | null;
+  error_message: string | null;
+}
+
 export interface PluginToolBindingPreview {
   code: string;
   name: string;
@@ -1104,6 +1134,10 @@ export interface PluginManifestValidationResult {
   package_source: string | null;
   package_sha256: string | null;
   signature_present: boolean;
+  package_signature?: string | null;
+  package_signature_type?: PluginPackageSignatureType | null;
+  package_signature_verification_url?: string | null;
+  package_integrity?: PluginPackageIntegrityResult | null;
   permission_codes: string[];
   menu_codes: string[];
   hook_codes: string[];
@@ -1184,6 +1218,23 @@ export interface PluginHookItem {
   updated_at: string;
 }
 
+export interface QueuePluginHookExecutionInput {
+  payload?: Record<string, unknown> | null;
+  source_event_id?: string | null;
+  trace_id?: string | null;
+}
+
+export interface PluginHookExecutionResult {
+  event_id: string;
+  hook_id: string;
+  plugin_id: string;
+  status: 'QUEUED';
+  workflow_backend?: RuntimeWorkflowBackend;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
+  message: string;
+}
+
 export interface PluginVersionItem {
   id: string;
   plugin_id: string;
@@ -1229,6 +1280,12 @@ export interface PluginUninstallResult {
     tools: number;
   };
   message: string;
+}
+
+export interface RollbackPluginInput {
+  version_id?: string;
+  version?: string;
+  change_note?: string | null;
 }
 
 export interface PluginInstallationDetail extends PluginInstallationItem {
@@ -1452,10 +1509,14 @@ export interface CreateTenantApiKeyInput {
   expires_at?: string | null;
 }
 
+export type UpdateTenantApiKeyInput = Partial<CreateTenantApiKeyInput>;
+
 export interface CreateTenantApiKeyResult {
   api_key: string;
   item: TenantApiKeyListItem;
 }
+
+export type RotateTenantApiKeyResult = CreateTenantApiKeyResult;
 
 export interface ExternalAgentChatInput {
   message: string;
@@ -2980,7 +3041,7 @@ export type SecurityCenterEventWindow = '1h' | '24h' | '7d' | '30d';
 export interface SecurityCenterEventListItem extends SecurityCenterDenialItem {
   severity: SecurityCenterRiskLevel;
   has_trace: boolean;
-  source_record_type: 'operation_log' | 'security_policy_evaluation' | 'platform_event';
+  source_record_type: 'security_event' | 'operation_log' | 'security_policy_evaluation' | 'platform_event';
   source_record_id: string;
 }
 
@@ -3677,6 +3738,23 @@ export interface ChannelDeliveryItem {
   metadata?: Record<string, unknown> | null;
 }
 
+export interface ChannelDeliveryDetail extends ChannelDeliveryItem {
+  agent_id?: string | null;
+  agent_name?: string | null;
+  template_id?: string | null;
+  template_name?: string | null;
+  publish_job_id?: string | null;
+  direction?: string | null;
+  request_url?: string | null;
+  request_body?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  request_headers?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  response_body?: string | null;
+  conversation_id?: string | null;
+  run_id?: string | null;
+  external_conversation_id?: string | null;
+  external_message_id?: string | null;
+}
+
 export interface ChannelReplyItem {
   id: string;
   reply_id?: string | null;
@@ -3697,6 +3775,22 @@ export interface ChannelReplyItem {
   created_at?: string;
   updated_at?: string;
   metadata?: Record<string, unknown> | null;
+}
+
+export interface ChannelReplyDetail extends ChannelReplyItem {
+  agent_id?: string | null;
+  agent_name?: string | null;
+  account_id?: string | null;
+  account_name?: string | null;
+  provider_name?: string | null;
+  direction?: string | null;
+  sender?: string | null;
+  recipient?: string | null;
+  content?: string | null;
+  payload?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  message_id?: string | null;
+  received_at?: string | null;
+  processed_at?: string | null;
 }
 
 export type ChannelPublishApprovalStatus = 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -4570,6 +4664,8 @@ export interface ModelConfigItem {
   model: string;
   capabilities: ModelCapability[];
   context_length: number;
+  max_output_tokens: number | null;
+  api_version: string | null;
   input_price: number;
   output_price: number;
   rate_limit_rpm: number | null;
@@ -4653,6 +4749,8 @@ export interface CreateModelConfigInput {
   model: string;
   capabilities: ModelCapability[];
   context_length: number;
+  max_output_tokens?: number | null;
+  api_version?: string | null;
   input_price?: number;
   output_price?: number;
   rate_limit_rpm?: number | null;
@@ -4664,6 +4762,8 @@ export interface UpdateModelConfigInput {
   name?: string;
   capabilities?: ModelCapability[];
   context_length?: number;
+  max_output_tokens?: number | null;
+  api_version?: string | null;
   input_price?: number;
   output_price?: number;
   rate_limit_rpm?: number | null;
@@ -5566,8 +5666,11 @@ export type RuntimeWorkflowBackend = 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | n
 export type RuntimeWorkflowBackendStatus = 'READY' | 'DISPATCH_FAILED';
 export type RuntimeWorkflowTaskType =
   | 'knowledge_task'
+  | 'agent_team_run'
   | 'channel_release_automation'
-  | 'channel_release_self_healing';
+  | 'channel_release_self_healing'
+  | 'plugin_rollback'
+  | 'plugin_hook_execution';
 
 export interface RuntimeWorkflowFailureItem {
   task_type: RuntimeWorkflowTaskType;
@@ -5584,7 +5687,14 @@ export interface RuntimeWorkflowRecoverableTaskItem {
   title: string;
   knowledge_base_id: string | null;
   document_id: string | null;
+  team_id?: string | null;
+  run_id?: string | null;
   channel_id?: string | null;
+  plugin_id?: string | null;
+  version_id?: string | null;
+  version?: string | null;
+  hook_id?: string | null;
+  hook_code?: string | null;
   error_message: string | null;
   updated_at: string;
 }
@@ -6251,6 +6361,11 @@ export interface BillingAdjustmentItem {
   source_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BillingInvoiceDetail {
+  invoice: BillingInvoiceItem;
+  adjustments: BillingAdjustmentItem[];
 }
 
 export interface CreateBillingAdjustmentInput {

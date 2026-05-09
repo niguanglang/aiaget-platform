@@ -342,6 +342,8 @@ export class ModelsService {
           model: dto.model.trim(),
           capabilities: dto.capabilities,
           contextLength: dto.context_length,
+          maxOutputTokens: dto.max_output_tokens ?? null,
+          apiVersion: normalizeOptionalText(dto.api_version),
           inputPrice: dto.input_price ?? 0,
           outputPrice: dto.output_price ?? 0,
           rateLimitRpm: dto.rate_limit_rpm ?? null,
@@ -385,6 +387,8 @@ export class ModelsService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.capabilities !== undefined) data.capabilities = dto.capabilities;
     if (dto.context_length !== undefined) data.contextLength = dto.context_length;
+    if (dto.max_output_tokens !== undefined) data.maxOutputTokens = dto.max_output_tokens;
+    if (dto.api_version !== undefined) data.apiVersion = normalizeOptionalText(dto.api_version);
     if (dto.input_price !== undefined) data.inputPrice = dto.input_price;
     if (dto.output_price !== undefined) data.outputPrice = dto.output_price;
     if (dto.rate_limit_rpm !== undefined) data.rateLimitRpm = dto.rate_limit_rpm;
@@ -753,6 +757,8 @@ export class ModelsService {
       model: model.model,
       capabilities: model.capabilities as ModelConfigItem['capabilities'],
       context_length: model.contextLength,
+      max_output_tokens: model.maxOutputTokens,
+      api_version: model.apiVersion,
       input_price: Number(model.inputPrice),
       output_price: Number(model.outputPrice),
       rate_limit_rpm: model.rateLimitRpm,
@@ -803,4 +809,9 @@ export class ModelsService {
       created_at: callLog.createdAt.toISOString(),
     };
   }
+}
+
+function normalizeOptionalText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }

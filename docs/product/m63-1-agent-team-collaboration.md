@@ -111,7 +111,7 @@ images/frontend-reference-design/agent-teams/
 
 ## 当前执行边界
 
-本里程碑的团队运行先生成可追踪的协作台账：
+本里程碑最初先生成可追踪的协作台账：
 
 ```text
 PLAN
@@ -127,15 +127,28 @@ SUMMARY
 docs/product/m63-1-runtime-agent-team-orchestration.md
 ```
 
-当前 `SEQUENTIAL` 已经可以通过 Runtime 顺序执行成员 Agent，并复用单 Agent 的 LLM / RAG / 工具链路；`PARALLEL` 和 `SUPERVISOR` 暂时会降级为顺序执行并在 PLAN 步骤标记。
+后续 Runtime 编排已完成升级，当前状态以 `docs/product/m63-1-runtime-agent-team-orchestration.md`、M66-M75 文档和代码为准：
+
+```text
+SEQUENTIAL：顺序执行成员 Agent
+PARALLEL：并发执行成员 Agent
+SUPERVISOR：Supervisor 决策、多轮协作、接力和人工介入
+```
+
+成员 Agent 会复用单 Agent Runtime 图，包括 LLM、RAG、Tool、Trace、模型调用日志、事件和用量投影。
 
 ## 联动关系
 
 - `agents`：作为团队成员来源。
 - `Data Scope`：控制团队列表和详情访问范围。
 - `Resource ACL`：控制具体团队的查看、管理和运行权限。
-- `Monitor/Audit`：团队运行记录已具备 trace 字段，后续可接入统一事件底座。
-- `M64`：团队运行会成为 `platform_event` 和 `platform_usage_event` 的来源之一。
+- `Monitor/Audit`：团队运行记录已具备 trace 字段，已接入统一事件和用量底座。
+- `M64`：团队运行已成为 `platform_event` 和 `platform_usage_event` 的来源之一。
+- `Runtime 工作流`：失败的 `agent_team_run` 已纳入 `/runtime/workflows/status` 可恢复任务和 `/runtime/workflows/retry` 重试入口。
+- `运行详情深链`：`/agent-teams/{teamId}/runs/{runId}` 已独立承载单次运行时间线、接力、反馈、Trace 和报告动作。
+- `子事件下钻`：运行详情页已展开成员内部事件、知识引用、工具调用和模型调用，并可跳转 `/agent-teams/{teamId}/runs/{runId}/steps/{stepId}` 查看单步骤详情。
+- `子事件深链`：步骤详情页支持通过 `eventType` / `eventId` 查询参数定位单条 `child_steps`、`references`、`tool_calls` 或 `model_call`。
+- `Trace 图谱`：运行详情页已基于当前运行台账里的 `trace_id`、`span_id` 和 `parent_span_id` 展示运行内 Trace 图谱，并保留监控中心 Trace 跳转。
 
 ## 验证
 
@@ -149,15 +162,22 @@ pnpm --filter @aiaget/control-api typecheck
 pnpm --filter @aiaget/web typecheck
 ```
 
+P0-7 收口补充验证：
+
+```text
+pnpm --filter @aiaget/control-api exec tsx --test src/platform-events/platform-events-dedupe.test.ts src/agent-teams/agent-teams-production-closure.test.ts src/runtime-execution/runtime-execution.service.test.ts src/runtime-execution/runtime-workflow-status.test.ts
+cd apps/web && ../control-api/node_modules/.bin/tsx --test src/components/monitor/monitor-route-ia-contract.test.ts src/components/agent-teams/agent-teams-route-ia-contract.test.ts
+```
+
 ## 下一步
 
-继续做 M63-1 的第三步：
+M63-1 原计划中的第三步已经在 Runtime 编排和 M66-M75 中完成：
 
 ```text
 Runtime 并行执行和 Supervisor 决策节点
 ```
 
-目标是把当前 Runtime 团队顺序编排升级为真实多模式协作：
+当前已具备：
 
 ```text
 1. PARALLEL 模式并发执行成员 Agent
@@ -166,3 +186,7 @@ Runtime 并行执行和 Supervisor 决策节点
 4. 支持人工审批等待状态
 5. 将团队运行写入 platform_event / platform_usage_event
 ```
+
+后续增强不再是 P0 阻塞项，主要集中在真实环境端到端演练和全局跨 Trace 聚合。
+
+2026-05-07 补充：重复 Runtime/Workflow 恢复回调已增加步骤指纹幂等和平台事件 `dedupeKey` 复用；运行详情深链页已落地，并已展示成员内部事件、知识引用、工具调用和模型调用；单步骤详情页、单个子事件深链和运行内 Trace 图谱已落地。后续主要保留真实环境端到端演练、全局跨 Trace 聚合和外部观测系统集成。

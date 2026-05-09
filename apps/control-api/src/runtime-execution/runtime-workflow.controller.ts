@@ -26,7 +26,7 @@ export class RuntimeWorkflowController {
   }
 
   @Post('retry')
-  @Permissions('knowledge:base:manage')
+  @Permissions('monitor:log:view', 'knowledge:base:manage', 'agent:team:run', 'channel:publish:deploy', 'plugin:center:manage')
   @ApiOkResponse({ description: 'Retry a known recoverable workflow task type' })
   async retry(
     @CurrentUser() currentUser: AuthenticatedUser,

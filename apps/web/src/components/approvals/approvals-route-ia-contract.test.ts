@@ -93,6 +93,20 @@ test('archive deletion approvals child page owns archive deletion approval APIs 
   assert.doesNotMatch(source, /listToolApprovals/);
 });
 
+test('approval decision actions require explicit confirmation before approve or reject mutation', () => {
+  const sharedSource = readFileSync(sharedPath, 'utf8');
+
+  assert.match(sharedSource, /function ApprovalDecisionConfirmDialog/);
+  assert.match(sharedSource, /decisionActionTarget/);
+  assert.match(sharedSource, /function confirmDecisionAction/);
+  assert.match(sharedSource, /确认审批通过/);
+  assert.match(sharedSource, /确认审批拒绝/);
+  assert.match(sharedSource, /onConfirm=\{confirmDecisionAction\}/);
+  assert.doesNotMatch(sharedSource, /<Button disabled=\{isDisabled\} onClick=\{onApprove\}/);
+  assert.doesNotMatch(sharedSource, /<Button disabled=\{isDisabled\} onClick=\{onReject\}/);
+}
+);
+
 test('approval child routes using search params are wrapped in suspense boundaries', () => {
   const toolRouteSource = readFileSync(toolApprovalsRoutePath, 'utf8');
   const notificationRouteSource = readFileSync(notificationPolicyApprovalsRoutePath, 'utf8');

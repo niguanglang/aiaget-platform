@@ -94,8 +94,13 @@ export function ModelConfigCard({
                 ))}
               </div>
 
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
                 <ModelDetailLine label="上下文" value={`${model.context_length.toLocaleString()} tokens`} />
+                <ModelDetailLine
+                  label="最大输出"
+                  value={model.max_output_tokens ? `${model.max_output_tokens.toLocaleString()} tokens` : '-'}
+                />
+                <ModelDetailLine label="API 版本" value={model.api_version ?? '-'} />
                 <ModelDetailLine label="输入价格" value={formatMoney(model.input_price)} />
                 <ModelDetailLine label="输出价格" value={formatMoney(model.output_price)} />
                 <ModelDetailLine label="每分钟限流" value={model.rate_limit_rpm ? `${model.rate_limit_rpm}` : '-'} />

@@ -38,7 +38,9 @@ export function ToolContent() {
   const [toolType, setToolType] = useState('');
   const [status, setStatus] = useState('');
   const [riskLevel, setRiskLevel] = useState('');
+  const [copyTarget, setCopyTarget] = useState<ToolListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ToolListItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ToolListItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -81,6 +83,8 @@ export function ToolContent() {
     onSuccess: async (tool) => {
       queryClient.setQueryData(['tool', tool.id], tool);
       await queryClient.invalidateQueries({ queryKey: ['tools'] });
+      setCopyTarget(null);
+      setStatusTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -112,6 +116,11 @@ export function ToolContent() {
     setToolType('');
     setStatus('');
     setRiskLevel('');
+  }
+
+  function confirmCopyTool() {
+    if (!copyTarget) return;
+    copyMutation.mutate(copyTarget.id);
   }
 
   return (
@@ -329,13 +338,13 @@ export function ToolContent() {
                             编辑
                           </Link>
                         </Button>
-                        <Button disabled={!canWrite || copyMutation.isPending} onClick={() => copyMutation.mutate(tool.id)} size="sm" variant="outline">
+                        <Button disabled={!canWrite || copyMutation.isPending} onClick={() => setCopyTarget(tool)} size="sm" variant="outline">
                           <Copy className="size-4" />
                           复制
                         </Button>
                         <Button
                           disabled={!canWrite || statusMutation.isPending || tool.status === 'DELETED'}
-                          onClick={() => statusMutation.mutate({ id: tool.id, nextStatus: tool.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' })}
+                          onClick={() => setStatusTarget(tool)}
                           size="sm"
                           variant="outline"
                         >
@@ -356,13 +365,44 @@ export function ToolContent() {
         )}
       </Card>
 
+      {copyTarget ? (
+        <ConfirmDialog
+          body={`确认复制工具 ${copyTarget.name}？系统会创建一份新的工具配置副本，包含 HTTP 方法、鉴权、风险等级和 Schema 配置。`}
+          confirmLabel="确认复制"
+          onCancel={() => setCopyTarget(null)}
+          onConfirm={confirmCopyTool}
+          pending={copyMutation.isPending}
+          title="确认复制工具"
+        />
+      ) : null}
+
       {deleteTarget ? (
         <ConfirmDialog
           body={`这会软删除 ${deleteTarget.name}，并保留已有调用日志。`}
+          confirmLabel="确认删除"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
           pending={deleteMutation.isPending}
           title="删除工具？"
+        />
+      ) : null}
+      {statusTarget ? (
+        <ConfirmDialog
+          body={
+            statusTarget.status === 'ACTIVE'
+              ? `这会停用工具 ${statusTarget.name}，已绑定该工具的 Agent 将无法继续调用它。`
+              : `这会启用工具 ${statusTarget.name}，已授权 Agent 将可以重新调用它。`
+          }
+          confirmLabel={statusTarget.status === 'ACTIVE' ? '确认停用' : '确认启用'}
+          onCancel={() => setStatusTarget(null)}
+          onConfirm={() =>
+            statusMutation.mutate({
+              id: statusTarget.id,
+              nextStatus: statusTarget.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+            })
+          }
+          pending={statusMutation.isPending}
+          title={statusTarget.status === 'ACTIVE' ? '停用工具？' : '启用工具？'}
         />
       ) : null}
     </main>
@@ -371,12 +411,14 @@ export function ToolContent() {
 
 function ConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -392,7 +434,7 @@ function ConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

@@ -23,6 +23,7 @@ import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SecurityConfirmDialog,
   SecurityWorkspaceHeader,
   approvalStatusLabel,
   approvalStatusTone,
@@ -71,6 +72,13 @@ type ArchiveApprovalItem =
   | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem
   | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem;
 
+type ArchiveDeleteTarget = {
+  archiveId: string;
+  fileName: string;
+  source: ArchiveSource;
+  sourceLabel: string;
+};
+
 const archiveSources: Array<{
   value: ArchiveSource;
   label: string;
@@ -110,6 +118,7 @@ export function SecurityArchivesContent() {
   const [activeSource, setActiveSource] = useState<ArchiveSource>('notifications');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [archiveDeleteTarget, setArchiveDeleteTarget] = useState<ArchiveDeleteTarget | null>(null);
 
   const permissions = currentUser?.user.permissions ?? [];
   const isTenantAdmin = Boolean(currentUser?.user.roles.some((role) => role.code === 'tenant_admin'));
@@ -238,6 +247,7 @@ export function SecurityArchivesContent() {
     },
     onSuccess: async (result) => {
       setActionError(null);
+      setArchiveDeleteTarget(null);
       setActionNotice(`归档删除已提交审批，审批 ID：${result.approval_id}。`);
       await invalidateArchiveQueries(queryClient);
     },
@@ -251,6 +261,11 @@ export function SecurityArchivesContent() {
     for (const query of [...allArchiveQueries, ...allApprovalQueries, ...allApprovalOverviewQueries]) {
       void query.refetch();
     }
+  }
+
+  function confirmArchiveDelete() {
+    if (!archiveDeleteTarget) return;
+    deleteMutation.mutate({ archiveId: archiveDeleteTarget.archiveId, source: archiveDeleteTarget.source });
   }
 
   return (
@@ -374,11 +389,14 @@ export function SecurityArchivesContent() {
                       deleting={deleteMutation.isPending}
                       downloading={downloadMutation.isPending}
                       key={archive.id}
-                      onDelete={() => {
-                        if (window.confirm(`确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`)) {
-                          deleteMutation.mutate({ archiveId: archive.id, source: activeSource });
-                        }
-                      }}
+                      onDelete={() =>
+                        setArchiveDeleteTarget({
+                          archiveId: archive.id,
+                          fileName: archive.file_name,
+                          source: activeSource,
+                          sourceLabel: activeMeta.label,
+                        })
+                      }
                       onDownload={() => downloadMutation.mutate({ archiveId: archive.id, source: activeSource })}
                     />
                   ))}
@@ -415,6 +433,16 @@ export function SecurityArchivesContent() {
           )}
         </Card>
       </section>
+      {archiveDeleteTarget ? (
+        <SecurityConfirmDialog
+          body={`确认申请删除归档「${archiveDeleteTarget.fileName}」？该文件属于${archiveDeleteTarget.sourceLabel}，操作会进入删除审批流程，审批通过后才会清理对象存储文件。`}
+          confirmLabel="确认申请"
+          onCancel={() => setArchiveDeleteTarget(null)}
+          onConfirm={confirmArchiveDelete}
+          pending={deleteMutation.isPending}
+          title="确认申请删除归档"
+        />
+      ) : null}
     </main>
   );
 }

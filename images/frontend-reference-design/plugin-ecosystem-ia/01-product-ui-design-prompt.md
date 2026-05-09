@@ -11,18 +11,21 @@ Project context:
 - Existing page shell/layout: console shell with sidebar/topbar already present; page content is a max-width admin workspace with Chinese labels
 
 Interface contract that must appear in the UI:
-- API/service functions: `getPluginOverview`, `listPluginMarket`, `listPluginInstallations`, `getPluginInstallation`, `installPlugin`, `updatePluginInstallation`, `enablePlugin`, `disablePlugin`, `upgradePlugin`, `uninstallPlugin`, `updatePluginHook`, `updatePluginMenuBinding`
+- API/service functions: `getPluginOverview`, `listPluginMarket`, `listPluginInstallations`, `getPluginInstallation`, `installPlugin`, `updatePluginInstallation`, `enablePlugin`, `disablePlugin`, `upgradePlugin`, `uninstallPlugin`, `updatePluginHook`, `queuePluginHookExecution`, `updatePluginMenuBinding`
 - Main entities and fields: market item name/code/provider/latest_version/install_status/risk_level/permission_codes/menu_count/hook_count; installation item installed_version/latest_version/status/runtime_status/risk_level/menu_count/hook_count/permission_count; detail manifest_json/config_json/permission_preview/menu_bindings/hooks/versions/audit_logs/security_preview
 - Status values/enums: `PENDING_REVIEW`, `INSTALLED`, `ACTIVE`, `DISABLED`, `UPGRADING`, `FAILED`, `ARCHIVED`, `RUNNING`, `STOPPED`, `BLOCKED`, `ERROR`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
-- User actions: search, filter by status/risk, switch market/installed, refresh, install market plugin, open custom install dialog, navigate to detail, navigate to installation config, navigate to security review, navigate to bindings, enable/disable, upgrade, uninstall where route responsibility allows
+- User actions: search, filter by status/risk, switch market/installed, refresh, install market plugin, open custom install dialog, navigate to detail, navigate to installation config, navigate to security review, navigate to bindings, enable/disable, upgrade, compare versions, rollback, uninstall where route responsibility allows, queue an active Hook into the controlled async execution boundary from the bindings page
 - Required states: loading, empty, error, validation, disabled, success, permission-denied
+- Confirmation flows: market/custom install uses guided confirmation; plugin enable/disable, plugin upgrade, plugin rollback, plugin uninstall, Hook enable/disable, Hook controlled queueing, menu show/hide, and menu binding enable/disable must open Chinese confirmation dialogs before mutation, with impact text and pending disabled state. Hook queueing copy must state that the console records a platform event only and does not run third-party code, HTTP calls, or scripts.
 
 Design requirements:
 - Make it look like a production Chinese SaaS/admin product for repeated operational use.
 - Use a compact toolbar with search and filters; use metric cards for total/active/pending/menu/hook counts.
 - Use a table for `/plugins` with columns for 插件, 版本, 状态, 风险, 能力摘要, 入口.
 - Show route entry buttons as icon+text actions: 详情, 安装配置, 安全审核, 绑定配置.
-- Show detail pages as focused operational panels: manifest summary, install/config form, security policy/risk checks, hook/menu binding tables.
+- Show detail pages as focused operational panels: manifest summary, install/config form, version compare panel, security policy/risk checks, hook/menu binding tables.
+- The installation config page must include a “版本对比” panel: current version, selected compare version, status badge with diff count, selector for historical versions, and a “Manifest 差异” before/after diff list. It should help operators decide before clicking rollback.
+- Show high-impact confirmations as compact modal dialogs using clear titles such as 确认启用插件, 确认停用插件, 确认升级插件, 确认回滚插件, 确认启用 Hook, 确认隐藏菜单.
 - Keep visual style restrained, aligned, high contrast, not decorative.
 - Use Chinese interface text only.
 

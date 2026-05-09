@@ -8,8 +8,10 @@
   - `/agent-teams/[id]/edit`: 编辑页
   - `/agent-teams/[id]/members`: 成员管理页
   - `/agent-teams/[id]/runs`: 运行记录页
+  - `/agent-teams/[id]/runs/[runId]`: 单次运行详情、回放、对比和报告动作页
+  - `/agent-teams/[id]/runs/[runId]/steps/[stepId]`: 单步骤和子事件详情页
   - `/agent-teams/report-archives`: 报告归档页
-- Feature goal: 将原本混在 `agent-teams-content.tsx` 的列表、创建、编辑、详情、成员、运行、接力、反馈、报告归档能力拆成清晰路由边界，先完成基础信息架构和可用页面。
+- Feature goal: 将原本混在 `agent-teams-content.tsx` 的列表、创建、编辑、详情、成员、运行、接力、反馈、运行回放、上一轮对比、审计报告导出和报告归档能力拆成清晰路由边界，并为团队删除、成员移除、启动运行、发起接力、生成归档、归档删除申请和审批处理补齐二次确认。
 - Target users: 租户管理员、Agent 管理员、团队运营人员、安全审批人员、审计人员。
 - Permissions:
   - `agent:team:view`: 查看团队列表、详情、成员摘要、运行摘要、报告归档入口。
@@ -27,11 +29,13 @@
   - `startAgentTeamRun(teamId, { objective })` for `/runs`.
   - `createAgentTeamHandoff(runId, input)`, `approveAgentTeamHandoff(handoffId, input)`, `rejectAgentTeamHandoff(handoffId, input)`, `createAgentTeamFeedback(runId, input)` as run detail actions surfaced from detail/runs pages.
   - `exportAgentTeamRunReport(runId)`, `createAgentTeamRunReportArchive(runId)`, `listAgentTeamRunReportArchives()`, `getAgentTeamRunReportArchiveDownloadUrl(archiveId)`, `deleteAgentTeamRunReportArchive(archiveId)`, `listAgentTeamRunReportArchiveApprovals()`, `approveAgentTeamRunReportArchiveApproval(approvalId, input)`, `rejectAgentTeamRunReportArchiveApproval(approvalId, input)` for report archive workflows.
+  - 运行详情页不新增接口，基于 `getAgentTeam` 返回的 `runs/steps/handoffs/feedback` 派生当前运行回放、上一轮运行对比和成员差异。步骤筛选优先 `step.run_id === run.id`，历史数据缺失 `run_id` 时回退到 `step.trace_id === run.trace_id`。
 - Entities and fields:
   - `AgentTeamListItem`: `id`, `name`, `code`, `description`, `status`, `mode`, `handoff_policy`, `failure_policy`, `owner`, `member_count`, `active_member_count`, `run_count`, `latest_run`, `updated_at`.
   - `AgentTeamDetail`: list item fields plus `members`, `runs`, `steps`, `handoffs`, `feedback`.
   - `AgentTeamMemberItem`: `agent_name`, `agent_code`, `role`, `responsibility`, `execution_order`, `required`, `status`.
   - `AgentTeamRunSummary`: `objective`, `status`, `trace_id`, `total_steps`, `completed_steps`, `failed_steps`, `total_tokens`, `total_cost`, `latency_ms`, `started_at`, `ended_at`, `created_at`.
+  - `AgentTeamStepItem`: `run_id`, `agent_name`, `agent_code`, `step_type`, `status`, `input_summary`, `output_summary`, `duration_ms`, `total_tokens`, `cost_total`, `child_steps`, `references`, `tool_calls`, `model_call`, `trace_id`, `span_id`, `parent_span_id`.
   - `AgentTeamRunReportArchiveItem`: `file_name`, `size_bytes`, `team_name`, `run_objective`, `last_modified`, `download_expires_in`.
   - `AgentTeamRunReportArchiveApprovalItem`: `archive_file_name`, `status`, `reason`, `requested_by`, `reviewed_by`, `requested_at`, `reviewed_at`.
 - Status/enums:
@@ -49,5 +53,5 @@
   - Tailwind CSS utility classes.
   - Local UI primitives: `Button`, `MetricCard`, `StatusBadge`, `EmptyState`, `Card`.
   - lucide-react icons for buttons and route actions.
-- Required states: loading, empty, error, validation, disabled by permission, mutation pending, destructive confirmation.
+- Required states: loading, empty, error, validation, disabled by permission, mutation pending, destructive confirmation; 启动运行、发起接力、生成归档、申请删除归档、审批通过/拒绝也必须确认后再触发接口。运行详情还需要展示“暂无上一轮可对比”、当前运行无步骤、上一轮步骤缺失、成员新增/缺席、Trace 缺失等状态。
 - Design constraints: operational SaaS/admin style, Chinese UI, dense but scannable tables, no landing page, no decorative gradients/orbs, keep cards as repeated data items or framed tools only.

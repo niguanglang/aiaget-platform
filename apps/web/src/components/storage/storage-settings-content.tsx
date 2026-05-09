@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, HardDrive, Settings2 } from 'lucide-react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ensureStorageBucket, getStorageSettings } from '@/lib/api-client';
 
 import {
+  ConfirmCard,
   formatDateTime,
   InfoRow,
   invalidateStorage,
@@ -24,6 +26,7 @@ import {
 export function StorageSettingsContent() {
   const queryClient = useQueryClient();
   const storagePermissions = useStoragePermissions();
+  const [ensureBucketTarget, setEnsureBucketTarget] = useState(false);
   const settingsQuery = useQuery({
     queryKey: ['storage-settings'],
     queryFn: getStorageSettings,
@@ -33,10 +36,15 @@ export function StorageSettingsContent() {
     mutationFn: ensureStorageBucket,
     onSuccess: async () => {
       await invalidateStorage(queryClient);
+      setEnsureBucketTarget(false);
     },
   });
 
   const settings = settingsQuery.data ?? null;
+
+  function confirmEnsureBucket() {
+    ensureBucketMutation.mutate();
+  }
 
   return (
     <main className="relative mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:px-6">
@@ -99,7 +107,7 @@ export function StorageSettingsContent() {
             <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button
                 disabled={!storagePermissions.canManage || ensureBucketMutation.isPending}
-                onClick={() => ensureBucketMutation.mutate()}
+                onClick={() => setEnsureBucketTarget(true)}
                 type="button"
               >
                 <HardDrive className="size-4" />
@@ -117,6 +125,16 @@ export function StorageSettingsContent() {
                 </a>
               </Button>
             </div>
+            {ensureBucketTarget ? (
+              <ConfirmCard
+                body={`这会连接对象存储并验证或创建桶 ${settings.bucket}，请确认当前 MinIO 配置和权限正确。`}
+                confirmLabel="确认执行"
+                onCancel={() => setEnsureBucketTarget(false)}
+                onConfirm={confirmEnsureBucket}
+                pending={ensureBucketMutation.isPending}
+                title="确认验证或创建存储桶"
+              />
+            ) : null}
           </div>
         )}
       </Card>

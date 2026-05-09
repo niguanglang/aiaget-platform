@@ -8,6 +8,7 @@
     "dev": "next dev --port 3000",
     "lint": "eslint src",
     "start": "next start --port 3000",
+    "test:ia": "../control-api/node_modules/.bin/tsx --test $(find src/components -name '*-route-ia-contract.test.ts' | sort)",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

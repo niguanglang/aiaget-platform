@@ -1,0 +1,137 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { SecurityCenterService } from './security-center.service';
+
+test('listEvents reads dedicated security_event rows before legacy aggregate sources', async () => {
+  const occurredAt = new Date('2026-05-08T08:00:00.000Z');
+  const prisma = {
+    securityEvent: {
+      findMany: async () => [
+        {
+          id: 'event-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          source: 'RESOURCE_ACL',
+          title: '资源授权拒绝',
+          reason: '未授权使用该 Agent',
+          resourceType: 'AGENT',
+          resourceId: 'agent-1',
+          action: 'agent:agent:use',
+          matchedCode: 'agent:agent:use',
+          path: '/api/v1/agents/agent-1/chat',
+          method: 'POST',
+          statusCode: 403,
+          requestId: 'request-1',
+          traceId: 'trace-1',
+          severity: 'HIGH',
+          sourceRecordType: 'operation_log',
+          sourceRecordId: 'operation-1',
+          subject: { user_id: 'user-1' },
+          resource: { resource_type: 'AGENT', id: 'agent-1' },
+          context: { guard: 'ResourceAclGuard' },
+          requestSummary: { trace_id: 'trace-1' },
+          matchedPolicyId: null,
+          matchedPolicyCode: 'agent:agent:use',
+          matchedPolicyName: null,
+          ip: '127.0.0.1',
+          userAgent: 'node:test',
+          errorMessage: '未授权使用该 Agent',
+          occurredAt,
+          createdAt: occurredAt,
+          user: {
+            id: 'user-1',
+            name: '管理员',
+            email: 'admin@example.test',
+          },
+        },
+      ],
+    },
+    $transaction: async () => {
+      throw new Error('legacy aggregate should not be queried when security_event has rows');
+    },
+  };
+  const service = new SecurityCenterService(prisma as never, null as never);
+
+  const result = await service.listEvents(buildUser(), { page: 1, page_size: 20, window: '24h' });
+
+  assert.equal(result.total, 1);
+  assert.equal(result.items[0]?.id, 'event-1');
+  assert.equal(result.items[0]?.source_record_type, 'operation_log');
+  assert.equal(result.items[0]?.has_trace, true);
+  assert.equal(result.items[0]?.title, '资源授权拒绝');
+});
+
+test('getEvent resolves dedicated security_event detail by stable event id', async () => {
+  const occurredAt = new Date('2026-05-08T08:00:00.000Z');
+  const prisma = {
+    securityEvent: {
+      findFirst: async (args: { where: { tenantId: string; id: string } }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.equal(args.where.id, 'event-1');
+        return {
+          id: 'event-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          source: 'SECURITY_POLICY',
+          title: '安全策略拒绝',
+          reason: '命中高危工具策略',
+          resourceType: 'TOOL',
+          resourceId: 'tool-1',
+          action: 'tool:call:execute',
+          matchedCode: 'deny-high-risk-tool',
+          path: '/api/v1/tools/tool-1/execute',
+          method: 'POST',
+          statusCode: 403,
+          requestId: 'request-1',
+          traceId: null,
+          severity: 'MEDIUM',
+          sourceRecordType: 'security_policy_evaluation',
+          sourceRecordId: 'evaluation-1',
+          subject: { user_id: 'user-1' },
+          resource: { resource_type: 'TOOL', id: 'tool-1' },
+          context: { risk: 'HIGH' },
+          requestSummary: null,
+          matchedPolicyId: 'policy-1',
+          matchedPolicyCode: 'deny-high-risk-tool',
+          matchedPolicyName: '高危工具阻断',
+          ip: null,
+          userAgent: null,
+          errorMessage: '命中高危工具策略',
+          occurredAt,
+          createdAt: occurredAt,
+          user: {
+            id: 'user-1',
+            name: '管理员',
+            email: 'admin@example.test',
+          },
+        };
+      },
+    },
+  };
+  const service = new SecurityCenterService(prisma as never, null as never);
+
+  const detail = await service.getEvent(buildUser(), 'event-1');
+
+  assert.equal(detail.id, 'event-1');
+  assert.equal(detail.source, 'SECURITY_POLICY');
+  assert.equal(detail.source_record_id, 'evaluation-1');
+  assert.deepEqual(detail.matched_policy, {
+    id: 'policy-1',
+    code: 'deny-high-risk-tool',
+    name: '高危工具阻断',
+  });
+  assert.equal(detail.has_trace, false);
+});
+
+function buildUser() {
+  return {
+    id: 'user-1',
+    tenantId: 'tenant-1',
+    email: 'admin@example.test',
+    roles: [],
+    permissions: ['security:rule:view'],
+    requestId: 'request-1',
+    traceId: 'trace-1',
+  };
+}

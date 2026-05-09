@@ -6,8 +6,11 @@ export interface ChatExecutionMessage {
 }
 
 export interface OpenAiCompatibleConfig {
+  providerType?: string;
   apiKey: string;
   baseUrl: string;
+  apiVersion?: string | null;
+  maxOutputTokens?: number | null;
   model: string;
   messages: ChatExecutionMessage[];
   temperature?: number;
@@ -45,16 +48,12 @@ export async function executeOpenAiCompatibleChat(
   const traceId = config.traceId ?? createTraceId();
   const traceparent = config.traceparent ?? buildTraceparent(traceId, createSpanId());
   const requestPayload = createPayload(config, false);
-  const url = buildChatUrl(config.baseUrl);
+  const adapter = resolveAdapter(config.providerType);
+  const url = buildProviderUrl(config);
   const startedAt = Date.now();
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      accept: 'application/json',
-      authorization: `Bearer ${config.apiKey}`,
-      'content-type': 'application/json',
-      ...traceHeaders({ traceId, traceparent }),
-    },
+    headers: buildProviderHeaders(config, traceId, traceparent, false),
     body: JSON.stringify(requestPayload),
   });
 
@@ -71,7 +70,7 @@ export async function executeOpenAiCompatibleChat(
       totalTokens: estimateMessagesTokens(config.messages),
       latencyMs,
       requestSummary: {
-        adapter: 'OPENAI_COMPATIBLE',
+        adapter,
         trace_id: traceId,
         traceparent,
         messages: previewMessages(config.messages),
@@ -84,25 +83,25 @@ export async function executeOpenAiCompatibleChat(
     };
   }
 
-  const content = extractCompletionText(responseJson);
-  const usage = extractUsage(responseJson, config.messages, content);
+  const content = extractProviderCompletionText(adapter, responseJson);
+  const usage = extractProviderUsage(adapter, responseJson, config.messages, content);
 
   return {
     traceId,
-    requestModel: extractResponseModel(responseJson) ?? config.model,
+    requestModel: extractProviderResponseModel(adapter, responseJson) ?? config.model,
     outputText: content,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
     totalTokens: usage.totalTokens,
     latencyMs,
     requestSummary: {
-      adapter: 'OPENAI_COMPATIBLE',
+      adapter,
       trace_id: traceId,
       traceparent,
       messages: previewMessages(config.messages),
     },
     responseSummary: {
-      adapter: 'OPENAI_COMPATIBLE',
+      adapter,
       id: isObject(responseJson) ? responseJson.id ?? null : null,
       output_preview: content.slice(0, 240),
       usage: isObject(responseJson) ? responseJson.usage ?? null : null,
@@ -118,21 +117,17 @@ export async function streamOpenAiCompatibleChat(
   const traceId = config.traceId ?? createTraceId();
   const traceparent = config.traceparent ?? buildTraceparent(traceId, createSpanId());
   const requestPayload = createPayload(config, true);
-  const url = buildChatUrl(config.baseUrl);
+  const adapter = resolveAdapter(config.providerType);
+  const url = buildProviderUrl(config);
   const startedAt = Date.now();
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      accept: 'text/event-stream',
-      authorization: `Bearer ${config.apiKey}`,
-      'content-type': 'application/json',
-      ...traceHeaders({ traceId, traceparent }),
-    },
+    headers: buildProviderHeaders(config, traceId, traceparent, true),
     body: JSON.stringify(requestPayload),
   });
 
   const requestSummary = {
-    adapter: 'OPENAI_COMPATIBLE',
+    adapter,
     trace_id: traceId,
     traceparent,
     messages: previewMessages(config.messages),
@@ -180,14 +175,14 @@ export async function streamOpenAiCompatibleChat(
         }
 
         if (parsed) {
-          const delta = extractStreamDelta(parsed);
+          const delta = extractProviderStreamDelta(adapter, parsed);
           if (delta) {
             outputText += delta;
             callbacks.onDelta(delta);
           }
 
-          responseModel = extractResponseModel(parsed) ?? responseModel;
-          const nextUsage = extractUsageFromStream(parsed);
+          responseModel = extractProviderStreamModel(adapter, parsed) ?? responseModel;
+          const nextUsage = extractProviderUsageFromStream(adapter, parsed);
           if (nextUsage) {
             usage = nextUsage;
           }
@@ -211,7 +206,7 @@ export async function streamOpenAiCompatibleChat(
     latencyMs,
     requestSummary,
     responseSummary: {
-      adapter: 'OPENAI_COMPATIBLE',
+      adapter,
       output_preview: outputText.slice(0, 240),
       streamed: true,
     },
@@ -268,12 +263,27 @@ function buildChatUrl(baseUrl: string) {
   return new URL('chat/completions', normalized);
 }
 
+function buildAzureChatUrl(baseUrl: string, apiVersion?: string | null) {
+  const url = buildChatUrl(baseUrl);
+  url.searchParams.set('api-version', apiVersion?.trim() || '2024-06-01');
+  return url;
+}
+
+function buildAnthropicMessagesUrl(baseUrl: string) {
+  const normalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL('messages', normalized);
+}
+
 function buildEmbeddingsUrl(baseUrl: string) {
   const normalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return new URL('embeddings', normalized);
 }
 
 function createPayload(config: OpenAiCompatibleConfig, stream: boolean) {
+  if (resolveAdapter(config.providerType) === 'ANTHROPIC') {
+    return createAnthropicPayload(config, stream);
+  }
+
   return {
     model: config.model,
     messages: config.messages,
@@ -281,6 +291,70 @@ function createPayload(config: OpenAiCompatibleConfig, stream: boolean) {
     stream,
     ...(stream ? { stream_options: { include_usage: true } } : {}),
   };
+}
+
+function createAnthropicPayload(config: OpenAiCompatibleConfig, stream: boolean) {
+  const systemMessages = config.messages
+    .filter((message) => message.role === 'system')
+    .map((message) => message.content.trim())
+    .filter(Boolean);
+  const conversationMessages = config.messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => ({
+      role: message.role === 'assistant' ? 'assistant' : 'user',
+      content: message.content,
+    }));
+
+  return {
+    model: config.model,
+    messages: conversationMessages.length > 0 ? conversationMessages : [{ role: 'user', content: '请根据系统指令继续。' }],
+    max_tokens: config.maxOutputTokens ?? 2048,
+    temperature: config.temperature ?? 0.7,
+    stream,
+    ...(systemMessages.length > 0 ? { system: systemMessages.join('\n\n') } : {}),
+  };
+}
+
+function buildProviderUrl(config: OpenAiCompatibleConfig) {
+  const adapter = resolveAdapter(config.providerType);
+  if (adapter === 'AZURE_OPENAI') {
+    return buildAzureChatUrl(config.baseUrl, config.apiVersion);
+  }
+  if (adapter === 'ANTHROPIC') {
+    return buildAnthropicMessagesUrl(config.baseUrl);
+  }
+  return buildChatUrl(config.baseUrl);
+}
+
+function buildProviderHeaders(
+  config: OpenAiCompatibleConfig,
+  traceId: string,
+  traceparent: string,
+  stream: boolean,
+) {
+  const adapter = resolveAdapter(config.providerType);
+  const headers: Record<string, string> = {
+    accept: stream ? 'text/event-stream' : 'application/json',
+    'content-type': 'application/json',
+    ...traceHeaders({ traceId, traceparent }),
+  };
+  if (adapter === 'AZURE_OPENAI') {
+    headers['api-key'] = config.apiKey;
+  } else if (adapter === 'ANTHROPIC') {
+    headers['x-api-key'] = config.apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+  } else {
+    headers.authorization = `Bearer ${config.apiKey}`;
+  }
+
+  return headers;
+}
+
+function resolveAdapter(providerType: string | undefined) {
+  const normalized = providerType?.toUpperCase();
+  if (normalized === 'AZURE_OPENAI') return 'AZURE_OPENAI';
+  if (normalized === 'ANTHROPIC') return 'ANTHROPIC';
+  return 'OPENAI_COMPATIBLE';
 }
 
 function previewMessages(messages: ChatExecutionMessage[]) {
@@ -299,8 +373,26 @@ function extractCompletionText(payload: unknown) {
   return isObject(message) && typeof message.content === 'string' ? message.content : '';
 }
 
+function extractAnthropicCompletionText(payload: unknown) {
+  if (!isObject(payload) || !Array.isArray(payload.content)) {
+    return '';
+  }
+
+  return payload.content
+    .map((item) => (isObject(item) && typeof item.text === 'string' ? item.text : ''))
+    .join('');
+}
+
+function extractProviderCompletionText(adapter: string, payload: unknown) {
+  return adapter === 'ANTHROPIC' ? extractAnthropicCompletionText(payload) : extractCompletionText(payload);
+}
+
 function extractResponseModel(payload: unknown) {
   return isObject(payload) && typeof payload.model === 'string' ? payload.model : null;
+}
+
+function extractProviderResponseModel(_adapter: string, payload: unknown) {
+  return extractResponseModel(payload);
 }
 
 function extractUsage(
@@ -320,6 +412,35 @@ function extractUsage(
   }
 
   return estimateUsageFallback(messages, outputText);
+}
+
+function extractAnthropicUsage(
+  payload: unknown,
+  messages: ChatExecutionMessage[],
+  outputText: string,
+) {
+  if (isObject(payload) && isObject(payload.usage)) {
+    const promptTokens = numberValue(payload.usage.input_tokens) ?? estimateMessagesTokens(messages);
+    const completionTokens = numberValue(payload.usage.output_tokens) ?? estimateTextTokens(outputText);
+    return {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+    };
+  }
+
+  return estimateUsageFallback(messages, outputText);
+}
+
+function extractProviderUsage(
+  adapter: string,
+  payload: unknown,
+  messages: ChatExecutionMessage[],
+  outputText: string,
+) {
+  return adapter === 'ANTHROPIC'
+    ? extractAnthropicUsage(payload, messages, outputText)
+    : extractUsage(payload, messages, outputText);
 }
 
 function extractUsageFromStream(payload: unknown) {
@@ -345,6 +466,37 @@ function extractUsageFromStream(payload: unknown) {
     completionTokens,
     totalTokens,
   };
+}
+
+function extractAnthropicUsageFromStream(payload: unknown) {
+  if (!isObject(payload)) {
+    return null;
+  }
+
+  const usage = isObject(payload.usage)
+    ? payload.usage
+    : isObject(payload.message) && isObject(payload.message.usage)
+      ? payload.message.usage
+      : null;
+  if (!usage) {
+    return null;
+  }
+
+  const promptTokens = numberValue(usage.input_tokens);
+  const completionTokens = numberValue(usage.output_tokens);
+  if (promptTokens === null || completionTokens === null) {
+    return null;
+  }
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+  };
+}
+
+function extractProviderUsageFromStream(adapter: string, payload: unknown) {
+  return adapter === 'ANTHROPIC' ? extractAnthropicUsageFromStream(payload) : extractUsageFromStream(payload);
 }
 
 function estimateUsageFallback(messages: ChatExecutionMessage[], outputText: string) {
@@ -399,6 +551,30 @@ function extractStreamDelta(payload: unknown) {
 
   const delta = payload.choices[0]?.delta;
   return isObject(delta) && typeof delta.content === 'string' ? delta.content : '';
+}
+
+function extractAnthropicStreamDelta(payload: unknown) {
+  if (!isObject(payload)) {
+    return '';
+  }
+
+  if (isObject(payload.delta) && typeof payload.delta.text === 'string') {
+    return payload.delta.text;
+  }
+
+  return '';
+}
+
+function extractProviderStreamDelta(adapter: string, payload: unknown) {
+  return adapter === 'ANTHROPIC' ? extractAnthropicStreamDelta(payload) : extractStreamDelta(payload);
+}
+
+function extractProviderStreamModel(adapter: string, payload: unknown) {
+  if (adapter === 'ANTHROPIC' && isObject(payload) && isObject(payload.message) && typeof payload.message.model === 'string') {
+    return payload.message.model;
+  }
+
+  return extractResponseModel(payload);
 }
 
 async function safeJson(response: Response) {

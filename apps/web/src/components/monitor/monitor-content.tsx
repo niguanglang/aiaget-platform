@@ -13,7 +13,7 @@ import type {
 } from '@aiaget/shared-types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Activity, AlertTriangle, ExternalLink, GitBranch, Layers3, RefreshCw, Search } from 'lucide-react';
+import { Activity, AlertTriangle, ExternalLink, GitBranch, Layers3, RefreshCw, Route, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -31,7 +31,6 @@ import {
   monitorStatusLabel,
   monitorStatusTone,
 } from '@/components/monitor/monitor-status';
-import { PlatformEventUsagePanel } from '@/components/platform-event-usage/platform-event-usage-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -247,7 +246,7 @@ export function MonitorContent() {
         />
       </section>
 
-      <PlatformEventUsagePanel windowValue={windowValue} />
+      <PlatformUsageEntryCard />
 
       <EventListCard
         events={events}
@@ -276,6 +275,38 @@ export function MonitorContent() {
         onWindowChange={setWindowValue}
       />
     </main>
+  );
+}
+
+function PlatformUsageEntryCard() {
+  return (
+    <Card className="grid gap-4 p-5">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Route className="size-4 text-primary" />
+            平台事件与用量底座
+          </div>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+            平台事件、用量账本、Rollup、异常检测、通知审计和重试任务已拆到独立页面，监控首页只保留入口。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild type="button" variant="outline">
+            <Link href="/monitor/platform-usage">底座总览</Link>
+          </Button>
+          <Button asChild type="button" variant="outline">
+            <Link href="/monitor/platform-usage/alerts">用量告警</Link>
+          </Button>
+          <Button asChild type="button" variant="outline">
+            <Link href="/monitor/platform-usage/notifications">通知审计</Link>
+          </Button>
+          <Button asChild type="button" variant="outline">
+            <Link href="/monitor/platform-usage/tasks">重试任务</Link>
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

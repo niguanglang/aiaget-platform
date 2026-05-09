@@ -26,6 +26,11 @@ import {
 } from '@/lib/api-client';
 
 const statuses: RoleStatus[] = ['ACTIVE', 'DISABLED', 'DELETED'];
+type RoleStatusTarget = {
+  id: string;
+  name: string;
+  nextStatus: 'ACTIVE' | 'DISABLED';
+};
 
 export function RolePermissionContent() {
   const queryClient = useQueryClient();
@@ -33,6 +38,7 @@ export function RolePermissionContent() {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<RoleListItem | null>(null);
+  const [roleStatusTarget, setRoleStatusTarget] = useState<RoleStatusTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -64,6 +70,7 @@ export function RolePermissionContent() {
       nextStatus === 'ACTIVE' ? enableRole(id) : disableRole(id),
     onSuccess: async (role) => {
       queryClient.setQueryData(['role', role.id], role);
+      setRoleStatusTarget(null);
       setActionError(null);
       await refreshRoles();
     },
@@ -90,6 +97,15 @@ export function RolePermissionContent() {
   function clearFilters() {
     setKeyword('');
     setStatus('');
+  }
+
+  function confirmRoleStatusChange() {
+    if (!roleStatusTarget) return;
+
+    statusMutation.mutate({
+      id: roleStatusTarget.id,
+      nextStatus: roleStatusTarget.nextStatus,
+    });
   }
 
   const overview = overviewQuery.data;
@@ -240,8 +256,9 @@ export function RolePermissionContent() {
             canWrite={canWrite}
             onDelete={setDeleteTarget}
             onToggle={(role) =>
-              statusMutation.mutate({
+              setRoleStatusTarget({
                 id: role.id,
+                name: role.name,
                 nextStatus: role.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
               })
             }
@@ -258,6 +275,20 @@ export function RolePermissionContent() {
           title="删除角色？"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
+      ) : null}
+      {roleStatusTarget ? (
+        <ConfirmDialog
+          body={
+            roleStatusTarget.nextStatus === 'DISABLED'
+              ? `确认更新角色状态：停用角色「${roleStatusTarget.name}」后，相关用户会失去该角色提供的菜单、接口和资源操作入口。`
+              : `确认更新角色状态：启用角色「${roleStatusTarget.name}」后，相关用户会重新获得该角色配置的权限入口。`
+          }
+          confirmLabel={roleStatusTarget.nextStatus === 'DISABLED' ? '确认停用' : '确认启用'}
+          pending={statusMutation.isPending}
+          title="确认更新角色状态"
+          onCancel={() => setRoleStatusTarget(null)}
+          onConfirm={confirmRoleStatusChange}
         />
       ) : null}
     </main>

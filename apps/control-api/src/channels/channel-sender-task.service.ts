@@ -37,7 +37,6 @@ const deliveryInclude = {
 } satisfies Prisma.ChannelSenderDeliveryInclude;
 
 type ChannelRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelInclude }>;
-type DeliveryRecord = Prisma.ChannelSenderDeliveryGetPayload<{ include: typeof deliveryInclude }>;
 
 interface ScheduledTaskLockResult {
   acquired: boolean;

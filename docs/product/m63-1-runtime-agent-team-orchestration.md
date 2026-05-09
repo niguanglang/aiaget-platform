@@ -190,9 +190,10 @@ platform_event
 platform_usage_event
 ```
 
-团队运行完成、失败、等待人工介入时会写入：
+团队运行启动、完成、失败、等待人工介入时会写入：
 
 ```text
+agent.team.run.started
 agent.team.run.finished
 agent.team.run.failed
 agent.team.run.waiting_human
@@ -374,7 +375,7 @@ Workflow Activity 同样回调 Control API 内部接口，由 Control API 重新
 Control API 新增环境变量：
 
 ```text
-AGENT_TEAM_WORKFLOW_MODE=local
+AGENT_TEAM_WORKFLOW_MODE=temporal_first
 ```
 
 可选值：
@@ -390,10 +391,48 @@ temporal：
 强制请求 Runtime workflow start endpoint，调度失败则把 agent_team_run 标记为 FAILED。
 ```
 
+兼容值：
+
+```text
+runtime_first / runtime_only：
+历史生产模板值，当前会归一为 temporal_first，避免多 Agent 团队工作流被误判为 local。
+```
+
+生产模板默认使用 `temporal_first`。如果目标环境暂未启用 Temporal，Runtime workflow endpoint 可以返回 `LOCAL_FALLBACK`，Control API 会按本地兜底闭环继续回写运行台账。
+
+### 工作流恢复
+
+失败的 `workflow.agent_team_run.failed` 已纳入 Runtime 工作流状态页：
+
+```text
+GET  /api/v1/runtime/workflows/status
+POST /api/v1/runtime/workflows/retry
+```
+
+恢复项类型为：
+
+```text
+agent_team_run
+```
+
+恢复重试需要 `agent:team:run` 权限，重试会写入 `workflow.agent_team_run.retry_requested`，再通过 `AgentTeamsService.runWorkflowRun` 重新派发团队运行。
+
 ## 已完成闭环
 
 ```text
 团队运行 -> Workflow 调度边界 -> Runtime 团队编排 -> Supervisor 模型决策/规则回退 -> 成员 Agent Runtime 图 -> RAG / Tool / Model -> Supervisor 接力 -> 团队汇总 -> 运行台账 -> platform_event / platform_usage_event -> 前端运行轨迹工作区
+```
+
+补充闭环：
+
+```text
+重复 Runtime/Workflow resume 回调 -> 步骤指纹识别 -> 跳过重复步骤/接力/用量累计
+platform_event dedupeKey -> 同租户同幂等键复用已有事件 -> 避免重复事件关系和重复用量挂载
+/agent-teams/{teamId}/runs/{runId} -> 单次运行详情深链 -> 时间线 / 接力 / 反馈 / Trace / 报告动作
+/agent-teams/{teamId}/runs/{runId} -> 成员内部事件下钻 -> child_steps / references / tool_calls / model_call
+/agent-teams/{teamId}/runs/{runId}/steps/{stepId} -> 单步骤详情深链 -> 基础信息 / Trace / 子事件列表 / 子事件详情
+eventType + eventId 查询参数 -> 定位单条成员内部事件、知识引用、工具调用或模型调用
+/agent-teams/{teamId}/runs/{runId} -> 运行内 Trace 图谱 -> trace_id / span_id / parent_span_id 关系、根节点、孤立节点、监控中心跳转
 ```
 
 ## 产品价值
@@ -406,15 +445,15 @@ temporal：
 
 后续插件生态、渠道发布、复杂计费都可以把团队运行作为统一执行对象。
 
-## 未完成边界
+## 后续增强边界
 
-下一步建议继续拆：
+本里程碑的 Runtime 编排、成员内部 RAG / Tool / Model 子事件、单运行深链、单步骤深链、运行内 Trace 图谱和团队成本投影已经落地。后续增强不再阻塞 P0 上线，主要集中在跨系统观测和真实环境演练：
 
 ```text
-1. M64：统一事件查询、用量汇总、事件关系和 rollup 聚合
-2. M65：团队运行步骤继续拆出成员内部 RAG、工具和模型子事件视图
-3. M67：团队运行步骤继续拆出成员内部 RAG、工具和模型子事件视图
-4. M68：复杂计费规则、团队任务预算和渠道级成本分摊
+1. 真实生产环境端到端演练：按 P0-12 Runbook 启动目标环境后执行团队运行 smoke。
+2. 全局跨 Trace 聚合：把团队运行 Trace 与外部观测系统中的跨服务 Trace 统一查询。
+3. 外部观测系统视图：把运行内 Trace 图谱扩展为 Prometheus/Grafana/Tempo 等外部系统跳转。
+4. 更细粒度成本策略：按团队、成员、渠道和插件来源做更多计费策略组合。
 ```
 
 ## 验证

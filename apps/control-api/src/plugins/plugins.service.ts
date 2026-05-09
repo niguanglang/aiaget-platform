@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 
@@ -13,6 +13,7 @@ import type {
   PluginOverview,
   PluginUninstallResult,
   PluginVersionItem,
+  RollbackPluginInput,
   PluginHookStatus,
   PluginInstallationStatus,
   PluginRiskLevel,
@@ -26,6 +27,8 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PluginPackageIntegrityService } from './plugin-package-integrity.service';
+import { PluginRollbackWorkflowService, type PluginRollbackWorkflowDispatchResult } from './plugin-rollback-workflow.service';
 import { buildPluginGeneratedCodes, buildPluginManifestPolicy, validatePluginManifestInput } from './plugin-policy';
 
 type PluginRecord = Prisma.PluginGetPayload<{
@@ -34,6 +37,19 @@ type PluginRecord = Prisma.PluginGetPayload<{
     hooks: true;
     menuBindings: { include: { menu: true } };
     auditLogs: true;
+  };
+}>;
+
+type PluginInstallationDetailRecord = Prisma.PluginInstallationGetPayload<{
+  include: {
+    plugin: {
+      include: {
+        versions: true;
+        hooks: true;
+        menuBindings: { include: { menu: true } };
+        auditLogs: true;
+      };
+    };
   };
 }>;
 
@@ -111,6 +127,8 @@ export class PluginsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+    @Inject(PluginPackageIntegrityService) private readonly packageIntegrity: PluginPackageIntegrityService,
+    @Optional() @Inject(PluginRollbackWorkflowService) private readonly rollbackWorkflow: PluginRollbackWorkflowService | null = null,
   ) {}
 
   async getOverview(currentUser: AuthenticatedUser): Promise<PluginOverview> {
@@ -196,8 +214,8 @@ export class PluginsService {
     return records.map((item) => this.mapInstallationItem(item));
   }
 
-  validateManifest(dto: CreatePluginInstallationInput) {
-    return validatePluginManifestInput(dto);
+  async validateManifest(dto: CreatePluginInstallationInput) {
+    return this.validateManifestWithPackageIntegrity(dto);
   }
 
   private async buildPluginWhere(currentUser: AuthenticatedUser): Promise<Prisma.PluginWhereInput> {
@@ -285,6 +303,25 @@ export class PluginsService {
       });
       throw new BadRequestException(validation.summary);
     }
+    await this.attachPackageIntegrity(validation);
+    if (!validation.can_install) {
+      await this.platformEvents.recordEvent({
+        tenantId: currentUser.tenantId,
+        departmentId: currentUser.departmentId ?? null,
+        userId: currentUser.id,
+        resourceType: 'PLUGIN',
+        resourceId: validation.manifest_code,
+        eventSource: 'CONTROL_API',
+        eventType: 'plugin.manifest.validation_failed',
+        status: 'FAILED',
+        severity: 'WARN',
+        billable: false,
+        summary: validation.summary,
+        payloadJson: JSON.parse(JSON.stringify(validation)) as Prisma.InputJsonValue,
+      });
+      throw new BadRequestException(validation.summary);
+    }
+    const packageIntegrity = validation.package_integrity;
 
     const manifest = normalizePluginManifest(dto);
     const plugin = await this.prisma.plugin.upsert({
@@ -397,6 +434,7 @@ export class PluginsService {
         permissions: manifest.permissions,
         risk_level: manifest.riskLevel,
         source_type: dto.source_type ?? 'MARKET',
+        package_integrity: packageIntegrity ?? null,
       },
       manifest.riskLevel,
     );
@@ -413,17 +451,48 @@ export class PluginsService {
       severity: 'INFO',
       billable: false,
       summary: `插件 ${plugin.code} 已安装并同步 Manifest`,
-      payloadJson: {
+      payloadJson: JSON.parse(JSON.stringify({
         plugin_code: plugin.code,
         manifest_code: manifest.code,
         version: manifest.version,
         hooks: syncSummary.hooks,
         menus: syncSummary.menus,
         tools: syncSummary.tools,
-      },
+        package_integrity: packageIntegrity ?? null,
+      })) as Prisma.InputJsonValue,
     });
 
     return this.getInstallation(currentUser, plugin.id);
+  }
+
+  private async validateManifestWithPackageIntegrity(dto: CreatePluginInstallationInput) {
+    const validation = validatePluginManifestInput(dto);
+    if (validation.can_install) {
+      await this.attachPackageIntegrity(validation);
+    }
+    return validation;
+  }
+
+  private async attachPackageIntegrity(validation: ReturnType<typeof validatePluginManifestInput>) {
+    const packageIntegrity = await this.packageIntegrity.verifyPackage({
+      sourceUrl: validation.package_source,
+      expectedSha256: validation.package_sha256,
+      signature: validation.package_signature,
+      signatureType: validation.package_signature_type,
+      signatureVerificationUrl: validation.package_signature_verification_url,
+    });
+    validation.package_integrity = packageIntegrity;
+    if (packageIntegrity.status !== 'FAILED') return;
+
+    validation.status = 'FAILED';
+    validation.can_install = false;
+    validation.errors.push({
+      code: packageIntegrity.error_code ?? 'PACKAGE_INTEGRITY_FAILED',
+      severity: 'ERROR',
+      path: 'package.sha256',
+      message: packageIntegrity.error_message ?? '插件包完整性校验失败。',
+    });
+    validation.summary = `Manifest 校验失败：${validation.errors.map((issue) => issue.message).join('；')}`;
   }
 
   async update(currentUser: AuthenticatedUser, pluginId: string, dto: UpdatePluginInstallationInput): Promise<PluginInstallationDetail> {
@@ -548,6 +617,140 @@ export class PluginsService {
     });
 
     return this.getInstallation(currentUser, pluginId);
+  }
+
+  async rollback(currentUser: AuthenticatedUser, pluginId: string, dto: RollbackPluginInput) {
+    const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
+    const version = await this.prisma.pluginVersion.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        pluginId,
+        id: dto.version_id ?? undefined,
+        version: dto.version_id ? undefined : dto.version,
+        status: 'PUBLISHED',
+        deletedAt: null,
+      },
+    });
+    if (!version) {
+      throw new NotFoundException('Plugin version snapshot not found');
+    }
+
+    const manifest = normalizePluginManifest({
+      code: pluginId,
+      manifest_json: normalizeJson(version.manifestJson) ?? {},
+      source_type: installation.sourceType as CreatePluginInstallationInput['source_type'],
+    });
+    const now = new Date();
+
+    await this.prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        name: manifest.name,
+        provider: manifest.provider,
+        description: manifest.description,
+        latestVersion: version.version,
+        riskLevel: manifest.riskLevel,
+        manifestJson: toJsonInput(manifest.raw),
+        configJson: toJsonInput(manifest.config),
+        permissionPreview: toJsonInput(manifest.permissions),
+        status: 'INSTALLED',
+        runtimeStatus: 'STOPPED',
+        updatedBy: currentUser.id,
+      },
+    });
+    await this.prisma.pluginInstallation.update({
+      where: { id: installation.id },
+      data: {
+        installedVersion: version.version,
+        latestVersion: version.version,
+        status: 'INSTALLED',
+        runtimeStatus: 'STOPPED',
+        riskLevel: manifest.riskLevel,
+        manifestJson: toJsonInput(manifest.raw),
+        configJson: toJsonInput(manifest.config),
+        permissionPreview: toJsonInput(manifest.permissions),
+        lastUpgradedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    const syncSummary = await this.syncPluginManifest(currentUser, pluginId, manifest);
+    await this.upsertPluginVersionSnapshot({
+      tenantId: currentUser.tenantId,
+      pluginId,
+      version: version.version,
+      manifestJson: version.manifestJson,
+      changeNote: dto.change_note?.trim() || `插件回滚至 ${version.version}。`,
+      createdBy: currentUser.id,
+    });
+    const workflowDispatch = await this.dispatchRollbackWorkflow(currentUser, pluginId, {
+      versionId: version.id,
+      version: version.version,
+    });
+
+    await this.recordAudit(
+      currentUser,
+      pluginId,
+      'ROLLBACK',
+      '回滚插件',
+      dto.change_note?.trim() || `插件已回滚至版本 ${version.version}。`,
+      'SUCCESS',
+      {
+        version_id: version.id,
+        version: version.version,
+        previous_installed_version: installation.installedVersion,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+        workflow_backend: workflowDispatch.workflow_backend,
+        workflow_id: workflowDispatch.workflow_id,
+        workflow_run_id: workflowDispatch.workflow_run_id,
+      },
+      manifest.riskLevel,
+    );
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      pluginId,
+      eventSource: 'CONTROL_API',
+      eventType: 'plugin.rolled_back',
+      status: 'SUCCESS',
+      severity: 'WARN',
+      billable: false,
+      summary: `插件 ${pluginId} 已回滚至 ${version.version}`,
+      payloadJson: {
+        version_id: version.id,
+        version: version.version,
+        previous_installed_version: installation.installedVersion,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+        workflow_backend: workflowDispatch.workflow_backend,
+        workflow_id: workflowDispatch.workflow_id,
+        workflow_run_id: workflowDispatch.workflow_run_id,
+      },
+    });
+
+    return this.getInstallation(currentUser, pluginId);
+  }
+
+  private async dispatchRollbackWorkflow(
+    currentUser: AuthenticatedUser,
+    pluginId: string,
+    input: { versionId: string; version: string },
+  ): Promise<PluginRollbackWorkflowDispatchResult> {
+    if (!this.rollbackWorkflow) {
+      return {
+        workflow_backend: 'LOCAL',
+        workflow_id: null,
+        workflow_run_id: null,
+      };
+    }
+
+    return this.rollbackWorkflow.dispatchRollback(currentUser, pluginId, input);
   }
 
   async uninstall(currentUser: AuthenticatedUser, pluginId: string): Promise<PluginUninstallResult> {
@@ -1334,8 +1537,8 @@ export class PluginsService {
     };
   }
 
-  private mapInstallationDetail(item: Prisma.PluginInstallationGetPayload<{ include: { plugin: any } }>): PluginInstallationDetail {
-    const plugin = item.plugin as PluginRecord;
+  private mapInstallationDetail(item: PluginInstallationDetailRecord): PluginInstallationDetail {
+    const plugin: PluginRecord = item.plugin;
     const policy = buildPluginManifestPolicy({
       riskLevel: item.riskLevel as PluginRiskLevel,
       status: item.status,

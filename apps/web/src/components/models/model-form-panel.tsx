@@ -20,6 +20,8 @@ const modelFormSchema = z.object({
   model: z.string().min(2, '请输入模型 ID。'),
   capabilities: z.array(z.enum(capabilities)).min(1, '至少选择一种能力。'),
   context_length: z.number().int().min(512).max(2000000),
+  max_output_tokens: z.number().int().min(1).max(2000000).optional(),
+  api_version: z.string().max(80, 'API 版本不能超过 80 个字符。').optional(),
   input_price: z.number().min(0),
   output_price: z.number().min(0),
   rate_limit_rpm: z.number().int().min(1).optional(),
@@ -36,6 +38,8 @@ function defaults(provider?: ModelProviderDetail | null, model?: ModelConfigItem
     model: model?.model ?? '',
     capabilities: model?.capabilities.length ? model.capabilities : ['chat'],
     context_length: model?.context_length ?? 8192,
+    max_output_tokens: model?.max_output_tokens ?? undefined,
+    api_version: model?.api_version ?? '',
     input_price: model?.input_price ?? 0,
     output_price: model?.output_price ?? 0,
     rate_limit_rpm: model?.rate_limit_rpm ?? undefined,
@@ -134,6 +138,15 @@ export function ModelFormPanel({
           <Field label="上下文长度" message={form.formState.errors.context_length?.message}>
             <Input type="number" {...form.register('context_length', { valueAsNumber: true })} />
           </Field>
+          <Field label="最大输出 Tokens" message={form.formState.errors.max_output_tokens?.message}>
+            <Input type="number" {...form.register('max_output_tokens', { setValueAs: nullableNumber })} />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="API 版本" message={form.formState.errors.api_version?.message}>
+            <Input placeholder="例如 2025-01-01-preview" {...form.register('api_version', { setValueAs: nullableString })} />
+          </Field>
           <Field label="每分钟限流" message={form.formState.errors.rate_limit_rpm?.message}>
             <Input type="number" {...form.register('rate_limit_rpm', { setValueAs: nullableNumber })} />
           </Field>
@@ -186,6 +199,12 @@ function nullableNumber(value: unknown) {
   if (value === '' || value === undefined || value === null) return undefined;
 
   return Number(value);
+}
+
+function nullableString(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 
 function Field({

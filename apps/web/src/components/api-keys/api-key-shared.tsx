@@ -9,7 +9,8 @@ import type {
   TenantStatus,
   WebhookDeliveryStatus,
 } from '@aiaget/shared-types';
-import { AlertTriangle, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, Edit, KeyRound, PauseCircle, PlayCircle, ShieldCheck, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 
 import { formatDateTime } from '@/components/agents/agent-status';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -73,12 +74,18 @@ export function ApiKeyRow({
   agents,
   apiKey,
   canManage,
+  onDisable,
   onDelete,
+  onEnable,
+  onRotate,
 }: {
   agents: AgentListItem[];
   apiKey: TenantApiKeyListItem;
   canManage: boolean;
+  onDisable: () => void;
   onDelete: () => void;
+  onEnable: () => void;
+  onRotate: () => void;
 }) {
   const risk = quotaRisk(apiKey);
 
@@ -110,7 +117,28 @@ export function ApiKeyRow({
         <DetailRow label="回调状态" value={formatWebhookDelivery(apiKey)} />
       </div>
 
-      <div className="flex items-start justify-end">
+      <div className="flex flex-wrap items-start justify-end gap-2">
+        <Button asChild disabled={!canManage} size="sm" type="button" variant="outline">
+          <Link href={`/api-keys/${apiKey.id}/edit`}>
+            <Edit className="size-4" />
+            编辑
+          </Link>
+        </Button>
+        {apiKey.status === 'ACTIVE' ? (
+          <Button disabled={!canManage} onClick={onDisable} size="sm" type="button" variant="outline">
+            <PauseCircle className="size-4" />
+            停用
+          </Button>
+        ) : (
+          <Button disabled={!canManage || apiKey.status === 'DELETED'} onClick={onEnable} size="sm" type="button" variant="outline">
+            <PlayCircle className="size-4" />
+            启用
+          </Button>
+        )}
+        <Button disabled={!canManage || apiKey.status === 'DELETED'} onClick={onRotate} size="sm" type="button" variant="outline">
+          <KeyRound className="size-4" />
+          轮换
+        </Button>
         <Button disabled={!canManage} onClick={onDelete} size="sm" type="button" variant="outline">
           <Trash2 className="size-4" />
           删除

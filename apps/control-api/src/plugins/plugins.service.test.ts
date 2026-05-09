@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { BadRequestException } from '@nestjs/common';
@@ -34,6 +35,11 @@ test('install blocks invalid custom manifest before writing plugin records and r
         return Promise.resolve(event);
       },
     } as never,
+    {
+      verifyPackage: async () => {
+        throw new Error('package integrity should not run for invalid manifest metadata');
+      },
+    } as never,
   );
 
   await assert.rejects(
@@ -61,4 +67,474 @@ test('install blocks invalid custom manifest before writing plugin records and r
   assert.equal(recordedEvents.length, 1);
   assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
   assert.equal((recordedEvents[0] as { status?: string }).status, 'FAILED');
+});
+
+test('install verifies custom plugin package integrity before writing plugin records', async () => {
+  let pluginUpsertCalled = false;
+  const recordedEvents: unknown[] = [];
+  const service = new PluginsService(
+    {
+      plugin: {
+        upsert: () => {
+          pluginUpsertCalled = true;
+          throw new Error('plugin upsert should not be called for mismatched package');
+        },
+      },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    {
+      verifyPackage: async () => ({
+        status: 'FAILED',
+        verified: false,
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        final_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        expected_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        actual_sha256: createHash('sha256').update('tampered').digest('hex'),
+        package_size_bytes: 8,
+        content_type: 'application/gzip',
+        error_code: 'PACKAGE_SHA256_MISMATCH',
+        error_message: '插件包 sha256 与 Manifest 声明不一致。',
+      }),
+    } as never,
+  );
+
+  await assert.rejects(
+    () => service.install(currentUser, {
+      code: 'ticket-suite',
+      source_type: 'CUSTOM',
+      manifest_json: {
+        schema_version: '1.0',
+        code: 'ticket-suite',
+        version: '1.2.0',
+        package: {
+          source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+          sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          signature: 'sigstore-bundle-placeholder',
+        },
+        tools: [
+          {
+            code: 'create-ticket',
+            name: '创建工单',
+            method: 'POST',
+            url: 'https://plugins.example.com/tools/create-ticket',
+          },
+        ],
+      },
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(pluginUpsertCalled, false);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
+  assert.equal((recordedEvents[0] as { payloadJson?: { package_integrity?: { error_code?: string } } }).payloadJson?.package_integrity?.error_code, 'PACKAGE_SHA256_MISMATCH');
+});
+
+test('install blocks custom plugin when signature verification fails', async () => {
+  let pluginUpsertCalled = false;
+  const recordedEvents: unknown[] = [];
+  const service = new PluginsService(
+    {
+      plugin: {
+        upsert: () => {
+          pluginUpsertCalled = true;
+          throw new Error('plugin upsert should not be called for rejected signature');
+        },
+      },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    {
+      verifyPackage: async () => ({
+        status: 'FAILED',
+        verified: false,
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        final_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        expected_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        actual_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        package_size_bytes: 128,
+        content_type: 'application/gzip',
+        signature: {
+          status: 'FAILED',
+          verified: false,
+          signature_type: 'SIGSTORE',
+          signature_present: true,
+          verification_url: 'https://verify.example.com/sigstore',
+          subject: null,
+          issuer: null,
+          error_code: 'PACKAGE_SIGNATURE_REJECTED',
+          error_message: '插件包签名校验失败。',
+        },
+        error_code: 'PACKAGE_SIGNATURE_REJECTED',
+        error_message: '插件包签名校验失败。',
+      }),
+    } as never,
+  );
+
+  await assert.rejects(
+    () => service.install(currentUser, {
+      code: 'ticket-suite',
+      source_type: 'CUSTOM',
+      manifest_json: {
+        schema_version: '1.0',
+        code: 'ticket-suite',
+        version: '1.2.0',
+        package: {
+          source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+          sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          signature: 'sigstore-bundle-placeholder',
+          signature_type: 'SIGSTORE',
+          verification_url: 'https://verify.example.com/sigstore',
+        },
+        tools: [
+          {
+            code: 'create-ticket',
+            name: '创建工单',
+            method: 'POST',
+            url: 'https://plugins.example.com/tools/create-ticket',
+          },
+        ],
+      },
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(pluginUpsertCalled, false);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
+  assert.equal((recordedEvents[0] as { payloadJson?: { package_integrity?: { signature?: { error_code?: string } } } }).payloadJson?.package_integrity?.signature?.error_code, 'PACKAGE_SIGNATURE_REJECTED');
+});
+
+test('validateManifest includes real package integrity result for custom plugin packages', async () => {
+  const service = new PluginsService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {
+      verifyPackage: async () => ({
+        status: 'PASSED',
+        verified: true,
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        final_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        expected_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        actual_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        package_size_bytes: 128,
+        content_type: 'application/gzip',
+        error_code: null,
+        error_message: null,
+      }),
+    } as never,
+  );
+
+  const validation = await service.validateManifest({
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      package: {
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        signature: 'sigstore-bundle-placeholder',
+      },
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.status, 'PASSED');
+  assert.equal(validation.package_integrity?.verified, true);
+  assert.equal(validation.package_integrity?.package_size_bytes, 128);
+});
+
+test('rollback restores a published plugin version snapshot and records event before returning detail', async () => {
+  const calls: Array<{ data?: Record<string, unknown>; model: string; op: string; where?: Record<string, unknown> }> = [];
+  const recordedEvents: unknown[] = [];
+  const rollbackManifest = {
+    code: 'ticket-suite',
+    name: '工单套件',
+    version: '1.1.0',
+    provider: '内部插件',
+    risk_level: 'MEDIUM',
+    permissions: ['plugin:ticket:view'],
+    tools: [],
+  };
+  const installation = {
+    id: 'plugin-installation-1',
+    tenantId: currentUser.tenantId,
+    pluginId: 'plugin-1',
+    installedVersion: '1.2.0',
+    latestVersion: '1.2.0',
+    manifestJson: { code: 'ticket-suite', version: '1.2.0' },
+    configJson: { enabled: true },
+    riskLevel: 'MEDIUM',
+    status: 'ACTIVE',
+    runtimeStatus: 'RUNNING',
+    enabledAt: null,
+    disabledAt: null,
+  };
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => installation,
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginInstallation', op: 'update', ...args });
+          return { ...installation, ...args.data };
+        },
+      },
+      pluginVersion: {
+        findFirst: async () => ({
+          id: 'version-1',
+          tenantId: currentUser.tenantId,
+          pluginId: 'plugin-1',
+          version: '1.1.0',
+          status: 'PUBLISHED',
+          manifestJson: rollbackManifest,
+          changeNote: '稳定版本',
+          publishedAt: new Date('2026-05-01T00:00:00Z'),
+          createdAt: new Date('2026-05-01T00:00:00Z'),
+          deletedAt: null,
+          createdBy: currentUser.id,
+        }),
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.update, model: 'pluginVersion', op: 'upsert', where: args.where });
+          return args.create;
+        },
+      },
+      plugin: {
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'plugin', op: 'update', ...args });
+          return { id: 'plugin-1', ...args.data };
+        },
+      },
+      permission: { upsert: async () => ({}) },
+      pluginHook: { upsert: async () => ({}) },
+      menu: { upsert: async () => ({ id: 'menu-1' }) },
+      pluginMenuBinding: { upsert: async () => ({}) },
+      tool: { upsert: async () => ({}) },
+      pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
+        calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
+        return args.data;
+      } },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    { verifyPackage: async () => { throw new Error('rollback should not verify package'); } } as never,
+  );
+  const getInstallation = service.getInstallation.bind(service);
+  service.getInstallation = (async () => ({
+    id: installation.id,
+    tenant_id: currentUser.tenantId,
+    plugin_id: 'plugin-1',
+    code: 'ticket-suite',
+    name: '工单套件',
+    provider: '内部插件',
+    description: null,
+    source_type: 'CUSTOM',
+    installed_version: '1.1.0',
+    latest_version: '1.1.0',
+    status: 'INSTALLED',
+    runtime_status: 'STOPPED',
+    risk_level: 'MEDIUM',
+    owner_id: currentUser.id,
+    menu_count: 0,
+    hook_count: 0,
+    permission_count: 1,
+    installed_at: null,
+    last_upgraded_at: null,
+    enabled_at: null,
+    disabled_at: null,
+    updated_at: new Date().toISOString(),
+    manifest_json: rollbackManifest,
+    config_json: null,
+    permission_preview: ['plugin:ticket:view'],
+    menu_bindings: [],
+    hooks: [],
+    versions: [],
+    audit_logs: [],
+    security_preview: { summary: 'ok', risks: [], notes: [] },
+  })) as typeof service.getInstallation;
+
+  try {
+    const detail = await service.rollback(currentUser, 'plugin-1', {
+      change_note: '回滚到稳定版本',
+      version_id: 'version-1',
+    });
+
+    assert.equal(detail.installed_version, '1.1.0');
+    assert.equal(recordedEvents.length, 2);
+    assert.equal((recordedEvents[1] as { eventType?: string }).eventType, 'plugin.rolled_back');
+    assert.ok(calls.some((call) => call.model === 'plugin' && call.op === 'update' && call.data?.latestVersion === '1.1.0'));
+    assert.ok(calls.some((call) => call.model === 'pluginInstallation' && call.op === 'update' && call.data?.installedVersion === '1.1.0'));
+    assert.ok(calls.some((call) => call.model === 'pluginAuditLog' && call.op === 'create' && call.data?.action === 'ROLLBACK'));
+    assert.ok(calls.some((call) => call.model === 'pluginVersion' && call.op === 'upsert'));
+  } finally {
+    service.getInstallation = getInstallation;
+  }
+});
+
+test('rollback dispatches plugin rollback workflow after control-plane snapshot restore', async () => {
+  const calls: Array<{ data?: Record<string, unknown>; model: string; op: string; where?: Record<string, unknown> }> = [];
+  const recordedEvents: unknown[] = [];
+  const dispatchedRollbacks: Array<{ pluginId: string; versionId: string; version: string }> = [];
+  const rollbackManifest = {
+    code: 'ticket-suite',
+    name: '工单套件',
+    version: '1.1.0',
+    provider: '内部插件',
+    risk_level: 'MEDIUM',
+    permissions: ['plugin:ticket:view'],
+    tools: [],
+  };
+  const installation = {
+    id: 'plugin-installation-1',
+    tenantId: currentUser.tenantId,
+    pluginId: 'plugin-1',
+    installedVersion: '1.2.0',
+    latestVersion: '1.2.0',
+    manifestJson: { code: 'ticket-suite', version: '1.2.0' },
+    configJson: { enabled: true },
+    riskLevel: 'MEDIUM',
+    status: 'ACTIVE',
+    runtimeStatus: 'RUNNING',
+    enabledAt: null,
+    disabledAt: null,
+  };
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => installation,
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginInstallation', op: 'update', ...args });
+          return { ...installation, ...args.data };
+        },
+      },
+      pluginVersion: {
+        findFirst: async () => ({
+          id: 'version-1',
+          tenantId: currentUser.tenantId,
+          pluginId: 'plugin-1',
+          version: '1.1.0',
+          status: 'PUBLISHED',
+          manifestJson: rollbackManifest,
+          changeNote: '稳定版本',
+          publishedAt: new Date('2026-05-01T00:00:00Z'),
+          createdAt: new Date('2026-05-01T00:00:00Z'),
+          deletedAt: null,
+          createdBy: currentUser.id,
+        }),
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.update, model: 'pluginVersion', op: 'upsert', where: args.where });
+          return args.create;
+        },
+      },
+      plugin: {
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'plugin', op: 'update', ...args });
+          return { id: 'plugin-1', ...args.data };
+        },
+      },
+      permission: { upsert: async () => ({}) },
+      pluginHook: { upsert: async () => ({}) },
+      menu: { upsert: async () => ({ id: 'menu-1' }) },
+      pluginMenuBinding: { upsert: async () => ({}) },
+      tool: { upsert: async () => ({}) },
+      pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
+        calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
+        return args.data;
+      } },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    { verifyPackage: async () => { throw new Error('rollback should not verify package'); } } as never,
+    {
+      dispatchRollback: async (user: typeof currentUser, pluginId: string, versionInput: { versionId: string; version: string }) => {
+        assert.equal(user.id, currentUser.id);
+        dispatchedRollbacks.push({ pluginId, versionId: versionInput.versionId, version: versionInput.version });
+        return {
+          workflow_backend: 'TEMPORAL',
+          workflow_id: 'plugin-rollback-plugin-1-version-1',
+          workflow_run_id: 'run-1',
+        };
+      },
+    } as never,
+  );
+  const getInstallation = service.getInstallation.bind(service);
+  service.getInstallation = (async () => ({
+    id: installation.id,
+    tenant_id: currentUser.tenantId,
+    plugin_id: 'plugin-1',
+    code: 'ticket-suite',
+    name: '工单套件',
+    provider: '内部插件',
+    description: null,
+    source_type: 'CUSTOM',
+    installed_version: '1.1.0',
+    latest_version: '1.1.0',
+    status: 'INSTALLED',
+    runtime_status: 'STOPPED',
+    risk_level: 'MEDIUM',
+    owner_id: currentUser.id,
+    menu_count: 0,
+    hook_count: 0,
+    permission_count: 1,
+    installed_at: null,
+    last_upgraded_at: null,
+    enabled_at: null,
+    disabled_at: null,
+    updated_at: new Date().toISOString(),
+    manifest_json: rollbackManifest,
+    config_json: null,
+    permission_preview: ['plugin:ticket:view'],
+    menu_bindings: [],
+    hooks: [],
+    versions: [],
+    audit_logs: [],
+    security_preview: { summary: 'ok', risks: [], notes: [] },
+  })) as typeof service.getInstallation;
+
+  try {
+    await service.rollback(currentUser, 'plugin-1', {
+      change_note: '回滚到稳定版本',
+      version_id: 'version-1',
+    });
+
+    assert.deepEqual(dispatchedRollbacks, [{ pluginId: 'plugin-1', versionId: 'version-1', version: '1.1.0' }]);
+    const rollbackEvent = recordedEvents.find((event) => (event as { eventType?: string }).eventType === 'plugin.rolled_back') as {
+      payloadJson?: { workflow_backend?: string; workflow_id?: string; workflow_run_id?: string };
+    };
+    assert.equal(rollbackEvent.payloadJson?.workflow_backend, 'TEMPORAL');
+    assert.equal(rollbackEvent.payloadJson?.workflow_id, 'plugin-rollback-plugin-1-version-1');
+    assert.equal(rollbackEvent.payloadJson?.workflow_run_id, 'run-1');
+  } finally {
+    service.getInstallation = getInstallation;
+  }
 });

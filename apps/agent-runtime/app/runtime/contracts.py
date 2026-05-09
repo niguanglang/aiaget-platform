@@ -26,6 +26,18 @@ class ChannelReleaseSelfHealingWorkflowStartRequest(BaseModel):
     channel_id: str
 
 
+class PluginRollbackWorkflowStartRequest(BaseModel):
+    plugin_id: str
+    version_id: str
+    version: str
+
+
+class PluginHookWorkflowStartRequest(BaseModel):
+    event_id: str
+    plugin_id: str
+    hook_id: str
+
+
 class AgentTeamWorkflowResumeRequest(BaseModel):
     run_id: str
     approved: bool = True
@@ -85,6 +97,8 @@ class RuntimeModelConfig(BaseModel):
     temperature: float = 0.7
     input_price: float = 0
     output_price: float = 0
+    api_version: str | None = None
+    max_output_tokens: int | None = None
 
 
 class RuntimeSupervisorPolicy(BaseModel):

@@ -62,6 +62,16 @@ test('storage settings page owns settings and bucket initialization APIs', () =>
   assert.doesNotMatch(settingsSource, /deleteStorageObject/);
 });
 
+test('storage bucket initialization requires confirmation before mutation', () => {
+  const settingsSource = source(settingsPath);
+
+  assert.match(settingsSource, /ensureBucketTarget/);
+  assert.match(settingsSource, /function confirmEnsureBucket/);
+  assert.match(settingsSource, /确认验证或创建存储桶/);
+  assert.match(settingsSource, /onConfirm=\{confirmEnsureBucket\}/);
+  assert.doesNotMatch(settingsSource, /onClick=\{\(\) => ensureBucketMutation\.mutate\(\)\}/);
+});
+
 test('storage upload page owns upload form and upload API', () => {
   const uploadSource = source(uploadPath);
 
@@ -73,6 +83,16 @@ test('storage upload page owns upload form and upload API', () => {
   assert.match(uploadSource, /disabled=\{!storagePermissions\.canManage \|\| !selectedFile \|\| uploadMutation\.isPending\}/);
   assert.doesNotMatch(uploadSource, /ensureStorageBucket/);
   assert.doesNotMatch(uploadSource, /deleteStorageObject/);
+});
+
+test('storage upload requires confirmation before mutation', () => {
+  const uploadSource = source(uploadPath);
+
+  assert.match(uploadSource, /uploadTarget/);
+  assert.match(uploadSource, /function confirmUpload/);
+  assert.match(uploadSource, /确认上传文件到 MinIO/);
+  assert.match(uploadSource, /onConfirm=\{confirmUpload\}/);
+  assert.doesNotMatch(uploadSource, /onClick=\{\(\) => uploadMutation\.mutate\(\)\}/);
 });
 
 test('storage object detail page owns object lookup, download, copy, and delete confirmation', () => {

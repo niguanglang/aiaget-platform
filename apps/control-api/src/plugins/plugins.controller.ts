@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type {
   PluginInstallationDetail,
   PluginInstallationItem,
+  PluginHookExecutionResult,
   PluginManifestValidationResult,
   PluginMarketItem,
   PluginOverview,
@@ -31,9 +32,12 @@ import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
 import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CreatePluginInstallationDto } from './dto/create-plugin-installation.dto';
+import { QueuePluginHookExecutionDto } from './dto/queue-plugin-hook-execution.dto';
+import { RollbackPluginDto } from './dto/rollback-plugin.dto';
 import { UpdatePluginHookDto } from './dto/update-plugin-hook.dto';
 import { UpdatePluginInstallationDto } from './dto/update-plugin-installation.dto';
 import { UpdatePluginMenuBindingDto } from './dto/update-plugin-menu-binding.dto';
+import { PluginHookExecutionService } from './plugin-hook-execution.service';
 import { PluginsService } from './plugins.service';
 
 @ApiTags('plugins')
@@ -41,7 +45,10 @@ import { PluginsService } from './plugins.service';
 @Controller('plugins')
 @UseGuards(JwtAuthGuard, PermissionsGuard, DataScopeGuard, ResourceAclGuard, SecurityPolicyGuard)
 export class PluginsController {
-  constructor(@Inject(PluginsService) private readonly pluginsService: PluginsService) {}
+  constructor(
+    @Inject(PluginsService) private readonly pluginsService: PluginsService,
+    @Inject(PluginHookExecutionService) private readonly hookExecutionService: PluginHookExecutionService,
+  ) {}
 
   @Get('overview')
   @Permissions('plugin:center:view')
@@ -142,6 +149,19 @@ export class PluginsController {
     return this.pluginsService.upgrade(currentUser, pluginId);
   }
 
+  @Post(':pluginId/rollback')
+  @Permissions('plugin:center:upgrade')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:upgrade' })
+  @ApiOkResponse({ description: 'Rollback plugin to a published version snapshot' })
+  async rollback(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+    @Body() dto: RollbackPluginDto,
+  ): Promise<PluginInstallationDetail> {
+    return this.pluginsService.rollback(currentUser, pluginId, dto);
+  }
+
   @Delete(':pluginId')
   @Permissions('plugin:center:uninstall')
   @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
@@ -166,6 +186,20 @@ export class PluginsController {
     @Body() dto: UpdatePluginHookDto,
   ) {
     return this.pluginsService.updateHook(currentUser, pluginId, hookId, dto);
+  }
+
+  @Post(':pluginId/hooks/:hookId/execute')
+  @Permissions('plugin:center:manage')
+  @RequireDataScope({ resourceType: 'PLUGIN', idParam: 'pluginId' })
+  @RequireResourceAcl({ resourceType: 'PLUGIN', idParam: 'pluginId', permissionCode: 'plugin:center:manage' })
+  @ApiOkResponse({ description: 'Queue plugin hook execution as a controlled platform event' })
+  async queueHookExecution(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('pluginId') pluginId: string,
+    @Param('hookId') hookId: string,
+    @Body() dto: QueuePluginHookExecutionDto,
+  ): Promise<PluginHookExecutionResult> {
+    return this.hookExecutionService.queueHookExecution(currentUser, pluginId, hookId, dto);
   }
 
   @Patch(':pluginId/menu-bindings/:bindingId')

@@ -1,9 +1,8 @@
 'use client';
 
 import type { ChannelPublishJobItem } from '@aiaget/shared-types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RotateCcw, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Eye } from 'lucide-react';
+import Link from 'next/link';
 
 import {
   ChannelOperationRow,
@@ -15,12 +14,7 @@ import {
 } from '@/components/channels/channel-operations-pages';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
-import {
-  cancelChannelPublishJob,
-  listChannelPublishJobs,
-  retryChannelPublishJob,
-  type ApiClientError,
-} from '@/lib/api-client';
+import { listChannelPublishJobs } from '@/lib/api-client';
 
 const jobsQueryKey = 'channel-jobs-focused-page';
 
@@ -35,44 +29,12 @@ const jobStatusOptions = [
 ];
 
 export function ChannelJobsContent() {
-  const queryClient = useQueryClient();
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const cancelMutation = useMutation({
-    mutationFn: cancelChannelPublishJob,
-    onSuccess: async () => {
-      setActionNotice('发布任务已取消。');
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: [jobsQueryKey] });
-    },
-    onError: (error: ApiClientError) => {
-      setActionNotice(null);
-      setActionError(error.message);
-    },
-  });
-
-  const retryMutation = useMutation({
-    mutationFn: retryChannelPublishJob,
-    onSuccess: async () => {
-      setActionNotice('重试任务已提交。');
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: [jobsQueryKey] });
-    },
-    onError: (error: ApiClientError) => {
-      setActionNotice(null);
-      setActionError(error.message);
-    },
-  });
-
   return (
     <ChannelOperationsListPage
       activeRoute="jobs"
-      actionError={actionError}
-      actionNotice={actionNotice}
       badge="发布任务"
       buildMetrics={(input) => buildJobMetrics(input.items, input.total)}
-      description="跟踪渠道发布、推送和回调相关任务的任务进度、重试次数和错误原因。重试任务与取消任务需要执行权限。"
+      description="跟踪渠道发布、推送和回调相关任务的任务进度、重试次数和关联渠道。完整排障信息和任务操作进入独立详情页。"
       emptyDescription="当前没有发布任务。触发渠道发布、模板同步或补偿发送后，任务会出现在这里。"
       emptyTitle="暂无发布任务"
       errorMessage="发布任务列表加载失败。"
@@ -95,10 +57,7 @@ export function ChannelJobsContent() {
             { label: '发布渠道', value: item.channel_name ?? item.channel_id ?? '未绑定' },
             { label: '账号凭据', value: item.account_name ?? item.account_id ?? '未绑定' },
             { label: '消息模板', value: item.template_name ?? item.template_id ?? '未绑定' },
-            { label: '计划时间', value: formatOptionalDateTime(item.scheduled_at) },
-            { label: '开始时间', value: formatOptionalDateTime(item.started_at) },
-            { label: '结束时间', value: formatOptionalDateTime(item.finished_at) },
-            { label: '错误原因', value: item.error_message ?? '暂无错误' },
+            { label: '最近更新', value: formatOptionalDateTime(item.updated_at ?? item.created_at) },
           ]}
           selected={selected}
           stats={[
@@ -113,16 +72,12 @@ export function ChannelJobsContent() {
           }
           title={item.title ?? item.job_no ?? item.id}
           actions={
-            <>
-              <Button disabled={!permissions.canDisable || !canCancelJob(item) || cancelMutation.isPending} onClick={() => cancelMutation.mutate(item.id)} size="sm" type="button" variant="outline">
-                <XCircle className="size-4" />
-                取消任务
-              </Button>
-              <Button disabled={!permissions.canManage || !canRetryJob(item) || retryMutation.isPending} onClick={() => retryMutation.mutate(item.id)} size="sm" type="button" variant="outline">
-                <RotateCcw className="size-4" />
-                重试任务
-              </Button>
-            </>
+            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
+              <Link href={`/channels/jobs/${encodeURIComponent(item.id)}`}>
+                <Eye className="size-4" />
+                查看详情
+              </Link>
+            </Button>
           }
           onToggle={onToggle}
         />
@@ -155,12 +110,4 @@ function formatJobProgress(item: ChannelPublishJobItem) {
   }
 
   return '-';
-}
-
-function canCancelJob(item: ChannelPublishJobItem) {
-  return item.status === 'PENDING' || item.status === 'RUNNING' || item.status === 'RETRYING';
-}
-
-function canRetryJob(item: ChannelPublishJobItem) {
-  return item.status === 'FAILED' || item.status === 'CANCELED';
 }

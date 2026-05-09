@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import type {
   BillingAdjustmentItem,
+  BillingInvoiceDetail,
   BillingInvoiceItem,
   BillingOverview,
   BillingQuotaEnforcementResult,
@@ -89,6 +90,16 @@ export class BillingController {
   @ApiOkResponse({ description: 'Recalculate current billing period invoice' })
   async recalculateCurrentInvoice(@CurrentUser() currentUser: AuthenticatedUser): Promise<BillingInvoiceItem> {
     return this.billingService.recalculateCurrentInvoice(currentUser);
+  }
+
+  @Get('invoices/:id')
+  @Permissions('billing:center:view')
+  @ApiOkResponse({ description: 'Get one billing invoice detail with related adjustments' })
+  async getInvoiceDetail(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<BillingInvoiceDetail> {
+    return this.billingService.getInvoiceDetail(currentUser, id);
   }
 
   @Post('invoices/:id/lock')

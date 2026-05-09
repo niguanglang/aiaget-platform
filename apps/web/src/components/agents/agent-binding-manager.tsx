@@ -5,6 +5,7 @@ import type { AgentDetail, PromptType } from '@aiaget/shared-types';
 import { Bot, Database, Edit, FileText, Trash2, type LucideIcon, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { AgentConfirmDialog } from '@/components/agents/agent-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,20 @@ const promptTypeLabels: Record<PromptType, string> = {
 const selectClassName =
   'h-10 w-full rounded-md border border-border/70 bg-background/70 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
 
+type BindingDeleteTarget =
+  | { type: 'MODEL'; id: string; title: string }
+  | { type: 'PROMPT'; id: string; title: string }
+  | { type: 'KNOWLEDGE'; id: string; title: string }
+  | { type: 'TOOL'; id: string; title: string };
+
+type BindingSaveTarget =
+  | { type: 'MODEL_CREATE'; title: string; input: Parameters<typeof createAgentModelBinding>[1] }
+  | { type: 'PROMPT_CREATE'; title: string; input: Parameters<typeof createAgentPromptBinding>[1] }
+  | { type: 'KNOWLEDGE_CREATE'; title: string; input: Parameters<typeof createAgentKnowledgeBinding>[1] }
+  | { type: 'KNOWLEDGE_UPDATE'; bindingId: string; title: string; weight: number; recall_top_k: number }
+  | { type: 'TOOL_CREATE'; title: string; input: Parameters<typeof createAgentToolBinding>[1] }
+  | { type: 'TOOL_UPDATE'; bindingId: string; title: string; require_approval: boolean };
+
 export function AgentBindingManager({
   agent,
   canWrite,
@@ -60,6 +75,8 @@ export function AgentBindingManager({
   const [toolId, setToolId] = useState('');
   const [toolRequireApproval, setToolRequireApproval] = useState(false);
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
+  const [bindingDeleteTarget, setBindingDeleteTarget] = useState<BindingDeleteTarget | null>(null);
+  const [bindingSaveTarget, setBindingSaveTarget] = useState<BindingSaveTarget | null>(null);
 
   const providersQuery = useQuery({
     queryKey: ['binding-model-providers'],
@@ -136,13 +153,17 @@ export function AgentBindingManager({
       createAgentModelBinding(agentId, input),
     onSuccess: (nextAgent) => {
       setModelId('');
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const deleteModelBindingMutation = useMutation({
     mutationFn: ({ agentId, bindingId }: { agentId: string; bindingId: string }) => deleteAgentModelBinding(agentId, bindingId),
-    onSuccess: onAgentChange,
+    onSuccess: (nextAgent) => {
+      setBindingDeleteTarget(null);
+      onAgentChange(nextAgent);
+    },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const createPromptBindingMutation = useMutation({
@@ -151,13 +172,17 @@ export function AgentBindingManager({
     onSuccess: (nextAgent) => {
       setPromptId('');
       setPromptType('SYSTEM');
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const deletePromptBindingMutation = useMutation({
     mutationFn: ({ agentId, bindingId }: { agentId: string; bindingId: string }) => deleteAgentPromptBinding(agentId, bindingId),
-    onSuccess: onAgentChange,
+    onSuccess: (nextAgent) => {
+      setBindingDeleteTarget(null);
+      onAgentChange(nextAgent);
+    },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const createKnowledgeBindingMutation = useMutation({
@@ -167,6 +192,7 @@ export function AgentBindingManager({
       setKnowledgeId('');
       setKnowledgeWeight(100);
       setKnowledgeTopK(5);
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
@@ -176,13 +202,17 @@ export function AgentBindingManager({
       updateAgentKnowledgeBinding(agentId, bindingId, { weight, recall_top_k }),
     onSuccess: (nextAgent) => {
       setEditingKnowledgeId(null);
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const deleteKnowledgeBindingMutation = useMutation({
     mutationFn: ({ agentId, bindingId }: { agentId: string; bindingId: string }) => deleteAgentKnowledgeBinding(agentId, bindingId),
-    onSuccess: onAgentChange,
+    onSuccess: (nextAgent) => {
+      setBindingDeleteTarget(null);
+      onAgentChange(nextAgent);
+    },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const createToolBindingMutation = useMutation({
@@ -191,6 +221,7 @@ export function AgentBindingManager({
     onSuccess: (nextAgent) => {
       setToolId('');
       setToolRequireApproval(false);
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
@@ -200,15 +231,124 @@ export function AgentBindingManager({
       updateAgentToolBinding(agentId, bindingId, { require_approval }),
     onSuccess: (nextAgent) => {
       setEditingToolId(null);
+      setBindingSaveTarget(null);
       onAgentChange(nextAgent);
     },
     onError: (error: ApiClientError) => onError(error.message),
   });
   const deleteToolBindingMutation = useMutation({
     mutationFn: ({ agentId, bindingId }: { agentId: string; bindingId: string }) => deleteAgentToolBinding(agentId, bindingId),
-    onSuccess: onAgentChange,
+    onSuccess: (nextAgent) => {
+      setBindingDeleteTarget(null);
+      onAgentChange(nextAgent);
+    },
     onError: (error: ApiClientError) => onError(error.message),
   });
+
+  function confirmBindingDelete() {
+    if (!bindingDeleteTarget) return;
+
+    if (bindingDeleteTarget.type === 'MODEL') {
+      deleteModelBindingMutation.mutate({ agentId: agent.id, bindingId: bindingDeleteTarget.id });
+      return;
+    }
+
+    if (bindingDeleteTarget.type === 'PROMPT') {
+      deletePromptBindingMutation.mutate({ agentId: agent.id, bindingId: bindingDeleteTarget.id });
+      return;
+    }
+
+    if (bindingDeleteTarget.type === 'KNOWLEDGE') {
+      deleteKnowledgeBindingMutation.mutate({ agentId: agent.id, bindingId: bindingDeleteTarget.id });
+      return;
+    }
+
+    deleteToolBindingMutation.mutate({ agentId: agent.id, bindingId: bindingDeleteTarget.id });
+  }
+
+  function isDeletingBinding(target: BindingDeleteTarget) {
+    if (target.type === 'MODEL') return deleteModelBindingMutation.isPending;
+    if (target.type === 'PROMPT') return deletePromptBindingMutation.isPending;
+    if (target.type === 'KNOWLEDGE') return deleteKnowledgeBindingMutation.isPending;
+    return deleteToolBindingMutation.isPending;
+  }
+
+  function confirmBindingSave() {
+    if (!bindingSaveTarget) return;
+
+    if (bindingSaveTarget.type === 'MODEL_CREATE') {
+      createModelBindingMutation.mutate({ agentId: agent.id, input: bindingSaveTarget.input });
+      return;
+    }
+
+    if (bindingSaveTarget.type === 'PROMPT_CREATE') {
+      createPromptBindingMutation.mutate({ agentId: agent.id, input: bindingSaveTarget.input });
+      return;
+    }
+
+    if (bindingSaveTarget.type === 'KNOWLEDGE_CREATE') {
+      createKnowledgeBindingMutation.mutate({ agentId: agent.id, input: bindingSaveTarget.input });
+      return;
+    }
+
+    if (bindingSaveTarget.type === 'KNOWLEDGE_UPDATE') {
+      updateKnowledgeBindingMutation.mutate({
+        agentId: agent.id,
+        bindingId: bindingSaveTarget.bindingId,
+        weight: bindingSaveTarget.weight,
+        recall_top_k: bindingSaveTarget.recall_top_k,
+      });
+      return;
+    }
+
+    if (bindingSaveTarget.type === 'TOOL_CREATE') {
+      createToolBindingMutation.mutate({ agentId: agent.id, input: bindingSaveTarget.input });
+      return;
+    }
+
+    updateToolBindingMutation.mutate({
+      agentId: agent.id,
+      bindingId: bindingSaveTarget.bindingId,
+      require_approval: bindingSaveTarget.require_approval,
+    });
+  }
+
+  function isSavingBinding(target: BindingSaveTarget) {
+    if (target.type === 'MODEL_CREATE') return createModelBindingMutation.isPending;
+    if (target.type === 'PROMPT_CREATE') return createPromptBindingMutation.isPending;
+    if (target.type === 'KNOWLEDGE_CREATE') return createKnowledgeBindingMutation.isPending;
+    if (target.type === 'KNOWLEDGE_UPDATE') return updateKnowledgeBindingMutation.isPending;
+    if (target.type === 'TOOL_CREATE') return createToolBindingMutation.isPending;
+    return updateToolBindingMutation.isPending;
+  }
+
+  function bindingSaveDialogCopy(target: BindingSaveTarget) {
+    const action = target.type.endsWith('_CREATE') ? '绑定' : '保存配置';
+    return {
+      body: `确认更新 Agent 资源绑定：${action}「${target.title}」？该操作会影响智能体 ${agent.name} 后续运行时可用的模型、提示词、知识库或工具配置。`,
+      confirmLabel: target.type.endsWith('_CREATE') ? '确认绑定' : '确认保存',
+    };
+  }
+
+  function currentModelTitle() {
+    const model = modelOptions.find((item) => item.id === modelId);
+    return model ? `${model.name} (${model.model})` : modelId;
+  }
+
+  function currentPromptTitle() {
+    const prompt = promptOptions.find((item) => item.id === promptId);
+    return prompt ? `${prompt.name} (${prompt.code})` : promptId;
+  }
+
+  function currentKnowledgeTitle(id: string) {
+    const knowledge = knowledgeOptions.find((item) => item.id === id);
+    return knowledge ? `${knowledge.name} (${knowledge.code})` : id;
+  }
+
+  function currentToolTitle(id: string) {
+    const tool = toolOptions.find((item) => item.id === id);
+    return tool ? `${tool.name} (${tool.code})` : id;
+  }
 
   return (
     <section className="grid gap-4 xl:grid-cols-2">
@@ -252,10 +392,13 @@ export function AgentBindingManager({
           <ActionField>
             <Button
               disabled={!canWrite || !modelId || createModelBindingMutation.isPending}
-              onClick={() => createModelBindingMutation.mutate({
-                agentId: agent.id,
-                input: { model_id: modelId, binding_type: 'DEFAULT' },
-              })}
+              onClick={() =>
+                setBindingSaveTarget({
+                  input: { model_id: modelId, binding_type: 'DEFAULT' },
+                  title: currentModelTitle(),
+                  type: 'MODEL_CREATE',
+                })
+              }
               type="button"
             >
               绑定
@@ -271,7 +414,11 @@ export function AgentBindingManager({
             subtitle: `${binding.provider_name} · ${binding.model_code}`,
             extra: binding.binding_type === 'DEFAULT' ? '默认模型' : binding.binding_type,
           }))}
-          onDelete={(bindingId) => deleteModelBindingMutation.mutate({ agentId: agent.id, bindingId })}
+          onDelete={(bindingId) => {
+            const binding = agent.bindings.models.find((item) => item.id === bindingId);
+            if (!binding) return;
+            setBindingDeleteTarget({ id: bindingId, title: binding.model_name, type: 'MODEL' });
+          }}
         />
       </BindingCard>
 
@@ -304,10 +451,13 @@ export function AgentBindingManager({
           <ActionField>
             <Button
               disabled={!canWrite || !promptId || createPromptBindingMutation.isPending}
-              onClick={() => createPromptBindingMutation.mutate({
-                agentId: agent.id,
-                input: { prompt_id: promptId, prompt_type: promptType },
-              })}
+              onClick={() =>
+                setBindingSaveTarget({
+                  input: { prompt_id: promptId, prompt_type: promptType },
+                  title: currentPromptTitle(),
+                  type: 'PROMPT_CREATE',
+                })
+              }
               type="button"
             >
               绑定
@@ -323,7 +473,11 @@ export function AgentBindingManager({
             subtitle: binding.prompt_code,
             extra: promptTypeLabels[binding.prompt_type],
           }))}
-          onDelete={(bindingId) => deletePromptBindingMutation.mutate({ agentId: agent.id, bindingId })}
+          onDelete={(bindingId) => {
+            const binding = agent.bindings.prompts.find((item) => item.id === bindingId);
+            if (!binding) return;
+            setBindingDeleteTarget({ id: bindingId, title: binding.prompt_name, type: 'PROMPT' });
+          }}
         />
       </BindingCard>
 
@@ -361,14 +515,17 @@ export function AgentBindingManager({
           <ActionField>
             <Button
               disabled={!canWrite || !knowledgeId || createKnowledgeBindingMutation.isPending}
-              onClick={() => createKnowledgeBindingMutation.mutate({
-                agentId: agent.id,
-                input: {
-                  knowledge_id: knowledgeId,
-                  weight: knowledgeWeight,
-                  recall_top_k: knowledgeTopK,
-                },
-              })}
+              onClick={() =>
+                setBindingSaveTarget({
+                  input: {
+                    knowledge_id: knowledgeId,
+                    weight: knowledgeWeight,
+                    recall_top_k: knowledgeTopK,
+                  },
+                  title: currentKnowledgeTitle(knowledgeId),
+                  type: 'KNOWLEDGE_CREATE',
+                })
+              }
               type="button"
             >
               绑定
@@ -384,7 +541,11 @@ export function AgentBindingManager({
             subtitle: `${binding.knowledge_code} · TopK ${binding.recall_top_k}`,
             extra: `权重 ${binding.weight}`,
           }))}
-          onDelete={(bindingId) => deleteKnowledgeBindingMutation.mutate({ agentId: agent.id, bindingId })}
+          onDelete={(bindingId) => {
+            const binding = agent.bindings.knowledge.find((item) => item.id === bindingId);
+            if (!binding) return;
+            setBindingDeleteTarget({ id: bindingId, title: binding.knowledge_name, type: 'KNOWLEDGE' });
+          }}
           onEdit={(bindingId) => {
             const binding = agent.bindings.knowledge.find((item) => item.id === bindingId);
             if (!binding) return;
@@ -397,12 +558,15 @@ export function AgentBindingManager({
             <div className="flex flex-wrap gap-2 rounded-lg border border-dashed border-border/70 bg-muted/20 p-3">
               <Button
                 disabled={!canWrite || updateKnowledgeBindingMutation.isPending}
-                onClick={() => updateKnowledgeBindingMutation.mutate({
-                  agentId: agent.id,
-                  bindingId: editingKnowledgeId,
-                  weight: knowledgeWeight,
-                  recall_top_k: knowledgeTopK,
-                })}
+                onClick={() =>
+                  setBindingSaveTarget({
+                    bindingId: editingKnowledgeId,
+                    recall_top_k: knowledgeTopK,
+                    title: currentKnowledgeTitle(knowledgeId),
+                    type: 'KNOWLEDGE_UPDATE',
+                    weight: knowledgeWeight,
+                  })
+                }
                 size="sm"
                 type="button"
                 variant="outline"
@@ -457,13 +621,16 @@ export function AgentBindingManager({
           <ActionField>
             <Button
               disabled={!canWrite || !toolId || createToolBindingMutation.isPending}
-              onClick={() => createToolBindingMutation.mutate({
-                agentId: agent.id,
-                input: {
-                  tool_id: toolId,
-                  require_approval: toolRequireApproval,
-                },
-              })}
+              onClick={() =>
+                setBindingSaveTarget({
+                  input: {
+                    tool_id: toolId,
+                    require_approval: toolRequireApproval,
+                  },
+                  title: currentToolTitle(toolId),
+                  type: 'TOOL_CREATE',
+                })
+              }
               type="button"
             >
               绑定
@@ -479,7 +646,11 @@ export function AgentBindingManager({
             subtitle: binding.tool_code,
             extra: binding.require_approval ? '需要审批' : '无需审批',
           }))}
-          onDelete={(bindingId) => deleteToolBindingMutation.mutate({ agentId: agent.id, bindingId })}
+          onDelete={(bindingId) => {
+            const binding = agent.bindings.tools.find((item) => item.id === bindingId);
+            if (!binding) return;
+            setBindingDeleteTarget({ id: bindingId, title: binding.tool_name, type: 'TOOL' });
+          }}
           onEdit={(bindingId) => {
             const binding = agent.bindings.tools.find((item) => item.id === bindingId);
             if (!binding) return;
@@ -491,11 +662,14 @@ export function AgentBindingManager({
             <div className="flex flex-wrap gap-2 rounded-lg border border-dashed border-border/70 bg-muted/20 p-3">
               <Button
                 disabled={!canWrite || updateToolBindingMutation.isPending}
-                onClick={() => updateToolBindingMutation.mutate({
-                  agentId: agent.id,
-                  bindingId: editingToolId,
-                  require_approval: toolRequireApproval,
-                })}
+                onClick={() =>
+                  setBindingSaveTarget({
+                    bindingId: editingToolId,
+                    require_approval: toolRequireApproval,
+                    title: currentToolTitle(toolId),
+                    type: 'TOOL_UPDATE',
+                  })
+                }
                 size="sm"
                 type="button"
                 variant="outline"
@@ -519,6 +693,26 @@ export function AgentBindingManager({
           ) : null}
         />
       </BindingCard>
+      {bindingDeleteTarget ? (
+        <AgentConfirmDialog
+          body={`这会解除智能体 ${agent.name} 与 ${bindingDeleteTarget.title} 的绑定，后续运行将不再使用该资源。`}
+          confirmLabel="确认解除"
+          onCancel={() => setBindingDeleteTarget(null)}
+          onConfirm={confirmBindingDelete}
+          pending={isDeletingBinding(bindingDeleteTarget)}
+          title="解除资源绑定？"
+        />
+      ) : null}
+      {bindingSaveTarget ? (
+        <AgentConfirmDialog
+          body={bindingSaveDialogCopy(bindingSaveTarget).body}
+          confirmLabel={bindingSaveDialogCopy(bindingSaveTarget).confirmLabel}
+          onCancel={() => setBindingSaveTarget(null)}
+          onConfirm={confirmBindingSave}
+          pending={isSavingBinding(bindingSaveTarget)}
+          title="确认更新 Agent 资源绑定"
+        />
+      ) : null}
     </section>
   );
 }

@@ -1,15 +1,16 @@
 'use client';
 
-import type { ChannelCallbackProvider, ChannelSenderDeliveryDetail, ChannelSenderDeliveryListItem } from '@aiaget/shared-types';
+import type { ChannelCallbackProvider, ChannelSenderDeliveryListItem } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowRight, RotateCcw, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import {
+  ChannelActionConfirmDialog,
   ChannelAlert,
   ChannelFocusedHeader,
   ChannelMetricGrid,
-  DetailGrid,
   channelOperationStatusLabel,
   channelOperationStatusTone,
   formatLatency,
@@ -23,7 +24,6 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
-  getChannelSenderDelivery,
   getChannelSenderTaskOverview,
   listChannelSenderDeliveries,
   retryChannelSenderDelivery,
@@ -36,14 +36,19 @@ import { cn } from '@/lib/utils';
 const senderStatuses = ['PENDING', 'SUCCESS', 'FAILED', 'SKIPPED', 'RETRYING'];
 const senderProviders: ChannelCallbackProvider[] = ['WECHAT_WORK', 'DINGTALK', 'FEISHU', 'SLACK', 'CUSTOM_WEBHOOK'];
 
+type SenderActionTarget =
+  | { action: 'auto-retry' }
+  | { action: 'cleanup' }
+  | { action: 'retry-delivery'; deliveryId: string; channelName: string };
+
 export function ChannelSenderContent() {
   const queryClient = useQueryClient();
   const permissions = useChannelOperationPermissions();
   const [status, setStatus] = useState('');
   const [provider, setProvider] = useState('');
-  const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [senderActionTarget, setSenderActionTarget] = useState<SenderActionTarget | null>(null);
 
   const deliveriesQuery = useQuery({
     enabled: permissions.canView,
@@ -53,12 +58,6 @@ export function ChannelSenderContent() {
         status: status || undefined,
         provider: provider || undefined,
       }),
-  });
-
-  const detailQuery = useQuery({
-    enabled: permissions.canView && Boolean(selectedDeliveryId),
-    queryKey: ['channel-sender-focused-delivery', selectedDeliveryId],
-    queryFn: () => getChannelSenderDelivery(selectedDeliveryId ?? ''),
   });
 
   const taskOverviewQuery = useQuery({
@@ -72,9 +71,9 @@ export function ChannelSenderContent() {
     onSuccess: async (result) => {
       setNotice('失败投递已提交重试。');
       setActionError(null);
-      setSelectedDeliveryId(result.item.delivery_id);
+      setSenderActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-deliveries'] });
-      await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-delivery', result.item.delivery_id] });
+      await queryClient.invalidateQueries({ queryKey: ['channel-sender-delivery-detail', result.item.delivery_id] });
       await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-tasks'] });
     },
     onError: (error: ApiClientError) => {
@@ -88,6 +87,7 @@ export function ChannelSenderContent() {
     onSuccess: async () => {
       setNotice('Sender 自动重试任务已执行。');
       setActionError(null);
+      setSenderActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-deliveries'] });
       await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-tasks'] });
     },
@@ -102,6 +102,7 @@ export function ChannelSenderContent() {
     onSuccess: async () => {
       setNotice('Sender 清理任务已执行。');
       setActionError(null);
+      setSenderActionTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['channel-sender-focused-tasks'] });
     },
     onError: (error: ApiClientError) => {
@@ -127,7 +128,6 @@ export function ChannelSenderContent() {
         onRefresh={() => {
           void deliveriesQuery.refetch();
           void taskOverviewQuery.refetch();
-          if (selectedDeliveryId) void detailQuery.refetch();
         }}
       />
 
@@ -150,11 +150,11 @@ export function ChannelSenderContent() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button disabled={!permissions.canManage || autoRetryMutation.isPending} onClick={() => autoRetryMutation.mutate()} type="button" variant="outline">
+                <Button disabled={!permissions.canManage || autoRetryMutation.isPending} onClick={() => setSenderActionTarget({ action: 'auto-retry' })} type="button" variant="outline">
                   <RotateCcw className={cn('size-4', autoRetryMutation.isPending && 'animate-spin')} />
                   运行自动重试
                 </Button>
-                <Button disabled={!permissions.canManage || cleanupMutation.isPending} onClick={() => cleanupMutation.mutate()} type="button" variant="outline">
+                <Button disabled={!permissions.canManage || cleanupMutation.isPending} onClick={() => setSenderActionTarget({ action: 'cleanup' })} type="button" variant="outline">
                   <Trash2 className="size-4" />
                   运行清理
                 </Button>
@@ -162,12 +162,12 @@ export function ChannelSenderContent() {
             </div>
           </Card>
 
-          <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="grid gap-4">
             <Card className="grid gap-4 p-5">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
                   <h2 className="text-sm font-semibold">主动回复投递列表</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">选择一条记录查看请求头、请求体、响应体和重试链路。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">列表只保留核心识别字段，完整请求、响应和重试链路进入独立详情页。</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setStatus(event.target.value)} value={status}>
@@ -201,63 +201,85 @@ export function ChannelSenderContent() {
                     <SenderDeliveryRow
                       item={item}
                       key={item.id}
-                      onOpen={() => setSelectedDeliveryId(item.delivery_id)}
-                      onRetry={() => retryMutation.mutate(item.delivery_id)}
+                      onRetry={() => setSenderActionTarget({ action: 'retry-delivery', deliveryId: item.delivery_id, channelName: item.channel_name })}
                       retrying={retryMutation.isPending}
-                      selected={selectedDeliveryId === item.delivery_id}
                     />
                   ))}
                 </div>
               )}
             </Card>
-
-            <Card className="grid gap-4 p-5">
-              <div>
-                <h2 className="text-sm font-semibold">投递详情</h2>
-                <p className="mt-1 text-sm text-muted-foreground">用于排查签名头、平台响应、Trace 和运行链路。</p>
-              </div>
-
-              {!selectedDeliveryId ? (
-                <EmptyState description="先选择一条 Sender 投递记录查看详情。" title="未选择投递" />
-              ) : detailQuery.isLoading ? (
-                <div className="grid gap-3">
-                  <div className="h-24 rounded-md border bg-muted/30" />
-                  <div className="h-52 rounded-md border bg-muted/30" />
-                </div>
-              ) : detailQuery.data ? (
-                <SenderDeliveryDetailPanel
-                  canManage={permissions.canManage}
-                  item={detailQuery.data}
-                  onRetry={() => retryMutation.mutate(detailQuery.data.delivery_id)}
-                  retrying={retryMutation.isPending}
-                />
-              ) : (
-                <EmptyState description="投递详情加载失败或没有权限查看。" title="详情不可用" />
-              )}
-            </Card>
           </section>
         </>
       )}
+
+      {senderActionTarget ? (
+        <ChannelActionConfirmDialog
+          body={getSenderActionConfirmBody(senderActionTarget)}
+          confirmLabel={getSenderActionConfirmLabel(senderActionTarget)}
+          onCancel={() => setSenderActionTarget(null)}
+          onConfirm={() => {
+            if (senderActionTarget.action === 'auto-retry') {
+              autoRetryMutation.mutate();
+              return;
+            }
+            if (senderActionTarget.action === 'cleanup') {
+              cleanupMutation.mutate();
+              return;
+            }
+            retryMutation.mutate(senderActionTarget.deliveryId);
+          }}
+          pending={
+            senderActionTarget.action === 'auto-retry'
+              ? autoRetryMutation.isPending
+              : senderActionTarget.action === 'cleanup'
+                ? cleanupMutation.isPending
+                : retryMutation.isPending
+          }
+          title={getSenderActionConfirmTitle(senderActionTarget)}
+          variant={senderActionTarget.action === 'cleanup' ? 'destructive' : 'default'}
+        />
+      ) : null}
     </main>
   );
 }
 
+function getSenderActionConfirmTitle(target: SenderActionTarget) {
+  if (target.action === 'auto-retry') return '确认运行自动重试';
+  if (target.action === 'cleanup') return '确认运行清理';
+
+  return '确认重试失败投递';
+}
+
+function getSenderActionConfirmBody(target: SenderActionTarget) {
+  if (target.action === 'auto-retry') {
+    return '确认运行 Sender 自动重试任务？系统将扫描当前租户符合条件的失败投递，并按重试策略重新提交。';
+  }
+  if (target.action === 'cleanup') {
+    return '确认运行 Sender 清理任务？系统将清理当前租户过期的 Sender 投递任务记录，清理后的历史记录可能不再展示。';
+  }
+
+  return `确认重试渠道“${target.channelName}”的失败投递“${target.deliveryId}”？重试会重新向目标平台发送该投递内容。`;
+}
+
+function getSenderActionConfirmLabel(target: SenderActionTarget) {
+  if (target.action === 'auto-retry') return '确认运行';
+  if (target.action === 'cleanup') return '确认清理';
+
+  return '确认重试';
+}
+
 function SenderDeliveryRow({
   item,
-  onOpen,
   onRetry,
   retrying,
-  selected,
 }: {
   item: ChannelSenderDeliveryListItem;
-  onOpen: () => void;
   onRetry: () => void;
   retrying: boolean;
-  selected: boolean;
 }) {
   return (
-    <article className={cn('grid gap-3 rounded-md border bg-background/90 p-4 shadow-sm', selected && 'border-primary/50 bg-primary/5')}>
-      <button className="grid gap-2 text-left" onClick={onOpen} type="button">
+    <article className="grid gap-3 rounded-md border bg-background/90 p-4 shadow-sm transition-colors hover:bg-muted/25">
+      <Link className="grid gap-2 text-left" href={`/channels/sender/deliveries/${encodeURIComponent(item.delivery_id)}`}>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone={channelOperationStatusTone(item.status)}>{channelOperationStatusLabel(item.status)}</StatusBadge>
           <StatusBadge tone="ready">{channelProviderLabel(item.provider)}</StatusBadge>
@@ -269,7 +291,11 @@ function SenderDeliveryRow({
           <span>耗时：{formatLatency(item.latency_ms)}</span>
           <span>时间：{formatOptionalDateTime(item.delivered_at ?? item.created_at)}</span>
         </div>
-      </button>
+        <div className="flex items-center gap-2 text-xs text-primary">
+          查看投递详情
+          <ArrowRight className="size-4" />
+        </div>
+      </Link>
       <div className="flex flex-wrap justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <StatusBadge tone="mock">重试 {formatNumber(item.retry_count)} 次</StatusBadge>
@@ -281,61 +307,6 @@ function SenderDeliveryRow({
         </Button>
       </div>
     </article>
-  );
-}
-
-function SenderDeliveryDetailPanel({
-  canManage,
-  item,
-  onRetry,
-  retrying,
-}: {
-  canManage: boolean;
-  item: ChannelSenderDeliveryDetail;
-  onRetry: () => void;
-  retrying: boolean;
-}) {
-  return (
-    <div className="grid gap-4">
-      <DetailGrid
-        items={[
-          { label: '投递 ID', value: item.delivery_id },
-          { label: '父级投递', value: item.parent_delivery_id ?? '无' },
-          { label: '渠道', value: item.channel_name },
-          { label: 'Agent', value: item.agent_name ?? item.agent_id },
-          { label: '平台', value: channelProviderLabel(item.provider) },
-          { label: '目标', value: item.target ?? '未配置' },
-          { label: '响应状态', value: item.response_status === null ? '无' : String(item.response_status) },
-          { label: 'Trace', value: item.trace_id ?? '无' },
-          { label: '外部会话', value: item.external_conversation_id ?? '无' },
-          { label: '外部消息', value: item.external_message_id ?? '无' },
-        ]}
-      />
-      <JsonBlock title="请求头" value={item.request_headers} />
-      <JsonBlock title="请求正文" value={item.request_body} />
-      <JsonBlock title="响应正文" value={item.response_body ?? '无响应正文'} />
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button onClick={() => void navigator.clipboard?.writeText(item.delivery_id)} type="button" variant="outline">
-          <Copy className="size-4" />
-          复制投递 ID
-        </Button>
-        <Button disabled={!canManage || item.status !== 'FAILED' || retrying} onClick={onRetry} type="button" variant="outline">
-          <RefreshCw className={cn('size-4', retrying && 'animate-spin')} />
-          重试失败投递
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function JsonBlock({ title, value }: { title: string; value: unknown }) {
-  return (
-    <div className="grid gap-2">
-      <div className="text-sm font-semibold">{title}</div>
-      <pre className="max-h-56 overflow-auto rounded-md border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
-        {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-      </pre>
-    </div>
   );
 }
 

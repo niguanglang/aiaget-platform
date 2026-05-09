@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type AgentTeamRunSummary } from '@aiaget/shared-types';
-import { ArrowLeft, FileArchive, MessageSquare, Play, Send } from 'lucide-react';
+import { ArrowLeft, ExternalLink, FileArchive, MessageSquare, Play, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import {
   DetailRow,
   ErrorPanel,
@@ -34,6 +35,12 @@ import {
   type ApiClientError,
 } from '@/lib/api-client';
 
+type RunActionTarget =
+  | { type: 'START'; objective: string }
+  | { type: 'HANDOFF'; runId: string; objective: string; reason: string }
+  | { type: 'ARCHIVE'; runId: string; objective: string }
+  | { type: 'FEEDBACK'; runId: string; objective: string; rating: number; comment: string };
+
 export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
@@ -42,6 +49,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
   const [handoffReason, setHandoffReason] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackRating, setFeedbackRating] = useState(5);
+  const [runActionTarget, setRunActionTarget] = useState<RunActionTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const permissions = currentUser?.user.permissions ?? [];
@@ -60,6 +68,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
       void queryClient.invalidateQueries({ queryKey: ['agent-teams'] });
       setSelectedRunId(team.runs[0]?.id ?? null);
       setObjective('');
+      setRunActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -69,6 +78,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
     onSuccess: (team) => {
       queryClient.setQueryData(['agent-team', team.id], team);
       setHandoffReason('');
+      setRunActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -79,6 +89,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
       void queryClient.invalidateQueries({ queryKey: ['agent-team', teamId] });
       setFeedbackComment('');
       setFeedbackRating(5);
+      setRunActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -92,6 +103,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
     mutationFn: (runId: string) => createAgentTeamRunReportArchive(runId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] });
+      setRunActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -102,6 +114,70 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null;
   const handoffs = selectedRun ? (team?.handoffs ?? []).filter((handoff) => handoff.run_id === selectedRun.id) : [];
   const feedback = selectedRun ? (team?.feedback ?? []).filter((item) => item.run_id === selectedRun.id) : [];
+
+  function confirmRunAction() {
+    if (!runActionTarget) return;
+
+    if (runActionTarget.type === 'START') {
+      startRunMutation.mutate({ id: teamId, runObjective: runActionTarget.objective });
+      return;
+    }
+
+    if (runActionTarget.type === 'HANDOFF') {
+      handoffMutation.mutate({ runId: runActionTarget.runId, reason: runActionTarget.reason });
+      return;
+    }
+
+    if (runActionTarget.type === 'FEEDBACK') {
+      feedbackMutation.mutate({
+        comment: runActionTarget.comment,
+        rating: runActionTarget.rating,
+        runId: runActionTarget.runId,
+      });
+      return;
+    }
+
+    archiveMutation.mutate(runActionTarget.runId);
+  }
+
+  function runActionDialogCopy(target: RunActionTarget) {
+    if (target.type === 'START') {
+      return {
+        body: `确认启动团队任务「${target.objective}」？系统将创建新的多 Agent 协作运行，并开始调度成员。`,
+        confirmLabel: '确认启动',
+        title: '启动团队运行？',
+      };
+    }
+
+    if (target.type === 'HANDOFF') {
+      return {
+        body: `确认对运行「${target.objective}」发起人工接力？接力原因会进入运行记录和审批/处理链路。`,
+        confirmLabel: '确认接力',
+        title: '发起人工接力？',
+      };
+    }
+
+    if (target.type === 'FEEDBACK') {
+      return {
+        body: `确认保存运行「${target.objective}」的 ${target.rating} 分反馈？反馈内容会进入团队运行记录。`,
+        confirmLabel: '确认保存',
+        title: '确认保存反馈',
+      };
+    }
+
+    return {
+      body: `确认生成运行「${target.objective}」的报告归档？归档文件会进入报告归档中心。`,
+      confirmLabel: '确认生成',
+      title: '生成报告归档？',
+    };
+  }
+
+  function runActionPending(target: RunActionTarget) {
+    if (target.type === 'START') return startRunMutation.isPending;
+    if (target.type === 'HANDOFF') return handoffMutation.isPending;
+    if (target.type === 'FEEDBACK') return feedbackMutation.isPending;
+    return archiveMutation.isPending;
+  }
 
   if (teamQuery.isLoading) {
     return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载运行记录..." /></main>;
@@ -135,7 +211,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
         <h2 className="text-sm font-semibold">启动团队任务</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
           <input className="h-10 rounded-md border bg-background px-3 text-sm outline-none" onChange={(event) => setObjective(event.target.value)} placeholder="输入团队任务目标" value={objective} />
-          <Button disabled={!canRun || !objective.trim() || startRunMutation.isPending} onClick={() => startRunMutation.mutate({ id: teamId, runObjective: objective })} type="button">
+          <Button disabled={!canRun || !objective.trim() || startRunMutation.isPending} onClick={() => setRunActionTarget({ type: 'START', objective: objective.trim() })} type="button">
             <Play className="size-4" />启动运行
           </Button>
         </div>
@@ -169,6 +245,16 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                     <span>{formatInteger(run.total_tokens)} Token</span>
                     <span>{formatDateTime(run.created_at)}</span>
                   </div>
+                  <div className="flex justify-end">
+                    <Link
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      href={`/agent-teams/${teamId}/runs/${run.id}`}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      运行详情
+                      <ExternalLink className="size-3" />
+                    </Link>
+                  </div>
                 </button>
               ))}
             </div>
@@ -188,14 +274,14 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ run: selectedRun, fileName: reportFileName(team.code, selectedRun) })} size="sm" type="button" variant="outline">导出报告</Button>
-                  <Button disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(selectedRun.id)} size="sm" type="button" variant="outline">生成归档</Button>
+                  <Button disabled={archiveMutation.isPending} onClick={() => setRunActionTarget({ type: 'ARCHIVE', runId: selectedRun.id, objective: selectedRun.objective })} size="sm" type="button" variant="outline">生成归档</Button>
                 </div>
               </div>
 
               <div className="rounded-lg border bg-background p-5">
                 <h2 className="text-sm font-semibold">接力入口</h2>
                 <textarea className="mt-3 min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none" onChange={(event) => setHandoffReason(event.target.value)} placeholder="填写接力原因" value={handoffReason} />
-                <Button className="mt-3" disabled={!canRun || !handoffReason.trim() || handoffMutation.isPending} onClick={() => handoffMutation.mutate({ runId: selectedRun.id, reason: handoffReason })} size="sm" type="button">
+                <Button className="mt-3" disabled={!canRun || !handoffReason.trim() || handoffMutation.isPending} onClick={() => setRunActionTarget({ type: 'HANDOFF', runId: selectedRun.id, objective: selectedRun.objective, reason: handoffReason.trim() })} size="sm" type="button">
                   <Send className="size-4" />发起接力
                 </Button>
                 <div className="mt-4 grid gap-2">
@@ -215,7 +301,20 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                     {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} 分</option>)}
                   </select>
                   <textarea className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm outline-none" onChange={(event) => setFeedbackComment(event.target.value)} placeholder="填写反馈备注" value={feedbackComment} />
-                  <Button disabled={!canRun || feedbackMutation.isPending} onClick={() => feedbackMutation.mutate({ runId: selectedRun.id, rating: feedbackRating, comment: feedbackComment })} size="sm" type="button">
+                  <Button
+                    disabled={!canRun || feedbackMutation.isPending}
+                    onClick={() =>
+                      setRunActionTarget({
+                        comment: feedbackComment,
+                        objective: selectedRun.objective,
+                        rating: feedbackRating,
+                        runId: selectedRun.id,
+                        type: 'FEEDBACK',
+                      })
+                    }
+                    size="sm"
+                    type="button"
+                  >
                     <MessageSquare className="size-4" />保存反馈
                   </Button>
                 </div>
@@ -227,6 +326,17 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
           ) : <div className="rounded-lg border bg-background p-5 text-sm text-muted-foreground">选择一条运行查看详情。</div>}
         </aside>
       </section>
+
+      {runActionTarget ? (
+        <AgentTeamConfirmDialog
+          body={runActionDialogCopy(runActionTarget).body}
+          confirmLabel={runActionDialogCopy(runActionTarget).confirmLabel}
+          onCancel={() => setRunActionTarget(null)}
+          onConfirm={confirmRunAction}
+          pending={runActionPending(runActionTarget)}
+          title={runActionDialogCopy(runActionTarget).title}
+        />
+      ) : null}
     </main>
   );
 }

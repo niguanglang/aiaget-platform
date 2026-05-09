@@ -40,6 +40,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
   const router = useRouter();
   const { currentUser } = useAuth();
   const [deleteTarget, setDeleteTarget] = useState<ToolDetail | null>(null);
+  const [statusTarget, setStatusTarget] = useState<'ACTIVE' | 'DISABLED' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [testInput, setTestInput] = useState('{}');
@@ -97,6 +98,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
     mutationFn: (nextStatus: 'ACTIVE' | 'DISABLED') => (nextStatus === 'ACTIVE' ? enableTool(toolId) : disableTool(toolId)),
     onSuccess: async (result) => {
       await refreshTool(result);
+      setStatusTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -178,7 +180,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
         toolId={toolId}
         onCopy={() => copyMutation.mutate(tool.id)}
         onDelete={() => setDeleteTarget(tool)}
-        onToggleStatus={() => statusMutation.mutate(tool.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE')}
+        onToggleStatus={() => setStatusTarget(tool.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE')}
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -226,10 +228,25 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
       {deleteTarget ? (
         <ToolConfirmDialog
           body={`这会软删除 ${deleteTarget.name}，并保留已有调用日志。`}
+          confirmLabel="删除"
           pending={deleteMutation.isPending}
           title="删除工具？"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
+      ) : null}
+      {statusTarget ? (
+        <ToolConfirmDialog
+          body={
+            statusTarget === 'DISABLED'
+              ? `这会停用工具 ${tool.name}，已绑定该工具的 Agent 将无法继续调用它。`
+              : `这会启用工具 ${tool.name}，已授权 Agent 将可以重新调用它。`
+          }
+          confirmLabel={statusTarget === 'DISABLED' ? '确认停用' : '确认启用'}
+          pending={statusMutation.isPending}
+          title={statusTarget === 'DISABLED' ? '停用工具？' : '启用工具？'}
+          onCancel={() => setStatusTarget(null)}
+          onConfirm={() => statusMutation.mutate(statusTarget)}
         />
       ) : null}
     </main>

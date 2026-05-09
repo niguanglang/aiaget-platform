@@ -18,9 +18,11 @@ const validEnv = {
   CONTROL_API_INTERNAL_BASE_URL: 'http://control-api:3001',
   AGENT_RUNTIME_EXECUTION_MODE: 'runtime_first',
   KNOWLEDGE_WORKFLOW_MODE: 'temporal_first',
-  AGENT_TEAM_WORKFLOW_MODE: 'runtime_first',
+  AGENT_TEAM_WORKFLOW_MODE: 'temporal_first',
   CHANNEL_RELEASE_WORKFLOW_MODE: 'runtime_first',
   CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: 'runtime_first',
+  PLUGIN_ROLLBACK_WORKFLOW_MODE: 'temporal_first',
+  PLUGIN_HOOK_WORKFLOW_MODE: 'temporal_first',
   JWT_ACCESS_TOKEN_SECRET: 'prod-access-token-secret-prod-access-token-secret',
   JWT_REFRESH_TOKEN_SECRET: 'prod-refresh-token-secret-prod-refresh-token-secret',
   SECRET_ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef',
@@ -134,6 +136,17 @@ test('collectProductionEnvIssues rejects legacy knowledge workflow runtime modes
   ]);
 });
 
+test('collectProductionEnvIssues rejects legacy agent team workflow runtime modes', () => {
+  const env = {
+    ...validEnv,
+    AGENT_TEAM_WORKFLOW_MODE: 'runtime_first',
+  };
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'AGENT_TEAM_WORKFLOW_MODE must be one of local, temporal_first, temporal',
+  ]);
+});
+
 test('collectProductionEnvIssues allows disabled search backends without URLs', () => {
   const env = {
     ...validEnv,
@@ -167,9 +180,23 @@ test('production env template uses a recognized knowledge workflow mode', () => 
   assert.ok(['local', 'temporal_first', 'temporal'].includes(template.KNOWLEDGE_WORKFLOW_MODE));
 });
 
+test('production env template uses a recognized agent team workflow mode', () => {
+  const template = parseEnvText(readFileSync(new URL('../../.env.production.example', import.meta.url), 'utf8'));
+
+  assert.ok(['local', 'temporal_first', 'temporal'].includes(template.AGENT_TEAM_WORKFLOW_MODE));
+});
+
 test('production compose default uses a recognized knowledge workflow mode', () => {
   const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
   const match = compose.match(/KNOWLEDGE_WORKFLOW_MODE:\s*\$\{KNOWLEDGE_WORKFLOW_MODE:-([^}]+)}/);
+
+  assert.ok(match);
+  assert.ok(['local', 'temporal_first', 'temporal'].includes(match[1] ?? ''));
+});
+
+test('production compose default uses a recognized agent team workflow mode', () => {
+  const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
+  const match = compose.match(/AGENT_TEAM_WORKFLOW_MODE:\s*\$\{AGENT_TEAM_WORKFLOW_MODE:-([^}]+)}/);
 
   assert.ok(match);
   assert.ok(['local', 'temporal_first', 'temporal'].includes(match[1] ?? ''));

@@ -6,6 +6,8 @@ import test from 'node:test';
 const root = process.cwd();
 const routesRoot = join(root, 'src/app/(console)/billing');
 const componentsRoot = join(root, 'src/components/billing');
+const invoiceDetailRoutePath = join(routesRoot, 'invoices/[invoiceId]/page.tsx');
+const invoiceDetailComponentPath = join(componentsRoot, 'billing-invoice-detail-content.tsx');
 
 const overviewComponentPath = join(componentsRoot, 'billing-content.tsx');
 const focusedPages = [
@@ -26,16 +28,12 @@ const focusedPages = [
   {
     route: 'invoices/page.tsx',
     component: 'billing-invoices-content.tsx',
-    titleKeywords: ['发票', '账单记录', '账单项'],
+    titleKeywords: ['发票', '账单记录'],
     api: [
       'getBillingOverview',
       'recalculateCurrentBillingInvoice',
-      'lockBillingInvoice',
-      'markBillingInvoicePaid',
-      'voidBillingInvoice',
-      'markBillingInvoiceOverdue',
     ],
-    dataKeywords: ['invoices', 'invoice_no', 'line_items'],
+    dataKeywords: ['invoices', 'invoice_no'],
   },
   {
     route: 'adjustments/page.tsx',
@@ -65,6 +63,8 @@ function readSource(path: string) {
 
 test('billing route-level pages and focused components exist', () => {
   assert.ok(existsSync(join(routesRoot, 'page.tsx')));
+  assert.ok(existsSync(invoiceDetailRoutePath), 'invoice detail route should exist');
+  assert.ok(existsSync(invoiceDetailComponentPath), 'invoice detail component should exist');
 
   for (const page of focusedPages) {
     assert.ok(existsSync(join(routesRoot, page.route)), `${page.route} should exist`);
@@ -139,16 +139,36 @@ test('billing overview does not import focused page mutation APIs through shared
 test('high-impact billing actions require explicit confirmation before mutation', () => {
   const sharedSource = readSource(join(componentsRoot, 'billing-shared.tsx'));
   const invoicesSource = readSource(join(componentsRoot, 'billing-invoices-content.tsx'));
+  const quotaPolicySource = readSource(join(componentsRoot, 'billing-quota-policy-content.tsx'));
+  const invoiceDetailSource = readSource(invoiceDetailComponentPath);
   const adjustmentsSource = readSource(join(componentsRoot, 'billing-adjustments-content.tsx'));
   const subscriptionSource = readSource(join(componentsRoot, 'billing-subscription-content.tsx'));
 
   assert.match(sharedSource, /function BillingConfirmDialog/);
 
-  assert.match(invoicesSource, /confirmAction/);
-  assert.match(invoicesSource, /function confirmInvoiceAction/);
-  assert.match(invoicesSource, /确认账单操作/);
-  assert.match(invoicesSource, /onConfirm=\{confirmInvoiceAction\}/);
+  assert.match(invoicesSource, /invoiceRecalculateTarget/);
+  assert.match(invoicesSource, /function confirmInvoiceRecalculate/);
+  assert.match(invoicesSource, /确认重算当前账期/);
+  assert.match(invoicesSource, /onConfirm=\{confirmInvoiceRecalculate\}/);
+  assert.doesNotMatch(invoicesSource, /onClick=\{\(\) => recalculateInvoiceMutation\.mutate\(\)\}/);
 
+  assert.match(quotaPolicySource, /quotaPolicyActionTarget/);
+  assert.match(quotaPolicySource, /function confirmQuotaPolicyAction/);
+  assert.match(quotaPolicySource, /确认执行额度检查/);
+  assert.match(quotaPolicySource, /确认保存额度策略/);
+  assert.match(quotaPolicySource, /onConfirm=\{confirmQuotaPolicyAction\}/);
+  assert.doesNotMatch(quotaPolicySource, /onClick=\{\(\) => quotaEnforcementMutation\.mutate\(\)\}/);
+  assert.doesNotMatch(quotaPolicySource, /onClick=\{savePolicy\}/);
+
+  assert.match(invoiceDetailSource, /confirmAction/);
+  assert.match(invoiceDetailSource, /function confirmInvoiceAction/);
+  assert.match(invoiceDetailSource, /确认账单操作/);
+  assert.match(invoiceDetailSource, /onConfirm=\{confirmInvoiceAction\}/);
+
+  assert.match(adjustmentsSource, /createConfirmDraft/);
+  assert.match(adjustmentsSource, /function confirmCreateAdjustment/);
+  assert.match(adjustmentsSource, /确认创建调账单/);
+  assert.doesNotMatch(adjustmentsSource, /onCreate=\{createAdjustment\}/);
   assert.match(adjustmentsSource, /confirmAction/);
   assert.match(adjustmentsSource, /function confirmAdjustmentAction/);
   assert.match(adjustmentsSource, /确认调账操作/);
@@ -162,11 +182,23 @@ test('high-impact billing actions require explicit confirmation before mutation'
 
 test('invoice write actions are gated by billing adjustment manage permission on the client', () => {
   const invoicesSource = readSource(join(componentsRoot, 'billing-invoices-content.tsx'));
+  const invoiceDetailSource = readSource(invoiceDetailComponentPath);
 
   assert.match(invoicesSource, /hasPermission/);
   assert.match(invoicesSource, /billing:adjustment:manage/);
   assert.match(invoicesSource, /const canManage/);
   assert.match(invoicesSource, /disabled=\{!canManage \|\| recalculateInvoiceMutation\.isPending\}/);
-  assert.match(invoicesSource, /canManage=\{canManage\}/);
-  assert.match(invoicesSource, /disabled=\{!canManage \|\| pendingActionId === invoice\.id\}/);
+  assert.doesNotMatch(invoicesSource, /\bselectedInvoiceId\b/);
+  assert.doesNotMatch(invoicesSource, /\bsetSelectedInvoiceId\b/);
+  assert.doesNotMatch(invoicesSource, /InvoiceDetailPanel/);
+  assert.doesNotMatch(invoicesSource, /账单项明细/);
+  assert.doesNotMatch(invoicesSource, /关联调账/);
+  assert.doesNotMatch(invoicesSource, /parseInvoiceLineItems/);
+  assert.match(invoicesSource, /\/billing\/invoices\/\$\{encodeURIComponent\(invoice\.id\)\}/);
+
+  assert.match(invoiceDetailSource, /getBillingInvoiceDetail/);
+  assert.match(invoiceDetailSource, /InvoiceDetailPanel/);
+  assert.match(invoiceDetailSource, /parseInvoiceLineItems/);
+  assert.match(invoiceDetailSource, /确认账单操作/);
+  assert.match(invoiceDetailSource, /disabled=\{!canManage \|\| pendingActionId === invoice\.id\}/);
 });

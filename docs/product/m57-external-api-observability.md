@@ -87,7 +87,8 @@ GET /api/v1/api-keys/external-observability?window=24h|7d
 
 ```text
 外部系统
--> /external/agents/{agentId}/chat
+-> /external/agents/{agentId}/chat 或 /external/agents/{agentId}/chat/stream
+-> /external/agents/{agentId}/conversations/{conversationId}/messages 或 /messages/stream
 -> API Key 鉴权
 -> 权限 / Data Scope / Resource ACL 校验
 -> Conversation / Runtime 执行
@@ -116,7 +117,7 @@ images/frontend-reference-design/外部api调用观测/
 - M57 不新增中间件、容器或外部依赖。
 - 观测数据基于现有操作日志和会话运行记录聚合，历史日志如果缺少新增上下文字段，只能按 path、request_id 或 trace_id 尽量关联。
 - 无效 API Key 或缺失 API Key 的请求无法确定租户和用户，因此不会写入租户级操作日志。
-- 当前外部开放接口仍是非流式 Agent 调用，流式外部接口仍未开放。
+- M58/M59 已把外部流式调用和会话续聊接入同一观测口径；M57 本身不区分创建会话、续聊、非流式或 SSE 流式。
 
 ## 验证
 

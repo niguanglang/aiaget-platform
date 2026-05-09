@@ -375,7 +375,7 @@ def build_anthropic_payload(
     payload: dict[str, Any] = {
         "model": config.model,
         "messages": conversation_messages or [{"role": "user", "content": "请根据系统指令继续。"}],
-        "max_tokens": 2048,
+        "max_tokens": config.max_output_tokens or 2048,
         "temperature": config.temperature,
         "stream": stream,
     }

@@ -23,6 +23,7 @@ import { encryptSecret } from '../models/model-secrets';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExternalWebhookService } from '../external-api/external-webhook.service';
 import type { CreateApiKeyDto } from './dto/create-api-key.dto';
+import type { UpdateApiKeyDto } from './dto/update-api-key.dto';
 
 const DEFAULT_WEBHOOK_EVENTS = ['agent.run.completed'] as const;
 const SUPPORTED_WEBHOOK_EVENTS = new Set<string>(DEFAULT_WEBHOOK_EVENTS);
@@ -209,18 +210,90 @@ export class ApiKeysService {
     };
   }
 
-  async remove(currentUser: AuthenticatedUser, keyId: string): Promise<{ success: boolean }> {
-    const key = await this.prisma.apiKey.findFirst({
+  async update(currentUser: AuthenticatedUser, keyId: string, dto: UpdateApiKeyDto): Promise<TenantApiKeyListItem> {
+    const existing = await this.findTenantKey(currentUser, keyId);
+
+    const allowedAgentIds = dto.allowed_agent_ids === undefined ? undefined : normalizeStringArray(dto.allowed_agent_ids);
+    if (allowedAgentIds) {
+      await this.ensureAgentsExist(currentUser.tenantId, allowedAgentIds);
+    }
+
+    const webhookConfig = normalizeWebhookConfig(dto);
+    const nextScopes = resolveUpdatedScopes(existing.scopes, dto.scopes, dto.allow_stream);
+    const data: Prisma.ApiKeyUpdateInput = {
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(nextScopes !== null ? { scopes: nextScopes as Prisma.InputJsonValue } : {}),
+      ...(allowedAgentIds !== undefined ? { allowedAgentIds: allowedAgentIds as Prisma.InputJsonValue } : {}),
+      ...(dto.ip_allowlist !== undefined ? { ipAllowlist: normalizeStringArray(dto.ip_allowlist) as Prisma.InputJsonValue } : {}),
+      ...(dto.rate_limit_per_minute !== undefined ? { rateLimitPerMinute: dto.rate_limit_per_minute } : {}),
+      ...(dto.daily_quota !== undefined ? { dailyQuota: dto.daily_quota ?? null } : {}),
+      ...(dto.allow_stream !== undefined ? { allowStream: dto.allow_stream } : {}),
+      ...(dto.webhook_enabled !== undefined ? { webhookEnabled: webhookConfig.enabled } : {}),
+      ...(dto.webhook_url !== undefined ? { webhookUrl: webhookConfig.url } : {}),
+      ...(dto.webhook_events !== undefined ? { webhookEvents: webhookConfig.events as Prisma.InputJsonValue } : {}),
+      ...(dto.webhook_secret !== undefined
+        ? { webhookSecretEncrypted: webhookConfig.secret ? encryptSecret(webhookConfig.secret) : null }
+        : {}),
+      ...(dto.expires_at !== undefined ? { expiresAt: dto.expires_at ? new Date(dto.expires_at) : null } : {}),
+      updatedBy: currentUser.id,
+    };
+
+    const key = await this.prisma.apiKey.update({
       where: {
         id: keyId,
-        tenantId: currentUser.tenantId,
-        deletedAt: null,
+      },
+      data,
+    });
+
+    return this.mapKey(key);
+  }
+
+  async setStatus(
+    currentUser: AuthenticatedUser,
+    keyId: string,
+    status: 'ACTIVE' | 'DISABLED',
+  ): Promise<TenantApiKeyListItem> {
+    await this.findTenantKey(currentUser, keyId);
+
+    const key = await this.prisma.apiKey.update({
+      where: {
+        id: keyId,
+      },
+      data: {
+        status,
+        updatedBy: currentUser.id,
       },
     });
 
-    if (!key) {
-      throw new NotFoundException('API key not found');
-    }
+    return this.mapKey(key);
+  }
+
+  async rotate(currentUser: AuthenticatedUser, keyId: string): Promise<CreateTenantApiKeyResult> {
+    await this.findTenantKey(currentUser, keyId);
+
+    const plainTextToken = `ak_${randomUUID().replaceAll('-', '')}${randomUUID().replaceAll('-', '')}`;
+    const key = await this.prisma.apiKey.update({
+      where: {
+        id: keyId,
+      },
+      data: {
+        keyPrefix: plainTextToken.slice(0, 12),
+        keyHash: hashToken(plainTextToken),
+        usedCountToday: 0,
+        quotaResetDate: null,
+        lastUsedAt: null,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    return {
+      api_key: plainTextToken,
+      item: this.mapKey(key),
+    };
+  }
+
+  async remove(currentUser: AuthenticatedUser, keyId: string): Promise<{ success: boolean }> {
+    await this.findTenantKey(currentUser, keyId);
 
     await this.prisma.apiKey.update({
       where: {
@@ -246,6 +319,22 @@ export class ApiKeysService {
 
   async retryWebhookDelivery(currentUser: AuthenticatedUser, deliveryId: string): Promise<RetryWebhookDeliveryResult> {
     return this.webhookService.retryDelivery(currentUser, deliveryId);
+  }
+
+  private async findTenantKey(currentUser: AuthenticatedUser, keyId: string) {
+    const key = await this.prisma.apiKey.findFirst({
+      where: {
+        id: keyId,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+    });
+
+    if (!key) {
+      throw new NotFoundException('API key not found');
+    }
+
+    return key;
   }
 
   private async ensureAgentsExist(tenantId: string, agentIds: string[]) {
@@ -333,6 +422,25 @@ function normalizeScopes(value: string[] | undefined) {
   return scopes.length > 0 ? scopes : ['external:agent:chat'];
 }
 
+function resolveUpdatedScopes(
+  currentScopes: Prisma.JsonValue | null,
+  nextScopes: string[] | undefined,
+  allowStream: boolean | undefined,
+) {
+  if (nextScopes === undefined && allowStream === undefined) return null;
+
+  const output = new Set(nextScopes === undefined ? parseStringArray(currentScopes) : normalizeScopes(nextScopes));
+  if (allowStream === true) {
+    output.add('external:agent:stream');
+  }
+  if (allowStream === false) {
+    output.delete('external:agent:stream');
+  }
+
+  if (output.size === 0) output.add('external:agent:chat');
+  return Array.from(output);
+}
+
 function normalizeStringArray(value: string[] | undefined | null) {
   return Array.from(new Set((value ?? []).map((item) => item.trim()).filter(Boolean)));
 }
@@ -342,7 +450,12 @@ function parseStringArray(value: Prisma.JsonValue | null) {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
-function normalizeWebhookConfig(dto: CreateApiKeyDto) {
+function normalizeWebhookConfig(dto: {
+  webhook_enabled?: boolean;
+  webhook_url?: string | null;
+  webhook_events?: string[] | null;
+  webhook_secret?: string | null;
+}) {
   const enabled = Boolean(dto.webhook_enabled);
   const url = nullableTrim(dto.webhook_url);
   const events = normalizeWebhookEvents(dto.webhook_events);

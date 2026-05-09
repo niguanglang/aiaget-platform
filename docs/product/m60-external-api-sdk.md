@@ -63,8 +63,25 @@ packages/external-api-sdk/README.md
 
 - M60 不新增数据库表。
 - M60 不新增中间件、容器或外部依赖。
-- SDK 当前是 workspace 内部包，后续如需发布 npm，需要补正式 build 输出、版本策略和发布流水线。
+- SDK 已整理为可发布 npm 包形态，运行时不依赖 monorepo workspace 包，并提供 `build`、`prepack` 和 `pack:check` 发布前校验命令。
+- 正式发布流水线仍由仓库 CI 或人工 release 流程触发；本模块只提供离线可验证的打包契约，不自动执行 npm publish。
 - 示例文件是接入样例，不会在默认服务启动中运行。
+
+## 发布前检查
+
+```bash
+pnpm --filter @aiaget/external-api-sdk typecheck
+pnpm --filter @aiaget/external-api-sdk build
+pnpm --filter @aiaget/external-api-sdk pack:check
+```
+
+版本策略：
+
+```text
+PATCH：兼容修复、文档或内部实现调整。
+MINOR：新增兼容 API、事件字段或辅助函数。
+MAJOR：移除或改变公开类型、方法签名、鉴权语义或错误结构。
+```
 
 ## 验证
 

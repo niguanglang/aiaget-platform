@@ -2,11 +2,11 @@
 
 | Reference region | Existing component/file | API/type backing it | Notes |
 | --- | --- | --- | --- |
-| Page shell | `apps/web/src/components/monitor/monitor-content.tsx`, `apps/web/src/components/billing/billing-content.tsx` | `/monitor`, `/billing` route shell | reuse current admin page spacing and cards |
+| Page shell | `apps/web/src/components/monitor/monitor-content.tsx`, `apps/web/src/components/platform-event-usage/platform-usage-*.tsx` | `/monitor`, `/monitor/platform-usage/*` route shell | monitor home keeps entry only; platform usage owns focused pages |
 | Summary metrics | `MetricCard` | `PlatformEventUsageOverview.summary`, `MonitorOverview.summary`, `BillingOverview.summary` | show total events, usage, relations, rollups, trace coverage |
 | Filter bar | existing select/input/button patterns in monitor/audit/billing pages | query params for `window`, `source`, `resource_type`, `metric_type` | keep table-first admin density |
-| Unified event table | `apps/web/src/components/monitor/monitor-content.tsx` | `PlatformEventListItem` | extend with linked usage counts and relation summary |
-| Event detail panel | `apps/web/src/components/platform-event-usage/platform-event-usage-panel.tsx` | `PlatformEventDetail` | show payload, relations, and linked usage items without using legacy monitor event APIs |
+| Unified event table | `PlatformUsageOverviewContent`, `PlatformEventTable` | `PlatformEventListItem` | list route only shows core identifying fields and detail link |
+| Event detail panel | `PlatformEventDetailContent`, `PlatformEventDetailPanel` | `PlatformEventDetail` | show payload, relations, and linked usage items without using legacy monitor event APIs |
 | Usage ledger table | `apps/web/src/components/billing/billing-content.tsx` table pattern | `PlatformUsageLedgerItem` | show quantity, amount, cost, trace/request IDs |
 | Rollup cards/table | `MetricCard`, card grids, table layouts | `PlatformUsageRollupItem` | period-type and totals for cost aggregation |
 | Relation timeline | `apps/web/src/components/conversations/conversation-detail-content.tsx` timeline pattern | `PlatformEventRelationItem` | parent/child/source/target relations with metadata |
@@ -17,8 +17,9 @@
 
 | Enhancement | File | Contract | Notes |
 | --- | --- | --- | --- |
-| Platform event filters | `PlatformEventUsagePanel` | `listPlatformEvents`, `listPlatformUsageLedger`, `listPlatformUsageTrends` | window/source/event/resource/metric/trace/request/keyword |
-| Platform event detail | `PlatformEventUsagePanel` | `getPlatformEvent` | selected event loads payload, relations and linked usage |
-| Linked usage mode | `PlatformEventUsagePanel` | `listPlatformUsageLedger({ event_id, trace_id, request_id })` | selecting event filters ledger by event first |
-| Monitor integration | `MonitorContent` | local panel callback | avoid sending platform event id into legacy `/monitor/events/:id` |
-| Compact billing integration | `BillingContent` | same panel with `compact` | keep lower density but preserve filters |
+| Platform event filters | `PlatformUsageOverviewContent` | `listPlatformEvents`, `listPlatformUsageLedger`, `listPlatformUsageTrends` | window/source/event/resource/metric/trace/request/keyword |
+| Platform event detail | `PlatformEventDetailContent` | `getPlatformEvent` | detail route loads payload, relations and linked usage |
+| Alert lifecycle | `PlatformUsageAlertsContent` + `PlatformUsageConfirmDialog` | `detectPlatformUsageAnomalies`, `rebuildPlatformUsageRollups`, `listPlatformUsageAlerts`, `updatePlatformUsageAlert`, `notifyPlatformUsageAlert` | governance actions stay off overview route; anomaly detection, Rollup rebuild, alert notification and status changes require explicit confirmation |
+| Notification audit | `PlatformUsageNotificationsContent` + `PlatformUsageConfirmDialog` | `listPlatformUsageAlertNotifications`, `retryPlatformUsageAlertNotification` | notification retry stays off overview route and requires explicit confirmation |
+| Retry task | `PlatformUsageTasksContent` + `PlatformUsageConfirmDialog` | `getPlatformUsageAlertNotificationTaskOverview`, `runPlatformUsageAlertNotificationAutoRetry` | scheduler/task controls stay off overview route; manual auto-retry scan requires explicit confirmation |
+| Monitor integration | `MonitorContent` | `getMonitorOverview`, `listMonitorEvents` | homepage links into platform usage pages without importing platform usage data APIs |

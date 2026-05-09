@@ -23,6 +23,7 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
   const router = useRouter();
   const { currentUser } = useAuth();
   const [deleteTarget, setDeleteTarget] = useState<MenuDetail | null>(null);
+  const [menuStatusTarget, setMenuStatusTarget] = useState<{ id: string; name: string; enabled: boolean } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -51,10 +52,16 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
       queryClient.setQueryData(['menu', result.id], result);
       await queryClient.invalidateQueries({ queryKey: ['menus'] });
       await queryClient.invalidateQueries({ queryKey: ['menu-tree'] });
+      setMenuStatusTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
   });
+
+  function confirmMenuStatusChange() {
+    if (!menuStatusTarget) return;
+    statusMutation.mutate(menuStatusTarget.enabled);
+  }
 
   const deleteMutation = useMutation({
     mutationFn: deleteMenu,
@@ -153,7 +160,7 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           )}
           <Button
             disabled={!canWrite || statusMutation.isPending}
-            onClick={() => statusMutation.mutate(!menu.enabled)}
+            onClick={() => setMenuStatusTarget({ id: menu.id, name: menu.name, enabled: !menu.enabled })}
             variant="outline"
           >
             <Power className="size-4" />
@@ -280,6 +287,17 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
         />
       ) : null}
+
+      {menuStatusTarget ? (
+        <ConfirmDialog
+          body={`这会${menuStatusTarget.enabled ? '启用' : '停用'}菜单节点「${menuStatusTarget.name}」，并影响控制台导航入口、角色菜单授权入口和用户可见状态。`}
+          confirmLabel={menuStatusTarget.enabled ? '确认启用' : '确认停用'}
+          pending={statusMutation.isPending}
+          title="确认更新菜单状态"
+          onCancel={() => setMenuStatusTarget(null)}
+          onConfirm={confirmMenuStatusChange}
+        />
+      ) : null}
     </main>
   );
 }
@@ -308,12 +326,14 @@ function stringifyRouteMeta(value: Record<string, unknown> | null) {
 
 function ConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -329,7 +349,7 @@ function ConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

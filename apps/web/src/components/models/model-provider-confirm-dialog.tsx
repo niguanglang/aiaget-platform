@@ -3,12 +3,14 @@ import { Card } from '@/components/ui/card';
 
 export function ModelProviderConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -24,7 +26,7 @@ export function ModelProviderConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

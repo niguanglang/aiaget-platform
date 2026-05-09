@@ -1,10 +1,115 @@
-import type {
-  ExternalAgentChatInput,
-  ExternalAgentChatResponse,
-  ExternalAgentStreamEvent,
-} from '@aiaget/shared-types';
-
 export type AiagetApiKeyAuthMode = 'bearer' | 'x-api-key';
+
+export type ConversationRunStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'CANCELED'
+  | 'WAITING_APPROVAL';
+
+export interface ConversationReferenceItem {
+  id: string;
+  document_id: string | null;
+  segment_id: string | null;
+  title: string;
+  source_type: string | null;
+  snippet: string;
+  score: number | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface ConversationToolCallItem {
+  tool_id: string | null;
+  tool_name: string;
+  tool_code: string;
+  status: string;
+  input_preview: string | null;
+  output_preview: string | null;
+  error_message: string | null;
+  latency_ms: number;
+  response_status: number | null;
+  approval_request_id: string | null;
+}
+
+export interface ConversationRunStepItem {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  summary: string | null;
+  trace_id: string | null;
+  span_id: string | null;
+  parent_span_id: string | null;
+  latency_ms: number;
+  total_tokens: number;
+  item_count: number;
+  request_model: string | null;
+  tool_name: string | null;
+  retrieval_mode: string | null;
+  response_status: number | null;
+}
+
+export interface ExternalAgentChatInput {
+  message: string;
+  title?: string | null;
+  idempotency_key?: string | null;
+}
+
+export interface ExternalAgentChatResponse {
+  conversation_id: string;
+  agent_id: string;
+  channel_id?: string | null;
+  idempotency_key?: string | null;
+  idempotency_replayed?: boolean;
+  agent_name: string;
+  agent_code: string;
+  message_id: string | null;
+  run_id: string | null;
+  trace_id: string | null;
+  status: ConversationRunStatus | null;
+  answer: string;
+  references: ConversationReferenceItem[];
+  tool_calls: ConversationToolCallItem[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    latency_ms: number;
+    cost_total: number | null;
+  } | null;
+  created_at: string | null;
+}
+
+export interface ExternalAgentStreamStartEvent {
+  type: 'start';
+  trace_id?: string | null;
+  request_model: string;
+  steps: ConversationRunStepItem[];
+  references: ConversationReferenceItem[];
+  tool_calls: ConversationToolCallItem[];
+}
+
+export interface ExternalAgentStreamDeltaEvent {
+  type: 'delta';
+  delta: string;
+}
+
+export interface ExternalAgentStreamDoneEvent {
+  type: 'done';
+  result: ExternalAgentChatResponse;
+}
+
+export interface ExternalAgentStreamErrorEvent {
+  type: 'error';
+  message: string;
+}
+
+export type ExternalAgentStreamEvent =
+  | ExternalAgentStreamStartEvent
+  | ExternalAgentStreamDeltaEvent
+  | ExternalAgentStreamDoneEvent
+  | ExternalAgentStreamErrorEvent;
 
 export interface AiagetExternalApiClientOptions {
   baseUrl: string;

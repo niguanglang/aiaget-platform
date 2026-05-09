@@ -243,6 +243,8 @@ interface RuntimeModelConfig {
   api_key: string;
   model: string;
   temperature: number;
+  api_version: string | null;
+  max_output_tokens: number | null;
   input_price: number;
   output_price: number;
 }
@@ -834,6 +836,14 @@ export class AgentTeamsService {
       },
     });
 
+    await this.recordTeamRunStartedEvent(currentUser, {
+      teamId,
+      runId: run.id,
+      objective: run.objective,
+      requestId,
+      traceId: traceContext.traceId,
+      startedAt,
+    });
     await this.dispatchTeamRun(currentUser, run.id);
 
     await this.touchTeam(teamId, currentUser.id);
@@ -1751,6 +1761,9 @@ export class AgentTeamsService {
           traceId: true,
         },
       });
+      if (await this.isDuplicateRuntimeTeamResume(currentUser.tenantId, runId, enrichedSteps)) {
+        return;
+      }
       const createdAt = existingRun?.startedAt ?? new Date();
       await this.prisma.agentTeamStep.createMany({
         data: enrichedSteps.map((step) => ({
@@ -1836,6 +1849,35 @@ export class AgentTeamsService {
       handoffs: runtimeResponse.handoffs ?? [],
       sourceSystem: options.appendExisting ? 'agent_team_run_resume' : 'agent_team_run',
     });
+  }
+
+  private async isDuplicateRuntimeTeamResume(
+    tenantId: string,
+    runId: string,
+    steps: RuntimeAgentTeamStepResult[],
+  ) {
+    if (steps.length === 0) {
+      return false;
+    }
+
+    const duplicateChecks = await Promise.all(
+      steps.map((step) => {
+        const fingerprint = buildRuntimeTeamStepFingerprint(step);
+        return this.prisma.agentTeamStep.count({
+          where: {
+            tenantId,
+            runId,
+            stepType: fingerprint.stepType,
+            memberId: fingerprint.memberId,
+            agentId: fingerprint.agentId,
+            traceId: fingerprint.traceId,
+            spanId: fingerprint.spanId,
+          },
+        });
+      }),
+    );
+
+    return duplicateChecks.every((count) => count > 0);
   }
 
   private async persistRuntimeHandoffs(
@@ -2105,6 +2147,46 @@ export class AgentTeamsService {
     ]);
   }
 
+  private async recordTeamRunStartedEvent(
+    currentUser: AuthenticatedUser,
+    input: {
+      teamId: string;
+      runId: string;
+      objective: string;
+      requestId: string | null;
+      traceId: string | null;
+      startedAt: Date;
+    },
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'AGENT_TEAM',
+      resourceId: input.teamId,
+      teamId: input.teamId,
+      runId: input.runId,
+      requestId: input.requestId,
+      traceId: input.traceId,
+      eventSource: 'AGENT_TEAM',
+      eventType: 'agent.team.run.started',
+      status: 'RUNNING',
+      severity: 'INFO',
+      billable: false,
+      summary: '多 Agent 协作团队运行已启动。',
+      payloadJson: {
+        team_id: input.teamId,
+        run_id: input.runId,
+        objective: input.objective,
+      },
+      occurredAt: input.startedAt,
+      sourceSystem: 'agent_team_run',
+      sourceId: input.runId,
+      dedupeKey: `agent_team_run:${input.runId}:started`,
+    });
+  }
+
   private async resolvePromptSnapshots(
     tenantId: string,
     member: AgentTeamMemberRecord,
@@ -2294,6 +2376,8 @@ export class AgentTeamsService {
       api_key: decryptSecret(activeKey.encryptedKey),
       model: model.model,
       temperature: Number(member.agent.temperature),
+      api_version: model.apiVersion,
+      max_output_tokens: model.maxOutputTokens,
       input_price: Number(model.inputPrice),
       output_price: Number(model.outputPrice),
     };
@@ -2349,6 +2433,8 @@ export class AgentTeamsService {
       api_key: decryptSecret(activeKey.encryptedKey),
       model: model.model,
       temperature: 0.2,
+      api_version: model.apiVersion,
+      max_output_tokens: model.maxOutputTokens,
       input_price: Number(model.inputPrice),
       output_price: Number(model.outputPrice),
     };
@@ -2879,9 +2965,7 @@ export class AgentTeamsService {
           in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
         },
       },
-      include: {
-        actor: true,
-      },
+      include: runReportArchiveAuditInclude,
       orderBy: {
         occurredAt: 'desc',
       },
@@ -3341,7 +3425,7 @@ function buildRunSteps(
       inputSummary: member.responsibility || objective.trim(),
       outputSummary: errorMessage
         ? `Runtime 编排失败，${member.agent.name} 未执行。`
-        : `已记录 ${member.agent.name} 的协作执行台账，后续 Runtime 编排会在此步骤接入真实子 Agent 执行。`,
+        : `已记录 ${member.agent.name} 的协作执行台账，Runtime 编排已接入真实子 Agent 执行链路。`,
       traceId,
       spanId: createSpanId(),
       parentSpanId: rootSpanId,
@@ -3748,6 +3832,16 @@ function mapTeamStepCreateInput(
   };
 }
 
+function buildRuntimeTeamStepFingerprint(step: RuntimeAgentTeamStepResult) {
+  return {
+    stepType: stepString(step, 'stepType', 'step_type') ?? 'AGENT_RUN',
+    memberId: stepString(step, 'memberId', 'member_id'),
+    agentId: stepString(step, 'agentId', 'agent_id'),
+    traceId: stepString(step, 'traceId', 'trace_id'),
+    spanId: stepString(step, 'spanId', 'span_id'),
+  };
+}
+
 function enrichRuntimeTeamSteps(
   steps: RuntimeAgentTeamStepResult[],
   memberResults: RuntimeAgentTeamMemberResult[],
@@ -3930,6 +4024,10 @@ function resolveTeamTraceContext(currentUser: AuthenticatedUser): TraceContext {
 function normalizeWorkflowMode(value: string | undefined): AgentTeamWorkflowMode {
   if (value === 'temporal' || value === 'temporal_first' || value === 'local') {
     return value;
+  }
+
+  if (value === 'runtime_first' || value === 'runtime_only') {
+    return 'temporal_first';
   }
 
   return 'local';

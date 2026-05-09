@@ -5,6 +5,7 @@ import type {
   ChannelAccountItem,
   ChannelAdapterReadiness,
   ChannelDeliveryItem,
+  ChannelDeliveryDetail,
   ChannelCredentialRotationMetadata,
   ChannelOperationsListResult,
   ChannelProviderItem,
@@ -14,6 +15,7 @@ import type {
   ChannelPublishJobStatus,
   ChannelPublishJobTimelineItem,
   ChannelReplyItem,
+  ChannelReplyDetail,
   ChannelRouteRuleItem,
   ChannelTemplateItem,
 } from '@aiaget/shared-types';
@@ -98,12 +100,15 @@ const publishJobDetailInclude = {
 } satisfies Prisma.ChannelPublishJobInclude;
 
 const deliveryInclude = {
+  agent: true,
   provider: true,
   account: true,
+  template: true,
   publishChannel: true,
 } satisfies Prisma.ChannelDeliveryInclude;
 
 const replyInclude = {
+  agent: true,
   provider: true,
   account: true,
   publishChannel: true,
@@ -158,6 +163,22 @@ export class ChannelOperationsService {
     const deliveryCounts = await this.countDeliveries24h(currentUser.tenantId, items.map((item) => item.id), 'providerId');
 
     return listResult(items.map((item) => mapProvider(item, deliveryCounts.get(item.id) ?? 0)), page, pageSize, total);
+  }
+
+  async getProvider(currentUser: AuthenticatedUser, id: string): Promise<ChannelProviderItem> {
+    const provider = await this.prisma.channelProvider.findFirst({
+      where: {
+        id,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: providerInclude,
+    });
+    if (!provider) throw new NotFoundException('渠道提供方不存在。');
+
+    const deliveryCounts = await this.countDeliveries24h(currentUser.tenantId, [provider.id], 'providerId');
+
+    return mapProvider(provider, deliveryCounts.get(provider.id) ?? 0);
   }
 
   async createProvider(currentUser: AuthenticatedUser, dto: CreateChannelProviderDto): Promise<ChannelProviderItem> {
@@ -270,6 +291,20 @@ export class ChannelOperationsService {
     ]);
 
     return listResult(items.map(mapAccount), page, pageSize, total);
+  }
+
+  async getAccount(currentUser: AuthenticatedUser, id: string): Promise<ChannelAccountItem> {
+    const account = await this.prisma.channelAccount.findFirst({
+      where: {
+        id,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: accountInclude,
+    });
+    if (!account) throw new NotFoundException('渠道账号不存在。');
+
+    return mapAccount(account);
   }
 
   async createAccount(currentUser: AuthenticatedUser, dto: CreateChannelAccountDto): Promise<ChannelAccountItem> {
@@ -390,6 +425,20 @@ export class ChannelOperationsService {
     return listResult(items.map(mapTemplate), page, pageSize, total);
   }
 
+  async getTemplate(currentUser: AuthenticatedUser, id: string): Promise<ChannelTemplateItem> {
+    const template = await this.prisma.channelTemplate.findFirst({
+      where: {
+        id,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: templateInclude,
+    });
+    if (!template) throw new NotFoundException('渠道模板不存在。');
+
+    return mapTemplate(template);
+  }
+
   async createTemplate(currentUser: AuthenticatedUser, dto: CreateChannelTemplateDto): Promise<ChannelTemplateItem> {
     if (dto.provider_id) await this.ensureProvider(currentUser.tenantId, dto.provider_id);
     if (dto.account_id) await this.ensureAccount(currentUser.tenantId, dto.account_id);
@@ -500,6 +549,20 @@ export class ChannelOperationsService {
     ]);
 
     return listResult(items.map(mapRouteRule), page, pageSize, total);
+  }
+
+  async getRouteRule(currentUser: AuthenticatedUser, id: string): Promise<ChannelRouteRuleItem> {
+    const rule = await this.prisma.channelRouteRule.findFirst({
+      where: {
+        id,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: routeRuleInclude,
+    });
+    if (!rule) throw new NotFoundException('渠道路由规则不存在。');
+
+    return mapRouteRule(rule);
   }
 
   async createRouteRule(currentUser: AuthenticatedUser, dto: CreateChannelRouteRuleDto): Promise<ChannelRouteRuleItem> {
@@ -770,6 +833,20 @@ export class ChannelOperationsService {
     return listResult(items.map(mapDelivery), page, pageSize, total);
   }
 
+  async getDelivery(currentUser: AuthenticatedUser, id: string): Promise<ChannelDeliveryDetail> {
+    const delivery = await this.prisma.channelDelivery.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+        OR: [{ id }, { deliveryKey: id }],
+      },
+      include: deliveryInclude,
+    });
+    if (!delivery) throw new NotFoundException('渠道投递记录不存在。');
+
+    return mapDeliveryDetail(delivery);
+  }
+
   async listReplies(currentUser: AuthenticatedUser, query: ListChannelOperationsDto): Promise<ChannelOperationsListResult<ChannelReplyItem>> {
     const { page, pageSize } = getPagination(query);
     const where: Prisma.ChannelReplyWhereInput = {
@@ -804,6 +881,20 @@ export class ChannelOperationsService {
     ]);
 
     return listResult(items.map(mapReply), page, pageSize, total);
+  }
+
+  async getReply(currentUser: AuthenticatedUser, id: string): Promise<ChannelReplyDetail> {
+    const reply = await this.prisma.channelReply.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+        OR: [{ id }, { replyKey: id }],
+      },
+      include: replyInclude,
+    });
+    if (!reply) throw new NotFoundException('渠道回复记录不存在。');
+
+    return mapReplyDetail(reply);
   }
 
   private async ensureProvider(tenantId: string, id: string) {
@@ -1137,6 +1228,26 @@ function mapDelivery(delivery: DeliveryRecord): ChannelDeliveryItem {
   };
 }
 
+function mapDeliveryDetail(delivery: DeliveryRecord): ChannelDeliveryDetail {
+  return {
+    ...mapDelivery(delivery),
+    agent_id: delivery.agentId,
+    agent_name: delivery.agent?.name ?? null,
+    template_id: delivery.templateId,
+    template_name: delivery.template?.name ?? null,
+    publish_job_id: delivery.publishJobId,
+    direction: delivery.direction,
+    request_url: redactChannelAuditUrl(delivery.requestUrl),
+    request_body: redactChannelAuditJson(delivery.requestBody),
+    request_headers: redactChannelAuditJson(delivery.requestHeaders),
+    response_body: redactChannelAuditText(delivery.responseBody),
+    conversation_id: delivery.conversationId,
+    run_id: delivery.runId,
+    external_conversation_id: delivery.externalConversationId,
+    external_message_id: delivery.externalMessageId,
+  };
+}
+
 function mapReply(reply: ReplyRecord): ChannelReplyItem {
   return {
     id: reply.id,
@@ -1174,6 +1285,25 @@ function mapReply(reply: ReplyRecord): ChannelReplyItem {
   };
 }
 
+function mapReplyDetail(reply: ReplyRecord): ChannelReplyDetail {
+  return {
+    ...mapReply(reply),
+    agent_id: reply.agentId,
+    agent_name: reply.agent?.name ?? null,
+    account_id: reply.accountId,
+    account_name: reply.account?.name ?? null,
+    provider_name: reply.provider?.name ?? null,
+    direction: reply.direction,
+    sender: reply.sender,
+    recipient: reply.recipient,
+    content: reply.content,
+    payload: redactChannelAuditJson(reply.payload),
+    message_id: reply.messageId,
+    received_at: reply.receivedAt?.toISOString() ?? null,
+    processed_at: reply.processedAt?.toISOString() ?? null,
+  };
+}
+
 function listResult<T>(items: T[], page: number, pageSize: number, total: number): ChannelOperationsListResult<T> {
   return {
     generated_at: new Date().toISOString(),
@@ -1205,7 +1335,11 @@ function normalizeStringArray(value: string[] | undefined) {
 function normalizeJson(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | unknown[] | string | number | boolean | null {
   if (value === undefined || value === null) return null;
 
-  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown> | unknown[] | string | number | boolean | null;
+}
+
+function redactChannelAuditJson(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | unknown[] | string | number | boolean | null {
+  return redactChannelAuditValue(normalizeJson(value)) as Record<string, unknown> | unknown[] | string | number | boolean | null;
 }
 
 function normalizeRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | null {

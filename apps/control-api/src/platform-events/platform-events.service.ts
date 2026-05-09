@@ -163,6 +163,22 @@ export class PlatformEventsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async recordEvent(input: RecordPlatformEventInput) {
+    if (input.dedupeKey) {
+      const existing = await this.prisma.platformEvent.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          dedupeKey: input.dedupeKey,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
     const event = await this.prisma.platformEvent.create({
       data: {
         tenantId: input.tenantId,

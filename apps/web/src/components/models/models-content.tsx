@@ -43,6 +43,7 @@ export function ModelsContent() {
   const [capability, setCapability] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<ModelProviderListItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ModelProviderListItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -86,6 +87,7 @@ export function ModelsContent() {
     onSuccess: async (provider) => {
       queryClient.setQueryData(['model-provider', provider.id], provider);
       await queryClient.invalidateQueries({ queryKey: ['model-providers'] });
+      setStatusTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -321,12 +323,7 @@ export function ModelsContent() {
                           </Button>
                           <Button
                             disabled={!canWrite || providerStatusMutation.isPending}
-                            onClick={() =>
-                              providerStatusMutation.mutate({
-                                id: provider.id,
-                                nextStatus: provider.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-                              })
-                            }
+                            onClick={() => setStatusTarget(provider)}
                             size="sm"
                             variant="outline"
                           >
@@ -359,10 +356,30 @@ export function ModelsContent() {
       {deleteTarget ? (
         <ConfirmDialog
           body={`这会软删除供应商 ${deleteTarget.name}、其模型和接口密钥。删除后列表不再显示该供应商。`}
+          confirmLabel="确认删除"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
           pending={deleteMutation.isPending}
           title="删除供应商？"
+        />
+      ) : null}
+      {statusTarget ? (
+        <ConfirmDialog
+          body={
+            statusTarget.status === 'ACTIVE'
+              ? `这会停用供应商 ${statusTarget.name}，已绑定该供应商的 Agent 将无法继续使用其模型配置。`
+              : `这会启用供应商 ${statusTarget.name}，可用模型和密钥将重新进入调度范围。`
+          }
+          confirmLabel={statusTarget.status === 'ACTIVE' ? '确认停用' : '确认启用'}
+          onCancel={() => setStatusTarget(null)}
+          onConfirm={() =>
+            providerStatusMutation.mutate({
+              id: statusTarget.id,
+              nextStatus: statusTarget.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+            })
+          }
+          pending={providerStatusMutation.isPending}
+          title={statusTarget.status === 'ACTIVE' ? '停用供应商？' : '启用供应商？'}
         />
       ) : null}
     </main>
@@ -413,12 +430,14 @@ function PaginationBar({
 
 function ConfirmDialog({
   body,
+  confirmLabel = '确认删除',
   onCancel,
   onConfirm,
   pending,
   title,
 }: {
   body: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
   pending: boolean;
@@ -434,7 +453,7 @@ function ConfirmDialog({
             取消
           </Button>
           <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
-            确认删除
+            {confirmLabel}
           </Button>
         </div>
       </Card>

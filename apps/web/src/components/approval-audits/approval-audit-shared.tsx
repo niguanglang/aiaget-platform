@@ -6,6 +6,7 @@ import type {
 } from '@aiaget/shared-types';
 import type { ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 export const approvalAuditWindows: ApprovalAuditWindow[] = ['24h', '7d', '30d'];
@@ -115,6 +116,39 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-sm font-semibold">{children}</h2>;
 }
 
+export function ApprovalAuditConfirmDialog({
+  body,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+  pending,
+  title,
+}: {
+  body: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  title: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
+      <Card className="w-full max-w-md p-5 shadow-xl">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="outline">
+            取消
+          </Button>
+          <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">
+            {confirmLabel}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function downloadBlob(blob: Blob, fileName: string) {
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -125,4 +159,3 @@ export function downloadBlob(blob: Blob, fileName: string) {
   anchor.remove();
   URL.revokeObjectURL(objectUrl);
 }
-

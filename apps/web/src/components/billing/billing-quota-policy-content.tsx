@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
   ActionMessage,
+  BillingConfirmDialog,
   BillingWorkspaceHeader,
   Field,
   PageError,
@@ -35,6 +36,10 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { enforceBillingQuota, getBillingOverview, updateBillingQuotaPolicy } from '@/lib/api-client';
 
+type QuotaPolicyActionTarget =
+  | { type: 'enforce' }
+  | { id: string; input: NonNullable<ReturnType<typeof toQuotaPolicyInput>>; name: string; type: 'save' };
+
 export function BillingQuotaPolicyContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
@@ -43,6 +48,7 @@ export function BillingQuotaPolicyContent() {
   const [policyDraft, setPolicyDraft] = useState<QuotaPolicyDraft | null>(null);
   const [quotaDecision, setQuotaDecision] = useState<BillingQuotaEnforcementResult | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [quotaPolicyActionTarget, setQuotaPolicyActionTarget] = useState<QuotaPolicyActionTarget | null>(null);
 
   const canManageSettings = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -61,6 +67,7 @@ export function BillingQuotaPolicyContent() {
       updateBillingQuotaPolicy(id, input),
     onSuccess: async () => {
       setActionMessage('额度策略配置已保存。');
+      setQuotaPolicyActionTarget(null);
       setEditingPolicyId(null);
       setPolicyDraft(null);
       await Promise.all([
@@ -75,6 +82,7 @@ export function BillingQuotaPolicyContent() {
     mutationFn: () => enforceBillingQuota({ subject_type: 'TENANT', metric_type: 'COST', period: 'MONTH', usage_delta: 0 }),
     onSuccess: (result) => {
       setQuotaDecision(result);
+      setQuotaPolicyActionTarget(null);
       setActionMessage(`执行检查完成：${result.allow ? '允许继续使用' : '触发阻断'}。`);
     },
     onError: () => setActionMessage('执行检查失败，请确认计费中心查看权限。'),
@@ -92,22 +100,34 @@ export function BillingQuotaPolicyContent() {
     setActionMessage(null);
   };
 
-  const savePolicy = () => {
+  const requestQuotaPolicySave = () => {
     if (!activePolicy || !policyDraft) return;
     const input = toQuotaPolicyInput(policyDraft);
     if (!input) {
       setActionMessage('额度上限与阈值必须是有效数字，且预警阈值不能高于硬限制阈值。');
       return;
     }
-    quotaPolicyMutation.mutate({ id: activePolicy.id, input });
+    setQuotaPolicyActionTarget({ id: activePolicy.id, input, name: activePolicy.name, type: 'save' });
   };
+
+  function confirmQuotaPolicyAction() {
+    if (!quotaPolicyActionTarget) return;
+    if (quotaPolicyActionTarget.type === 'enforce') {
+      quotaEnforcementMutation.mutate();
+      return;
+    }
+    quotaPolicyMutation.mutate({
+      id: quotaPolicyActionTarget.id,
+      input: quotaPolicyActionTarget.input,
+    });
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <BillingWorkspaceHeader
         actions={
           <>
-            <Button disabled={quotaEnforcementMutation.isPending} onClick={() => quotaEnforcementMutation.mutate()} type="button" variant="outline">
+            <Button disabled={quotaEnforcementMutation.isPending} onClick={() => setQuotaPolicyActionTarget({ type: 'enforce' })} type="button" variant="outline">
               <ShieldAlert className="size-4" />
               {quotaEnforcementMutation.isPending ? '检查中...' : '执行检查'}
             </Button>
@@ -205,7 +225,7 @@ export function BillingQuotaPolicyContent() {
                       </div>
                       <div className="flex justify-end gap-2">
                         <Button disabled={quotaPolicyMutation.isPending} onClick={() => { setEditingPolicyId(null); setPolicyDraft(null); }} type="button" variant="outline">取消</Button>
-                        <Button disabled={!canManageSettings || quotaPolicyMutation.isPending} onClick={savePolicy} type="button">
+                        <Button disabled={!canManageSettings || quotaPolicyMutation.isPending} onClick={requestQuotaPolicySave} type="button">
                           {quotaPolicyMutation.isPending ? '保存中...' : '保存策略'}
                         </Button>
                       </div>
@@ -217,6 +237,26 @@ export function BillingQuotaPolicyContent() {
           </div>
         )}
       </Card>
+      {quotaPolicyActionTarget ? (
+        <BillingConfirmDialog
+          body={
+            quotaPolicyActionTarget.type === 'enforce' ? (
+              <>
+                确认执行额度检查？系统会按租户月度成本策略计算是否触发预警、限流、审批或阻断，并刷新当前页面的额度决策结果。
+              </>
+            ) : (
+              <>
+                确认保存额度策略「{quotaPolicyActionTarget.name}」？新阈值和超限动作会影响后续模型调用、API 调用和 Agent 运行的额度拦截判断。
+              </>
+            )
+          }
+          confirmLabel={quotaPolicyActionTarget.type === 'enforce' ? '确认检查' : '确认保存'}
+          onCancel={() => setQuotaPolicyActionTarget(null)}
+          onConfirm={confirmQuotaPolicyAction}
+          pending={quotaPolicyActionTarget.type === 'enforce' ? quotaEnforcementMutation.isPending : quotaPolicyMutation.isPending}
+          title={quotaPolicyActionTarget.type === 'enforce' ? '确认执行额度检查' : '确认保存额度策略'}
+        />
+      ) : null}
     </main>
   );
 }

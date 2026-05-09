@@ -24,6 +24,17 @@ export class CreateModelConfigDto {
   context_length!: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2000000)
+  max_output_tokens?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  api_version?: string | null;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   input_price?: number;

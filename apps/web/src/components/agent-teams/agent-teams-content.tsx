@@ -6,6 +6,7 @@ import { Edit, Eye, FileArchive, ListChecks, Plus, Search, Trash2, UsersRound } 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -76,6 +77,16 @@ export function AgentTeamsContent() {
     setStatus('');
     setMode('');
     setOwnerId('');
+  }
+
+  function formatQualityGate(team: AgentTeamListItem) {
+    return team.quality_gate_enabled ? `开启，阈值 ${Math.round(team.quality_threshold * 100)}%` : '关闭';
+  }
+
+  function formatBudgetSummary(team: AgentTeamListItem) {
+    const tokenLimit = team.budget_token_limit ? `${new Intl.NumberFormat('zh-CN').format(team.budget_token_limit)} Token` : 'Token 不限';
+    const costLimit = team.budget_cost_limit ? `$${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 6 }).format(team.budget_cost_limit)}` : '成本不限';
+    return `${tokenLimit} / ${costLimit}`;
   }
 
   return (
@@ -154,10 +165,10 @@ export function AgentTeamsContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1240px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  {['团队', '状态', '模式', '接力策略', '成员', '最近运行', '负责人', '更新时间', '操作'].map((column) => (
+                  {['团队', '状态', '模式', '接力策略', '策略摘要', '成员', '最近运行', '负责人', '更新时间', '操作'].map((column) => (
                     <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>
                   ))}
                 </tr>
@@ -175,6 +186,13 @@ export function AgentTeamsContent() {
                     <td className="px-4 py-3"><StatusBadge tone={teamStatusTone(team.status)}>{teamStatusLabel(team.status)}</StatusBadge></td>
                     <td className="px-4 py-3 text-muted-foreground">{teamModeLabel(team.mode)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{handoffPolicyLabel(team.handoff_policy)}</td>
+                    <td className="px-4 py-3">
+                      <div className="grid min-w-44 gap-1 text-xs text-muted-foreground">
+                        <span className="line-clamp-1"><span className="text-foreground">主管模型</span> {team.supervisor_model_name ?? '未指定'}</span>
+                        <span><span className="text-foreground">质检门禁</span> {formatQualityGate(team)}</span>
+                        <span className="line-clamp-1"><span className="text-foreground">预算概要</span> {formatBudgetSummary(team)}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{team.active_member_count} / {team.member_count}</td>
                     <td className="px-4 py-3">
                       {team.latest_run ? (
@@ -204,16 +222,14 @@ export function AgentTeamsContent() {
       </section>
 
       {deleteTarget ? (
-        <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">删除协作团队</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">确认删除「{deleteTarget.name}」？该操作会移除团队配置。</p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button onClick={() => setDeleteTarget(null)} type="button" variant="outline">取消</Button>
-              <Button disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget.id)} type="button" variant="destructive">删除</Button>
-            </div>
-          </div>
-        </section>
+        <AgentTeamConfirmDialog
+          body={`确认删除「${deleteTarget.name}」？该操作会移除团队配置，并影响成员、运行记录入口和后续协作任务。`}
+          confirmLabel="确认删除"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          pending={deleteMutation.isPending}
+          title="删除协作团队？"
+        />
       ) : null}
     </main>
   );

@@ -9,6 +9,7 @@ import type {
   BillingCycle,
   BillingConversationCostItem,
   BillingCostTrendPoint,
+  BillingInvoiceDetail,
   BillingInvoiceItem,
   BillingModelCostItem,
   BillingOverview,
@@ -491,6 +492,16 @@ export class BillingService {
     return mapInvoice(invoice);
   }
 
+  async getInvoiceDetail(currentUser: AuthenticatedUser, id: string): Promise<BillingInvoiceDetail> {
+    await this.ensureCommercialDefaults(currentUser);
+    const invoice = await this.loadBillingInvoice(currentUser.tenantId, id);
+
+    return {
+      invoice: mapInvoice(invoice),
+      adjustments: invoice.adjustments.map(mapAdjustment),
+    };
+  }
+
   async lockInvoice(
     currentUser: AuthenticatedUser,
     id: string,
@@ -609,12 +620,24 @@ export class BillingService {
     const usageRate = limit <= 0 ? null : Number(((currentUsage / limit) * 100).toFixed(1));
     const hardThreshold = Number(policy.hardThreshold);
     const action = policy.action as BillingQuotaAction;
-    const block = usageRate !== null && usageRate >= hardThreshold && (action === 'BLOCK' || action === 'REQUIRE_APPROVAL');
+    const block = usageRate !== null && usageRate >= hardThreshold && action !== 'WARN';
     const reason = block
       ? `Quota ${policy.name} reached ${usageRate}% and requires ${action}`
       : usageRate !== null && usageRate >= Number(policy.warnThreshold)
         ? `Quota ${policy.name} reached warning threshold ${usageRate}%`
         : `Quota ${policy.name} allows current usage`;
+
+    if (block || (usageRate !== null && usageRate >= Number(policy.warnThreshold))) {
+      await this.recordQuotaEvaluationEvent(currentUser, {
+        policy,
+        action,
+        currentUsage,
+        limit,
+        usageRate,
+        block,
+        reason,
+      });
+    }
 
     return {
       allow: !block,
@@ -796,17 +819,20 @@ export class BillingService {
     dto: BillingQuotaEnforcementInput,
     period: { start: Date; end: Date },
   ) {
+    const usageMetrics = quotaMetricMapping(dto.metric_type);
     const where: Prisma.PlatformUsageEventWhereInput = {
       tenantId: currentUser.tenantId,
-      subjectType: dto.subject_type,
-      metricType: dto.metric_type,
+      metricType: usageMetrics.length === 1 ? usageMetrics[0] : { in: usageMetrics },
       occurredAt: {
         gte: period.start,
         lt: period.end,
       },
     };
-    if (dto.subject_id !== undefined) {
-      where.subjectId = dto.subject_id;
+    if (dto.subject_type !== 'TENANT') {
+      where.subjectType = dto.subject_type;
+      if (dto.subject_id !== undefined) {
+        where.subjectId = dto.subject_id;
+      }
     }
 
     const usage = await this.prisma.platformUsageEvent.aggregate({
@@ -818,7 +844,53 @@ export class BillingService {
     });
 
     if (dto.metric_type === 'COST') return Number(usage._sum.amount ?? 0);
+    if (dto.metric_type === 'STORAGE_GB') return bytesToGigabytes(Number(usage._sum.quantity ?? 0));
+    if (dto.metric_type === 'MODEL_CALL') return this.calculateModelCallQuotaUsage(currentUser, dto, period);
+    if (dto.metric_type === 'AGENT_RUN') {
+      const conversationRunCount = await this.calculateConversationRunQuotaUsage(currentUser, dto, period);
+      return conversationRunCount + Number(usage._sum.quantity ?? 0);
+    }
     return Number(usage._sum.quantity ?? 0);
+  }
+
+  private async calculateModelCallQuotaUsage(
+    currentUser: AuthenticatedUser,
+    dto: BillingQuotaEnforcementInput,
+    period: { start: Date; end: Date },
+  ) {
+    const where: Prisma.ModelCallLogWhereInput = {
+      tenantId: currentUser.tenantId,
+      createdAt: {
+        gte: period.start,
+        lt: period.end,
+      },
+    };
+
+    if (dto.subject_type === 'MODEL' && dto.subject_id) {
+      where.modelConfigId = dto.subject_id;
+    }
+
+    return this.prisma.modelCallLog.count({ where });
+  }
+
+  private async calculateConversationRunQuotaUsage(
+    currentUser: AuthenticatedUser,
+    dto: BillingQuotaEnforcementInput,
+    period: { start: Date; end: Date },
+  ) {
+    const where: Prisma.ConversationRunWhereInput = {
+      tenantId: currentUser.tenantId,
+      createdAt: {
+        gte: period.start,
+        lt: period.end,
+      },
+    };
+
+    if (dto.subject_type === 'AGENT' && dto.subject_id) {
+      where.agentId = dto.subject_id;
+    }
+
+    return this.prisma.conversationRun.count({ where });
   }
 
   private async recordBillingEvent(
@@ -853,6 +925,56 @@ export class BillingService {
       sourceSystem: 'billing',
       sourceId: input.sourceId,
       dedupeKey: `billing:${input.eventType}:${input.sourceId}:${Date.now()}`,
+    });
+  }
+
+  private async recordQuotaEvaluationEvent(
+    currentUser: AuthenticatedUser,
+    input: {
+      policy: BillingQuotaPolicyRecord;
+      action: BillingQuotaAction;
+      currentUsage: number;
+      limit: number;
+      usageRate: number | null;
+      block: boolean;
+      reason: string;
+    },
+  ) {
+    const eventType = input.block ? 'billing.quota.blocked' : 'billing.quota.warned';
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'BILLING_QUOTA_POLICY',
+      resourceId: input.policy.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      parentTraceId: currentUser.parentSpanId ?? null,
+      eventSource: 'billing',
+      eventType,
+      status: input.block ? 'FAILED' : 'SUCCESS',
+      severity: input.block ? 'WARN' : 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: input.reason,
+      payloadJson: {
+        quota_policy_id: input.policy.id,
+        policy_name: input.policy.name,
+        subject_type: input.policy.subjectType,
+        subject_id: input.policy.subjectId,
+        metric_type: input.policy.metricType,
+        period: input.policy.period,
+        limit: input.limit,
+        current_usage: input.currentUsage,
+        usage_rate: input.usageRate,
+        action: input.action,
+        block: input.block,
+        concrete_metric_types: quotaMetricMapping(input.policy.metricType as BillingQuotaMetricType),
+      },
+      sourceSystem: 'billing',
+      sourceId: input.policy.id,
+      dedupeKey: `billing:${eventType}:${input.policy.id}:${currentUser.requestId ?? currentUser.traceId ?? Date.now()}`,
     });
   }
 
@@ -1704,6 +1826,55 @@ function quotaUsageFor(metricType: string, usage: { cost: number; tokens: number
   if (metricType === 'TOKEN') return usage.tokens;
   if (metricType === 'MODEL_CALL' || metricType === 'API_CALL' || metricType === 'AGENT_RUN') return usage.calls;
   return 0;
+}
+
+function quotaMetricMapping(metricType: BillingQuotaMetricType) {
+  if (metricType === 'COST') {
+    return [
+      'model_cost',
+      'agent_team_cost',
+      'channel_external_tokens',
+      'channel_callback_tokens',
+      'knowledge_queries',
+      'plugin_invocations',
+    ];
+  }
+  if (metricType === 'TOKEN') {
+    return ['model_tokens', 'channel_external_tokens', 'channel_callback_tokens'];
+  }
+  if (metricType === 'MODEL_CALL') {
+    return ['model_tokens'];
+  }
+  if (metricType === 'API_CALL') {
+    return [
+      'external_agent_requests',
+      'api_key_requests',
+      'channel_external_requests',
+      'channel_callback_messages',
+      'channel_sender_messages',
+      'channel_sender_retry_messages',
+      'channel_sender_auto_retry_messages',
+      'tool_calls',
+      'knowledge_queries',
+      'plugin_invocations',
+      'webhook_deliveries',
+      'channel_deliveries',
+      'approval_requests',
+    ];
+  }
+  if (metricType === 'AGENT_RUN') {
+    return ['agent_team_runs'];
+  }
+  if (metricType === 'STORAGE_GB') {
+    return ['storage_bytes'];
+  }
+
+  return [metricType];
+}
+
+function bytesToGigabytes(value: number) {
+  if (value <= 0) return 0;
+  return Number((value / 1024 / 1024 / 1024).toFixed(6));
 }
 
 function quotaRiskLevelByThreshold(usageRate: number, warnThreshold: number, hardThreshold: number): BillingQuotaRiskLevel {

@@ -31,6 +31,24 @@ const result = await client.chat('agent-id', {
 console.log(result.answer);
 ```
 
+## 发布前检查
+
+SDK 包已经按 npm 发布形态整理，运行时不依赖 monorepo workspace 包。发布前执行：
+
+```bash
+pnpm --filter @aiaget/external-api-sdk typecheck
+pnpm --filter @aiaget/external-api-sdk build
+pnpm --filter @aiaget/external-api-sdk pack:check
+```
+
+正式发布时使用语义化版本：
+
+```text
+PATCH：兼容修复、文档或内部实现调整。
+MINOR：新增兼容 API、事件字段或辅助函数。
+MAJOR：移除或改变公开类型、方法签名、鉴权语义或错误结构。
+```
+
 ## 续聊
 
 ```ts

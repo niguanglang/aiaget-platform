@@ -8,5 +8,6 @@
 - APIs/services: `getTool`, `copyTool`, `enableTool`, `disableTool`, `deleteTool`, `testTool`.
 - Entities/fields/statuses: `ToolDetail`, `TestToolResult`, `tool.status`, `tool.risk_level`, `tool.auth_type`, `tool.call_logs`, `tool.agent_references`.
 - Existing components/design system: `Button`, `Card`, `EmptyState`, `MetricCard`, `StatusBadge`, `ToolCenterBackground`, `tool-status` formatters, `tool-json` helpers.
-- Required states: loading, error, permission-disabled actions, disabled inactive test button, validation error for JSON input, empty call logs, approval request link, destructive delete confirmation.
+- Required states: loading, error, permission-disabled actions, disabled inactive test button, validation error for JSON input, empty call logs, approval request link, status confirmation, destructive delete confirmation.
 - IA constraint: `/tools/[id]` is a detail page. It may show complete current object information and related logs, but edit remains routed to `/tools/[id]/edit`; create/list concerns stay out of the detail component.
+- Safety constraint: enable/disable must open an impact confirmation before mutating because it changes whether authorized Agents can call the tool.

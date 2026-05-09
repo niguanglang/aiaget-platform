@@ -21,6 +21,7 @@ Project context:
   - empty
   - error
   - disabled by permission
+  - delete confirmation before removing any binding
 
 Prototype requirements:
 - Use low- to mid-fidelity wireframe style.
@@ -32,6 +33,7 @@ Prototype requirements:
   - current bindings list
   - inline action area for edit/save/cancel where relevant
 - Make it obvious where error banners and disabled controls appear.
+- Show a shared confirmation dialog pattern for removing model, prompt, knowledge, or tool bindings.
 - Keep the page realistic for a console product with sidebar and topbar context.
 - Use Chinese section labels so a frontend engineer can directly map wireframe regions to the final implementation.
 

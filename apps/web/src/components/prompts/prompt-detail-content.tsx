@@ -1,6 +1,13 @@
 'use client';
 
-import { hasPermission, type PromptTemplateDetail, type PromptVariableItem, type RenderPromptResult, type TestPromptResult } from '@aiaget/shared-types';
+import {
+  hasPermission,
+  type PromptTemplateDetail,
+  type PromptVariableItem,
+  type PromptVersionItem,
+  type RenderPromptResult,
+  type TestPromptResult,
+} from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -46,11 +53,17 @@ import { PromptRenderTestCard } from './prompt-render-test-card';
 import { PromptVariablesCard } from './prompt-variables-card';
 import { PromptVersionsCard } from './prompt-versions-card';
 
+type PromptActionTarget =
+  | { type: 'publish'; source: 'header' | 'versions' }
+  | { type: 'rollback'; version: PromptVersionItem }
+  | { type: 'delete-variable'; variable: PromptVariableItem };
+
 export function PromptDetailContent({ promptId }: { promptId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useAuth();
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<PromptTemplateDetail | null>(null);
+  const [promptActionTarget, setPromptActionTarget] = useState<PromptActionTarget | null>(null);
   const [variableMode, setVariableMode] = useState<'create' | 'edit' | null>(null);
   const [editingVariable, setEditingVariable] = useState<PromptVariableItem | null>(null);
   const [editorContent, setEditorContent] = useState('');
@@ -116,6 +129,7 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
     onSuccess: async (result) => {
       await applyPromptResult(result);
       setPublishNote('');
+      setPromptActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -125,6 +139,7 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
     mutationFn: (version: number) => rollbackPromptTemplate(promptId, { version }),
     onSuccess: async (result) => {
       await applyPromptResult(result);
+      setPromptActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -173,6 +188,7 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
     mutationFn: (variableId: string) => deletePromptVariable(promptId, variableId),
     onSuccess: async (result) => {
       await applyPromptResult(result);
+      setPromptActionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -261,6 +277,22 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
     testMutation.mutate(parsed.value);
   }
 
+  function confirmPromptAction() {
+    if (!promptActionTarget) return;
+
+    if (promptActionTarget.type === 'publish') {
+      publishMutation.mutate();
+      return;
+    }
+
+    if (promptActionTarget.type === 'rollback') {
+      rollbackMutation.mutate(promptActionTarget.version.version);
+      return;
+    }
+
+    deleteVariableMutation.mutate(promptActionTarget.variable.id);
+  }
+
   if (promptQuery.isLoading) {
     return (
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
@@ -297,7 +329,7 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
         publishPending={publishMutation.isPending}
         onCopy={() => copyMutation.mutate(prompt.id)}
         onDelete={() => setDeleteTemplateTarget(prompt)}
-        onPublish={() => publishMutation.mutate()}
+        onPublish={() => setPromptActionTarget({ type: 'publish', source: 'header' })}
       />
 
       {actionError ? (
@@ -330,15 +362,15 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
             deletePending={deleteVariableMutation.isPending}
             prompt={prompt}
             onCreate={openCreateVariable}
-            onDelete={(variableId) => deleteVariableMutation.mutate(variableId)}
+            onDelete={(variable) => setPromptActionTarget({ type: 'delete-variable', variable })}
             onEdit={openEditVariable}
           />
           <PromptVersionsCard
             canWrite={canWrite}
             note={publishNote}
             onChangeNote={setPublishNote}
-            onPublish={() => publishMutation.mutate()}
-            onRollback={(version) => rollbackMutation.mutate(version)}
+            onPublish={() => setPromptActionTarget({ type: 'publish', source: 'versions' })}
+            onRollback={(version) => setPromptActionTarget({ type: 'rollback', version })}
             prompt={prompt}
             publishPending={publishMutation.isPending}
             rollbackPending={rollbackMutation.isPending}
@@ -386,6 +418,52 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
           onConfirm={() => deleteTemplateMutation.mutate(deleteTemplateTarget.id)}
         />
       ) : null}
+      {promptActionTarget ? (
+        <PromptActionConfirmDialog
+          pending={publishMutation.isPending || rollbackMutation.isPending || deleteVariableMutation.isPending}
+          target={promptActionTarget}
+          onCancel={() => setPromptActionTarget(null)}
+          onConfirm={confirmPromptAction}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function PromptActionConfirmDialog({
+  onCancel,
+  onConfirm,
+  pending,
+  target,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  target: PromptActionTarget;
+}) {
+  const title =
+    target.type === 'publish'
+      ? '确认发布提示词'
+      : target.type === 'rollback'
+        ? '确认回滚提示词版本'
+        : '确认删除提示词变量';
+  const body =
+    target.type === 'publish'
+      ? '发布会创建新的不可变版本快照，已绑定 Agent 后续会读取最新可发布内容。请确认提示词内容、变量和测试结果已经检查。'
+      : target.type === 'rollback'
+        ? `这会将提示词内容和变量恢复到 v${target.version.version} 并进入草稿状态，后续发布前需要重新确认差异。`
+        : `这会删除变量「${target.variable.name}」。如果模板内容仍引用该变量，渲染或测试时会出现缺失输入。`;
+  const confirmLabel =
+    target.type === 'publish' ? '确认发布' : target.type === 'rollback' ? '确认回滚' : '确认删除';
+
+  return (
+    <PromptConfirmDialog
+      body={body}
+      confirmLabel={confirmLabel}
+      pending={pending}
+      title={title}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }

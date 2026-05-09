@@ -28,6 +28,30 @@ test('tool list page keeps detail, forms, and test panels out of the list surfac
   assert.doesNotMatch(toolsListSource, /testTool/);
 });
 
+test('tool status changes require confirmation before mutation', () => {
+  const confirmSource = source('tool-confirm-dialog.tsx');
+
+  assert.match(toolsListSource, /statusTarget/);
+  assert.match(toolsListSource, /setStatusTarget\(/);
+  assert.doesNotMatch(toolsListSource, /onClick=\{\(\) => statusMutation\.mutate/);
+  assert.match(toolDetailSource, /statusTarget/);
+  assert.match(toolDetailSource, /setStatusTarget\(/);
+  assert.doesNotMatch(
+    toolDetailSource,
+    /onToggleStatus=\{\(\) => statusMutation\.mutate\(tool\.status === 'ACTIVE' \? 'DISABLED' : 'ACTIVE'\)\}/,
+  );
+  assert.match(confirmSource, /confirmLabel/);
+});
+
+test('tool list copy action requires confirmation before mutation', () => {
+  assert.match(toolsListSource, /copyTarget/);
+  assert.match(toolsListSource, /setCopyTarget\(/);
+  assert.match(toolsListSource, /function confirmCopyTool/);
+  assert.match(toolsListSource, /确认复制工具/);
+  assert.match(toolsListSource, /onConfirm=\{confirmCopyTool\}/);
+  assert.doesNotMatch(toolsListSource, /onClick=\{\(\) => copyMutation\.mutate\(tool\.id\)\}/);
+});
+
 test('tool detail page keeps edit as route navigation', () => {
   const headerPath = join(toolsRoot, 'tool-detail-header.tsx');
   const detailAndHeaderSource = `${toolDetailSource}\n${existsSync(headerPath) ? source('tool-detail-header.tsx') : ''}`;

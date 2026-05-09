@@ -44,6 +44,21 @@ test('role dedicated pages own detail and authorization workflows', () => {
   assert.match(menusSource, /updateMenuRoleBinding/);
 });
 
+test('role status changes require confirmation before mutation', () => {
+  const detailSource = readFileSync(roleDetailSourcePath, 'utf8');
+
+  assert.match(rolesListSource, /roleStatusTarget/);
+  assert.match(rolesListSource, /function confirmRoleStatusChange/);
+  assert.match(rolesListSource, /确认更新角色状态/);
+  assert.match(rolesListSource, /onConfirm=\{confirmRoleStatusChange\}/);
+  assert.match(detailSource, /roleStatusTarget/);
+  assert.match(detailSource, /function confirmRoleStatusChange/);
+  assert.match(detailSource, /确认更新角色状态/);
+  assert.match(detailSource, /onConfirm=\{confirmRoleStatusChange\}/);
+  assert.doesNotMatch(rolesListSource, /onToggle=\{\(role\) =>\s*statusMutation\.mutate/);
+  assert.doesNotMatch(detailSource, /onClick=\{\(\) =>\s*statusMutation\.mutate/);
+});
+
 test('role menu authorization keeps parent and child selections consistent', () => {
   const menusSource = readFileSync(roleMenusSourcePath, 'utf8');
 

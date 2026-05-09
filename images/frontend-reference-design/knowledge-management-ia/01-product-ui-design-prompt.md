@@ -5,9 +5,9 @@ Create a high-fidelity product UI design reference board for real enterprise kno
 
 Product context:
 - Product/module: 企业 Agent 平台 / 知识库中心
-- Page/routes: 知识库管理 at /knowledge, /knowledge/[id], /knowledge/[id]/documents, /knowledge/[id]/upload, /knowledge/[id]/retrieval
+- Page/routes: 知识库管理 at /knowledge, /knowledge/activity, /knowledge/health, /knowledge/[id], /knowledge/[id]/documents, /knowledge/[id]/upload, /knowledge/[id]/retrieval
 - Target users/roles: 租户管理员、知识库管理员、Agent 管理员、审计员、普通查看用户
-- Business goal: 让知识库列表、知识库详情、创建、编辑、文档上传、重建索引、召回测试职责清晰分离
+- Business goal: 让知识库目录、处理活动、能力健康、知识库详情、创建、编辑、文档上传、重建索引、召回测试职责清晰分离
 - Existing frontend stack/design system: Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui 风格组件 + motion/react
 - Existing page shell/layout: console 后台布局，左侧导航 + 顶部栏，内容区为响应式 dashboard/admin layout
 
@@ -22,6 +22,7 @@ Interface contract that must appear in the UI:
 - Status values/enums: ACTIVE, DISABLED, ARCHIVED, PRIVATE, TENANT, PUBLIC, TEXT, MARKDOWN, HTML, FAQ, VECTOR, KEYWORD, HYBRID, PROCESSING, READY, FAILED, RUNNING, SUCCESS
 - User actions:
   - 搜索、筛选、清空筛选
+  - 打开处理活动、打开能力健康
   - 新建知识库、打开详情、编辑、删除
   - 上传文档、重新处理文档、重建索引、运行检索测试
   - 查看文档、切片、任务、召回日志、智能体引用
@@ -29,8 +30,10 @@ Interface contract that must appear in the UI:
 
 Design requirements:
 - Make it look like a production SaaS/admin product, not a generic mockup.
-- Use a clear route-level information architecture: list page for overview/table, base detail page for summary/entry actions, documents page for document operations, upload page for upload form, retrieval page for recall testing.
+- Use a clear route-level information architecture: list page for directory/table, activity page for recent documents/tasks/recall logs, health page for MinIO/Qdrant/OpenSearch/vector fallback/backend task status, base detail page for summary/entry actions, documents page for document operations, upload page for upload form, retrieval page for recall testing.
 - Show the knowledge base list page as a dense but controlled table with compact metrics and a small toolbar.
+- Show the activity page as three focused timelines: recent documents, recent tasks, recent recalls.
+- Show the health page as backend capability cards for MinIO 原文、Qdrant 向量库、OpenSearch 关键词、向量回退和后台任务。
 - Show the base detail page as a focused summary with metrics, agent references, and entry cards for documents/upload/retrieval/edit.
 - Show the documents page with document table, selected document preview, segments, processing tasks, reprocess and delete actions.
 - Show the upload page with source type, local file picker, file name, content editor, validation, disabled and success states.
@@ -46,5 +49,6 @@ Avoid:
 - decorative UI that cannot map to project components
 - unreadable tiny text, random charts, placeholder lorem ipsum
 - putting document/task/recall details into the list page or base detail summary page
+- putting MinIO/Qdrant/OpenSearch implementation status or recent activity logs into the list page
 - mixing create/edit forms into the list page
 ```

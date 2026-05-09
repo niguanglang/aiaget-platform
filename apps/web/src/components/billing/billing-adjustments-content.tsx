@@ -47,6 +47,7 @@ export function BillingAdjustmentsContent() {
   const { currentUser } = useAuth();
   const [windowValue, setWindowValue] = useState<BillingWindow>('24h');
   const [adjustmentDraft, setAdjustmentDraft] = useState<AdjustmentDraft>(() => defaultAdjustmentDraft());
+  const [createConfirmDraft, setCreateConfirmDraft] = useState<NonNullable<ReturnType<typeof toAdjustmentInput>> | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const canManage = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -69,6 +70,7 @@ export function BillingAdjustmentsContent() {
     mutationFn: (input: NonNullable<ReturnType<typeof toAdjustmentInput>>) => createBillingAdjustment(input),
     onSuccess: async (adjustment) => {
       setActionMessage(`已创建调账申请 ${adjustment.adjustment_no}。`);
+      setCreateConfirmDraft(null);
       setAdjustmentDraft(defaultAdjustmentDraft());
       await invalidateBilling();
     },
@@ -85,14 +87,19 @@ export function BillingAdjustmentsContent() {
     onError: () => setActionMessage('调账审批操作失败，请检查当前状态或权限。'),
   });
 
-  const createAdjustment = () => {
+  const requestCreateAdjustment = () => {
     const input = toAdjustmentInput(adjustmentDraft);
     if (!input) {
       setActionMessage('调账金额必须大于 0，原因至少需要 2 个字符。');
       return;
     }
-    adjustmentMutation.mutate(input);
+    setCreateConfirmDraft(input);
   };
+
+  function confirmCreateAdjustment() {
+    if (!createConfirmDraft) return;
+    adjustmentMutation.mutate(createConfirmDraft);
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -134,7 +141,7 @@ export function BillingAdjustmentsContent() {
             canManage={canManage}
             draft={adjustmentDraft}
             invoices={invoices}
-            onCreate={createAdjustment}
+            onCreate={requestCreateAdjustment}
             onDraftChange={setAdjustmentDraft}
             saving={adjustmentMutation.isPending}
           />
@@ -147,6 +154,20 @@ export function BillingAdjustmentsContent() {
           />
         </div>
       </Card>
+      {createConfirmDraft ? (
+        <BillingConfirmDialog
+          body={
+            <>
+              确认创建调账单？该申请金额为 {formatMoney(createConfirmDraft.amount)}，原因是「{createConfirmDraft.reason}」。提交后会进入调账审批记录，并影响后续账单估算。
+            </>
+          }
+          confirmLabel="确认创建"
+          onCancel={() => setCreateConfirmDraft(null)}
+          onConfirm={confirmCreateAdjustment}
+          pending={adjustmentMutation.isPending}
+          title="确认创建调账单"
+        />
+      ) : null}
     </main>
   );
 }

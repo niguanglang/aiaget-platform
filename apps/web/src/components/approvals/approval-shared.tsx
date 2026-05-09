@@ -2,6 +2,7 @@
 
 import { hasPermission, type ApprovalAuditArchiveApprovalStatus, type ApprovalAuditEventItem, type SystemSettingSnapshotApprovalStatus, type SystemSettingSnapshotItem } from '@aiaget/shared-types';
 import { GitBranch } from 'lucide-react';
+import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -85,6 +86,20 @@ export function DecisionActions({
   rejectLabel: string;
 }) {
   const isDisabled = !canWrite || disabled || pending;
+  const [decisionActionTarget, setDecisionActionTarget] = useState<'approve' | 'reject' | null>(null);
+
+  function confirmDecisionAction() {
+    if (decisionActionTarget === 'approve') {
+      onApprove();
+      setDecisionActionTarget(null);
+      return;
+    }
+
+    if (decisionActionTarget === 'reject') {
+      onReject();
+      setDecisionActionTarget(null);
+    }
+  }
 
   return (
     <div className="grid gap-3">
@@ -97,14 +112,65 @@ export function DecisionActions({
         value={decisionNote}
       />
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button disabled={isDisabled} onClick={onApprove} type="button">
+        <Button disabled={isDisabled} onClick={() => setDecisionActionTarget('approve')} type="button">
           {approveLabel}
         </Button>
-        <Button disabled={isDisabled} onClick={onReject} type="button" variant="destructive">
+        <Button disabled={isDisabled} onClick={() => setDecisionActionTarget('reject')} type="button" variant="destructive">
           {rejectLabel}
         </Button>
       </div>
       {!canWrite ? <p className="text-xs text-muted-foreground">当前账号没有审批处理权限，只能查看审批内容。</p> : null}
+
+      {decisionActionTarget ? (
+        <ApprovalDecisionConfirmDialog
+          body={
+            decisionActionTarget === 'approve'
+              ? `确认执行「${approveLabel}」？该操作会推进审批状态，并可能立即触发策略生效、工具执行或归档删除。`
+              : `确认执行「${rejectLabel}」？该操作会拒绝当前审批请求，后续需要重新提交审批。`
+          }
+          confirmLabel={decisionActionTarget === 'approve' ? approveLabel : rejectLabel}
+          pending={pending}
+          title={decisionActionTarget === 'approve' ? '确认审批通过' : '确认审批拒绝'}
+          variant={decisionActionTarget === 'approve' ? 'default' : 'destructive'}
+          onCancel={() => setDecisionActionTarget(null)}
+          onConfirm={confirmDecisionAction}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ApprovalDecisionConfirmDialog({
+  body,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+  pending,
+  title,
+  variant,
+}: {
+  body: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  title: string;
+  variant: 'default' | 'destructive';
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
+      <Card className="w-full max-w-md p-5 shadow-xl">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="outline">
+            取消
+          </Button>
+          <Button disabled={pending} onClick={onConfirm} type="button" variant={variant}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

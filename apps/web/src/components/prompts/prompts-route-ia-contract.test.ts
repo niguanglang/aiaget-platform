@@ -28,6 +28,28 @@ test('prompt list page keeps detail, editor, forms, and test panels out of the l
   assert.doesNotMatch(promptsListSource, /testPromptTemplate/);
 });
 
+test('prompt list page does not own version publishing actions', () => {
+  const headerSource = source('prompt-detail-header.tsx');
+  const versionsSource = source('prompt-versions-card.tsx');
+
+  assert.doesNotMatch(promptsListSource, /publishPromptTemplate/);
+  assert.doesNotMatch(promptsListSource, /从提示词中心列表发布/);
+  assert.doesNotMatch(promptsListSource, /<Send\b/);
+  assert.match(promptDetailSource, /publishPromptTemplate/);
+  assert.match(headerSource, /onPublish/);
+  assert.match(versionsSource, /onPublish/);
+  assert.match(versionsSource, /onRollback/);
+});
+
+test('prompt list copy action requires confirmation before mutation', () => {
+  assert.match(promptsListSource, /copyTarget/);
+  assert.match(promptsListSource, /setCopyTarget\(/);
+  assert.match(promptsListSource, /function confirmCopyPrompt/);
+  assert.match(promptsListSource, /确认复制提示词/);
+  assert.match(promptsListSource, /onConfirm=\{confirmCopyPrompt\}/);
+  assert.doesNotMatch(promptsListSource, /onClick=\{\(\) => copyMutation\.mutate\(prompt\.id\)\}/);
+});
+
 test('prompt detail page keeps basic edit form out and uses edit route navigation', () => {
   assert.doesNotMatch(promptDetailSource, /setIsEditingTemplate/);
   assert.doesNotMatch(promptDetailSource, /PromptFormPanel[\s\S]*mode="edit"/);
@@ -104,4 +126,22 @@ test('prompt focused components own workflow boundaries and model test fields', 
 
   assert.match(confirmSource, /PromptConfirmDialog/);
   assert.match(confirmSource, /variant="destructive"/);
+});
+
+test('prompt detail high-impact actions require confirmation before mutation', () => {
+  const variablesSource = source('prompt-variables-card.tsx');
+  const versionsSource = source('prompt-versions-card.tsx');
+
+  assert.match(promptDetailSource, /promptActionTarget/);
+  assert.match(promptDetailSource, /function confirmPromptAction/);
+  assert.match(promptDetailSource, /确认发布提示词/);
+  assert.match(promptDetailSource, /确认回滚提示词版本/);
+  assert.match(promptDetailSource, /确认删除提示词变量/);
+  assert.match(promptDetailSource, /onConfirm=\{confirmPromptAction\}/);
+  assert.match(variablesSource, /onDelete\(variable\)/);
+  assert.doesNotMatch(variablesSource, /onDelete\(variable\.id\)/);
+  assert.doesNotMatch(promptDetailSource, /onPublish=\{\(\) => publishMutation\.mutate\(\)\}/);
+  assert.doesNotMatch(promptDetailSource, /onRollback=\{\(version\) => rollbackMutation\.mutate\(version\)\}/);
+  assert.doesNotMatch(promptDetailSource, /onDelete=\{\(variableId\) => deleteVariableMutation\.mutate\(variableId\)\}/);
+  assert.match(versionsSource, /onRollback\(version\)/);
 });

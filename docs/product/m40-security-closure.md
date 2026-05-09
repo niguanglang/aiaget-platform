@@ -39,6 +39,8 @@ M40 把 M31-M39 的权限、安全能力进一步闭环：
 - 新增安全拒绝事件写入：
   - `SecurityEventService`
   - Guard 拒绝写入 `operation_log`
+  - Guard 拒绝同步写入独立 `security_event` 台账
+  - `security_event` 保留来源记录、主体/资源/上下文快照、request ID、trace ID、风险等级和匹配策略信息
   - 标记 `module=security`、`action=deny`
 - SecurityPolicyGuard 拒绝事件化：
   - 记录策略来源、资源、动作、主体、trace 信息
@@ -114,8 +116,8 @@ M40 把 M31-M39 的权限、安全能力进一步闭环：
 
 ## 当前边界
 
-- M40 用 `operation_log` 承载安全拒绝事件，暂未新增独立 `security_event` 表。
-- Runtime 内部 RAG / Tool / Model 调用还未完全复用策略服务，后续 M41/M43 继续下沉。
+- `security_event` 已作为稳定安全事件台账；历史 `operation_log`、`security_policy_evaluation`、`platform_event` 数据仍作为兼容兜底来源。
+- Runtime 内部 RAG / Tool 调用已在 M41/M43 下沉到 Control API 的 Data Scope、Resource ACL、工具审批与安全策略边界；模型调用已纳入 Runtime 模型调用事件和用量投影。
 - 列表过滤优先覆盖核心资源列表，审计、监控聚合类列表仍以租户隔离和权限控制为主。
 - 模型中心当前以供应商列表接入 DataScope，模型配置列表随供应商详情展示。
 
@@ -127,7 +129,5 @@ M40 把 M31-M39 的权限、安全能力进一步闭环：
 
 ## 下一步
 
-- 新增独立 `security_event` 表和事件详情页。
-- Runtime 内部工具调用、RAG 检索、模型调用复用同一套策略服务。
 - 列表数据范围过滤继续覆盖审计、监控、API Key 等聚合资源。
-- 安全中心增加拒绝事件详情抽屉和按 trace_id 跳转链路追踪。
+- 安全中心可继续增加事件处置状态、归档和按 trace_id 跳转链路追踪。

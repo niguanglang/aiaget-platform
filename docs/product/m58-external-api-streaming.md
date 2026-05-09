@@ -127,7 +127,11 @@ images/frontend-reference-design/外部-api-流式调用/
 
 - M58 不新增数据库表。
 - M58 不新增中间件、容器或外部依赖。
-- 流式接口当前仅支持首轮创建会话并生成回复，后续如需“指定 conversation_id 继续流式对话”，应作为独立里程碑扩展。
+- 首轮创建会话流式接口由 M58 提供；指定 `conversation_id` 的续聊流式接口已在 M59 完成，使用：
+
+```http
+POST /api/v1/external/agents/{agentId}/conversations/{conversationId}/messages/stream
+```
 - SSE error 事件用于执行阶段错误；鉴权、scope、白名单、IP、限流和额度等前置失败仍返回标准 HTTP 错误，便于外部系统按状态码处理。
 
 ## 验证

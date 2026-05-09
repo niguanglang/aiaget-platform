@@ -7,12 +7,11 @@ import type {
 } from '@aiaget/shared-types';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, ArrowRight, Search } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
-  DetailLine,
-  JsonBlock,
   LoadingRows,
   PageError,
   RefreshButton,
@@ -21,14 +20,13 @@ import {
   securityEventSourceLabel,
   securityRiskLevelLabel,
   securityRiskTone,
-  shortId,
 } from '@/components/security/security-page-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getSecurityCenterEvent, listSecurityCenterEvents } from '@/lib/api-client';
+import { listSecurityCenterEvents } from '@/lib/api-client';
 
 const eventSources: Array<{ label: string; value: SecurityCenterEventSource }> = [
   { label: '数据权限', value: 'DATA_SCOPE' },
@@ -51,7 +49,6 @@ export function SecurityEventsContent() {
   const [windowValue, setWindowValue] = useState<SecurityCenterEventWindow>('24h');
   const [traceOnly, setTraceOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const eventsQuery = useQuery({
     queryKey: ['security-events-page-list', keyword, source, windowValue, traceOnly, page],
@@ -64,12 +61,6 @@ export function SecurityEventsContent() {
         trace_only: traceOnly,
         window: windowValue,
       }),
-  });
-
-  const detailQuery = useQuery({
-    enabled: Boolean(selectedEventId),
-    queryKey: ['security-events-page-detail', selectedEventId],
-    queryFn: () => getSecurityCenterEvent(selectedEventId ?? ''),
   });
 
   const events = eventsQuery.data?.items ?? [];
@@ -91,13 +82,12 @@ export function SecurityEventsContent() {
 
       <SecurityWorkspaceHeader
         actions={
-          <RefreshButton loading={eventsQuery.isFetching || detailQuery.isFetching} onClick={() => {
+          <RefreshButton loading={eventsQuery.isFetching} onClick={() => {
             void eventsQuery.refetch();
-            if (selectedEventId) void detailQuery.refetch();
           }} />
         }
         badge="Trace"
-        description="检索拒绝事件、审批导出事件和安全策略命中记录，详情侧栏保留 request_id、trace_id 与上下文 JSON。"
+        description="检索拒绝事件、审批导出事件和安全策略命中记录，列表只保留核心字段，完整请求上下文进入独立详情页。"
         title="安全事件"
       />
 
@@ -107,7 +97,7 @@ export function SecurityEventsContent() {
         <MetricCard helper={traceOnly ? '仅看可追踪事件' : '包含无 Trace 事件'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
+      <section className="grid gap-4">
         <Card className="min-w-0 overflow-hidden">
           <div className="border-b p-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
@@ -186,10 +176,8 @@ export function SecurityEventsContent() {
             <div className="divide-y">
               {events.map((event) => (
                 <SecurityEventRow
-                  active={event.id === selectedEventId}
                   event={event}
                   key={event.id}
-                  onOpen={() => setSelectedEventId(event.id)}
                 />
               ))}
             </div>
@@ -207,64 +195,20 @@ export function SecurityEventsContent() {
             </div>
           </div>
         </Card>
-
-        <Card className="h-fit p-5">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold">事件详情</h2>
-              <p className="mt-1 text-sm text-muted-foreground">选择左侧事件查看请求摘要、主体、资源和上下文。</p>
-            </div>
-            {selectedEventId ? <StatusBadge tone="mock">{shortId(selectedEventId)}</StatusBadge> : null}
-          </div>
-
-          {!selectedEventId ? (
-            <EmptyState className="px-0" description="从事件列表选择一条记录查看详情。" title="未选择事件" />
-          ) : detailQuery.isError ? (
-            <PageError>事件详情加载失败。</PageError>
-          ) : detailQuery.isLoading ? (
-            <LoadingRows count={3} />
-          ) : detailQuery.data ? (
-            <div className="mt-4 grid gap-3">
-              <DetailLine label="标题" value={detailQuery.data.title} />
-              <DetailLine label="来源" value={securityEventSourceLabel(detailQuery.data.source)} />
-              <DetailLine label="Request ID" value={detailQuery.data.request_id} />
-              <DetailLine label="Trace ID" value={detailQuery.data.trace_id ?? '暂无'} />
-              <DetailLine label="路径" value={`${detailQuery.data.method} ${detailQuery.data.path}`} />
-              <DetailLine label="原因" value={detailQuery.data.reason} />
-              <div>
-                <div className="mb-2 text-sm font-medium">请求摘要</div>
-                <JsonBlock value={detailQuery.data.request_summary} />
-              </div>
-              <div>
-                <div className="mb-2 text-sm font-medium">主体 / 资源 / 上下文</div>
-                <div className="grid gap-3">
-                  <JsonBlock value={detailQuery.data.subject} />
-                  <JsonBlock value={detailQuery.data.resource} />
-                  <JsonBlock value={detailQuery.data.context} />
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </Card>
       </section>
     </main>
   );
 }
 
 function SecurityEventRow({
-  active,
   event,
-  onOpen,
 }: {
-  active: boolean;
   event: SecurityCenterEventListItem;
-  onOpen: () => void;
 }) {
   return (
-    <button
-      className={`grid w-full gap-3 p-4 text-left transition-colors hover:bg-muted/40 xl:grid-cols-[1fr_170px_150px_110px] xl:items-center ${active ? 'bg-primary/5' : ''}`}
-      onClick={onOpen}
-      type="button"
+    <Link
+      className="grid w-full gap-3 p-4 text-left transition-colors hover:bg-muted/40 xl:grid-cols-[1fr_170px_150px_110px] xl:items-center"
+      href={`/security/events/${encodeURIComponent(event.id)}`}
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -282,8 +226,8 @@ function SecurityEventRow({
       <div className="text-sm text-muted-foreground">{formatDateTime(event.occurred_at)}</div>
       <div className="flex items-center gap-2 text-sm text-primary">
         详情
-        <ArrowRight className="size-4" />
+          <ArrowRight className="size-4" />
       </div>
-    </button>
+    </Link>
   );
 }

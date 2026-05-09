@@ -5,6 +5,8 @@ import { RuntimeAgentTeamRunDto } from './dto/runtime-agent-team-run.dto';
 import { RuntimeChannelReleaseAutomationDto } from './dto/runtime-channel-release-automation.dto';
 import { RuntimeChannelReleaseSelfHealingDto } from './dto/runtime-channel-release-self-healing.dto';
 import { RuntimeKnowledgeTaskDto } from './dto/runtime-knowledge-task.dto';
+import { RuntimePluginHookExecutionDto } from './dto/runtime-plugin-hook-execution.dto';
+import { RuntimePluginRollbackDto } from './dto/runtime-plugin-rollback.dto';
 import { RuntimeRetrieveDto } from './dto/runtime-retrieve.dto';
 import { RuntimeToolCallDto } from './dto/runtime-tool-call.dto';
 import { RuntimeExecutionService } from './runtime-execution.service';
@@ -50,5 +52,17 @@ export class RuntimeExecutionController {
   @ApiOkResponse({ description: 'Runtime internal channel release self-healing execution adapter' })
   async runChannelReleaseSelfHealing(@Body() dto: RuntimeChannelReleaseSelfHealingDto) {
     return this.runtimeExecutionService.runChannelReleaseSelfHealing(dto);
+  }
+
+  @Post('plugin-rollbacks/run')
+  @ApiOkResponse({ description: 'Runtime internal plugin rollback execution adapter' })
+  async runPluginRollback(@Body() dto: RuntimePluginRollbackDto) {
+    return this.runtimeExecutionService.runPluginRollback(dto);
+  }
+
+  @Post('plugin-hooks/run')
+  @ApiOkResponse({ description: 'Runtime internal plugin hook execution adapter' })
+  async runPluginHookExecution(@Body() dto: RuntimePluginHookExecutionDto) {
+    return this.runtimeExecutionService.runPluginHookExecution(dto);
   }
 }

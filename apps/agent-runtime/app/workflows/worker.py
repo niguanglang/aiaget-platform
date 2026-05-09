@@ -21,6 +21,8 @@ from app.workflows.channel_release_self_healing import (
     run_channel_release_self_healing_activity,
 )
 from app.workflows.knowledge_tasks import KnowledgeTaskWorkflow, KnowledgeTaskWorkflowInput, run_knowledge_task_activity
+from app.workflows.plugin_hooks import PluginHookWorkflow, PluginHookWorkflowInput, run_plugin_hook_activity
+from app.workflows.plugin_rollbacks import PluginRollbackWorkflow, PluginRollbackWorkflowInput, run_plugin_rollback_activity
 
 try:
     from temporalio.client import Client
@@ -202,6 +204,66 @@ async def start_channel_release_self_healing_workflow(channel_id: str) -> dict[s
     }
 
 
+async def start_plugin_rollback_workflow(plugin_id: str, version_id: str, version: str) -> dict[str, str]:
+    workflow_id = f"plugin-rollback-{plugin_id}-{version_id}"
+    if not settings.temporal_enabled:
+        schedule_plugin_rollback_local_fallback(plugin_id, version_id, version, workflow_id, "local-fallback")
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "STARTED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = await client.start_workflow(
+        PluginRollbackWorkflow.run,
+        PluginRollbackWorkflowInput(plugin_id=plugin_id, version_id=version_id, version=version, workflow_id=workflow_id),
+        id=workflow_id,
+        task_queue=settings.temporal_task_queue,
+    )
+    run_id = getattr(handle, "result_run_id", "") or ""
+    return {
+        "workflow_id": workflow_id,
+        "run_id": run_id,
+        "status": "STARTED",
+        "backend": "TEMPORAL",
+    }
+
+
+async def start_plugin_hook_workflow(event_id: str, plugin_id: str, hook_id: str) -> dict[str, str]:
+    workflow_id = f"plugin-hook-{event_id}"
+    if not settings.temporal_enabled:
+        schedule_plugin_hook_local_fallback(event_id, plugin_id, hook_id, workflow_id, "local-fallback")
+        return {
+            "workflow_id": workflow_id,
+            "run_id": "local-fallback",
+            "status": "STARTED",
+            "backend": "LOCAL_FALLBACK",
+        }
+
+    if Client is None:
+        raise RuntimeError("Temporal Python SDK is not installed")
+
+    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+    handle = await client.start_workflow(
+        PluginHookWorkflow.run,
+        PluginHookWorkflowInput(event_id=event_id, plugin_id=plugin_id, hook_id=hook_id, workflow_id=workflow_id),
+        id=workflow_id,
+        task_queue=settings.temporal_task_queue,
+    )
+    run_id = getattr(handle, "result_run_id", "") or ""
+    return {
+        "workflow_id": workflow_id,
+        "run_id": run_id,
+        "status": "STARTED",
+        "backend": "TEMPORAL",
+    }
+
+
 async def run_worker() -> None:
     if not settings.temporal_enabled:
         raise RuntimeError("RUNTIME_TEMPORAL_ENABLED must be true to start the Temporal worker")
@@ -212,12 +274,21 @@ async def run_worker() -> None:
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
-        workflows=[KnowledgeTaskWorkflow, AgentTeamRunWorkflow, ChannelReleaseAutomationWorkflow, ChannelReleaseSelfHealingWorkflow],
+        workflows=[
+            KnowledgeTaskWorkflow,
+            AgentTeamRunWorkflow,
+            ChannelReleaseAutomationWorkflow,
+            ChannelReleaseSelfHealingWorkflow,
+            PluginRollbackWorkflow,
+            PluginHookWorkflow,
+        ],
         activities=[
             run_knowledge_task_activity,
             run_agent_team_run_activity,
             run_channel_release_automation_activity,
             run_channel_release_self_healing_activity,
+            run_plugin_rollback_activity,
+            run_plugin_hook_activity,
         ],
     )
     await worker.run()
@@ -295,6 +366,50 @@ async def run_control_api_channel_release_self_healing(
     return "SUCCESS"
 
 
+async def run_control_api_plugin_rollback(
+    plugin_id: str,
+    version_id: str,
+    version: str,
+    workflow_id: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    response = await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/plugin-rollbacks/run",
+        {
+            "plugin_id": plugin_id,
+            "version_id": version_id,
+            "version": version,
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+        },
+    )
+    status = response.get("status")
+    return status if isinstance(status, str) else "SUCCESS"
+
+
+async def run_control_api_plugin_hook(
+    event_id: str,
+    plugin_id: str,
+    hook_id: str,
+    workflow_id: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    response = await asyncio.to_thread(
+        post_control_api_json,
+        "/api/v1/runtime/internal/plugin-hooks/run",
+        {
+            "event_id": event_id,
+            "plugin_id": plugin_id,
+            "hook_id": hook_id,
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+        },
+    )
+    status = response.get("status")
+    return status if isinstance(status, str) else "SUCCESS"
+
+
 def schedule_local_fallback(task_id: str) -> None:
     task = asyncio.create_task(run_control_api_knowledge_task(task_id))
     task.add_done_callback(lambda completed: log_background_task_error(task_id, completed))
@@ -337,6 +452,28 @@ def schedule_channel_release_self_healing_local_fallback(
 ) -> None:
     task = asyncio.create_task(run_control_api_channel_release_self_healing(channel_id, workflow_id, run_id))
     task.add_done_callback(lambda completed: log_background_task_error(channel_id, completed))
+
+
+def schedule_plugin_rollback_local_fallback(
+    plugin_id: str,
+    version_id: str,
+    version: str,
+    workflow_id: str,
+    run_id: str,
+) -> None:
+    task = asyncio.create_task(run_control_api_plugin_rollback(plugin_id, version_id, version, workflow_id, run_id))
+    task.add_done_callback(lambda completed: log_background_task_error(plugin_id, completed))
+
+
+def schedule_plugin_hook_local_fallback(
+    event_id: str,
+    plugin_id: str,
+    hook_id: str,
+    workflow_id: str,
+    run_id: str,
+) -> None:
+    task = asyncio.create_task(run_control_api_plugin_hook(event_id, plugin_id, hook_id, workflow_id, run_id))
+    task.add_done_callback(lambda completed: log_background_task_error(event_id, completed))
 
 
 def log_background_task_error(task_id: str, task: asyncio.Task[Any]) -> None:

@@ -60,12 +60,18 @@ test('approval audit event detail page owns event detail lookup and related link
 
 test('approval audit archives page owns archive list, download, and delete request workflow', () => {
   const archivesSource = source('approval-audit-archives-content.tsx');
+  const sharedSource = source('approval-audit-shared.tsx');
 
   assert.match(archivesSource, /审批审计归档/);
   assert.match(archivesSource, /listApprovalAuditArchives/);
   assert.match(archivesSource, /getApprovalAuditArchiveDownloadUrl/);
   assert.match(archivesSource, /deleteApprovalAuditArchive/);
-  assert.match(archivesSource, /window\.confirm/);
+  assert.match(sharedSource, /function ApprovalAuditConfirmDialog/);
+  assert.match(archivesSource, /archiveDeleteTarget/);
+  assert.match(archivesSource, /function confirmArchiveDeleteRequest/);
+  assert.match(archivesSource, /确认申请删除审批审计归档/);
+  assert.match(archivesSource, /onConfirm=\{confirmArchiveDeleteRequest\}/);
+  assert.doesNotMatch(archivesSource, /window\.confirm/);
 
   assert.doesNotMatch(archivesSource, /getApprovalAuditEvent/);
   assert.doesNotMatch(archivesSource, /listApprovalAuditEvents/);
@@ -85,4 +91,15 @@ test('approval audit archive create page owns export and archive generation work
   assert.doesNotMatch(createSource, /listApprovalAuditArchives/);
   assert.doesNotMatch(createSource, /getApprovalAuditArchiveDownloadUrl/);
   assert.doesNotMatch(createSource, /deleteApprovalAuditArchive/);
+});
+
+test('approval audit archive generation requires confirmation before mutation', () => {
+  const createSource = source('approval-audit-archive-create-content.tsx');
+
+  assert.match(createSource, /archiveCreateTarget/);
+  assert.match(createSource, /function confirmArchiveCreate/);
+  assert.match(createSource, /确认生成审批审计归档/);
+  assert.match(createSource, /ApprovalAuditConfirmDialog/);
+  assert.match(createSource, /onConfirm=\{confirmArchiveCreate\}/);
+  assert.doesNotMatch(createSource, /onClick=\{\(\) => createArchiveMutation\.mutate\(\)\}/);
 });

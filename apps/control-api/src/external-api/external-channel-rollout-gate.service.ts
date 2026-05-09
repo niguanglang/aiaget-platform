@@ -6,7 +6,6 @@ import type {
   ChannelRolloutGateDecisionReason,
   ChannelRolloutGateOverview,
   ChannelRolloutGateStatus,
-  PublishChannelStatus,
   PublishChannelType,
 } from '@aiaget/shared-types';
 

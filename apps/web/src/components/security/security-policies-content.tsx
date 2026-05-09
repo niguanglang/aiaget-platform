@@ -21,6 +21,7 @@ import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SecurityConfirmDialog,
   SecurityWorkspaceHeader,
   formatNumber,
 } from '@/components/security/security-page-shared';
@@ -42,6 +43,13 @@ import {
 const policyStatuses: SecurityPolicyStatus[] = ['ACTIVE', 'DISABLED', 'DELETED'];
 const policyEffects: SecurityPolicyEffect[] = ['DENY', 'ALLOW'];
 
+type PolicyStatusTarget = {
+  nextStatus: 'ACTIVE' | 'DISABLED';
+  policyCode: string;
+  policyId: string;
+  policyName: string;
+};
+
 export function SecurityPoliciesContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
@@ -50,6 +58,7 @@ export function SecurityPoliciesContent() {
   const [effect, setEffect] = useState('');
   const [resourceType, setResourceType] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [policyStatusTarget, setPolicyStatusTarget] = useState<PolicyStatusTarget | null>(null);
 
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
@@ -84,6 +93,7 @@ export function SecurityPoliciesContent() {
       nextStatus === 'ACTIVE' ? enableSecurityPolicy(policyId) : disableSecurityPolicy(policyId),
     onSuccess: async () => {
       setActionError(null);
+      setPolicyStatusTarget(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['security-policies-page-overview'] }),
         queryClient.invalidateQueries({ queryKey: ['security-policies-page-list'] }),
@@ -97,6 +107,11 @@ export function SecurityPoliciesContent() {
   const policies = policiesQuery.data?.items ?? [];
   const evaluations = evaluationsQuery.data?.items ?? [];
   const hasFilters = Boolean(keyword || status || effect || resourceType);
+
+  function confirmPolicyStatusChange() {
+    if (!policyStatusTarget) return;
+    statusMutation.mutate({ nextStatus: policyStatusTarget.nextStatus, policyId: policyStatusTarget.policyId });
+  }
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -231,7 +246,14 @@ export function SecurityPoliciesContent() {
                     <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
                       <Button
                         disabled={!canWrite || policy.status === 'DELETED' || pending}
-                        onClick={() => statusMutation.mutate({ policyId: policy.id, nextStatus })}
+                        onClick={() =>
+                          setPolicyStatusTarget({
+                            nextStatus,
+                            policyCode: policy.code,
+                            policyId: policy.id,
+                            policyName: policy.name,
+                          })
+                        }
                         size="sm"
                         type="button"
                         variant="outline"
@@ -283,6 +305,16 @@ export function SecurityPoliciesContent() {
           )}
         </Card>
       </section>
+      {policyStatusTarget ? (
+        <SecurityConfirmDialog
+          body={`确认将安全策略「${policyStatusTarget.policyName}」更新为「${securityPolicyStatusLabel(policyStatusTarget.nextStatus)}」？策略编码 ${policyStatusTarget.policyCode} 的启停会立即影响后续 ABAC、资源授权和安全拦截判断。`}
+          confirmLabel={policyStatusTarget.nextStatus === 'ACTIVE' ? '确认启用' : '确认停用'}
+          onCancel={() => setPolicyStatusTarget(null)}
+          onConfirm={confirmPolicyStatusChange}
+          pending={statusMutation.isPending}
+          title="确认更新策略状态"
+        />
+      ) : null}
     </main>
   );
 }

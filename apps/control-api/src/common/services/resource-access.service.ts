@@ -16,11 +16,52 @@ export interface ResourceAccessInfo {
 export class ResourceAccessService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  async resolveCanonicalResourceId(
+    tenantId: string,
+    resourceType: DataScopeResourceType,
+    resourceId: string,
+  ): Promise<string | null> {
+    if (resourceType !== 'AGENT_TEAM') {
+      return resourceId;
+    }
+
+    const team = await this.prisma.agentTeam.findFirst({
+      where: {
+        tenantId,
+        id: resourceId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (team) return team.id;
+
+    const run = await this.prisma.agentTeamRun.findFirst({
+      where: {
+        tenantId,
+        id: resourceId,
+        deletedAt: null,
+        team: {
+          deletedAt: null,
+        },
+      },
+      select: {
+        teamId: true,
+      },
+    });
+
+    return run?.teamId ?? null;
+  }
+
   async getResourceAccessInfo(
     tenantId: string,
     resourceType: DataScopeResourceType,
     resourceId: string,
   ): Promise<ResourceAccessInfo | null> {
+    const canonicalResourceId = await this.resolveCanonicalResourceId(tenantId, resourceType, resourceId);
+    if (!canonicalResourceId) return null;
+
     const userIds = new Set<string>();
     const departmentIds = new Set<string>();
 
@@ -53,7 +94,7 @@ export class ResourceAccessService {
         const agent = await this.prisma.agent.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -71,7 +112,7 @@ export class ResourceAccessService {
         const team = await this.prisma.agentTeam.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -89,7 +130,7 @@ export class ResourceAccessService {
         const channel = await this.prisma.agentPublishChannel.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -119,7 +160,7 @@ export class ResourceAccessService {
         const plugin = await this.prisma.plugin.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -137,7 +178,7 @@ export class ResourceAccessService {
         const base = await this.prisma.knowledgeBase.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -155,7 +196,7 @@ export class ResourceAccessService {
         const document = await this.prisma.knowledgeDocument.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -185,7 +226,7 @@ export class ResourceAccessService {
         const tool = await this.prisma.tool.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -202,7 +243,7 @@ export class ResourceAccessService {
         const model = await this.prisma.modelConfig.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -225,7 +266,7 @@ export class ResourceAccessService {
         const provider = await this.prisma.modelProvider.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -242,7 +283,7 @@ export class ResourceAccessService {
         const conversation = await this.prisma.conversation.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
             deletedAt: null,
           },
           select: {
@@ -272,7 +313,7 @@ export class ResourceAccessService {
         const log = await this.prisma.operationLog.findFirst({
           where: {
             tenantId,
-            id: resourceId,
+            id: canonicalResourceId,
           },
           select: {
             id: true,
@@ -286,7 +327,7 @@ export class ResourceAccessService {
     }
 
     return {
-      resourceId,
+      resourceId: canonicalResourceId,
       resourceType,
       userIds: Array.from(userIds),
       departmentIds: Array.from(departmentIds),

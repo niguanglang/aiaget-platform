@@ -1,11 +1,11 @@
 # Project UI Brief
 
 - Page: Security Center IA
-- Route: `/security`, `/security/policies`, `/security/events`, `/security/alerts`, `/security/recovery`
-- Feature goal: 将原 `/security` 聚合页拆成安全治理总览入口，并提供策略治理、事件追踪、告警运营、自愈恢复四个聚焦工作台；四个子路由组件必须拥有本页数据查询、筛选、状态和操作入口，不再只是把 `view` 传给巨型总览组件。
+- Route: `/security`, `/security/policies`, `/security/events`, `/security/events/[eventId]`, `/security/alerts`, `/security/recovery`, `/security/archives`
+- Feature goal: 将原 `/security` 聚合页拆成安全治理总览入口，并提供策略治理、事件追踪、事件详情、告警运营、自愈恢复、归档治理五个聚焦工作台；根页只保留轻量概览、待办/风险摘要和导航入口，列表页只保留筛选、概览、分页和详情入口，完整安全事件上下文进入独立详情路由。
 - Target users/roles: 租户管理员、安全管理员、运维运营人员；策略写入受 `tenant_admin` 或 `security:rule:manage` 控制，审批查看/处理受 `security:approval:view`、`security:approval:handle` 控制。
 - APIs/services: 复用 `apps/web/src/lib/api-client.ts` 中现有安全中心服务，不新增后端接口；包括 `getSecurityCenterOverview`, `getSecurityPolicyOverview`, `listSecurityPolicies`, `listSecurityPolicyEvaluations`, `simulateSecurityPolicy`, `listSecurityCenterEvents`, `getSecurityCenterEvent`, `getSecurityApprovalWorkbenchOverview`, `listSecurityApprovalWorkbenchItems`, `getSecurityApprovalWorkbenchItem`, `reviewSecurityApprovalWorkbenchItem`, operation alert notification/SLA/recovery/archive list/export/approve/reject/retry/run services.
 - Entities/fields/statuses: `SecurityCenterOverview`, `SecurityCenterEventListItem`, `SecurityCenterEventDetail`, `SecurityPolicyListItem`, `SecurityPolicyDetail`, `SecurityPolicyEvaluationItem`, `SecurityApprovalWorkbenchItem`, `SecurityCenterOperationalAlert`, `SecurityOperationAlertNotificationOverview`, `SecurityOperationAlertSlaOverview`, `SecurityOperationAlertNotificationTaskOverview`, recovery audit/archive/approval DTOs；状态包含 `ACTIVE/DISABLED/DELETED`, `ALLOW/DENY`, `PENDING/APPROVED/REJECTED/APPLIED`, operation alert lifecycle, notification delivery/retry/recovery states。
 - Existing components/design system: Next App Router under `apps/web/src/app/(console)`, client components under `apps/web/src/components/security`, React Query, `Button`, `Card`, `Input`, `MetricCard`, `StatusBadge`, `EmptyState`, lucide icons, Tailwind utility classes, existing `SecurityPolicyBackground` background, and shared security status label helpers.
 - Required states: loading, empty, error, validation, disabled, success, permission-denied
-- Constraints: 写入范围只限 `apps/web/src/components/security/**`、`apps/web/src/app/(console)/security/**`、`images/frontend-reference-design/security-center-ia/**`；不改后端 API，不删除功能，不复制 3000+ 行业务逻辑；`/security` 总览继续使用 `SecurityPolicyContent`，四个子页面改为直接复用现有 API 与安全状态 helper 形成精简真实工作台。
+- Constraints: 写入范围只限 `apps/web/src/components/security/**`、`apps/web/src/app/(console)/security/**`、`images/frontend-reference-design/security-center-ia/**`；不删除功能，不复制 3000+ 行业务逻辑；`/security` 总览使用轻量 `SecurityOverviewContent`，不嵌入策略列表、事件列表、审批列表、长详情或复杂表单；`/security/events` 不持有 `getSecurityCenterEvent` 或选中态，详情页独占事件详情查询和 JSON 上下文展示。

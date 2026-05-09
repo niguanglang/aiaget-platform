@@ -74,6 +74,8 @@
   - binding mutations return full hydrated `AgentDetail`
 - permission-denied:
   - page still readable, but create/edit/delete controls are disabled
+- confirmation:
+  - model, prompt, knowledge, and tool binding removal must open a Chinese confirmation dialog before calling the delete API
 
 ## Constraints
 
@@ -81,3 +83,4 @@
 - Preserve existing `/agents/[id]` route, `AgentDetail` type, and API signatures.
 - Do not invent new backend modules or fake resource fields.
 - Keep the binding surface compact and product-like inside the current detail page, using a responsive 2x2 dashboard grid.
+- Do not remove bindings directly from inline row actions without confirmation.

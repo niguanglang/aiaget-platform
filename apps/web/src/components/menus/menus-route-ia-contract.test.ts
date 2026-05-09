@@ -48,6 +48,23 @@ test('menu tree table renders hierarchy path before the single code column', () 
   assert.ok(hierarchyPathIndex < firstCodeIndex);
 });
 
+test('menu status changes require an explicit confirmation before mutation', () => {
+  const detailSource = readFileSync(menuDetailSourcePath, 'utf8');
+
+  assert.match(menuListSource, /menuStatusTarget/);
+  assert.match(menuListSource, /confirmMenuStatusChange/);
+  assert.match(menuListSource, /确认更新菜单状态/);
+  assert.match(menuListSource, /onConfirm=\{confirmMenuStatusChange\}/);
+
+  assert.match(detailSource, /menuStatusTarget/);
+  assert.match(detailSource, /confirmMenuStatusChange/);
+  assert.match(detailSource, /确认更新菜单状态/);
+  assert.match(detailSource, /onConfirm=\{confirmMenuStatusChange\}/);
+
+  assert.doesNotMatch(menuListSource, /onToggle=\{\(menu\) => statusMutation\.mutate\(\{ id: menu\.id, enabled: !menu\.enabled \}\)\}/);
+  assert.doesNotMatch(detailSource, /onClick=\{\(\) => statusMutation\.mutate\(!menu\.enabled\)\}/);
+});
+
 test('menu create and edit forms support deep multi-level parent selection', () => {
   const createSource = readFileSync(menuCreateSourcePath, 'utf8');
   const editSource = readFileSync(menuEditSourcePath, 'utf8');

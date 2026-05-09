@@ -13,17 +13,17 @@
 | P0 模块 | 当前状态 | 是否阻塞上线 | 主要缺口 | 建议处理方式 |
 | --- | --- | --- | --- | --- |
 | P0-1 生产部署与测试体系闭环 | 已完成 | 否 | 只提供应用服务模板，不创建中间件容器 | 已提交，后续在 P0-12 做部署演练 |
-| P0-2 Runtime 多模型适配与真实流式输出 | 已完成 | 否 | Azure api-version、Anthropic max_tokens 仍是默认值；Control API 旧 fallback 尚未完全收敛 | 作为 P0-4 的输入继续收口 |
+| P0-2 Runtime 多模型适配与真实流式输出 | 已完成 | 否 | Azure `api-version` 与 Anthropic `max_tokens` 已由模型配置驱动，并保留默认值 fallback；Control API 本地 fallback 已对齐 Azure / Anthropic 非流式与流式 adapter 合同 | 后续可按部署策略逐步减少 Control API 本地 fallback 使用面 |
 | P0-3 项目状态与验收矩阵 | 本文完成 | 否 | 需要随后续 P0 子任务持续更新 | 每个 P0 子任务完成后更新矩阵 |
-| P0-4 Runtime 策略与执行闭环 | 未完成 | 是 | Runtime 内部 RAG / Tool / Model 调用仍需完全复用统一安全策略、Data Scope、Resource ACL 和平台事件投影 | P0-5 契约后串行执行 |
-| P0-5 统一事件与用量全来源投影 | 部分完成 | 是 | 已有平台事件/用量表、查询、Rollup 和部分来源投影；仍需定死 P0 事件/metric 命名、必填字段和各来源最低写入清单 | 先完成契约，再并行接入模块 |
+| P0-4 Runtime 策略与执行闭环 | 已完成 | 否 | Runtime 内部 RAG / Tool 调用复用 Control API 的 Data Scope、Resource ACL、工具审批与安全策略；模型调用已投影 `runtime.model.call.*`、`model_tokens`、`model_cost`；Runtime 内部拒绝写 `security.access.denied` | 纳入 P0-12 最终 smoke test |
+| P0-5 统一事件与用量全来源投影 | 已完成 | 否 | P0 事件/metric 命名、必填字段、来源系统和最低写入清单已固定；Runtime 模型、知识检索、工具、渠道、插件、外部 API、计费等来源已按契约投影 | 后续新增模块按契约扩展 |
 | P0-6 生产可观测性部署闭环 | 已完成 | 否 | 已补 OTEL exporter env、operator 托管 Prometheus/Grafana/Loki/Collector 最小模板、离线模板校验、trace id 贯通探针和失败验证 Runbook；仍不在应用 compose 中启动中间件容器 | 上线时由运维接入真实 collector/dashboard 并运行探针 |
-| P0-7 多 Agent 协作生产验收 | 基本完成 | 否 | 多 Agent 已有 Runtime 编排、Supervisor、预算、步骤子事件、报告导出/归档；需要端到端验收和少量文档状态修正 | 可作为并行验收任务，不宜先大改 |
-| P0-8 插件生态生产闭环 | 已完成 | 否 | 已补 Manifest 静态校验、自定义插件来源/sha256/签名元数据门禁、Tool Gateway 绑定预览、安装失败事件和卸载权限闭环；真实包下载、hash 计算和在线验签留到后续增强 | 后续如启用执行型 Hook，单独接插件沙箱或受控异步执行器 |
-| P0-9 全渠道发布生产闭环 | 部分完成 | 是 | 投递审计凭据脱敏、外网回调强制验签、异步 ACK 持久化、调度锁与重复扫描治理已完成；仍剩渠道 workflow 失败恢复入口不完整 | 继续执行 P0-9E |
-| P0-10 复杂计费与额度强执行 | 部分完成 | 是 | 已有套餐、订阅、账单、额度、调账和用量 Rollup；仍需把团队、插件、渠道、知识库、Runtime 的 P0 用量口径统一后强执行 | P0-5 和业务来源稳定后执行 |
-| P0-11 知识库生产增强 | 部分完成 | 是 | 工作流模式配置、恢复重试回到 Runtime/Temporal、搜索后端禁用 fallback 和删除/归档知识库召回隔离已完成；仍剩端到端回归测试 | 继续执行 P0-11E |
-| P0-12 生产验收与发布 Runbook | 未完成 | 是 | 缺少最终 smoke test、迁移/seed 验证、备份恢复、回滚、健康检查、交付文档 | 最后执行 |
+| P0-7 多 Agent 协作生产验收 | 已完成 | 否 | Runtime 编排、Supervisor、预算、步骤子事件、报告导出/归档、安全审批与通知/SLA 分类链路已落地；团队运行启动、完成、失败、等待人工、handoff、用量和成本均进入统一事件/用量底座；失败的 AgentTeamRun 已纳入 Runtime 工作流恢复列表和重试入口；重复恢复回调已做步骤指纹幂等和平台事件 `dedupeKey` 复用；运行详情深链页已独立承载时间线、Trace、接力、反馈、报告动作、成员内部事件、知识引用、工具调用和模型调用；单步骤详情页和单个子事件深链已支持 `eventType` / `eventId` 定位；运行内 Trace 图谱已展示 `trace_id`、`span_id`、`parent_span_id` 关系、根节点和孤立节点；生产模板 `AGENT_TEAM_WORKFLOW_MODE` 已改为 `temporal_first`，旧 `runtime_first/runtime_only` 会兼容归一到 `temporal_first` | 纳入 P0-12 最终 smoke test，真实发布时按 Runbook 演练 |
+| P0-8 插件生态生产闭环 | 已完成 | 否 | 已补 Manifest 静态校验、自定义插件来源/sha256/签名元数据门禁、真实包下载与 sha256 计算、签名验证适配门禁、前端完整性预检门禁、Tool Gateway 绑定预览、升级/回滚控制面闭环、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook Runtime 执行、Hook 失败恢复、安装失败事件和卸载权限闭环；Hook 执行限定为 Manifest 生成工具并复用 Tool Gateway 审批/限流/安全/审计边界；真实 Sigstore/PGP SDK verifier 和插件包代码沙箱留到后续增强 | 纳入 P0-12 最终 smoke test；如后续允许插件包自定义代码运行，需要单独接插件沙箱和资源隔离 |
+| P0-9 全渠道发布生产闭环 | 已完成 | 否 | 投递审计凭据脱敏、外网回调强制验签、异步 ACK 持久化、调度锁与重复扫描治理、渠道 workflow 失败恢复均已完成；后续只剩端到端发布演练 | 纳入 P0-12 最终 smoke test |
+| P0-10 复杂计费与额度强执行 | 已完成 | 否 | 套餐、订阅、账单、额度、调账和用量 Rollup 已有；额度强执行已从抽象 `COST/TOKEN/API_CALL/MODEL_CALL/AGENT_RUN/STORAGE_GB` 映射到 Runtime、团队、渠道、知识库、工具、插件和存储等具体 `platform_usage_event` 指标，并在硬阈值阻断时写 `billing.quota.blocked` | 纳入 P0-12 最终 smoke test |
+| P0-11 知识库生产增强 | 已完成 | 否 | workflow 模式配置、恢复重试回到 Runtime/Temporal、搜索后端禁用 fallback、删除/归档知识库召回隔离和端到端回归测试均已完成 | 纳入 P0-12 最终 smoke test |
+| P0-12 生产验收与发布 Runbook | 已完成 | 否 | 已补生产 smoke 脚本、Runbook 校验脚本、迁移/seed、备份恢复、回滚、健康检查、业务 Smoke、Trace 验收和交付记录清单；实际发布仍需运维在目标环境执行 | 发布时按 Runbook 执行并留存输出 |
 
 ## 可并行分组
 
@@ -49,7 +49,7 @@
 | P0-9B 调度锁与重复扫描治理 | 已完成 | `apps/control-api/src/channels/channel-sender-task.service.ts`、`channel-release-scheduler.service.ts` | 多实例下不会重复重试、重复巡检或重复自动推进 |
 | P0-9C 投递审计凭据脱敏 | 已完成 | `external-channel-sender.service.ts`、`channel-audit-redaction.ts`、渠道审计输出 | URL query、Header、Body、响应摘要、Webhook token 存储和返回均脱敏，已脱敏审计凭据不再用于重试 |
 | P0-9D 外网回调强制验签 | 已完成 | `external-channel-callback.service.ts`、渠道配置校验 | Slack 原生签名强制校验；配置了签名/secret/encrypt key 的渠道回调不能静默跳过验签 |
-| P0-9E 渠道 workflow 失败恢复 | 依赖 P0-5 契约 | `runtime-execution`、`channels` workflow 服务、监控入口 | 自动推进/自愈失败可在监控中心查看并重放 |
+| P0-9E 渠道 workflow 失败恢复 | 已完成 | `runtime-execution`、`channels` workflow 服务、监控入口 | 自动推进/自愈失败可在监控中心查看并重放；知识库任务恢复要求 `knowledge:base:manage`，渠道发布/自愈恢复要求 `channel:publish:deploy` |
 
 ## P0-11 知识库生产增强拆分
 
@@ -59,18 +59,20 @@
 | P0-11B 恢复重试回到 Runtime/Temporal | 已完成 | `runtime-execution.service.ts`、`knowledge.module.ts`、`knowledge-task-dispatcher.service.ts` | retry 在 `temporal_first/temporal` 下重新派发 Runtime/Temporal |
 | P0-11C 搜索后端禁用 fallback 闭合 | 已完成 | `qdrant.service.ts`、`opensearch.service.ts` | `*_ENABLED=false` 时不要求 URL 环境变量，PostgreSQL fallback 可启动；启用但缺 URL 抛清晰错误 |
 | P0-11D 删除/归档知识库召回隔离 | 已完成 | `knowledge.service.ts` 检索查询 | 已删除、归档或停用知识库不再被 Runtime 检索召回，segment 查询层再次加关系过滤 |
-| P0-11E 端到端回归测试 | 依赖 A-D | tests/docs | 覆盖上传、workflow、索引、检索、持久化和删除隔离 |
+| P0-11E 端到端回归测试 | 已完成 | `knowledge-e2e.test.ts`、`knowledge-retrieval.test.ts`、`search-backends.test.ts`、`runtime-execution.service.test.ts` | 已验证上传、workflow、索引 fallback、检索、持久化、恢复重试和删除/归档召回隔离 |
 
 ### 第二批串行或半串行
 
 1. P0-4 Runtime 策略与执行闭环。
 2. P0-10 复杂计费与额度强执行。
 
-P0-4 会碰 Runtime / RAG / Tool / Model 安全边界；P0-10 依赖 P0-5 和各业务模块的用量来源，因此不适合提前并行。
+P0-4 和 P0-10 已完成。P0-10 固定以 P0-5 事件与用量契约为强执行来源，后续新增计费用量必须先写入 `platform_usage_event`，再接入额度映射。
 
 ### 最终收口
 
 1. P0-12 生产验收与发布 Runbook。
+
+P0-12 已完成文档和离线/在线探针脚本收口。实际发布动作仍需运维确认后执行，不在代码验收阶段自动启动容器。
 
 ## P0 上线最低要求
 

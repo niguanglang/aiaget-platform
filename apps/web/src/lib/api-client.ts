@@ -19,6 +19,7 @@ import type {
   AgentTeamRunReportArchiveListResult,
   AgentDetail,
   AgentListItem,
+  BillingInvoiceDetail,
   BillingOverview,
   BillingQuotaEnforcementInput,
   BillingQuotaEnforcementResult,
@@ -36,6 +37,7 @@ import type {
   CreateAgentToolBindingInput,
   CreateTenantApiKeyInput,
   CreateTenantApiKeyResult,
+  RotateTenantApiKeyResult,
   AuditEventDetail,
   AuditEventListItem,
   AuditOverview,
@@ -67,9 +69,11 @@ import type {
   CreateChannelProviderInput,
   CreateChannelRouteRuleInput,
   CreateChannelTemplateInput,
+  ChannelDeliveryDetail,
   ChannelPublishJobActionResult,
   ChannelPublishJobDetail,
   ChannelPublishJobItem,
+  ChannelReplyDetail,
   ChannelReplyItem,
   ChannelRouteRuleDirection,
   ChannelRouteRuleItem,
@@ -154,6 +158,7 @@ import type {
   PromptTemplateDetail,
   PromptTemplateListItem,
   PluginHookItem,
+  PluginHookExecutionResult,
   PluginInstallationDetail,
   PluginInstallationItem,
   PluginMarketItem,
@@ -161,6 +166,9 @@ import type {
   PluginOverview,
   PluginUninstallResult,
   CreatePluginInstallationInput,
+  PluginManifestValidationResult,
+  QueuePluginHookExecutionInput,
+  RollbackPluginInput,
   PublishChannelListItem,
   PublishChannelOverview,
   PublishPromptInput,
@@ -244,6 +252,7 @@ import type {
   SystemSettingSnapshotItem,
   SystemSettingOverview,
   TenantApiKeyListItem,
+  UpdateTenantApiKeyInput,
   TenantDetail,
   TenantListItem,
   TestPromptInput,
@@ -680,6 +689,31 @@ export function createTenantApiKey(input: CreateTenantApiKeyInput) {
   });
 }
 
+export function updateTenantApiKey(keyId: string, input: UpdateTenantApiKeyInput) {
+  return request<TenantApiKeyListItem>(`/api-keys/${keyId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function enableTenantApiKey(keyId: string) {
+  return request<TenantApiKeyListItem>(`/api-keys/${keyId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function disableTenantApiKey(keyId: string) {
+  return request<TenantApiKeyListItem>(`/api-keys/${keyId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function rotateTenantApiKey(keyId: string) {
+  return request<RotateTenantApiKeyResult>(`/api-keys/${keyId}/rotate`, {
+    method: 'POST',
+  });
+}
+
 export function deleteTenantApiKey(keyId: string) {
   return request<{ success: boolean }>(`/api-keys/${keyId}`, {
     method: 'DELETE',
@@ -987,6 +1021,10 @@ export function listChannelProviders(params: ChannelOperationsListParams = {}) {
   return request<ChannelOperationsListResult<ChannelProviderItem>>(`/channels/providers?${toSearchParams(params)}`);
 }
 
+export function getChannelProvider(providerId: string) {
+  return request<ChannelProviderItem>(`/channels/providers/${providerId}`);
+}
+
 export function createChannelProvider(input: CreateChannelProviderInput) {
   return request<ChannelProviderItem>('/channels/providers', {
     method: 'POST',
@@ -1021,6 +1059,10 @@ export function deleteChannelProvider(providerId: string) {
 
 export function listChannelAccounts(params: ChannelOperationsListParams = {}) {
   return request<ChannelOperationsListResult<ChannelAccountItem>>(`/channels/accounts?${toSearchParams(params)}`);
+}
+
+export function getChannelAccount(accountId: string) {
+  return request<ChannelAccountItem>(`/channels/accounts/${accountId}`);
 }
 
 export function createChannelAccount(input: CreateChannelAccountInput) {
@@ -1059,6 +1101,10 @@ export function listChannelTemplates(params: ChannelOperationsListParams = {}) {
   return request<ChannelOperationsListResult<ChannelTemplateItem>>(`/channels/templates?${toSearchParams(params)}`);
 }
 
+export function getChannelTemplate(templateId: string) {
+  return request<ChannelTemplateItem>(`/channels/templates/${templateId}`);
+}
+
 export function createChannelTemplate(input: CreateChannelTemplateInput) {
   return request<ChannelTemplateItem>('/channels/templates', {
     method: 'POST',
@@ -1093,6 +1139,10 @@ export function deleteChannelTemplate(templateId: string) {
 
 export function listChannelRouteRules(params: ChannelOperationsListParams = {}) {
   return request<ChannelOperationsListResult<ChannelRouteRuleItem>>(`/channels/route-rules?${toSearchParams(params)}`);
+}
+
+export function getChannelRouteRule(routeRuleId: string) {
+  return request<ChannelRouteRuleItem>(`/channels/route-rules/${routeRuleId}`);
 }
 
 export function createChannelRouteRule(input: CreateChannelRouteRuleInput) {
@@ -1151,8 +1201,16 @@ export function listChannelDeliveries(params: ChannelOperationsListParams = {}) 
   return request<ChannelOperationsListResult<ChannelDeliveryItem>>(`/channels/deliveries?${toSearchParams(params)}`);
 }
 
+export function getChannelDelivery(deliveryId: string) {
+  return request<ChannelDeliveryDetail>(`/channels/deliveries/${deliveryId}`);
+}
+
 export function listChannelReplies(params: ChannelOperationsListParams = {}) {
   return request<ChannelOperationsListResult<ChannelReplyItem>>(`/channels/replies?${toSearchParams(params)}`);
+}
+
+export function getChannelReply(replyId: string) {
+  return request<ChannelReplyDetail>(`/channels/replies/${replyId}`);
 }
 
 export function listChannelSenderDeliveries(params: {
@@ -2023,6 +2081,13 @@ export function getPluginInstallation(pluginId: string) {
   return request<PluginInstallationDetail>(`/plugins/${pluginId}`);
 }
 
+export function validatePluginManifest(input: CreatePluginInstallationInput) {
+  return request<PluginManifestValidationResult>('/plugins/manifest/validate', {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function installPlugin(input: PluginMarketItem | CreatePluginInstallationInput) {
   const body = isPluginMarketItem(input)
     ? {
@@ -2068,6 +2133,13 @@ export function upgradePlugin(pluginId: string) {
   });
 }
 
+export function rollbackPlugin(pluginId: string, input: RollbackPluginInput) {
+  return request<PluginInstallationDetail>(`/plugins/${pluginId}/rollback`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function uninstallPlugin(pluginId: string) {
   return request<PluginUninstallResult>(`/plugins/${pluginId}`, {
     method: 'DELETE',
@@ -2077,6 +2149,13 @@ export function uninstallPlugin(pluginId: string) {
 export function updatePluginHook(pluginId: string, hookId: string, input: UpdatePluginHookInput) {
   return request<PluginHookItem>(`/plugins/${pluginId}/hooks/${hookId}`, {
     method: 'PATCH',
+    body: input,
+  });
+}
+
+export function queuePluginHookExecution(pluginId: string, hookId: string, input: QueuePluginHookExecutionInput) {
+  return request<PluginHookExecutionResult>(`/plugins/${pluginId}/hooks/${hookId}/execute`, {
+    method: 'POST',
     body: input,
   });
 }
@@ -2483,6 +2562,10 @@ export function runPlatformUsageAlertNotificationAutoRetry() {
 
 export function getBillingOverview(params: { window?: BillingWindow }) {
   return request<BillingOverview>(`/billing/overview?${toSearchParams(params)}`);
+}
+
+export function getBillingInvoiceDetail(id: string) {
+  return request<BillingInvoiceDetail>(`/billing/invoices/${id}`);
 }
 
 export function updateBillingSubscription(input: UpdateBillingSubscriptionInput) {

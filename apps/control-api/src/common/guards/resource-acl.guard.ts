@@ -32,11 +32,18 @@ export class ResourceAclGuard implements CanActivate {
     const resourceId = resolveRequestParam(request, requirement.idParam ?? 'id');
     if (!resourceId) return true;
 
+    const canonicalResourceId = await this.resourceAccess.resolveCanonicalResourceId(
+      user.tenantId,
+      requirement.resourceType,
+      resourceId,
+    );
+    if (!canonicalResourceId) return true;
+
     const acls = await this.prisma.resourceAcl.findMany({
       where: {
         tenantId: user.tenantId,
         resourceType: requirement.resourceType,
-        resourceId,
+        resourceId: canonicalResourceId,
         permissionCode: requirement.permissionCode,
         status: 'ACTIVE',
         deletedAt: null,
@@ -49,9 +56,10 @@ export class ResourceAclGuard implements CanActivate {
 
     const subjectKeys = await this.resourceAccess.buildResourceAclSubjectKeys(user);
     const resource = {
-      id: resourceId,
+      id: canonicalResourceId,
       type: requirement.resourceType.toLowerCase(),
       resource_type: requirement.resourceType,
+      requested_id: resourceId,
     };
     const subject = {
       id: user.id,
@@ -80,7 +88,7 @@ export class ResourceAclGuard implements CanActivate {
       await this.securityEvents.recordDeny(request, {
         source: 'RESOURCE_ACL',
         resourceType: requirement.resourceType,
-        resourceId,
+        resourceId: canonicalResourceId,
         action: requirement.permissionCode,
         reason: 'Resource ACL denied',
         matchedCode: denyMatch.id,
@@ -103,7 +111,7 @@ export class ResourceAclGuard implements CanActivate {
     await this.securityEvents.recordDeny(request, {
       source: 'RESOURCE_ACL',
       resourceType: requirement.resourceType,
-      resourceId,
+      resourceId: canonicalResourceId,
       action: requirement.permissionCode,
       reason: 'Resource ACL denied',
       subject,

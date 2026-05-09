@@ -6,7 +6,7 @@ import { ArrowLeft, Download, FilePlus2, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { formatBytes, formatDateTime } from '@/components/approval-audits/approval-audit-shared';
+import { ApprovalAuditConfirmDialog, formatBytes, formatDateTime } from '@/components/approval-audits/approval-audit-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -22,6 +22,7 @@ export function ApprovalAuditArchivesContent() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [archiveDeleteTarget, setArchiveDeleteTarget] = useState<ApprovalAuditArchiveItem | null>(null);
   const archivesQuery = useQuery({
     queryKey: ['approval-audit-archives'],
     queryFn: listApprovalAuditArchives,
@@ -45,6 +46,7 @@ export function ApprovalAuditArchivesContent() {
     onSuccess: async (result) => {
       setErrorMessage(null);
       setMessage(`归档删除已提交审批，审批 ID：${result.approval_id}。`);
+      setArchiveDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['approval-audit-archives'] });
       await queryClient.invalidateQueries({ queryKey: ['approval-audit-archive-approvals'] });
     },
@@ -53,6 +55,11 @@ export function ApprovalAuditArchivesContent() {
       setErrorMessage(error.message);
     },
   });
+
+  function confirmArchiveDeleteRequest() {
+    if (!archiveDeleteTarget) return;
+    deleteArchiveMutation.mutate(archiveDeleteTarget);
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -133,11 +140,7 @@ export function ApprovalAuditArchivesContent() {
                         </Button>
                         <Button
                           disabled={deleteArchiveMutation.isPending}
-                          onClick={() => {
-                            if (window.confirm(`确认申请删除归档 ${archive.file_name}？该操作需要审批后生效。`)) {
-                              deleteArchiveMutation.mutate(archive);
-                            }
-                          }}
+                          onClick={() => setArchiveDeleteTarget(archive)}
                           size="sm"
                           type="button"
                           variant="outline"
@@ -154,7 +157,17 @@ export function ApprovalAuditArchivesContent() {
           </div>
         )}
       </Card>
+
+      {archiveDeleteTarget ? (
+        <ApprovalAuditConfirmDialog
+          body={`这会为归档「${archiveDeleteTarget.file_name}」提交删除审批申请。审批通过前不会直接删除文件，审批通过后会清理对象存储归档并留下审计记录。`}
+          confirmLabel="确认申请删除"
+          pending={deleteArchiveMutation.isPending}
+          title="确认申请删除审批审计归档"
+          onCancel={() => setArchiveDeleteTarget(null)}
+          onConfirm={confirmArchiveDeleteRequest}
+        />
+      ) : null}
     </main>
   );
 }
-

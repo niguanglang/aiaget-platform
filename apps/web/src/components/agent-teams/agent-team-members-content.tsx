@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import { ErrorPanel, LoadingPanel, nullableText } from '@/components/agent-teams/agent-teams-shared';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
   const { currentUser } = useAuth();
   const [memberForm, setMemberForm] = useState<MemberFormValues | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [memberDeleteTarget, setMemberDeleteTarget] = useState<AgentTeamMemberItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const permissions = currentUser?.user.permissions ?? [];
@@ -71,6 +73,7 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
     onSuccess: async (team) => {
       queryClient.setQueryData(['agent-team', team.id], team);
       await queryClient.invalidateQueries({ queryKey: ['agent-teams'] });
+      setMemberDeleteTarget(null);
     },
   });
 
@@ -175,7 +178,7 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <Button disabled={!canManage} onClick={() => openEditForm(member)} size="sm" title="编辑" variant="outline"><Edit className="size-4" /></Button>
-                        <Button disabled={!canManage || deleteMutation.isPending} onClick={() => deleteMutation.mutate({ id: teamId, memberId: member.id })} size="sm" title="删除" variant="destructive"><Trash2 className="size-4" /></Button>
+                        <Button disabled={!canManage || deleteMutation.isPending} onClick={() => setMemberDeleteTarget(member)} size="sm" title="删除" variant="destructive"><Trash2 className="size-4" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -221,6 +224,17 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {memberDeleteTarget ? (
+        <AgentTeamConfirmDialog
+          body={`确认移除成员「${memberDeleteTarget.agent_name}」？后续团队运行将不再调度该 Agent。`}
+          confirmLabel="确认移除"
+          onCancel={() => setMemberDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate({ id: teamId, memberId: memberDeleteTarget.id })}
+          pending={deleteMutation.isPending}
+          title="移除团队成员？"
+        />
       ) : null}
     </main>
   );

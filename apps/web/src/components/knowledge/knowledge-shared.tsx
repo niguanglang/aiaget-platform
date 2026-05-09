@@ -123,6 +123,10 @@ export function ConfirmDialog({
   );
 }
 
+export function KnowledgeConfirmDialog(props: Parameters<typeof ConfirmDialog>[0]) {
+  return <ConfirmDialog {...props} />;
+}
+
 export function formatStoragePath(value: string | null) {
   if (!value) return '-';
   return value.replace(/^minio:\/\/[^/]+\//, '');

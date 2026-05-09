@@ -51,3 +51,16 @@ test('department detail create and edit content use dedicated data flows', () =>
   assert.doesNotMatch(formPanelText, /updateDepartment/);
   assert.doesNotMatch(formPanelText, /selectedDepartment/);
 });
+
+test('department status changes require confirmation before mutation', () => {
+  assert.match(componentText, /departmentStatusTarget/);
+  assert.match(componentText, /function confirmDepartmentStatusChange/);
+  assert.match(componentText, /确认更新部门状态/);
+  assert.match(componentText, /onConfirm=\{confirmDepartmentStatusChange\}/);
+  assert.match(detailText, /departmentStatusTarget/);
+  assert.match(detailText, /function confirmDepartmentStatusChange/);
+  assert.match(detailText, /确认更新部门状态/);
+  assert.match(detailText, /onConfirm=\{confirmDepartmentStatusChange\}/);
+  assert.doesNotMatch(componentText, /onToggle=\{\(department\) =>\s*statusMutation\.mutate/);
+  assert.doesNotMatch(detailText, /onClick=\{\(\) =>\s*statusMutation\.mutate/);
+});

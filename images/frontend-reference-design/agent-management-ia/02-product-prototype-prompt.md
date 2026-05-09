@@ -14,6 +14,7 @@ Prototype requirements:
 - `/agents/create` and `/agents/[id]/edit` wireframe: independent form page using grouped fields: 基础信息、归属信息、运行默认值、保存操作栏。
 - `/agents/[id]` wireframe: full detail page with sections for 基础信息、资源绑定、版本、会话测试、审计时间线。
 - Button placement: top-level create on list header; row-level view/edit/delete; form page save/cancel; detail page publish/disable/archive/delete.
+- Confirmation flow: list delete opens confirm dialog; detail publish/disable/archive/delete opens confirm dialog; version rollback opens confirm dialog; resource binding removal opens confirm dialog.
 - Make component boundaries clear for frontend implementation.
 
 Avoid: 在列表页展示完整详情字段；在菜单里暴露 detail/edit 路由；使用不存在的后端字段。

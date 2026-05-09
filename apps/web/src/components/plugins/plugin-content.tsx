@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type PluginInstallationItem, type PluginMarketItem } from '@aiaget/shared-types';
+import { type CreatePluginInstallationInput, type PluginInstallationItem, type PluginManifestValidationResult, type PluginMarketItem } from '@aiaget/shared-types';
 import { Code2, Eye, PackagePlus, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
@@ -34,6 +34,7 @@ import {
   installPlugin,
   listPluginInstallations,
   listPluginMarket,
+  validatePluginManifest,
   type ApiClientError,
 } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
@@ -116,6 +117,19 @@ export function PluginContent() {
       setActionError(error.message);
     },
   });
+  const validateManifestMutation = useMutation({
+    mutationFn: validatePluginManifest,
+    onError: (error: ApiClientError) => {
+      setNotice(null);
+      setActionError(error.message);
+    },
+  });
+
+  async function validateCustomManifest(input: CreatePluginInstallationInput): Promise<PluginManifestValidationResult> {
+    setActionError(null);
+    setNotice(null);
+    return validateManifestMutation.mutateAsync(input);
+  }
 
   async function refreshPlugins() {
     await Promise.all([
@@ -304,8 +318,15 @@ export function PluginContent() {
         <CustomPluginDialog
           canInstall={canInstall}
           isPending={installMutation.isPending}
-          onClose={() => setCustomInstallOpen(false)}
+          onClose={() => {
+            validateManifestMutation.reset();
+            setCustomInstallOpen(false);
+          }}
           onConfirm={(input) => installMutation.mutate(input)}
+          onValidate={validateCustomManifest}
+          validationError={validateManifestMutation.error?.message ?? null}
+          validationPending={validateManifestMutation.isPending}
+          validationResult={validateManifestMutation.data ?? null}
         />
       ) : null}
     </main>

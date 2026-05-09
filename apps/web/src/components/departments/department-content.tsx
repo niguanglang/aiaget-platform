@@ -37,6 +37,11 @@ import {
 } from '@/lib/api-client';
 
 const statuses: DepartmentStatus[] = ['ACTIVE', 'DISABLED', 'DELETED'];
+type DepartmentStatusTarget = {
+  id: string;
+  name: string;
+  nextStatus: 'ACTIVE' | 'DISABLED';
+};
 
 export function DepartmentContent() {
   const queryClient = useQueryClient();
@@ -45,6 +50,7 @@ export function DepartmentContent() {
   const [status, setStatus] = useState('');
   const [parentId, setParentId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<DepartmentListItem | null>(null);
+  const [departmentStatusTarget, setDepartmentStatusTarget] = useState<DepartmentStatusTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -81,6 +87,7 @@ export function DepartmentContent() {
       nextStatus === 'ACTIVE' ? enableDepartment(id) : disableDepartment(id),
     onSuccess: async (department) => {
       queryClient.setQueryData(['department', department.id], department);
+      setDepartmentStatusTarget(null);
       setActionError(null);
       await refreshDepartments();
     },
@@ -110,6 +117,15 @@ export function DepartmentContent() {
     setKeyword('');
     setStatus('');
     setParentId('');
+  }
+
+  function confirmDepartmentStatusChange() {
+    if (!departmentStatusTarget) return;
+
+    statusMutation.mutate({
+      id: departmentStatusTarget.id,
+      nextStatus: departmentStatusTarget.nextStatus,
+    });
   }
 
   const overview = overviewQuery.data;
@@ -272,8 +288,9 @@ export function DepartmentContent() {
               departments={departments}
               onDelete={setDeleteTarget}
               onToggle={(department) =>
-                statusMutation.mutate({
+                setDepartmentStatusTarget({
                   id: department.id,
+                  name: department.name,
                   nextStatus: department.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
                 })
               }
@@ -309,6 +326,20 @@ export function DepartmentContent() {
           title="删除部门？"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
+      ) : null}
+      {departmentStatusTarget ? (
+        <ConfirmDialog
+          body={
+            departmentStatusTarget.nextStatus === 'DISABLED'
+              ? `确认更新部门状态：停用部门「${departmentStatusTarget.name}」后，该部门将不再作为可用组织属性参与新授权配置。`
+              : `确认更新部门状态：启用部门「${departmentStatusTarget.name}」后，该部门会重新进入组织架构和 ABAC 属性范围。`
+          }
+          confirmLabel={departmentStatusTarget.nextStatus === 'DISABLED' ? '确认停用' : '确认启用'}
+          pending={statusMutation.isPending}
+          title="确认更新部门状态"
+          onCancel={() => setDepartmentStatusTarget(null)}
+          onConfirm={confirmDepartmentStatusChange}
         />
       ) : null}
     </main>

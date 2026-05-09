@@ -75,6 +75,35 @@ export function PageError({ children }: { children: ReactNode }) {
   );
 }
 
+export function SecurityConfirmDialog({
+  body,
+  confirmLabel = '确认',
+  pending,
+  title,
+  onCancel,
+  onConfirm,
+}: {
+  body: string;
+  confirmLabel?: string;
+  pending: boolean;
+  title: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
+      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-xl">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button disabled={pending} onClick={onCancel} type="button" variant="outline">取消</Button>
+          <Button disabled={pending} onClick={onConfirm} type="button" variant="destructive">{pending ? '处理中' : confirmLabel}</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function LoadingRows({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-3 p-4">

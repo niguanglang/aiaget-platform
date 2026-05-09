@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Download, Trash2, XCircle } from 'lucide-react
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import {
   archiveApprovalStatusLabel,
   archiveApprovalStatusTone,
@@ -28,10 +29,23 @@ import {
   type ApiClientError,
 } from '@/lib/api-client';
 
+type ArchiveDeleteTarget = {
+  id: string;
+  fileName: string;
+};
+
+type ApprovalDecisionTarget = {
+  id: string;
+  fileName: string;
+  decision: 'APPROVE' | 'REJECT';
+};
+
 export function AgentTeamReportArchivesContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
   const [decisionNote, setDecisionNote] = useState('');
+  const [archiveDeleteTarget, setArchiveDeleteTarget] = useState<ArchiveDeleteTarget | null>(null);
+  const [approvalDecisionTarget, setApprovalDecisionTarget] = useState<ApprovalDecisionTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const permissions = currentUser?.user.permissions ?? [];
@@ -62,6 +76,7 @@ export function AgentTeamReportArchivesContent() {
         queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] }),
         queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
       ]);
+      setArchiveDeleteTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -74,6 +89,7 @@ export function AgentTeamReportArchivesContent() {
         queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
       ]);
       setDecisionNote('');
+      setApprovalDecisionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -83,6 +99,7 @@ export function AgentTeamReportArchivesContent() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] });
       setDecisionNote('');
+      setApprovalDecisionTarget(null);
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -90,6 +107,17 @@ export function AgentTeamReportArchivesContent() {
 
   const archives = archivesQuery.data?.items ?? [];
   const approvals = approvalsQuery.data ?? [];
+
+  function confirmApprovalDecision() {
+    if (!approvalDecisionTarget) return;
+
+    if (approvalDecisionTarget.decision === 'APPROVE') {
+      approveMutation.mutate(approvalDecisionTarget.id);
+      return;
+    }
+
+    rejectMutation.mutate(approvalDecisionTarget.id);
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -146,7 +174,7 @@ export function AgentTeamReportArchivesContent() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <Button disabled={downloadMutation.isPending} onClick={() => downloadMutation.mutate(archive.id)} size="sm" title="下载" variant="outline"><Download className="size-4" /></Button>
-                        <Button disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(archive.id)} size="sm" title="申请删除" variant="destructive"><Trash2 className="size-4" /></Button>
+                        <Button disabled={deleteMutation.isPending} onClick={() => setArchiveDeleteTarget({ id: archive.id, fileName: archive.file_name })} size="sm" title="申请删除" variant="destructive"><Trash2 className="size-4" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -190,8 +218,8 @@ export function AgentTeamReportArchivesContent() {
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(approval.requested_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <Button disabled={!canReview || approval.status !== 'PENDING' || approveMutation.isPending} onClick={() => approveMutation.mutate(approval.id)} size="sm" title="通过" variant="outline"><CheckCircle2 className="size-4" /></Button>
-                        <Button disabled={!canReview || approval.status !== 'PENDING' || rejectMutation.isPending} onClick={() => rejectMutation.mutate(approval.id)} size="sm" title="拒绝" variant="outline"><XCircle className="size-4" /></Button>
+                        <Button disabled={!canReview || approval.status !== 'PENDING' || approveMutation.isPending} onClick={() => setApprovalDecisionTarget({ id: approval.id, fileName: approval.archive_file_name, decision: 'APPROVE' })} size="sm" title="通过" variant="outline"><CheckCircle2 className="size-4" /></Button>
+                        <Button disabled={!canReview || approval.status !== 'PENDING' || rejectMutation.isPending} onClick={() => setApprovalDecisionTarget({ id: approval.id, fileName: approval.archive_file_name, decision: 'REJECT' })} size="sm" title="拒绝" variant="outline"><XCircle className="size-4" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -201,7 +229,32 @@ export function AgentTeamReportArchivesContent() {
           </div>
         )}
       </section>
+
+      {archiveDeleteTarget ? (
+        <AgentTeamConfirmDialog
+          body={`确认申请删除报告归档「${archiveDeleteTarget.fileName}」？该操作会进入删除审批流程，审批通过后才会删除文件。`}
+          confirmLabel="确认申请"
+          onCancel={() => setArchiveDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(archiveDeleteTarget.id)}
+          pending={deleteMutation.isPending}
+          title="申请删除报告归档？"
+        />
+      ) : null}
+
+      {approvalDecisionTarget ? (
+        <AgentTeamConfirmDialog
+          body={
+            approvalDecisionTarget.decision === 'APPROVE'
+              ? `确认通过「${approvalDecisionTarget.fileName}」的删除申请？通过后系统会继续执行归档删除流程。`
+              : `确认拒绝「${approvalDecisionTarget.fileName}」的删除申请？申请将保留为拒绝状态。`
+          }
+          confirmLabel={approvalDecisionTarget.decision === 'APPROVE' ? '确认通过' : '确认拒绝'}
+          onCancel={() => setApprovalDecisionTarget(null)}
+          onConfirm={confirmApprovalDecision}
+          pending={approvalDecisionTarget.decision === 'APPROVE' ? approveMutation.isPending : rejectMutation.isPending}
+          title={approvalDecisionTarget.decision === 'APPROVE' ? '通过删除审批？' : '拒绝删除审批？'}
+        />
+      ) : null}
     </main>
   );
 }
-

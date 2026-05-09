@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import type {
@@ -17,6 +17,7 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
+import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 
 @ApiTags('api-keys')
 @ApiBearerAuth()
@@ -50,6 +51,47 @@ export class ApiKeysController {
     @Body() dto: CreateApiKeyDto,
   ): Promise<CreateTenantApiKeyResult> {
     return this.apiKeysService.create(currentUser, dto);
+  }
+
+  @Patch(':id')
+  @Permissions('system:api_key:manage')
+  @ApiOkResponse({ description: 'Update tenant API key governance and webhook config' })
+  async update(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateApiKeyDto,
+  ): Promise<TenantApiKeyListItem> {
+    return this.apiKeysService.update(currentUser, id, dto);
+  }
+
+  @Post(':id/enable')
+  @Permissions('system:api_key:manage')
+  @ApiOkResponse({ description: 'Enable tenant API key' })
+  async enable(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<TenantApiKeyListItem> {
+    return this.apiKeysService.setStatus(currentUser, id, 'ACTIVE');
+  }
+
+  @Post(':id/disable')
+  @Permissions('system:api_key:manage')
+  @ApiOkResponse({ description: 'Disable tenant API key' })
+  async disable(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<TenantApiKeyListItem> {
+    return this.apiKeysService.setStatus(currentUser, id, 'DISABLED');
+  }
+
+  @Post(':id/rotate')
+  @Permissions('system:api_key:manage')
+  @ApiOkResponse({ description: 'Rotate tenant API key and return plaintext once' })
+  async rotate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<CreateTenantApiKeyResult> {
+    return this.apiKeysService.rotate(currentUser, id);
   }
 
   @Delete(':id')

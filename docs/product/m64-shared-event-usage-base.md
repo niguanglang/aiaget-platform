@@ -326,7 +326,7 @@ model_tokens
 agent_team_cost
 ```
 
-未落地部分仍按后续 M64 拆分：
+后续 M64 拆分项已经在 M65、M66、M67、P0-5、P0-10 等阶段逐步落地：
 
 ```text
 Control API / Runtime / Tool Gateway / External API 全来源投影
@@ -373,4 +373,4 @@ GET /platform-usage/ledger
 7. 监控中心不再把 platform_event.id 误传给旧 monitor event 详情接口
 ```
 
-后续仍需逐步补齐的是“全来源投影质量”，也就是让 Control API、Runtime、Tool Gateway、External API、Temporal、Security、Billing 的关键动作都稳定写入同一套事件和用量模型。
+当前 P0 口径已经要求 Control API、Runtime、Tool Gateway、External API、Temporal、Security、Billing、Plugin、Channel、Knowledge、Agent Team 的关键动作稳定写入同一套事件和用量模型。后续新增模块继续按 P0-5 契约补充事件类型、指标类型和关系投影。

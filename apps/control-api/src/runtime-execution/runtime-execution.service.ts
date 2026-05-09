@@ -10,6 +10,8 @@ import { ResourceAccessService } from '../common/services/resource-access.servic
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { KnowledgeTaskDispatcherService } from '../knowledge/knowledge-task-dispatcher.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
+import { PluginHookWorkflowService } from '../plugins/plugin-hook-workflow.service';
+import { PluginRollbackWorkflowService } from '../plugins/plugin-rollback-workflow.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToolsService } from '../tools/tools.service';
 import { ChannelsService } from '../channels/channels.service';
@@ -18,6 +20,8 @@ import { ChannelReleaseSelfHealingWorkflowService } from '../channels/channel-re
 import type { RuntimeChannelReleaseAutomationDto } from './dto/runtime-channel-release-automation.dto';
 import type { RuntimeChannelReleaseSelfHealingDto } from './dto/runtime-channel-release-self-healing.dto';
 import type { RuntimeKnowledgeTaskDto } from './dto/runtime-knowledge-task.dto';
+import type { RuntimePluginHookExecutionDto } from './dto/runtime-plugin-hook-execution.dto';
+import type { RuntimePluginRollbackDto } from './dto/runtime-plugin-rollback.dto';
 import type { RuntimeAgentTeamRunDto } from './dto/runtime-agent-team-run.dto';
 import type { RuntimeRetrieveDto } from './dto/runtime-retrieve.dto';
 import type { RuntimeToolCallDto } from './dto/runtime-tool-call.dto';
@@ -49,13 +53,15 @@ export class RuntimeExecutionService {
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
     @Optional() @Inject(ChannelReleaseAutomationWorkflowService) private readonly releaseAutomationWorkflow: ChannelReleaseAutomationWorkflowService | null = null,
     @Optional() @Inject(ChannelReleaseSelfHealingWorkflowService) private readonly releaseSelfHealingWorkflow: ChannelReleaseSelfHealingWorkflowService | null = null,
+    @Optional() @Inject(PluginRollbackWorkflowService) private readonly pluginRollbackWorkflow: PluginRollbackWorkflowService | null = null,
+    @Optional() @Inject(PluginHookWorkflowService) private readonly pluginHookWorkflow: PluginHookWorkflowService | null = null,
   ) {}
 
   async retrieve(dto: RuntimeRetrieveDto) {
     const user = await this.resolveRuntimeUser(dto.tenant_id, dto.user_id, dto);
     await this.ensureAgent(dto.tenant_id, dto.agent_id);
-    await this.ensureDataScopeAccess(user, 'AGENT', dto.agent_id);
-    await this.ensureAgentPermission(user, dto.agent_id, 'agent:agent:use');
+    await this.ensureDataScopeAccess(user, 'AGENT', dto.agent_id, toTraceContext(dto));
+    await this.ensureAgentPermission(user, dto.agent_id, 'agent:agent:use', toTraceContext(dto));
 
     const result = await this.knowledgeService.retrieveAgentReferences(
       user,
@@ -105,11 +111,16 @@ export class RuntimeExecutionService {
   async callTool(dto: RuntimeToolCallDto) {
     const user = await this.resolveRuntimeUser(dto.tenant_id, dto.user_id, dto);
     const binding = await this.ensureAgentToolBinding(dto.tenant_id, dto.agent_id, dto.tool_id);
-    await this.ensureDataScopeAccess(user, 'AGENT', dto.agent_id);
-    await this.ensureDataScopeAccess(user, 'TOOL', dto.tool_id);
-    await this.ensureAgentPermission(user, dto.agent_id, 'agent:agent:use');
-    this.ensurePermission(user, 'tool:call:execute');
-    await this.ensureResourcePermission(user, 'TOOL', dto.tool_id, 'tool:call:execute');
+    const traceContext = toTraceContext(dto);
+    await this.ensureDataScopeAccess(user, 'AGENT', dto.agent_id, traceContext);
+    await this.ensureDataScopeAccess(user, 'TOOL', dto.tool_id, traceContext);
+    await this.ensureAgentPermission(user, dto.agent_id, 'agent:agent:use', traceContext);
+    await this.ensurePermission(user, 'tool:call:execute', {
+      resourceType: 'TOOL',
+      resourceId: dto.tool_id,
+      traceContext,
+    });
+    await this.ensureResourcePermission(user, 'TOOL', dto.tool_id, 'tool:call:execute', traceContext);
 
     const tool = await this.prisma.tool.findFirst({
       where: {
@@ -132,7 +143,7 @@ export class RuntimeExecutionService {
       triggerSource: 'RUNTIME',
       conversationId: dto.conversation_id ?? undefined,
       agentId: dto.agent_id,
-      traceContext: toTraceContext(dto),
+      traceContext,
       requireApproval: binding.requireApproval,
     });
 
@@ -200,7 +211,7 @@ export class RuntimeExecutionService {
 
   async getWorkflowStatus(currentUser: AuthenticatedUser): Promise<RuntimeWorkflowStatusOverview> {
     const mode = normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
-    const [latestEvent, failedTasks, failedChannelEvents] = await this.prisma.$transaction([
+    const [latestEvent, failedTasks, failedChannelEvents, failedAgentTeamEvents, failedPluginEvents] = await this.prisma.$transaction([
       this.prisma.platformEvent.findFirst({
         where: {
           tenantId: currentUser.tenantId,
@@ -208,6 +219,11 @@ export class RuntimeExecutionService {
           OR: [
             { eventType: { in: ['workflow.knowledge_task.dispatched', 'workflow.knowledge_task.dispatch_failed'] } },
             { eventType: { startsWith: 'workflow.channel_release_' } },
+            { eventType: 'workflow.agent_team_run.failed' },
+            { eventType: 'workflow.plugin_rollback.failed' },
+            { eventType: 'workflow.plugin_rollback.dispatch_failed' },
+            { eventType: 'workflow.plugin_hook_execution.failed' },
+            { eventType: 'workflow.plugin_hook_execution.dispatch_failed' },
           ],
         },
         orderBy: {
@@ -248,6 +264,39 @@ export class RuntimeExecutionService {
         },
         take: 5,
       }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          eventSource: 'runtime_workflow',
+          status: 'FAILED',
+          eventType: {
+            in: ['workflow.agent_team_run.failed'],
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 5,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          eventSource: 'runtime_workflow',
+          status: 'FAILED',
+          eventType: {
+            in: [
+              'workflow.plugin_rollback.failed',
+              'workflow.plugin_rollback.dispatch_failed',
+              'workflow.plugin_hook_execution.failed',
+              'workflow.plugin_hook_execution.dispatch_failed',
+            ],
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 5,
+      }),
     ]);
     const payload = jsonObjectOrNull(latestEvent?.payloadJson);
     const backendStatus = resolveWorkflowBackendStatus(mode, latestEvent ? {
@@ -277,6 +326,59 @@ export class RuntimeExecutionService {
       },
     }) : [];
     const channelById = new Map(channels.map((channel) => [channel.id, channel]));
+    const agentTeamRunIds = Array.from(
+      new Set(
+        failedAgentTeamEvents
+          .filter((event) => event.eventType === 'workflow.agent_team_run.failed')
+          .map((event) => agentTeamRunIdFromWorkflowEvent(event))
+          .filter((runId): runId is string => Boolean(runId)),
+      ),
+    );
+    const agentTeamRuns = agentTeamRunIds.length > 0 ? await this.prisma.agentTeamRun.findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: {
+          in: agentTeamRunIds,
+        },
+        deletedAt: null,
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    }) : [];
+    const agentTeamRunById = new Map(agentTeamRuns.map((run) => [run.id, run]));
+    const pluginIds = Array.from(
+      new Set(
+        failedPluginEvents
+          .filter((event) => {
+            const taskType = workflowTaskTypeFromEvent(event.eventType);
+            return taskType === 'plugin_rollback' || taskType === 'plugin_hook_execution';
+          })
+          .map((event) => pluginIdFromWorkflowEvent(event))
+          .filter((pluginId): pluginId is string => Boolean(pluginId)),
+      ),
+    );
+    const plugins = pluginIds.length > 0 ? await this.prisma.plugin.findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: {
+          in: pluginIds,
+        },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
+    }) : [];
+    const pluginById = new Map(plugins.map((plugin) => [plugin.id, plugin]));
     const recoverableTasks: RuntimeWorkflowRecoverableTaskItem[] = [
       ...failedTasks.map((task) => ({
         task_type: 'knowledge_task' as const,
@@ -291,6 +393,12 @@ export class RuntimeExecutionService {
       })),
       ...failedChannelEvents
         .map((event) => mapChannelWorkflowRecoverableTask(event, channelById.get(channelIdFromWorkflowEvent(event) ?? '')))
+        .filter((task): task is RuntimeWorkflowRecoverableTaskItem => Boolean(task)),
+      ...failedAgentTeamEvents
+        .map((event) => mapAgentTeamWorkflowRecoverableTask(event, agentTeamRunById.get(agentTeamRunIdFromWorkflowEvent(event) ?? '')))
+        .filter((task): task is RuntimeWorkflowRecoverableTaskItem => Boolean(task)),
+      ...failedPluginEvents
+        .map((event) => mapPluginWorkflowRecoverableTask(event, pluginById.get(pluginIdFromWorkflowEvent(event) ?? '')))
         .filter((task): task is RuntimeWorkflowRecoverableTaskItem => Boolean(task)),
     ].slice(0, 10);
 
@@ -315,12 +423,31 @@ export class RuntimeExecutionService {
     taskType: RuntimeWorkflowTaskType = 'knowledge_task',
   ): Promise<RuntimeWorkflowRetryResult> {
     if (taskType === 'channel_release_automation') {
+      await this.ensureWorkflowRetryPermission(currentUser, taskType);
       return this.retryChannelReleaseAutomationWorkflow(currentUser, taskId);
     }
 
     if (taskType === 'channel_release_self_healing') {
+      await this.ensureWorkflowRetryPermission(currentUser, taskType);
       return this.retryChannelReleaseSelfHealingWorkflow(currentUser, taskId);
     }
+
+    if (taskType === 'agent_team_run') {
+      await this.ensureWorkflowRetryPermission(currentUser, taskType);
+      return this.retryAgentTeamRunWorkflow(currentUser, taskId);
+    }
+
+    if (taskType === 'plugin_rollback') {
+      await this.ensureWorkflowRetryPermission(currentUser, taskType);
+      return this.retryPluginRollbackWorkflow(currentUser, taskId);
+    }
+
+    if (taskType === 'plugin_hook_execution') {
+      await this.ensureWorkflowRetryPermission(currentUser, taskType);
+      return this.retryPluginHookExecutionWorkflow(currentUser, taskId);
+    }
+
+    await this.ensureWorkflowRetryPermission(currentUser, taskType);
 
     const task = await this.prisma.knowledgeEmbeddingTask.findFirst({
       where: {
@@ -453,6 +580,188 @@ export class RuntimeExecutionService {
     };
   }
 
+  private async retryAgentTeamRunWorkflow(
+    currentUser: AuthenticatedUser,
+    runId: string,
+  ): Promise<RuntimeWorkflowRetryResult> {
+    const run = await this.prisma.agentTeamRun.findFirst({
+      where: {
+        id: runId,
+        tenantId: currentUser.tenantId,
+        deletedAt: null,
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Agent team workflow run not found');
+    }
+
+    if (run.status !== 'FAILED') {
+      throw new BadRequestException('Only failed agent team workflow runs can be retried');
+    }
+
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'AGENT_TEAM',
+      resourceId: run.teamId,
+      teamId: run.teamId,
+      runId: run.id,
+      taskId: run.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.agent_team_run.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `多 Agent 团队运行 ${run.team?.name ?? run.id} 已请求恢复重试。`,
+      payloadJson: {
+        run_id: run.id,
+        team_id: run.teamId,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: run.id,
+    });
+    await this.agentTeamsService.runWorkflowRun(run.id);
+
+    return {
+      task_type: 'agent_team_run',
+      task_id: run.id,
+      status: 'QUEUED',
+      message: '多 Agent 团队运行工作流已重新派发。',
+    };
+  }
+
+  private async retryPluginRollbackWorkflow(
+    currentUser: AuthenticatedUser,
+    taskId: string,
+  ): Promise<RuntimeWorkflowRetryResult> {
+    if (!this.pluginRollbackWorkflow) {
+      throw new BadRequestException('Plugin rollback workflow service is not available');
+    }
+
+    const { pluginId, versionId } = parsePluginRollbackTaskId(taskId);
+    const version = await this.prisma.pluginVersion.findFirst({
+      where: {
+        id: versionId,
+        pluginId,
+        tenantId: currentUser.tenantId,
+        status: 'PUBLISHED',
+        deletedAt: null,
+      },
+      include: {
+        plugin: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('Plugin rollback workflow task not found');
+    }
+
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      taskId,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.plugin_rollback.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `插件回滚工作流 ${version.plugin?.name ?? pluginId} · ${version.version} 已请求恢复重试。`,
+      payloadJson: {
+        plugin_id: pluginId,
+        version_id: version.id,
+        version: version.version,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: taskId,
+    });
+    await this.pluginRollbackWorkflow.dispatchRollback(currentUser, pluginId, {
+      versionId: version.id,
+      version: version.version,
+    });
+
+    return {
+      task_type: 'plugin_rollback',
+      task_id: taskId,
+      status: 'QUEUED',
+      message: '插件回滚工作流已重新派发。',
+    };
+  }
+
+  private async retryPluginHookExecutionWorkflow(
+    currentUser: AuthenticatedUser,
+    eventId: string,
+  ): Promise<RuntimeWorkflowRetryResult> {
+    if (!this.pluginHookWorkflow) {
+      throw new BadRequestException('Plugin hook workflow service is not available');
+    }
+
+    const event = await this.prisma.platformEvent.findFirst({
+      where: {
+        id: eventId,
+        tenantId: currentUser.tenantId,
+        eventType: 'plugin.hook.execution.queued',
+      },
+    });
+    if (!event) {
+      throw new NotFoundException('Plugin hook execution workflow task not found');
+    }
+
+    const payload = jsonObjectOrNull(event.payloadJson);
+    const pluginId = stringValue(event.pluginId) ?? stringValue(payload?.plugin_id);
+    const hookId = stringValue(event.resourceId) ?? stringValue(payload?.hook_id);
+    if (!pluginId || !hookId) {
+      throw new BadRequestException('Plugin hook execution workflow task is missing plugin or hook id');
+    }
+
+    await this.recordWorkflowEvent({
+      tenantId: currentUser.tenantId,
+      resourceType: 'PLUGIN_HOOK',
+      resourceId: hookId,
+      taskId: event.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      eventType: 'workflow.plugin_hook_execution.retry_requested',
+      status: 'PENDING',
+      severity: 'INFO',
+      summary: `插件 Hook 执行 ${event.id} 已请求恢复重试。`,
+      payloadJson: {
+        event_id: event.id,
+        plugin_id: pluginId,
+        hook_id: hookId,
+        hook_code: stringValue(payload?.hook_code),
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: event.id,
+    });
+    await this.pluginHookWorkflow.dispatchHookExecution(currentUser, {
+      eventId: event.id,
+      pluginId,
+      hookId,
+    });
+
+    return {
+      task_type: 'plugin_hook_execution',
+      task_id: event.id,
+      status: 'QUEUED',
+      message: '插件 Hook 执行工作流已重新派发。',
+    };
+  }
+
   async runAgentTeamRun(dto: RuntimeAgentTeamRunDto) {
     const result = await this.agentTeamsService.runWorkflowRun(dto.run_id, {
       handoffId: dto.handoff_id ?? null,
@@ -568,6 +877,169 @@ export class RuntimeExecutionService {
       sourceId: dto.workflow_id ?? dto.run_id ?? dto.channel_id,
     });
     return result;
+  }
+
+  async runPluginRollback(dto: RuntimePluginRollbackDto) {
+    const taskId = pluginRollbackTaskId(dto.plugin_id, dto.version_id);
+    const version = await this.prisma.pluginVersion.findFirst({
+      where: {
+        id: dto.version_id,
+        pluginId: dto.plugin_id,
+        version: dto.version,
+        status: 'PUBLISHED',
+        deletedAt: null,
+      },
+      include: {
+        plugin: {
+          select: {
+            tenantId: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
+    const success = Boolean(version);
+    await this.recordWorkflowEvent({
+      tenantId: version?.plugin?.tenantId ?? '00000000-0000-0000-0000-000000000000',
+      resourceType: 'PLUGIN',
+      resourceId: dto.plugin_id,
+      taskId,
+      eventType: success ? 'workflow.plugin_rollback.finished' : 'workflow.plugin_rollback.failed',
+      status: success ? 'SUCCESS' : 'FAILED',
+      severity: success ? 'INFO' : 'ERROR',
+      summary: success
+        ? `插件 ${version?.plugin?.name ?? dto.plugin_id} 回滚工作流已确认完成。`
+        : `插件 ${dto.plugin_id} 回滚工作流失败：目标版本不存在。`,
+      payloadJson: {
+        plugin_id: dto.plugin_id,
+        version_id: dto.version_id,
+        version: dto.version,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        error_message: success ? null : '目标插件版本不存在或不可发布。',
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: taskId,
+    });
+
+    if (!success) {
+      throw new NotFoundException('Plugin rollback version not found');
+    }
+
+    return {
+      plugin_id: dto.plugin_id,
+      version_id: dto.version_id,
+      version: dto.version,
+      status: 'SUCCESS',
+    };
+  }
+
+  async runPluginHookExecution(dto: RuntimePluginHookExecutionDto) {
+    const event = await this.prisma.platformEvent.findFirst({
+      where: {
+        id: dto.event_id,
+        pluginId: dto.plugin_id,
+        resourceId: dto.hook_id,
+        eventType: 'plugin.hook.execution.queued',
+      },
+    });
+    if (!event) {
+      throw new NotFoundException('Plugin hook execution event not found');
+    }
+
+    const payload = jsonObjectOrNull(event.payloadJson);
+    const userId = stringValue(event.userId) ?? stringValue(payload?.user_id);
+    const user = await this.resolvePluginHookRuntimeUser(event.tenantId, userId, event);
+    const hook = await this.prisma.pluginHook.findFirst({
+      where: {
+        tenantId: event.tenantId,
+        pluginId: dto.plugin_id,
+        id: dto.hook_id,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+    if (!hook) {
+      throw new NotFoundException('Plugin hook not found or inactive');
+    }
+
+    const hookConfig = jsonObjectOrNull(hook.configJson);
+    const toolCode = stringValue(hookConfig?.generated_tool_code)
+      ?? stringValue(payload?.generated_tool_code)
+      ?? `plugin_tool_${dto.plugin_id}_${hook.code}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    const tool = await this.prisma.tool.findFirst({
+      where: {
+        tenantId: event.tenantId,
+        code: toolCode,
+        deletedAt: null,
+      },
+    });
+    if (!tool) {
+      throw new NotFoundException('Plugin hook generated tool not found');
+    }
+
+    const spanId = event.traceId ? createSpanId() : null;
+    const traceContext = event.traceId && spanId ? {
+      traceId: event.traceId,
+      spanId,
+      parentSpanId: null,
+      traceparent: buildTraceparent(event.traceId, spanId),
+      requestId: event.requestId ?? null,
+    } : null;
+
+    const result = await this.toolsService.execute(
+      user,
+      tool.id,
+      jsonObjectOrNull(payload?.payload) ?? {},
+      {
+        triggerSource: 'RUNTIME',
+        traceContext,
+        requireApproval: readBoolean(hookConfig?.require_approval) ?? readBoolean(payload?.require_approval),
+      },
+    );
+    const status = result.status === 'APPROVAL_REQUIRED' ? 'APPROVAL_REQUIRED' : result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+    await this.recordWorkflowEvent({
+      tenantId: event.tenantId,
+      resourceType: 'PLUGIN_HOOK',
+      resourceId: dto.hook_id,
+      taskId: dto.event_id,
+      requestId: event.requestId ?? null,
+      traceId: event.traceId ?? null,
+      eventType: status === 'SUCCESS'
+        ? 'workflow.plugin_hook_execution.finished'
+        : status === 'APPROVAL_REQUIRED'
+          ? 'workflow.plugin_hook_execution.approval_required'
+          : 'workflow.plugin_hook_execution.failed',
+      status,
+      severity: status === 'FAILED' ? 'ERROR' : status === 'APPROVAL_REQUIRED' ? 'WARN' : 'INFO',
+      summary: `插件 Hook ${hook.code} 已通过 Runtime 工作流执行：${status}。`,
+      payloadJson: {
+        event_id: dto.event_id,
+        plugin_id: dto.plugin_id,
+        hook_id: dto.hook_id,
+        hook_code: hook.code,
+        tool_id: tool.id,
+        tool_code: tool.code,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        status,
+        approval_request_id: result.approval_request_id ?? null,
+        error_message: result.error_message ?? null,
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.event_id,
+    });
+
+    return {
+      event_id: dto.event_id,
+      plugin_id: dto.plugin_id,
+      hook_id: dto.hook_id,
+      tool_id: tool.id,
+      status,
+      approval_request_id: result.approval_request_id ?? null,
+      error_message: result.error_message ?? null,
+    };
   }
 
   private async recordRuntimeEvent(user: AuthenticatedUser, input: RuntimeProjectionInput) {
@@ -722,6 +1194,61 @@ export class RuntimeExecutionService {
     };
   }
 
+  private async resolvePluginHookRuntimeUser(
+    tenantId: string,
+    userId: string | null,
+    event: { requestId?: string | null; traceId?: string | null },
+  ): Promise<AuthenticatedUser> {
+    const user = userId ? await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        id: userId,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+      include: {
+        userRoles: {
+          where: {
+            deletedAt: null,
+            role: {
+              status: 'ACTIVE',
+              deletedAt: null,
+            },
+          },
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  where: {
+                    deletedAt: null,
+                  },
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) : null;
+
+    return {
+      id: user?.id ?? '00000000-0000-0000-0000-000000000000',
+      tenantId,
+      departmentId: user?.departmentId ?? null,
+      email: user?.email ?? 'runtime-plugin-hook@internal',
+      roles: user?.userRoles.map((userRole) => userRole.role.code) ?? ['runtime_internal'],
+      roleIds: user?.userRoles.map((userRole) => userRole.role.id) ?? [],
+      permissions: user ? expandPermissionCodes(
+        user.userRoles.flatMap((userRole) => userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code)),
+      ) : [],
+      requestId: event.requestId ?? undefined,
+      traceId: event.traceId ?? undefined,
+      parentSpanId: null,
+    };
+  }
+
   private async ensureAgent(tenantId: string, agentId: string) {
     const agent = await this.prisma.agent.findFirst({
       where: {
@@ -785,6 +1312,7 @@ export class RuntimeExecutionService {
     user: AuthenticatedUser,
     resourceType: DataScopeResourceType,
     resourceId: string,
+    traceContext?: TraceContext | null,
   ) {
     const dataScope = await this.dataScopeQuery.buildWhere<Record<string, unknown>>(user, resourceType);
     if (!dataScope.where) {
@@ -793,6 +1321,12 @@ export class RuntimeExecutionService {
 
     const exists = await this.resourceExists(user.tenantId, resourceType, resourceId, dataScope.where);
     if (!exists) {
+      await this.recordRuntimeAccessDenied(user, {
+        resourceType,
+        resourceId,
+        reason: 'Runtime data scope denied',
+        traceContext,
+      });
       throw new ForbiddenException('Runtime data scope denied');
     }
   }
@@ -834,14 +1368,54 @@ export class RuntimeExecutionService {
     }
   }
 
-  private async ensureAgentPermission(user: AuthenticatedUser, agentId: string, permissionCode: string) {
-    return this.ensureResourcePermission(user, 'AGENT', agentId, permissionCode);
+  private async ensureAgentPermission(
+    user: AuthenticatedUser,
+    agentId: string,
+    permissionCode: string,
+    traceContext?: TraceContext | null,
+  ) {
+    await this.ensurePermission(user, permissionCode, {
+      resourceType: 'AGENT',
+      resourceId: agentId,
+      traceContext,
+    });
+    return this.ensureResourcePermission(user, 'AGENT', agentId, permissionCode, traceContext);
   }
 
-  private ensurePermission(user: AuthenticatedUser, permissionCode: string) {
+  private async ensurePermission(
+    user: AuthenticatedUser,
+    permissionCode: string,
+    context?: {
+      resourceType?: DataScopeResourceType | string | null;
+      resourceId?: string | null;
+      traceContext?: TraceContext | null;
+    },
+  ) {
+    if (user.roles.includes('tenant_admin')) {
+      return;
+    }
     if (!hasPermission(user.permissions, permissionCode)) {
+      await this.recordRuntimeAccessDenied(user, {
+        resourceType: context?.resourceType ?? 'RUNTIME',
+        resourceId: context?.resourceId ?? null,
+        reason: `Runtime permission denied: ${permissionCode}`,
+        traceContext: context?.traceContext ?? null,
+        permissionCode,
+      });
       throw new ForbiddenException('Runtime permission denied');
     }
+  }
+
+  private async ensureWorkflowRetryPermission(user: AuthenticatedUser, taskType: RuntimeWorkflowTaskType) {
+    if (user.roles.includes('tenant_admin')) {
+      return;
+    }
+
+    const permissionCode = workflowRetryPermissionCode(taskType);
+    await this.ensurePermission(user, permissionCode, {
+      resourceType: 'RUNTIME_WORKFLOW',
+      resourceId: taskType,
+    });
   }
 
   private async ensureResourcePermission(
@@ -849,6 +1423,7 @@ export class RuntimeExecutionService {
     resourceType: DataScopeResourceType,
     resourceId: string,
     permissionCode: string,
+    traceContext?: TraceContext | null,
   ) {
     const acls = await this.prisma.resourceAcl.findMany({
       where: {
@@ -868,14 +1443,68 @@ export class RuntimeExecutionService {
     const subjectKeys = await this.resourceAccess.buildResourceAclSubjectKeys(user);
     const matched = acls.filter((acl) => subjectKeys.has(resourceAclSubjectKey(acl.subjectType, acl.subjectId)));
     if (matched.some((acl) => acl.effect === 'DENY')) {
+      await this.recordRuntimeAccessDenied(user, {
+        resourceType,
+        resourceId,
+        reason: 'Runtime resource ACL denied',
+        traceContext,
+        permissionCode,
+      });
       throw new ForbiddenException('Runtime resource ACL denied');
     }
     if (user.roles.includes('tenant_admin')) {
       return;
     }
     if (!matched.some((acl) => acl.effect === 'ALLOW')) {
+      await this.recordRuntimeAccessDenied(user, {
+        resourceType,
+        resourceId,
+        reason: 'Runtime resource ACL denied',
+        traceContext,
+        permissionCode,
+      });
       throw new ForbiddenException('Runtime resource ACL denied');
     }
+  }
+
+  private async recordRuntimeAccessDenied(
+    user: AuthenticatedUser,
+    input: {
+      resourceType: DataScopeResourceType | string;
+      resourceId?: string | null;
+      reason: string;
+      traceContext?: TraceContext | null;
+      permissionCode?: string | null;
+    },
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
+      userId: user.id,
+      actorType: 'RUNTIME',
+      resourceType: input.resourceType,
+      resourceId: input.resourceId ?? null,
+      requestId: input.traceContext?.requestId ?? user.requestId ?? null,
+      traceId: input.traceContext?.traceId ?? user.traceId ?? null,
+      parentTraceId: input.traceContext?.parentSpanId ?? user.parentSpanId ?? null,
+      eventSource: 'runtime',
+      eventType: 'security.access.denied',
+      status: 'DENIED',
+      severity: 'ERROR',
+      securityLevel: 'CONFIDENTIAL',
+      billable: false,
+      summary: input.reason,
+      payloadJson: {
+        guard_source: 'RUNTIME_INTERNAL',
+        resource_type: input.resourceType,
+        resource_id: input.resourceId ?? null,
+        permission_code: input.permissionCode ?? null,
+        reason: input.reason,
+      },
+      sourceSystem: 'runtime_internal',
+      sourceId: input.resourceId ?? user.id,
+      dedupeKey: `runtime_internal:${user.id}:${input.resourceType}:${input.resourceId ?? 'none'}:${input.permissionCode ?? input.reason}:${input.traceContext?.traceId ?? user.traceId ?? user.requestId ?? 'none'}`,
+    });
   }
 }
 
@@ -959,6 +1588,10 @@ function resourceAclSubjectKey(subjectType: string, subjectId: string) {
 }
 
 function workflowTaskTypeFromEvent(eventType: string | undefined | null): RuntimeWorkflowTaskType {
+  if (eventType === 'workflow.agent_team_run.failed') {
+    return 'agent_team_run';
+  }
+
   if (eventType === 'workflow.channel_release_automation.failed') {
     return 'channel_release_automation';
   }
@@ -967,7 +1600,92 @@ function workflowTaskTypeFromEvent(eventType: string | undefined | null): Runtim
     return 'channel_release_self_healing';
   }
 
+  if (eventType === 'workflow.plugin_rollback.failed' || eventType === 'workflow.plugin_rollback.dispatch_failed') {
+    return 'plugin_rollback';
+  }
+
+  if (eventType === 'workflow.plugin_hook_execution.failed' || eventType === 'workflow.plugin_hook_execution.dispatch_failed') {
+    return 'plugin_hook_execution';
+  }
+
   return 'knowledge_task';
+}
+
+function workflowRetryPermissionCode(taskType: RuntimeWorkflowTaskType) {
+  if (taskType === 'knowledge_task') return 'knowledge:base:manage';
+  if (taskType === 'agent_team_run') return 'agent:team:run';
+  if (taskType === 'plugin_rollback') return 'plugin:center:manage';
+  if (taskType === 'plugin_hook_execution') return 'plugin:center:manage';
+  return 'channel:publish:deploy';
+}
+
+function parsePluginRollbackTaskId(taskId: string) {
+  const [pluginId, versionId] = taskId.split(':');
+  if (!pluginId || !versionId) {
+    throw new BadRequestException('Invalid plugin rollback workflow task id');
+  }
+
+  return { pluginId, versionId };
+}
+
+function pluginRollbackTaskId(pluginId: string, versionId: string) {
+  return `${pluginId}:${versionId}`;
+}
+
+function pluginIdFromWorkflowEvent(event: {
+  pluginId?: string | null;
+  resourceId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(event.pluginId)
+    ?? stringValue(payload?.plugin_id)
+    ?? stringValue(event.resourceId);
+}
+
+function pluginVersionIdFromWorkflowEvent(event: {
+  taskId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.version_id)
+    ?? (stringValue(event.taskId)?.includes(':') ? stringValue(event.taskId)?.split(':')[1] ?? null : null);
+}
+
+function pluginHookIdFromWorkflowEvent(event: {
+  resourceId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.hook_id)
+    ?? stringValue(event.resourceId);
+}
+
+function pluginHookCodeFromWorkflowEvent(event: {
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.hook_code);
+}
+
+function pluginHookExecutionEventIdFromWorkflowEvent(event: {
+  taskId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.event_id)
+    ?? stringValue(event.taskId);
+}
+
+function agentTeamRunIdFromWorkflowEvent(event: {
+  runId?: string | null;
+  taskId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(event.runId)
+    ?? stringValue(payload?.run_id)
+    ?? stringValue(event.taskId);
 }
 
 function channelIdFromWorkflowEvent(event: {
@@ -979,6 +1697,52 @@ function channelIdFromWorkflowEvent(event: {
   return stringValue(event.channelId)
     ?? stringValue(payload?.channel_id)
     ?? stringValue(event.resourceId);
+}
+
+function mapAgentTeamWorkflowRecoverableTask(
+  event: {
+    eventType: string;
+    runId?: string | null;
+    taskId?: string | null;
+    summary?: string | null;
+    payloadJson?: unknown;
+    occurredAt: Date;
+  },
+  run: {
+    id: string;
+    teamId: string;
+    objective: string;
+    status: string;
+    errorMessage?: string | null;
+    updatedAt?: Date;
+    team?: { id: string; name?: string | null; code?: string | null } | null;
+  } | undefined,
+): RuntimeWorkflowRecoverableTaskItem | null {
+  if (event.eventType !== 'workflow.agent_team_run.failed') {
+    return null;
+  }
+
+  const runId = agentTeamRunIdFromWorkflowEvent(event);
+  if (!runId) {
+    return null;
+  }
+
+  const payload = jsonObjectOrNull(event.payloadJson);
+  const objective = run?.objective ? ` · ${run.objective}` : '';
+
+  return {
+    task_type: 'agent_team_run',
+    task_id: runId,
+    workflow_task_type: 'AGENT_TEAM_RUN',
+    status: run?.status ?? 'FAILED',
+    title: `${run?.team?.name ?? run?.team?.code ?? stringValue(payload?.team_id) ?? runId}${objective}`,
+    knowledge_base_id: null,
+    document_id: null,
+    team_id: run?.teamId ?? stringValue(payload?.team_id),
+    run_id: runId,
+    error_message: run?.errorMessage ?? stringValue(payload?.error_message) ?? stringValue(event.summary),
+    updated_at: (run?.updatedAt ?? event.occurredAt).toISOString(),
+  };
 }
 
 function mapChannelWorkflowRecoverableTask(
@@ -1017,6 +1781,75 @@ function mapChannelWorkflowRecoverableTask(
     knowledge_base_id: null as string | null,
     document_id: null,
     channel_id: channelId,
+    error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
+    updated_at: event.occurredAt.toISOString(),
+  };
+}
+
+function mapPluginWorkflowRecoverableTask(
+  event: {
+    eventType: string;
+    pluginId?: string | null;
+    resourceId?: string | null;
+    taskId?: string | null;
+    summary?: string | null;
+    payloadJson?: unknown;
+    occurredAt: Date;
+  },
+  plugin: { id: string; name?: string | null; code?: string | null } | undefined,
+): RuntimeWorkflowRecoverableTaskItem | null {
+  const taskType = workflowTaskTypeFromEvent(event.eventType);
+  if (taskType === 'plugin_hook_execution') {
+    const pluginId = pluginIdFromWorkflowEvent(event);
+    const hookId = pluginHookIdFromWorkflowEvent(event);
+    const eventId = pluginHookExecutionEventIdFromWorkflowEvent(event);
+    if (!pluginId || !hookId || !eventId) {
+      return null;
+    }
+
+    const payload = jsonObjectOrNull(event.payloadJson);
+    const hookCode = pluginHookCodeFromWorkflowEvent(event);
+
+    return {
+      task_type: 'plugin_hook_execution',
+      task_id: eventId,
+      workflow_task_type: 'PLUGIN_HOOK_EXECUTION',
+      status: 'FAILED',
+      title: `${plugin?.name ?? plugin?.code ?? pluginId}${hookCode ? ` · ${hookCode}` : ''}`,
+      knowledge_base_id: null,
+      document_id: null,
+      plugin_id: pluginId,
+      hook_id: hookId,
+      hook_code: hookCode,
+      error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
+      updated_at: event.occurredAt.toISOString(),
+    };
+  }
+
+  if (taskType !== 'plugin_rollback') {
+    return null;
+  }
+
+  const pluginId = pluginIdFromWorkflowEvent(event);
+  const versionId = pluginVersionIdFromWorkflowEvent(event);
+  if (!pluginId || !versionId) {
+    return null;
+  }
+
+  const payload = jsonObjectOrNull(event.payloadJson);
+  const version = stringValue(payload?.version);
+
+  return {
+    task_type: 'plugin_rollback',
+    task_id: pluginRollbackTaskId(pluginId, versionId),
+    workflow_task_type: 'PLUGIN_ROLLBACK',
+    status: 'FAILED',
+    title: `${plugin?.name ?? plugin?.code ?? pluginId}${version ? ` · ${version}` : ''}`,
+    knowledge_base_id: null,
+    document_id: null,
+    plugin_id: pluginId,
+    version_id: versionId,
+    version,
     error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: event.occurredAt.toISOString(),
   };
@@ -1063,4 +1896,8 @@ function jsonObjectOrNull(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : null;
 }

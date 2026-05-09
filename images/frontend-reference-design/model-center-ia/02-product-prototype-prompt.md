@@ -23,8 +23,8 @@ Project context:
 - Actions and states:
   - list/search/filter/clear filters
   - create/edit/delete provider
-  - enable/disable provider
-  - create/edit/delete/enable/disable model config
+  - enable/disable provider with confirmation
+  - create/edit/delete/enable/disable model config with confirmation for status and delete actions
   - add/delete masked API key
   - run compatibility test
   - loading, empty, error, validation, disabled, success, permission-denied
@@ -34,6 +34,7 @@ Prototype requirements:
 - Show create/edit provider as route-level full-page forms, not embedded in the list.
 - Show provider detail as grouped blocks or tabs: 基础信息, 模型配置, 接口密钥, 成本规则, 调用测试, 调用日志.
 - Keep model create/edit as detail-owned drawer/panel actions.
+- Show confirmation dialogs for provider/model enable-disable actions with impact copy.
 - Make component boundaries obvious for implementation.
 - Keep layout realistic for the current console shell.
 
@@ -41,4 +42,5 @@ Avoid:
 - decorative-only mockups
 - invented backend fields
 - putting provider detail/test/API key blocks inside the list page
+- direct enable-disable state mutation without a confirmation step
 ```

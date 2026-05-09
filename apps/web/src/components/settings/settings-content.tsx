@@ -9,6 +9,7 @@ import {
   Database,
   KeyRound,
   Network,
+  Rocket,
   ServerCog,
   ShieldCheck,
   SlidersHorizontal,
@@ -60,6 +61,14 @@ const configurationEntries: ConfigurationEntry[] = [
     permission: 'system:settings:view',
     permissionLabel: 'system:settings:view',
     icon: BellRing,
+  },
+  {
+    title: '生产落地中心',
+    description: '汇总生产环境、外部服务、第三方联调、发布验收和风险项。',
+    href: '/settings/production-readiness',
+    permission: 'system:settings:view',
+    permissionLabel: 'system:settings:view',
+    icon: Rocket,
   },
   {
     title: '用户管理',

@@ -352,6 +352,7 @@ function approvalAuditEventTypeLabel(type: ApprovalAuditEventItem['event_type'])
     DOWNLOAD_URL_CREATED: '下载链接',
     DELETE_REQUESTED: '删除申请',
     DELETE_APPLIED: '删除生效',
+    ACCEPTED: '验收确认',
   };
 
   return labels[type] ?? type;

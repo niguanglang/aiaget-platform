@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
+
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import type {
+  AcceptProductionReadinessCheckInput,
   ApprovalAuditEventItem,
   NotificationPolicyAuditOverview,
   NotificationPolicyApprovalOverview,
@@ -9,6 +12,12 @@ import type {
   NotificationPolicyImpactLevel,
   NotificationPolicySnapshotOverview,
   PaginatedResult,
+  ProductionReadinessCategory,
+  ProductionReadinessCategoryOverview,
+  ProductionReadinessCheckItem,
+  ProductionReadinessAcceptance,
+  ProductionReadinessOverview,
+  ProductionReadinessStatus,
   SystemSettingSnapshotAction,
   SystemSettingSnapshotItem,
   SystemSettingCategory,
@@ -104,6 +113,20 @@ const NOTIFICATION_SETTING_KEYS = [
 const NOTIFICATION_SETTING_KEY_SET = new Set<string>(NOTIFICATION_SETTING_KEYS);
 const NOTIFICATION_AUDIT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const NOTIFICATION_TASK_SNAPSHOT_MS = 24 * 60 * 60 * 1000;
+const PRODUCTION_READINESS_CATEGORY_LABELS: Record<ProductionReadinessCategory, string> = {
+  ENVIRONMENT: '环境配置',
+  EXTERNAL_SERVICE: '外部服务',
+  THIRD_PARTY: '第三方联调',
+  RELEASE_VALIDATION: '发布验收',
+  RISK: '风险项',
+};
+const PRODUCTION_READINESS_CATEGORY_DESCRIPTIONS: Record<ProductionReadinessCategory, string> = {
+  ENVIRONMENT: '生产环境变量、密钥、迁移和基础运行参数验收。',
+  EXTERNAL_SERVICE: 'PostgreSQL、MinIO、Qdrant、OpenSearch、Temporal 和 OTEL 等外部依赖验收。',
+  THIRD_PARTY: '模型供应商、外部 API Key、全渠道发布和插件生态联调验收。',
+  RELEASE_VALIDATION: '发布前 smoke、回滚、Trace 和运行手册证据验收。',
+  RISK: '必须在真实目标环境人工确认的剩余风险。',
+};
 
 @Injectable()
 export class SystemSettingsService {
@@ -151,6 +174,400 @@ export class SystemSettingsService {
       last_updated_at: lastUpdated?.toISOString() ?? null,
       categories,
     };
+  }
+
+  async getProductionReadinessOverview(currentUser: AuthenticatedUser): Promise<ProductionReadinessOverview> {
+    const [
+      activeModelProviders,
+      activeModelConfigs,
+      modelApiKeys,
+      activePublishChannels,
+      enabledApiKeys,
+      activeSecurityPolicies,
+      pendingKnowledgeTasks,
+      failedKnowledgeTasks,
+      qdrantSegments,
+      openSearchSegments,
+    ] = await Promise.all([
+      this.prisma.modelProvider.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.modelConfig.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.modelApiKey.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.agentPublishChannel.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.apiKey.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.securityPolicy.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      }),
+      this.prisma.knowledgeEmbeddingTask.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: {
+            in: ['PENDING', 'RUNNING'],
+          },
+        },
+      }),
+      this.prisma.knowledgeEmbeddingTask.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          status: 'FAILED',
+        },
+      }),
+      this.prisma.knowledgeSegment.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          deletedAt: null,
+          metadata: {
+            path: ['vector_backend'],
+            equals: 'QDRANT',
+          },
+        },
+      }),
+      this.prisma.knowledgeSegment.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          deletedAt: null,
+          metadata: {
+            path: ['keyword_backend'],
+            equals: 'OPENSEARCH',
+          },
+        },
+      }),
+    ]);
+    const acceptanceByCheckId = await this.loadProductionReadinessAcceptances(currentUser.tenantId);
+    const items: ProductionReadinessCheckItem[] = ([
+      {
+        id: 'env-template',
+        category: 'ENVIRONMENT',
+        title: '生产环境变量模板',
+        description: '确认 .env.production 已按模板配置数据库、密钥、运行时、对象存储和可观测性参数。',
+        status: envReady(['DATABASE_URL', 'JWT_ACCESS_TOKEN_SECRET', 'MODEL_KEY_ENCRYPTION_SECRET']) ? 'READY' : 'WARNING',
+        severity: 'HIGH',
+        owner: '平台运维',
+        action_label: '查看发布清单',
+        action_href: '/settings',
+        evidence: [
+          '仓库包含 .env.production.example 和 validate:prod-env 校验脚本。',
+          envEvidence('DATABASE_URL', 'JWT_ACCESS_TOKEN_SECRET', 'MODEL_KEY_ENCRYPTION_SECRET'),
+        ],
+        acceptance: null,
+      },
+      {
+        id: 'database-migration',
+        category: 'ENVIRONMENT',
+        title: '数据库迁移与种子数据',
+        description: '生产库需要先执行 Prisma migrate deploy、表字段注释和必要种子数据校验。',
+        status: 'MANUAL',
+        severity: 'HIGH',
+        owner: '后端负责人',
+        action_label: '打开系统设置',
+        action_href: '/settings',
+        evidence: ['需要在目标生产库执行 pnpm --filter @aiaget/control-api prisma:deploy。', '该检查不会在接口内连接或修改外部数据库。'],
+        acceptance: null,
+      },
+      {
+        id: 'postgres',
+        category: 'EXTERNAL_SERVICE',
+        title: 'PostgreSQL 生产库',
+        description: '确认控制面连接的是用户指定生产 PostgreSQL，并完成备份、恢复和最小权限验证。',
+        status: process.env.DATABASE_URL ? 'MANUAL' : 'BLOCKED',
+        severity: 'HIGH',
+        owner: 'DBA',
+        action_label: '查看系统设置',
+        action_href: '/settings',
+        evidence: [process.env.DATABASE_URL ? 'DATABASE_URL 已配置，仍需人工验证备份恢复。' : 'DATABASE_URL 未在当前进程配置。'],
+        acceptance: null,
+      },
+      {
+        id: 'minio',
+        category: 'EXTERNAL_SERVICE',
+        title: 'MinIO 对象存储',
+        description: '确认桶、访问密钥、控制台地址和文件上传下载链路可用。',
+        status: envReady(['MINIO_ENDPOINT', 'MINIO_BUCKET']) ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '平台运维',
+        action_label: '打开存储设置',
+        action_href: '/storage/settings',
+        evidence: [envEvidence('MINIO_ENDPOINT', 'MINIO_BUCKET'), '页面提供桶初始化与存储设置验收入口。'],
+        acceptance: null,
+      },
+      {
+        id: 'qdrant',
+        category: 'EXTERNAL_SERVICE',
+        title: 'Qdrant 向量库',
+        description: '确认知识库向量写入真实 Qdrant 集合，并保留 PostgreSQL fallback 状态可追踪。',
+        status: qdrantSegments > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '知识库负责人',
+        action_label: '打开知识库健康',
+        action_href: '/knowledge/health',
+        evidence: [
+          envEvidence('QDRANT_ENABLED', 'QDRANT_URL', 'QDRANT_COLLECTION_PREFIX'),
+          `Qdrant 片段 ${qdrantSegments} 条。`,
+        ],
+        acceptance: null,
+      },
+      {
+        id: 'opensearch',
+        category: 'EXTERNAL_SERVICE',
+        title: 'OpenSearch 关键词检索',
+        description: '确认关键词索引写入 OpenSearch，并和 Qdrant 共同构成混合检索。',
+        status: openSearchSegments > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '知识库负责人',
+        action_label: '打开检索测试',
+        action_href: '/knowledge/retrieval',
+        evidence: [
+          envEvidence('OPENSEARCH_ENABLED', 'OPENSEARCH_URL', 'OPENSEARCH_INDEX_PREFIX'),
+          `OpenSearch 片段 ${openSearchSegments} 条。`,
+        ],
+        acceptance: null,
+      },
+      {
+        id: 'temporal',
+        category: 'EXTERNAL_SERVICE',
+        title: 'Temporal 工作流',
+        description: '确认后台任务、渠道发布和运行时工作流可以进入 Temporal 后端。',
+        status: process.env.RUNTIME_TEMPORAL_ENABLED === 'true' ? 'MANUAL' : 'WARNING',
+        severity: 'MEDIUM',
+        owner: '运行时负责人',
+        action_label: '查看工作流',
+        action_href: '/runtime/workflows',
+        evidence: [
+          envEvidence('RUNTIME_TEMPORAL_ENABLED', 'RUNTIME_TEMPORAL_ADDRESS', 'RUNTIME_TEMPORAL_TASK_QUEUE'),
+          '当前接口只展示配置和平台数据，不主动连接 Temporal。',
+        ],
+        acceptance: null,
+      },
+      {
+        id: 'otel',
+        category: 'EXTERNAL_SERVICE',
+        title: 'OpenTelemetry Collector',
+        description: '确认控制面、Runtime、Tool Gateway 和前端请求 Trace ID 能导出到观测系统。',
+        status: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ? 'MANUAL' : 'WARNING',
+        severity: 'MEDIUM',
+        owner: '可观测性负责人',
+        action_label: '查看观测质量',
+        action_href: '/monitor/observability',
+        evidence: [envEvidence('OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_TRACES_EXPORTER', 'OTEL_RESOURCE_ATTRIBUTES')],
+        acceptance: null,
+      },
+      {
+        id: 'model-provider',
+        category: 'THIRD_PARTY',
+        title: '模型供应商联调',
+        description: '确认生产模型供应商、模型配置、加密密钥和调用测试均完成。',
+        status: activeModelProviders > 0 && activeModelConfigs > 0 && modelApiKeys > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '模型管理员',
+        action_label: '打开模型中心',
+        action_href: '/models',
+        evidence: [`模型供应商 ${activeModelProviders} 个，启用模型 ${activeModelConfigs} 个，密钥 ${modelApiKeys} 个。`],
+        acceptance: null,
+      },
+      {
+        id: 'external-api-key',
+        category: 'THIRD_PARTY',
+        title: '外部 API Key 调用',
+        description: '确认外部系统只使用授权 Agent、限流、IP 白名单和 webhook 回调策略。',
+        status: enabledApiKeys > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '开放平台负责人',
+        action_label: '打开 API Key',
+        action_href: '/api-keys',
+        evidence: [`启用 API Key ${enabledApiKeys} 个。`, '调用凭证不会在该接口中返回明文。'],
+        acceptance: null,
+      },
+      {
+        id: 'publish-channels',
+        category: 'THIRD_PARTY',
+        title: '全渠道发布联调',
+        description: '确认 Web Widget、Open API、企业微信、钉钉、飞书或自定义 webhook 发布链路。',
+        status: activePublishChannels > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'MEDIUM',
+        owner: '渠道运营',
+        action_label: '打开渠道发布',
+        action_href: '/channels',
+        evidence: [`启用发布渠道 ${activePublishChannels} 个。`],
+        acceptance: null,
+      },
+      {
+        id: 'plugin-ecosystem',
+        category: 'THIRD_PARTY',
+        title: '插件生态安全验收',
+        description: '确认插件包完整性、权限声明、Tool Gateway 绑定和安装回滚流程。',
+        status: 'MANUAL',
+        severity: 'MEDIUM',
+        owner: '插件管理员',
+        action_label: '打开插件中心',
+        action_href: '/plugins',
+        evidence: ['插件安装已具备后端 manifest 和包完整性预检，需要真实插件包人工验收。'],
+        acceptance: null,
+      },
+      {
+        id: 'knowledge-hybrid',
+        category: 'RELEASE_VALIDATION',
+        title: '知识库混合检索',
+        description: '确认文档处理后台任务、Qdrant 向量和 OpenSearch 关键词检索数据一致。',
+        status: failedKnowledgeTasks > 0 ? 'WARNING' : qdrantSegments > 0 && openSearchSegments > 0 ? 'MANUAL' : 'WARNING',
+        severity: failedKnowledgeTasks > 0 ? 'HIGH' : 'MEDIUM',
+        owner: '知识库负责人',
+        action_label: '打开知识库健康',
+        action_href: '/knowledge/health',
+        evidence: [
+          `Qdrant 片段 ${qdrantSegments} 条，OpenSearch 片段 ${openSearchSegments} 条。`,
+          `失败任务 ${failedKnowledgeTasks} 个，待处理任务 ${pendingKnowledgeTasks} 个。`,
+        ],
+        acceptance: null,
+      },
+      {
+        id: 'smoke-runbook',
+        category: 'RELEASE_VALIDATION',
+        title: 'Smoke 与运行手册',
+        description: '确认生产 smoke、回滚演练、监控检查和发布记录按运行手册完成。',
+        status: 'MANUAL',
+        severity: 'HIGH',
+        owner: '发布负责人',
+        action_label: '查看监控中心',
+        action_href: '/monitor',
+        evidence: ['仓库提供 scripts/production-smoke.mjs、verify:prod-template 和 p0-12 运行手册。', 'verify:prod-template 可在不连接真实生产服务时校验模板。'],
+        acceptance: null,
+      },
+      {
+        id: 'security-policy',
+        category: 'RELEASE_VALIDATION',
+        title: '权限与安全闭环',
+        description: '确认 RBAC、ABAC、资源授权、高危审批和审计日志在生产租户启用。',
+        status: activeSecurityPolicies > 0 ? 'MANUAL' : 'WARNING',
+        severity: 'HIGH',
+        owner: '安全管理员',
+        action_label: '打开安全中心',
+        action_href: '/security',
+        evidence: [`启用安全策略 ${activeSecurityPolicies} 条。`, '菜单权限、数据权限和 Resource ACL 已具备独立管理页。'],
+        acceptance: null,
+      },
+      {
+        id: 'real-target-smoke',
+        category: 'RISK',
+        title: '真实目标环境未自动执行',
+        description: '当前平台不能替代生产目标环境的真实登录、上传、检索、调用、审批和回滚验收。',
+        status: 'BLOCKED',
+        severity: 'HIGH',
+        owner: '项目负责人',
+        action_label: '查看发布验收',
+        action_href: '/monitor',
+        evidence: ['需要使用真实域名、真实凭证和目标租户执行端到端验收。'],
+        acceptance: null,
+      },
+      {
+        id: 'third-party-credentials',
+        category: 'RISK',
+        title: '第三方凭证与配额需人工确认',
+        description: '模型、渠道、插件和 webhook 的生产凭证、白名单、额度和 SLA 必须由业务方确认。',
+        status: 'BLOCKED',
+        severity: 'HIGH',
+        owner: '业务负责人',
+        action_label: '打开成本中心',
+        action_href: '/billing',
+        evidence: ['平台只展示密钥数量和配置状态，不会读取或暴露凭证明文。'],
+        acceptance: null,
+      },
+    ] satisfies ProductionReadinessCheckItem[]).map((item): ProductionReadinessCheckItem => ({
+      ...item,
+      acceptance: acceptanceByCheckId.get(item.id) ?? null,
+    }));
+
+    const categories = (Object.keys(PRODUCTION_READINESS_CATEGORY_LABELS) as ProductionReadinessCategory[]).map(
+      (category) => mapProductionReadinessCategory(category, items),
+    );
+    const allItems = categories.flatMap((category) => category.items);
+    const readyChecks = countByStatus(allItems, 'READY');
+    const manualChecks = countByStatus(allItems, 'MANUAL');
+
+    return {
+      generated_at: new Date().toISOString(),
+      summary: {
+        total_checks: allItems.length,
+        ready_checks: readyChecks,
+        warning_checks: countByStatus(allItems, 'WARNING'),
+        blocked_checks: countByStatus(allItems, 'BLOCKED'),
+        manual_checks: manualChecks,
+        production_score: allItems.length ? Math.round(((readyChecks + manualChecks * 0.5) / allItems.length) * 100) : 0,
+      },
+      categories,
+    };
+  }
+
+  async acceptProductionReadinessCheck(
+    currentUser: AuthenticatedUser,
+    checkId: string,
+    input: AcceptProductionReadinessCheckInput,
+  ): Promise<ProductionReadinessAcceptance> {
+    const note = nullableText(input.note);
+    if (!note) {
+      throw new BadRequestException('Acceptance note is required');
+    }
+
+    const overview = await this.getProductionReadinessOverview(currentUser);
+    const check = overview.categories.flatMap((category) => category.items).find((item) => item.id === checkId);
+    if (!check) {
+      throw new NotFoundException('Production readiness check not found');
+    }
+
+    const event = await this.prisma.approvalAuditEvent.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        sourceType: 'PRODUCTION_READINESS',
+        sourceId: productionReadinessSourceId(checkId),
+        eventType: 'ACCEPTED',
+        eventStatus: 'SUCCESS',
+        title: `${check.title}验收通过`,
+        note,
+        metadata: toJsonInput({
+          check_id: check.id,
+          check_title: check.title,
+          check_category: check.category,
+          check_status: check.status,
+          check_severity: check.severity,
+        }),
+        actorId: currentUser.id,
+      },
+      include: approvalAuditInclude,
+    });
+
+    return mapProductionReadinessAcceptance(event);
   }
 
   async list(currentUser: AuthenticatedUser, query: ListSystemSettingsDto): Promise<SystemSettingItem[]> {
@@ -1028,6 +1445,34 @@ export class SystemSettingsService {
     return items.map(mapApprovalAuditEvent);
   }
 
+  private async loadProductionReadinessAcceptances(
+    tenantId: string,
+  ): Promise<Map<string, ProductionReadinessAcceptance>> {
+    const items = await this.prisma.approvalAuditEvent.findMany({
+      where: {
+        tenantId,
+        sourceType: 'PRODUCTION_READINESS',
+        eventType: 'ACCEPTED',
+        eventStatus: 'SUCCESS',
+      },
+      include: approvalAuditInclude,
+      orderBy: {
+        occurredAt: 'desc',
+      },
+    });
+    const output = new Map<string, ProductionReadinessAcceptance>();
+
+    const latestItems = [...items].sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime());
+
+    for (const item of latestItems) {
+      const checkId = productionReadinessCheckIdFromMetadata(item.metadata);
+      if (!checkId || output.has(checkId)) continue;
+      output.set(checkId, mapProductionReadinessAcceptance(item));
+    }
+
+    return output;
+  }
+
   private async recordNotificationApprovalAuditEvent(input: {
     tenantId: string;
     sourceId: string;
@@ -1166,6 +1611,41 @@ function isJsonPrimitive(value: unknown): value is string | number | boolean {
 
 function jsonEquals(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function mapProductionReadinessCategory(
+  category: ProductionReadinessCategory,
+  items: ProductionReadinessCheckItem[],
+): ProductionReadinessCategoryOverview {
+  const categoryItems = items.filter((item) => item.category === category);
+
+  return {
+    category,
+    label: PRODUCTION_READINESS_CATEGORY_LABELS[category],
+    description: PRODUCTION_READINESS_CATEGORY_DESCRIPTIONS[category],
+    ready_count: countByStatus(categoryItems, 'READY'),
+    warning_count: countByStatus(categoryItems, 'WARNING'),
+    blocked_count: countByStatus(categoryItems, 'BLOCKED'),
+    manual_count: countByStatus(categoryItems, 'MANUAL'),
+    items: categoryItems,
+  };
+}
+
+function countByStatus(items: ProductionReadinessCheckItem[], status: ProductionReadinessStatus) {
+  return items.filter((item) => item.status === status).length;
+}
+
+function envReady(keys: string[]) {
+  return keys.every((key) => Boolean(process.env[key]));
+}
+
+function envEvidence(...keys: string[]) {
+  const configured = keys.filter((key) => Boolean(process.env[key]));
+  const missing = keys.filter((key) => !process.env[key]);
+  const configuredText = configured.length ? `已配置 ${configured.join(', ')}` : '未检测到必需环境变量';
+  const missingText = missing.length ? `；缺少 ${missing.join(', ')}` : '';
+
+  return `${configuredText}${missingText}。`;
 }
 
 function assessNotificationPolicyImpact(
@@ -1506,6 +1986,38 @@ function mapApprovalAuditEvent(item: ApprovalAuditEventRecord): ApprovalAuditEve
       : null,
     occurred_at: item.occurredAt.toISOString(),
   };
+}
+
+function mapProductionReadinessAcceptance(item: ApprovalAuditEventRecord): ProductionReadinessAcceptance {
+  const checkId = productionReadinessCheckIdFromMetadata(item.metadata) ?? item.sourceId;
+
+  return {
+    check_id: checkId,
+    status: 'ACCEPTED',
+    note: item.note ?? '',
+    accepted_by: item.actor
+      ? {
+          id: item.actor.id,
+          name: item.actor.name,
+          email: item.actor.email,
+        }
+      : null,
+    accepted_at: item.occurredAt.toISOString(),
+  };
+}
+
+function productionReadinessCheckIdFromMetadata(metadata: Prisma.JsonValue | null) {
+  const value = normalizeJsonObject(metadata);
+  return typeof value?.check_id === 'string' ? value.check_id : null;
+}
+
+function productionReadinessSourceId(checkId: string) {
+  return uuidFromText(`production-readiness:${checkId}`);
+}
+
+function uuidFromText(value: string) {
+  const hash = createHash('sha256').update(value).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
 function nullableText(value?: string | null) {

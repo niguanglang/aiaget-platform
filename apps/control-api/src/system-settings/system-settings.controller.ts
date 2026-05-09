@@ -2,11 +2,14 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } f
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import type {
+  AcceptProductionReadinessCheckInput,
   NotificationPolicyAuditOverview,
   NotificationPolicyApprovalOverview,
   NotificationPolicyChangePreview,
   NotificationPolicySnapshotOverview,
   PaginatedResult,
+  ProductionReadinessAcceptance,
+  ProductionReadinessOverview,
   SystemSettingItem,
   SystemSettingSnapshotItem,
   SystemSettingOverview,
@@ -36,6 +39,26 @@ export class SystemSettingsController {
   @ApiOkResponse({ description: 'System setting overview for current tenant' })
   async getOverview(@CurrentUser() currentUser: AuthenticatedUser): Promise<SystemSettingOverview> {
     return this.systemSettingsService.getOverview(currentUser);
+  }
+
+  @Get('production-readiness')
+  @Permissions('system:settings:view')
+  @ApiOkResponse({ description: 'Production rollout readiness checklist for current tenant' })
+  async getProductionReadiness(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ProductionReadinessOverview> {
+    return this.systemSettingsService.getProductionReadinessOverview(currentUser);
+  }
+
+  @Post('production-readiness/:checkId/accept')
+  @Permissions('system:settings:manage')
+  @ApiOkResponse({ description: 'Record manual production readiness acceptance evidence' })
+  async acceptProductionReadinessCheck(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('checkId') checkId: string,
+    @Body() input: AcceptProductionReadinessCheckInput,
+  ): Promise<ProductionReadinessAcceptance> {
+    return this.systemSettingsService.acceptProductionReadinessCheck(currentUser, checkId, input);
   }
 
   @Get()

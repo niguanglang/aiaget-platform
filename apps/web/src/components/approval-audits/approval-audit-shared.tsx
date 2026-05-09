@@ -14,6 +14,7 @@ export const approvalAuditSourceTypes: ApprovalAuditSourceType[] = [
   'TOOL_APPROVAL',
   'NOTIFICATION_POLICY',
   'APPROVAL_AUDIT_ARCHIVE',
+  'PRODUCTION_READINESS',
 ];
 export const approvalAuditEventTypes: ApprovalAuditEventType[] = [
   'REQUEST_CREATED',
@@ -26,12 +27,14 @@ export const approvalAuditEventTypes: ApprovalAuditEventType[] = [
   'DOWNLOAD_URL_CREATED',
   'DELETE_REQUESTED',
   'DELETE_APPLIED',
+  'ACCEPTED',
 ];
 export const approvalAuditEventStatuses: ApprovalAuditEventStatus[] = ['INFO', 'SUCCESS', 'WARNING', 'FAILED'];
 
 export function approvalAuditSourceLabel(source: ApprovalAuditSourceType) {
   if (source === 'TOOL_APPROVAL') return '工具审批';
   if (source === 'APPROVAL_AUDIT_ARCHIVE') return '归档操作';
+  if (source === 'PRODUCTION_READINESS') return '生产落地验收';
   return '通知策略';
 }
 
@@ -47,6 +50,7 @@ export function approvalAuditEventTypeLabel(type: ApprovalAuditEventType) {
     DOWNLOAD_URL_CREATED: '下载链接',
     DELETE_REQUESTED: '删除申请',
     DELETE_APPLIED: '删除生效',
+    ACCEPTED: '验收确认',
   };
   return labels[type] ?? type;
 }

@@ -19,6 +19,7 @@ import type {
   AgentTeamRunReportArchiveListResult,
   AgentDetail,
   AgentListItem,
+  AcceptProductionReadinessCheckInput,
   BillingInvoiceDetail,
   BillingOverview,
   BillingQuotaEnforcementInput,
@@ -155,6 +156,8 @@ import type {
   PlatformUsageTrendPoint,
   PaginatedResult,
   PermissionCatalogGroup,
+  ProductionReadinessAcceptance,
+  ProductionReadinessOverview,
   PromptTemplateDetail,
   PromptTemplateListItem,
   PluginHookItem,
@@ -908,6 +911,20 @@ export function getStorageDownloadUrl(key: string) {
 
 export function getSystemSettingsOverview() {
   return request<SystemSettingOverview>('/system-settings/overview');
+}
+
+export function getProductionReadinessOverview() {
+  return request<ProductionReadinessOverview>('/system-settings/production-readiness');
+}
+
+export function acceptProductionReadinessCheck(
+  checkId: string,
+  input: AcceptProductionReadinessCheckInput,
+) {
+  return request<ProductionReadinessAcceptance>(`/system-settings/production-readiness/${checkId}/accept`, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export function listSystemSettings(params: {

@@ -1829,6 +1829,65 @@ export interface SystemSettingOverview {
   categories: SystemSettingCategorySummary[];
 }
 
+export type ProductionReadinessStatus = 'READY' | 'WARNING' | 'BLOCKED' | 'MANUAL';
+export type ProductionReadinessCategory =
+  | 'ENVIRONMENT'
+  | 'EXTERNAL_SERVICE'
+  | 'THIRD_PARTY'
+  | 'RELEASE_VALIDATION'
+  | 'RISK';
+export type ProductionReadinessSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface ProductionReadinessCheckItem {
+  id: string;
+  title: string;
+  description: string;
+  category: ProductionReadinessCategory;
+  status: ProductionReadinessStatus;
+  severity: ProductionReadinessSeverity;
+  owner: string;
+  action_label: string;
+  action_href: string;
+  evidence: string[];
+  acceptance: ProductionReadinessAcceptance | null;
+}
+
+export interface ProductionReadinessAcceptance {
+  check_id: string;
+  status: 'ACCEPTED';
+  note: string;
+  accepted_by: ApprovalAuditActorSummary | null;
+  accepted_at: string;
+}
+
+export interface AcceptProductionReadinessCheckInput {
+  note: string;
+}
+
+export interface ProductionReadinessCategoryOverview {
+  category: ProductionReadinessCategory;
+  label: string;
+  description: string;
+  ready_count: number;
+  warning_count: number;
+  blocked_count: number;
+  manual_count: number;
+  items: ProductionReadinessCheckItem[];
+}
+
+export interface ProductionReadinessOverview {
+  generated_at: string;
+  summary: {
+    total_checks: number;
+    ready_checks: number;
+    warning_checks: number;
+    blocked_checks: number;
+    manual_checks: number;
+    production_score: number;
+  };
+  categories: ProductionReadinessCategoryOverview[];
+}
+
 export interface UpdateSystemSettingInput {
   value?: unknown;
   status?: Extract<SystemSettingStatus, 'ACTIVE' | 'DISABLED'>;
@@ -1889,10 +1948,15 @@ export interface NotificationPolicyAuditOverview {
 
 export type SystemSettingSnapshotAction = 'UPDATE' | 'RESET' | 'ROLLBACK';
 export type SystemSettingSnapshotApprovalStatus = 'NOT_REQUIRED' | 'RESERVED' | 'PENDING' | 'APPROVED' | 'REJECTED';
-export type ApprovalAuditSourceType = 'TOOL_APPROVAL' | 'NOTIFICATION_POLICY' | 'APPROVAL_AUDIT_ARCHIVE';
+export type ApprovalAuditSourceType =
+  | 'TOOL_APPROVAL'
+  | 'NOTIFICATION_POLICY'
+  | 'APPROVAL_AUDIT_ARCHIVE'
+  | 'PRODUCTION_READINESS';
 export type ApprovalAuditEventType =
   | 'REQUEST_CREATED'
   | 'SUBMITTED'
+  | 'ACCEPTED'
   | 'APPROVED'
   | 'REJECTED'
   | 'APPLIED'

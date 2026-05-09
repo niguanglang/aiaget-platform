@@ -153,3 +153,4 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [P0 并行执行计划](./p0-parallel-execution-plan.md)
 - [生产运营闭环覆盖矩阵](./production-closure-coverage.md)
 - [企业 AI Agent 平台完成度审计](./production-completion-audit.md)
+- [生产交付记录模板](./production-delivery-record-template.md)

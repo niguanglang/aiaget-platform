@@ -149,4 +149,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)
 - [P0-5 统一事件与用量投影契约](./p0-5-event-usage-contract.md)
 - [P0-8 插件生态生产闭环](./p0-8-plugin-production-closure.md)
+- [P0-12 生产验收与发布 Runbook](./p0-12-production-release-runbook.md)
 - [P0 并行执行计划](./p0-parallel-execution-plan.md)
+- [生产运营闭环覆盖矩阵](./production-closure-coverage.md)
+- [企业 AI Agent 平台完成度审计](./production-completion-audit.md)

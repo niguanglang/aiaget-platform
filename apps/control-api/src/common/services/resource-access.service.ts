@@ -194,6 +194,88 @@ export class ResourceAccessService {
         ]);
         break;
       }
+      case 'DELIVERY_ASSET': {
+        const asset = await this.prisma.deliveryAsset.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+            deliveryReview: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+                solutionPackage: {
+                  select: {
+                    ownerId: true,
+                    createdBy: true,
+                    updatedBy: true,
+                  },
+                },
+              },
+            },
+            solutionPackage: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            skill: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            agent: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            knowledgeBase: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+          },
+        });
+        if (!asset) return null;
+        await addUsers([
+          asset.ownerId,
+          asset.createdBy,
+          asset.updatedBy,
+          asset.deliveryReview.ownerId,
+          asset.deliveryReview.createdBy,
+          asset.deliveryReview.updatedBy,
+          asset.deliveryReview.solutionPackage.ownerId,
+          asset.deliveryReview.solutionPackage.createdBy,
+          asset.deliveryReview.solutionPackage.updatedBy,
+          asset.solutionPackage?.ownerId,
+          asset.solutionPackage?.createdBy,
+          asset.solutionPackage?.updatedBy,
+          asset.skill?.ownerId,
+          asset.skill?.createdBy,
+          asset.skill?.updatedBy,
+          asset.agent?.ownerId,
+          asset.agent?.createdBy,
+          asset.agent?.updatedBy,
+          asset.knowledgeBase?.ownerId,
+          asset.knowledgeBase?.createdBy,
+          asset.knowledgeBase?.updatedBy,
+        ]);
+        break;
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const assessment = await this.prisma.customerAssessment.findFirst({
           where: {

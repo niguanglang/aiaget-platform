@@ -83,6 +83,8 @@ export const PERMISSION_CODES = {
   solutionPackageManage: 'solution:package:manage',
   deliveryReviewView: 'delivery:review:view',
   deliveryReviewManage: 'delivery:review:manage',
+  deliveryAssetView: 'delivery:asset:view',
+  deliveryAssetManage: 'delivery:asset:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -410,6 +412,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     name: 'Delivery Review Manage',
     module: 'delivery',
     resource: 'review',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.deliveryAssetView,
+    legacy_code: 'delivery_asset.read',
+    name: 'Delivery Asset View',
+    module: 'delivery',
+    resource: 'asset',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.deliveryAssetManage,
+    legacy_code: 'delivery_asset.write',
+    name: 'Delivery Asset Manage',
+    module: 'delivery',
+    resource: 'asset',
     action: 'manage',
   },
   {
@@ -976,6 +994,7 @@ export type DataScopeResourceType =
   | 'ROLE_SCENARIO'
   | 'SOLUTION_PACKAGE'
   | 'DELIVERY_REVIEW'
+  | 'DELIVERY_ASSET'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5573,6 +5592,149 @@ export interface UpdateDeliveryReviewInput {
   notes?: string | null;
   owner_id?: string | null;
   solution_package_id?: string | null;
+}
+
+export type DeliveryAssetType =
+  | 'SOLUTION_TEMPLATE'
+  | 'ACCEPTANCE_CHECKLIST'
+  | 'RISK_CHECKLIST'
+  | 'PROMPT_SOP'
+  | 'CUSTOMER_CASE'
+  | 'REPORT_ARCHIVE';
+export type DeliveryAssetStatus = 'DRAFT' | 'REVIEWING' | 'PUBLISHED' | 'RETIRED' | 'ARCHIVED';
+export type DeliveryAssetVisibility = 'PRIVATE' | 'TEAM' | 'TENANT' | 'PUBLIC';
+
+export interface DeliveryAssetOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface DeliveryAssetReviewSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  result: DeliveryReviewResult;
+  status: DeliveryReviewStatus;
+  acceptance_score: number;
+}
+
+export interface DeliveryAssetSolutionPackageSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  package_stage: SolutionPackageStage;
+  status: SolutionPackageStatus;
+  package_score: number;
+}
+
+export interface DeliveryAssetSkillSummary {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  status: string;
+}
+
+export interface DeliveryAssetAgentSummary {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+}
+
+export interface DeliveryAssetKnowledgeSummary {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+  visibility: string;
+}
+
+export interface DeliveryAssetLinkedResources {
+  delivery_review: DeliveryAssetReviewSummary | null;
+  solution_package: DeliveryAssetSolutionPackageSummary | null;
+  skill: DeliveryAssetSkillSummary | null;
+  agent: DeliveryAssetAgentSummary | null;
+  knowledge_base: DeliveryAssetKnowledgeSummary | null;
+}
+
+export interface DeliveryAssetListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  asset_type: DeliveryAssetType;
+  status: DeliveryAssetStatus;
+  visibility: DeliveryAssetVisibility;
+  reuse_score: number;
+  summary_preview: string;
+  reuse_guidance_preview: string;
+  owner: DeliveryAssetOwnerSummary | null;
+  linked_resources: DeliveryAssetLinkedResources;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryAssetDetail extends DeliveryAssetListItem {
+  summary: string;
+  business_value: string;
+  reuse_guidance: string;
+  source_context: string;
+  risk_notes: string;
+  next_action: string;
+  notes: string | null;
+}
+
+export interface CreateDeliveryAssetInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  asset_type?: DeliveryAssetType;
+  status?: DeliveryAssetStatus;
+  visibility?: DeliveryAssetVisibility;
+  reuse_score?: number;
+  summary: string;
+  business_value: string;
+  reuse_guidance: string;
+  source_context: string;
+  risk_notes: string;
+  next_action: string;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id: string;
+  solution_package_id?: string | null;
+  skill_id?: string | null;
+  agent_id?: string | null;
+  knowledge_id?: string | null;
+}
+
+export interface UpdateDeliveryAssetInput {
+  name?: string;
+  customer_name?: string;
+  asset_type?: DeliveryAssetType;
+  status?: DeliveryAssetStatus;
+  visibility?: DeliveryAssetVisibility;
+  reuse_score?: number;
+  summary?: string;
+  business_value?: string;
+  reuse_guidance?: string;
+  source_context?: string;
+  risk_notes?: string;
+  next_action?: string;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  solution_package_id?: string | null;
+  skill_id?: string | null;
+  agent_id?: string | null;
+  knowledge_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

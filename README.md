@@ -261,6 +261,11 @@ GET  /api/v1/storage/objects
 POST /api/v1/storage/objects
 DELETE /api/v1/storage/objects
 GET  /api/v1/storage/objects/download-url
+GET  /api/v1/delivery-assets
+POST /api/v1/delivery-assets
+GET  /api/v1/delivery-assets/:id
+PATCH /api/v1/delivery-assets/:id
+DELETE /api/v1/delivery-assets/:id
 POST /runtime/conversations/respond-stream
 ```
 
@@ -298,6 +303,7 @@ images/frontend-reference-design/m25-knowledge-minio-upload/
 images/frontend-reference-design/m26-qdrant-vector-store/
 images/frontend-reference-design/m26-opensearch-hybrid-retrieval/
 images/frontend-reference-design/knowledge-background-tasks/
+images/frontend-reference-design/deliveryassets/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

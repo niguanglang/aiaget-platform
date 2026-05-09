@@ -599,6 +599,15 @@ async function main() {
   const seededCustomerAssessment = await seedCustomerAssessment(tenant.id, admin.id);
   const seededSkill = await seedSkill(tenant.id, admin.id, seededAgent.id);
   const seededRoleScenario = await seedRoleScenario(tenant.id, admin.id, seededAgent.id, seededSkill.id);
+  const seededKnowledge = await prisma.knowledgeBase.findFirst({
+    where: {
+      tenantId: tenant.id,
+      deletedAt: null,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
   const seededSolutionPackage = await seedSolutionPackage(
     tenant.id,
     admin.id,
@@ -606,6 +615,15 @@ async function main() {
     seededRoleScenario.id,
   );
   const seededDeliveryReview = await seedDeliveryReview(tenant.id, admin.id, seededSolutionPackage.id);
+  const seededDeliveryAsset = await seedDeliveryAsset(
+    tenant.id,
+    admin.id,
+    seededDeliveryReview.id,
+    seededSolutionPackage.id,
+    seededSkill.id,
+    seededAgent.id,
+    seededKnowledge?.id ?? null,
+  );
   const seededChannel = await seedPublishChannels(tenant.id, admin.id, seededAgent.id);
   const seededPlugin = await seedPlugins(tenant.id, admin.id);
 
@@ -618,6 +636,7 @@ async function main() {
     seededRoleScenario.id,
     seededSolutionPackage.id,
     seededDeliveryReview.id,
+    seededDeliveryAsset.id,
     seededCustomerAssessment.id,
     seededSkill.id,
     seededChannel.id,
@@ -659,6 +678,7 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'role_scenarios', parentCode: 'agent_center', name: '岗位场景', type: 'MENU', path: '/role-scenarios', component: 'role-scenarios/page', icon: 'Workflow', permissionCode: PERMISSION_CODES.roleScenarioView, sortOrder: 25 },
   { code: 'solution_packages', parentCode: 'agent_center', name: '落地方案', type: 'MENU', path: '/solution-packages', component: 'solution-packages/page', icon: 'FileCheck2', permissionCode: PERMISSION_CODES.solutionPackageView, sortOrder: 30 },
   { code: 'delivery_reviews', parentCode: 'agent_center', name: '验收复盘', type: 'MENU', path: '/delivery-reviews', component: 'delivery-reviews/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.deliveryReviewView, sortOrder: 35 },
+  { code: 'delivery_assets', parentCode: 'agent_center', name: '成果资产', type: 'MENU', path: '/delivery-assets', component: 'delivery-assets/page', icon: 'ArchiveRestore', permissionCode: PERMISSION_CODES.deliveryAssetView, sortOrder: 37 },
   { code: 'customer_assessments', parentCode: 'agent_center', name: '客户评估', type: 'MENU', path: '/customer-assessments', component: 'customer-assessments/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.customerAssessmentView, sortOrder: 40 },
   { code: 'skills', parentCode: 'agent_center', name: '技能资产', type: 'MENU', path: '/skills', component: 'skills/page', icon: 'Blocks', permissionCode: PERMISSION_CODES.skillHubView, sortOrder: 45 },
   { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 50 },
@@ -742,6 +762,9 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'delivery_review_create', parentCode: 'delivery_reviews', name: '新建验收复盘', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryReviewManage, sortOrder: 10, visible: false },
   { code: 'delivery_review_update', parentCode: 'delivery_reviews', name: '编辑验收复盘', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryReviewManage, sortOrder: 20, visible: false },
   { code: 'delivery_review_archive', parentCode: 'delivery_reviews', name: '归档验收复盘', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryReviewManage, sortOrder: 30, visible: false },
+  { code: 'delivery_asset_create', parentCode: 'delivery_assets', name: '新建成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 10, visible: false },
+  { code: 'delivery_asset_update', parentCode: 'delivery_assets', name: '编辑成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 20, visible: false },
+  { code: 'delivery_asset_archive', parentCode: 'delivery_assets', name: '归档成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 30, visible: false },
   { code: 'customer_assessment_create', parentCode: 'customer_assessments', name: '新建客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 10, visible: false },
   { code: 'customer_assessment_update', parentCode: 'customer_assessments', name: '编辑客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 20, visible: false },
   { code: 'customer_assessment_archive', parentCode: 'customer_assessments', name: '归档客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 30, visible: false },
@@ -834,6 +857,7 @@ const dataScopeResourceTypes = [
   'ROLE_SCENARIO',
   'SOLUTION_PACKAGE',
   'DELIVERY_REVIEW',
+  'DELIVERY_ASSET',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -1372,6 +1396,75 @@ async function seedDeliveryReview(tenantId: string, operatorId: string, solution
   });
 }
 
+async function seedDeliveryAsset(
+  tenantId: string,
+  operatorId: string,
+  deliveryReviewId: string,
+  solutionPackageId: string,
+  skillId: string,
+  agentId: string,
+  knowledgeId: string | null,
+) {
+  return prisma.deliveryAsset.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'sales_solution_acceptance_asset',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      deliveryReviewId,
+      solutionPackageId,
+      skillId,
+      agentId,
+      knowledgeId,
+      name: '售前方案验收资产包',
+      code: 'sales_solution_acceptance_asset',
+      customerName: '华中设计院',
+      assetType: 'SOLUTION_TEMPLATE',
+      status: 'PUBLISHED',
+      visibility: 'TENANT',
+      reuseScore: 92,
+      summary: '沉淀售前方案样板、引用来源检查、风险提示和验收清单，供同类任务型客户试点复用。',
+      businessValue: '降低方案准备时间，减少验收返工，并统一引用来源、风险说明和验收口径。',
+      reuseGuidance: '适用于任务型客户的售前方案试点，可复制到投标资料问答、项目复盘助手和客户成功运营场景。',
+      sourceContext: '来源于华中设计院试点验收复盘，客户确认样板成果可进入扩展阶段。',
+      riskNotes: '复用前需要确认客户资料权限、行业术语、知识库密级和输出审核责任。',
+      nextAction: '把资产同步到 Skill Hub，并标记为售前方案交付推荐资产。',
+      tags: ['成果资产', '售前', '验收', '复用'],
+      notes: 'M123 默认样板，用于把验收复盘沉淀为可复用交付资产。',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      deliveryReviewId,
+      solutionPackageId,
+      skillId,
+      agentId,
+      knowledgeId,
+      name: '售前方案验收资产包',
+      customerName: '华中设计院',
+      assetType: 'SOLUTION_TEMPLATE',
+      status: 'PUBLISHED',
+      visibility: 'TENANT',
+      reuseScore: 92,
+      summary: '沉淀售前方案样板、引用来源检查、风险提示和验收清单，供同类任务型客户试点复用。',
+      businessValue: '降低方案准备时间，减少验收返工，并统一引用来源、风险说明和验收口径。',
+      reuseGuidance: '适用于任务型客户的售前方案试点，可复制到投标资料问答、项目复盘助手和客户成功运营场景。',
+      sourceContext: '来源于华中设计院试点验收复盘，客户确认样板成果可进入扩展阶段。',
+      riskNotes: '复用前需要确认客户资料权限、行业术语、知识库密级和输出审核责任。',
+      nextAction: '把资产同步到 Skill Hub，并标记为售前方案交付推荐资产。',
+      tags: ['成果资产', '售前', '验收', '复用'],
+      notes: 'M123 默认样板，用于把验收复盘沉淀为可复用交付资产。',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+}
+
 function calculateSeedReadinessScore(scores: Record<string, number>) {
   const sum = Object.values(scores).reduce((total, score) => total + score, 0);
 
@@ -1776,6 +1869,7 @@ async function seedResourceAcls(
   roleScenarioId: string,
   solutionPackageId: string,
   deliveryReviewId: string,
+  deliveryAssetId: string,
   customerAssessmentId: string,
   skillId: string,
   channelId: string,
@@ -1841,6 +1935,14 @@ async function seedResourceAcls(
     ...[PERMISSION_CODES.deliveryReviewView, PERMISSION_CODES.deliveryReviewManage].map((permissionCode) => ({
       resourceType: 'DELIVERY_REVIEW',
       resourceId: deliveryReviewId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
+    ...[PERMISSION_CODES.deliveryAssetView, PERMISSION_CODES.deliveryAssetManage].map((permissionCode) => ({
+      resourceType: 'DELIVERY_ASSET',
+      resourceId: deliveryAssetId,
       subjectType: 'ROLE',
       subjectId: adminRoleId,
       permissionCode,

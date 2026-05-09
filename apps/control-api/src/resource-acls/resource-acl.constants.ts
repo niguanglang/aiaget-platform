@@ -10,6 +10,7 @@ export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'ROLE_SCENARIO',
   'SOLUTION_PACKAGE',
   'DELIVERY_REVIEW',
+  'DELIVERY_ASSET',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -77,6 +78,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: '验收复盘',
     description: '控制具体交付验收复盘的查看、编辑、归档、问题复盘和扩展计划。',
     permission_codes: ['delivery:review:view', 'delivery:review:manage'],
+  },
+  {
+    resource_type: 'DELIVERY_ASSET',
+    name: '成果资产',
+    description: '控制具体成果资产的查看、编辑、归档、复用指引和关联资源。',
+    permission_codes: ['delivery:asset:view', 'delivery:asset:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

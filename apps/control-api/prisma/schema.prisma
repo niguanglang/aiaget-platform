@@ -44,6 +44,7 @@ model Tenant {
   customerAssessments       CustomerAssessment[]
   solutionPackages          SolutionPackage[]
   deliveryReviews           DeliveryReview[]
+  deliveryAssets            DeliveryAsset[]
   agentVersions             AgentVersion[]
   agentModelBindings        AgentModelBinding[]
   agentPromptBindings       AgentPromptBinding[]
@@ -142,6 +143,7 @@ model User {
   ownedRoleScenarios            RoleScenario[]             @relation("RoleScenarioOwner")
   ownedSolutionPackages         SolutionPackage[]          @relation("SolutionPackageOwner")
   ownedDeliveryReviews          DeliveryReview[]           @relation("DeliveryReviewOwner")
+  ownedDeliveryAssets           DeliveryAsset[]            @relation("DeliveryAssetOwner")
   createdAgentVersions          AgentVersion[]             @relation("AgentVersionCreator")
   agentAuditLogs                AgentAuditLog[]            @relation("AgentAuditOperator")
   ownedPromptTemplates          PromptTemplate[]           @relation("PromptTemplateOwner")
@@ -816,6 +818,7 @@ model Agent {
   handoffSources          AgentTeamHandoff[]      @relation("AgentTeamHandoffFromAgent")
   handoffTargets          AgentTeamHandoff[]      @relation("AgentTeamHandoffToAgent")
   roleScenarios           RoleScenario[]
+  deliveryAssets          DeliveryAsset[]         @relation("DeliveryAssetAgent")
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2669,6 +2672,7 @@ model SolutionPackage {
   customerAssessment   CustomerAssessment? @relation(fields: [customerAssessmentId], references: [id])
   roleScenario         RoleScenario?       @relation(fields: [roleScenarioId], references: [id])
   deliveryReviews      DeliveryReview[]
+  deliveryAssets       DeliveryAsset[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2720,6 +2724,7 @@ model DeliveryReview {
   tenant             Tenant           @relation(fields: [tenantId], references: [id])
   owner              User?            @relation("DeliveryReviewOwner", fields: [ownerId], references: [id])
   solutionPackage    SolutionPackage  @relation(fields: [solutionPackageId], references: [id])
+  deliveryAssets     DeliveryAsset[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2737,6 +2742,63 @@ model DeliveryReview {
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("delivery_review")
+}
+
+model DeliveryAsset {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  ownerId           String?          @map("owner_id") @db.Uuid
+  deliveryReviewId  String           @map("delivery_review_id") @db.Uuid
+  solutionPackageId String?          @map("solution_package_id") @db.Uuid
+  skillId           String?          @map("skill_id") @db.Uuid
+  agentId           String?          @map("agent_id") @db.Uuid
+  knowledgeId       String?          @map("knowledge_id") @db.Uuid
+  name              String           @db.VarChar(180)
+  code              String           @db.VarChar(100)
+  customerName      String           @map("customer_name") @db.VarChar(160)
+  assetType         String           @default("SOLUTION_TEMPLATE") @map("asset_type") @db.VarChar(50)
+  status            String           @default("DRAFT") @db.VarChar(40)
+  visibility        String           @default("PRIVATE") @db.VarChar(30)
+  reuseScore        Int              @default(0) @map("reuse_score")
+  summary           String           @db.Text
+  businessValue     String           @map("business_value") @db.Text
+  reuseGuidance     String           @map("reuse_guidance") @db.Text
+  sourceContext     String           @map("source_context") @db.Text
+  riskNotes         String           @map("risk_notes") @db.Text
+  nextAction        String           @map("next_action") @db.Text
+  tags              String[]         @default([])
+  notes             String?          @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at")
+  createdBy         String?          @map("created_by") @db.Uuid
+  updatedBy         String?          @map("updated_by") @db.Uuid
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+  owner             User?            @relation("DeliveryAssetOwner", fields: [ownerId], references: [id])
+  deliveryReview    DeliveryReview   @relation(fields: [deliveryReviewId], references: [id])
+  solutionPackage   SolutionPackage? @relation(fields: [solutionPackageId], references: [id])
+  skill             Skill?           @relation(fields: [skillId], references: [id])
+  agent             Agent?           @relation("DeliveryAssetAgent", fields: [agentId], references: [id])
+  knowledgeBase     KnowledgeBase?   @relation(fields: [knowledgeId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([deliveryReviewId])
+  @@index([solutionPackageId])
+  @@index([skillId])
+  @@index([agentId])
+  @@index([knowledgeId])
+  @@index([customerName])
+  @@index([assetType])
+  @@index([status])
+  @@index([visibility])
+  @@index([reuseScore])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("delivery_asset")
 }
 
 model Skill {
@@ -2766,6 +2828,7 @@ model Skill {
   versions          SkillVersion[]
   agentBindings     AgentSkillBinding[]
   roleScenarios     RoleScenario[]
+  deliveryAssets    DeliveryAsset[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2829,6 +2892,7 @@ model KnowledgeBase {
   tasks       KnowledgeEmbeddingTask[]
   recallLogs  KnowledgeRecallLog[]
   roleScenarios RoleScenario[]
+  deliveryAssets DeliveryAsset[]
 
   @@unique([tenantId, code])
   @@index([tenantId])

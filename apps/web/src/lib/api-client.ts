@@ -37,6 +37,7 @@ import type {
   CreateAgentPromptBindingInput,
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
+  CreateDeliveryAssetInput,
   CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
   CreateSolutionPackageInput,
@@ -191,6 +192,8 @@ import type {
   RoleScenarioListItem,
   SolutionPackageDetail,
   SolutionPackageListItem,
+  DeliveryAssetDetail,
+  DeliveryAssetListItem,
   DeliveryReviewDetail,
   DeliveryReviewListItem,
   RollbackAgentInput,
@@ -291,6 +294,7 @@ import type {
   UpdateAgentTeamInput,
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
+  UpdateDeliveryAssetInput,
   UpdateDeliveryReviewInput,
   UpdateRoleScenarioInput,
   UpdateSolutionPackageInput,
@@ -2148,6 +2152,47 @@ export function updateDeliveryReview(reviewId: string, input: UpdateDeliveryRevi
 
 export function deleteDeliveryReview(reviewId: string) {
   return request<{ success: boolean }>(`/delivery-reviews/${reviewId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listDeliveryAssets(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  asset_type?: string;
+  status?: string;
+  visibility?: string;
+  owner_id?: string;
+  delivery_review_id?: string;
+  solution_package_id?: string;
+  skill_id?: string;
+  agent_id?: string;
+  knowledge_id?: string;
+}) {
+  return request<PaginatedResult<DeliveryAssetListItem>>(`/delivery-assets?${toSearchParams(params)}`);
+}
+
+export function createDeliveryAsset(input: CreateDeliveryAssetInput) {
+  return request<DeliveryAssetDetail>('/delivery-assets', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getDeliveryAsset(assetId: string) {
+  return request<DeliveryAssetDetail>(`/delivery-assets/${assetId}`);
+}
+
+export function updateDeliveryAsset(assetId: string, input: UpdateDeliveryAssetInput) {
+  return request<DeliveryAssetDetail>(`/delivery-assets/${assetId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteDeliveryAsset(assetId: string) {
+  return request<{ success: boolean }>(`/delivery-assets/${assetId}`, {
     method: 'DELETE',
   });
 }

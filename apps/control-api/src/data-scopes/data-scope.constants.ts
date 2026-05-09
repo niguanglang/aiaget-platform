@@ -21,6 +21,7 @@ export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'ROLE_SCENARIO',
   'SOLUTION_PACKAGE',
   'DELIVERY_REVIEW',
+  'DELIVERY_ASSET',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -63,6 +64,12 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: '验收复盘',
     description: '控制交付验收、复盘结论、改进行动、扩展计划和可复用资产沉淀的可访问范围。',
     permission_codes: ['delivery:review:view', 'delivery:review:manage'],
+  },
+  {
+    resource_type: 'DELIVERY_ASSET',
+    name: '成果资产',
+    description: '控制交付成果资产、复用模板、验收清单、风险清单、案例和归档报告的可访问范围。',
+    permission_codes: ['delivery:asset:view', 'delivery:asset:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

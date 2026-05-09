@@ -534,6 +534,38 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'DELIVERY_ASSET': {
+        const items = await this.prisma.deliveryAsset.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { customerName: contains },
+                    { summary: contains },
+                    { businessValue: contains },
+                    { reuseGuidance: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'DELIVERY_ASSET',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.assetType}`,
+          status: item.status,
+        }));
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const items = await this.prisma.customerAssessment.findMany({
           where: {
@@ -880,6 +912,19 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: `${item.customerName} / ${item.reviewStage}`,
+          status: item.status,
+        }));
+      }
+      case 'DELIVERY_ASSET': {
+        const items = await this.prisma.deliveryAsset.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'DELIVERY_ASSET',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.assetType}`,
           status: item.status,
         }));
       }

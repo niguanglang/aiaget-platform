@@ -47,6 +47,7 @@ model Tenant {
   deliveryAssets            DeliveryAsset[]
   customerSuccessPlans      CustomerSuccessPlan[]
   customerSuccessActions    CustomerSuccessAction[]
+  customerSuccessOpportunities CustomerSuccessOpportunity[]
   agentVersions             AgentVersion[]
   agentModelBindings        AgentModelBinding[]
   agentPromptBindings       AgentPromptBinding[]
@@ -148,6 +149,7 @@ model User {
   ownedDeliveryAssets           DeliveryAsset[]            @relation("DeliveryAssetOwner")
   ownedCustomerSuccessPlans     CustomerSuccessPlan[]       @relation("CustomerSuccessPlanOwner")
   ownedCustomerSuccessActions   CustomerSuccessAction[]     @relation("CustomerSuccessActionOwner")
+  ownedCustomerSuccessOpportunities CustomerSuccessOpportunity[] @relation("CustomerSuccessOpportunityOwner")
   createdAgentVersions          AgentVersion[]             @relation("AgentVersionCreator")
   agentAuditLogs                AgentAuditLog[]            @relation("AgentAuditOperator")
   ownedPromptTemplates          PromptTemplate[]           @relation("PromptTemplateOwner")
@@ -2679,6 +2681,7 @@ model SolutionPackage {
   deliveryAssets       DeliveryAsset[]
   customerSuccessPlans CustomerSuccessPlan[]
   customerSuccessActions CustomerSuccessAction[]
+  customerSuccessOpportunities CustomerSuccessOpportunity[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2733,6 +2736,7 @@ model DeliveryReview {
   deliveryAssets     DeliveryAsset[]
   customerSuccessPlans CustomerSuccessPlan[]
   customerSuccessActions CustomerSuccessAction[]
+  customerSuccessOpportunities CustomerSuccessOpportunity[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2790,6 +2794,7 @@ model DeliveryAsset {
   knowledgeBase     KnowledgeBase?   @relation(fields: [knowledgeId], references: [id])
   customerSuccessPlans CustomerSuccessPlan[]
   customerSuccessActions CustomerSuccessAction[]
+  customerSuccessOpportunities CustomerSuccessOpportunity[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2847,6 +2852,7 @@ model CustomerSuccessPlan {
   deliveryAsset     DeliveryAsset?   @relation(fields: [deliveryAssetId], references: [id])
   solutionPackage   SolutionPackage? @relation(fields: [solutionPackageId], references: [id])
   actions           CustomerSuccessAction[]
+  opportunities     CustomerSuccessOpportunity[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2905,6 +2911,7 @@ model CustomerSuccessAction {
   deliveryReview        DeliveryReview?     @relation(fields: [deliveryReviewId], references: [id])
   deliveryAsset         DeliveryAsset?      @relation(fields: [deliveryAssetId], references: [id])
   solutionPackage       SolutionPackage?    @relation(fields: [solutionPackageId], references: [id])
+  opportunities         CustomerSuccessOpportunity[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2926,6 +2933,78 @@ model CustomerSuccessAction {
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("customer_success_action")
+}
+
+model CustomerSuccessOpportunity {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  ownerId               String?                @map("owner_id") @db.Uuid
+  customerSuccessPlanId String                 @map("customer_success_plan_id") @db.Uuid
+  customerSuccessActionId String?              @map("customer_success_action_id") @db.Uuid
+  deliveryReviewId      String?                @map("delivery_review_id") @db.Uuid
+  deliveryAssetId       String?                @map("delivery_asset_id") @db.Uuid
+  solutionPackageId     String?                @map("solution_package_id") @db.Uuid
+  name                  String                 @db.VarChar(180)
+  code                  String                 @db.VarChar(100)
+  customerName          String                 @map("customer_name") @db.VarChar(160)
+  opportunityType       String                 @default("RENEWAL") @map("opportunity_type") @db.VarChar(50)
+  stage                 String                 @default("DISCOVERY") @db.VarChar(50)
+  status                String                 @default("OPEN") @db.VarChar(40)
+  priority              String                 @default("MEDIUM") @db.VarChar(20)
+  confidenceLevel       String                 @default("MEDIUM") @map("confidence_level") @db.VarChar(20)
+  riskLevel             String                 @default("LOW") @map("risk_level") @db.VarChar(20)
+  opportunityScore      Int                    @default(0) @map("opportunity_score")
+  estimatedAmount       Decimal                @default(0) @map("estimated_amount") @db.Decimal(18, 2)
+  probability           Int                    @default(0)
+  expectedCloseAt       DateTime?              @map("expected_close_at")
+  closedAt              DateTime?              @map("closed_at")
+  opportunitySummary    String                 @map("opportunity_summary") @db.Text
+  customerValue         String                 @map("customer_value") @db.Text
+  commercialStrategy    String                 @map("commercial_strategy") @db.Text
+  decisionPath          String                 @map("decision_path") @db.Text
+  riskSummary           String                 @map("risk_summary") @db.Text
+  nextAction            String                 @map("next_action") @db.Text
+  lossReason            String?                @map("loss_reason") @db.Text
+  tags                  String[]               @default([])
+  notes                 String?                @db.Text
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  deletedAt             DateTime?              @map("deleted_at")
+  createdBy             String?                @map("created_by") @db.Uuid
+  updatedBy             String?                @map("updated_by") @db.Uuid
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  owner                 User?                  @relation("CustomerSuccessOpportunityOwner", fields: [ownerId], references: [id])
+  customerSuccessPlan   CustomerSuccessPlan    @relation(fields: [customerSuccessPlanId], references: [id])
+  customerSuccessAction CustomerSuccessAction?  @relation(fields: [customerSuccessActionId], references: [id])
+  deliveryReview        DeliveryReview?        @relation(fields: [deliveryReviewId], references: [id])
+  deliveryAsset         DeliveryAsset?         @relation(fields: [deliveryAssetId], references: [id])
+  solutionPackage       SolutionPackage?       @relation(fields: [solutionPackageId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([customerSuccessPlanId])
+  @@index([customerSuccessActionId])
+  @@index([deliveryReviewId])
+  @@index([deliveryAssetId])
+  @@index([solutionPackageId])
+  @@index([customerName])
+  @@index([opportunityType])
+  @@index([stage])
+  @@index([status])
+  @@index([priority])
+  @@index([confidenceLevel])
+  @@index([riskLevel])
+  @@index([opportunityScore])
+  @@index([estimatedAmount])
+  @@index([probability])
+  @@index([expectedCloseAt])
+  @@index([closedAt])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("customer_success_opportunity")
 }
 
 model Skill {

@@ -39,6 +39,7 @@ import type {
   CreateCustomerAssessmentInput,
   CreateDeliveryAssetInput,
   CreateCustomerSuccessActionInput,
+  CreateCustomerSuccessOpportunityInput,
   CreateCustomerSuccessPlanInput,
   CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
@@ -198,6 +199,8 @@ import type {
   DeliveryAssetListItem,
   CustomerSuccessActionDetail,
   CustomerSuccessActionListItem,
+  CustomerSuccessOpportunityDetail,
+  CustomerSuccessOpportunityListItem,
   CustomerSuccessPlanDetail,
   CustomerSuccessPlanListItem,
   DeliveryReviewDetail,
@@ -302,6 +305,7 @@ import type {
   UpdateCustomerAssessmentInput,
   UpdateDeliveryAssetInput,
   UpdateCustomerSuccessActionInput,
+  UpdateCustomerSuccessOpportunityInput,
   UpdateCustomerSuccessPlanInput,
   UpdateDeliveryReviewInput,
   UpdateRoleScenarioInput,
@@ -2282,6 +2286,50 @@ export function updateCustomerSuccessAction(actionId: string, input: UpdateCusto
 
 export function deleteCustomerSuccessAction(actionId: string) {
   return request<{ success: boolean }>(`/customer-success-actions/${actionId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listCustomerSuccessOpportunities(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  opportunity_type?: string;
+  stage?: string;
+  status?: string;
+  priority?: string;
+  confidence_level?: string;
+  risk_level?: string;
+  owner_id?: string;
+  customer_success_plan_id?: string;
+  customer_success_action_id?: string;
+  delivery_review_id?: string;
+  delivery_asset_id?: string;
+  solution_package_id?: string;
+}) {
+  return request<PaginatedResult<CustomerSuccessOpportunityListItem>>(`/customer-success-opportunities?${toSearchParams(params)}`);
+}
+
+export function createCustomerSuccessOpportunity(input: CreateCustomerSuccessOpportunityInput) {
+  return request<CustomerSuccessOpportunityDetail>('/customer-success-opportunities', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getCustomerSuccessOpportunity(opportunityId: string) {
+  return request<CustomerSuccessOpportunityDetail>(`/customer-success-opportunities/${opportunityId}`);
+}
+
+export function updateCustomerSuccessOpportunity(opportunityId: string, input: UpdateCustomerSuccessOpportunityInput) {
+  return request<CustomerSuccessOpportunityDetail>(`/customer-success-opportunities/${opportunityId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteCustomerSuccessOpportunity(opportunityId: string) {
+  return request<{ success: boolean }>(`/customer-success-opportunities/${opportunityId}`, {
     method: 'DELETE',
   });
 }

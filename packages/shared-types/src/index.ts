@@ -89,6 +89,8 @@ export const PERMISSION_CODES = {
   customerSuccessManage: 'customer:success:manage',
   customerSuccessActionView: 'customer:success_action:view',
   customerSuccessActionManage: 'customer:success_action:manage',
+  customerSuccessOpportunityView: 'customer:success_opportunity:view',
+  customerSuccessOpportunityManage: 'customer:success_opportunity:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -464,6 +466,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     name: 'Customer Success Action Manage',
     module: 'customer',
     resource: 'success_action',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessOpportunityView,
+    legacy_code: 'customer_success_opportunity.read',
+    name: 'Customer Success Opportunity View',
+    module: 'customer',
+    resource: 'success_opportunity',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessOpportunityManage,
+    legacy_code: 'customer_success_opportunity.write',
+    name: 'Customer Success Opportunity Manage',
+    module: 'customer',
+    resource: 'success_opportunity',
     action: 'manage',
   },
   {
@@ -1033,6 +1051,7 @@ export type DataScopeResourceType =
   | 'DELIVERY_ASSET'
   | 'CUSTOMER_SUCCESS_PLAN'
   | 'CUSTOMER_SUCCESS_ACTION'
+  | 'CUSTOMER_SUCCESS_OPPORTUNITY'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -6014,6 +6033,141 @@ export interface UpdateCustomerSuccessActionInput {
   next_action?: string;
   due_at?: string | null;
   completed_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
+}
+
+export type CustomerSuccessOpportunityType = 'RENEWAL' | 'EXPANSION' | 'UPSELL' | 'CROSS_SELL' | 'RISK_SAVE';
+export type CustomerSuccessOpportunityStage =
+  | 'DISCOVERY'
+  | 'QUALIFICATION'
+  | 'PROPOSAL'
+  | 'NEGOTIATION'
+  | 'WON'
+  | 'LOST'
+  | 'ARCHIVED';
+export type CustomerSuccessOpportunityStatus = 'OPEN' | 'AT_RISK' | 'WON' | 'LOST' | 'ARCHIVED';
+export type CustomerSuccessOpportunityPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type CustomerSuccessOpportunityConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type CustomerSuccessOpportunityRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface CustomerSuccessOpportunityActionSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  action_type: CustomerSuccessActionType;
+  status: CustomerSuccessActionStatus;
+  priority: CustomerSuccessActionPriority;
+  risk_level: CustomerSuccessActionRiskLevel;
+  action_score: number;
+}
+
+export interface CustomerSuccessOpportunityLinkedResources {
+  customer_success_plan: CustomerSuccessActionPlanSummary | null;
+  customer_success_action: CustomerSuccessOpportunityActionSummary | null;
+  delivery_review: CustomerSuccessPlanReviewSummary | null;
+  delivery_asset: CustomerSuccessPlanAssetSummary | null;
+  solution_package: CustomerSuccessPlanSolutionPackageSummary | null;
+}
+
+export interface CustomerSuccessOpportunityListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  opportunity_type: CustomerSuccessOpportunityType;
+  stage: CustomerSuccessOpportunityStage;
+  status: CustomerSuccessOpportunityStatus;
+  priority: CustomerSuccessOpportunityPriority;
+  confidence_level: CustomerSuccessOpportunityConfidenceLevel;
+  risk_level: CustomerSuccessOpportunityRiskLevel;
+  opportunity_score: number;
+  estimated_amount: number;
+  probability: number;
+  weighted_amount: number;
+  opportunity_summary_preview: string;
+  next_action_preview: string;
+  owner: CustomerSuccessPlanOwnerSummary | null;
+  linked_resources: CustomerSuccessOpportunityLinkedResources;
+  expected_close_at: string | null;
+  closed_at: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSuccessOpportunityDetail extends CustomerSuccessOpportunityListItem {
+  opportunity_summary: string;
+  customer_value: string;
+  commercial_strategy: string;
+  decision_path: string;
+  risk_summary: string;
+  next_action: string;
+  loss_reason: string | null;
+  notes: string | null;
+}
+
+export interface CreateCustomerSuccessOpportunityInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  customer_success_plan_id: string;
+  customer_success_action_id?: string | null;
+  opportunity_type?: CustomerSuccessOpportunityType;
+  stage?: CustomerSuccessOpportunityStage;
+  status?: CustomerSuccessOpportunityStatus;
+  priority?: CustomerSuccessOpportunityPriority;
+  confidence_level?: CustomerSuccessOpportunityConfidenceLevel;
+  risk_level?: CustomerSuccessOpportunityRiskLevel;
+  opportunity_score?: number;
+  estimated_amount?: number;
+  probability?: number;
+  expected_close_at?: string | null;
+  closed_at?: string | null;
+  opportunity_summary: string;
+  customer_value: string;
+  commercial_strategy: string;
+  decision_path: string;
+  risk_summary: string;
+  next_action: string;
+  loss_reason?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
+}
+
+export interface UpdateCustomerSuccessOpportunityInput {
+  name?: string;
+  customer_name?: string;
+  customer_success_plan_id?: string;
+  customer_success_action_id?: string | null;
+  opportunity_type?: CustomerSuccessOpportunityType;
+  stage?: CustomerSuccessOpportunityStage;
+  status?: CustomerSuccessOpportunityStatus;
+  priority?: CustomerSuccessOpportunityPriority;
+  confidence_level?: CustomerSuccessOpportunityConfidenceLevel;
+  risk_level?: CustomerSuccessOpportunityRiskLevel;
+  opportunity_score?: number;
+  estimated_amount?: number;
+  probability?: number;
+  expected_close_at?: string | null;
+  closed_at?: string | null;
+  opportunity_summary?: string;
+  customer_value?: string;
+  commercial_strategy?: string;
+  decision_path?: string;
+  risk_summary?: string;
+  next_action?: string;
+  loss_reason?: string | null;
   tags?: string[];
   notes?: string | null;
   owner_id?: string | null;

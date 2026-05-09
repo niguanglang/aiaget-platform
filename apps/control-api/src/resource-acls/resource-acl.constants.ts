@@ -13,6 +13,7 @@ export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'DELIVERY_ASSET',
   'CUSTOMER_SUCCESS_PLAN',
   'CUSTOMER_SUCCESS_ACTION',
+  'CUSTOMER_SUCCESS_OPPORTUNITY',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -98,6 +99,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: '客户成功行动',
     description: '控制具体客户成功行动的查看、编辑、归档、执行记录、风险阻塞和完成证据。',
     permission_codes: ['customer:success_action:view', 'customer:success_action:manage'],
+  },
+  {
+    resource_type: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    name: '续约机会',
+    description: '控制具体客户成功续约机会的查看、编辑、归档、商务策略、决策路径和风险挽留。',
+    permission_codes: ['customer:success_opportunity:view', 'customer:success_opportunity:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

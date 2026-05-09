@@ -24,6 +24,7 @@ export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'DELIVERY_ASSET',
   'CUSTOMER_SUCCESS_PLAN',
   'CUSTOMER_SUCCESS_ACTION',
+  'CUSTOMER_SUCCESS_OPPORTUNITY',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -84,6 +85,12 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: '客户成功行动',
     description: '控制客户成功行动、执行记录、阻塞风险、完成证据和后续跟进事项的可访问范围。',
     permission_codes: ['customer:success_action:view', 'customer:success_action:manage'],
+  },
+  {
+    resource_type: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    name: '续约机会',
+    description: '控制客户成功续约、扩展、增购、交叉销售和风险挽留机会的可访问范围。',
+    permission_codes: ['customer:success_opportunity:view', 'customer:success_opportunity:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

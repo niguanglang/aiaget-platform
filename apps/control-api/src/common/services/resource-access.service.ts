@@ -400,6 +400,78 @@ export class ResourceAccessService {
         ]);
         break;
       }
+      case 'CUSTOMER_SUCCESS_OPPORTUNITY': {
+        const opportunity = await this.prisma.customerSuccessOpportunity.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+            customerSuccessPlan: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            customerSuccessAction: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            deliveryReview: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            deliveryAsset: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            solutionPackage: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+          },
+        });
+        if (!opportunity) return null;
+        await addUsers([
+          opportunity.ownerId,
+          opportunity.createdBy,
+          opportunity.updatedBy,
+          opportunity.customerSuccessPlan.ownerId,
+          opportunity.customerSuccessPlan.createdBy,
+          opportunity.customerSuccessPlan.updatedBy,
+          opportunity.customerSuccessAction?.ownerId,
+          opportunity.customerSuccessAction?.createdBy,
+          opportunity.customerSuccessAction?.updatedBy,
+          opportunity.deliveryReview?.ownerId,
+          opportunity.deliveryReview?.createdBy,
+          opportunity.deliveryReview?.updatedBy,
+          opportunity.deliveryAsset?.ownerId,
+          opportunity.deliveryAsset?.createdBy,
+          opportunity.deliveryAsset?.updatedBy,
+          opportunity.solutionPackage?.ownerId,
+          opportunity.solutionPackage?.createdBy,
+          opportunity.solutionPackage?.updatedBy,
+        ]);
+        break;
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const assessment = await this.prisma.customerAssessment.findFirst({
           where: {

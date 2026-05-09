@@ -502,6 +502,38 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'DELIVERY_REVIEW': {
+        const items = await this.prisma.deliveryReview.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { customerName: contains },
+                    { acceptanceSummary: contains },
+                    { issueSummary: contains },
+                    { expansionPlan: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'DELIVERY_REVIEW',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.reviewStage}`,
+          status: item.status,
+        }));
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const items = await this.prisma.customerAssessment.findMany({
           where: {
@@ -835,6 +867,19 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: `${item.customerName} / ${item.industry ?? '未填写行业'}`,
+          status: item.status,
+        }));
+      }
+      case 'DELIVERY_REVIEW': {
+        const items = await this.prisma.deliveryReview.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'DELIVERY_REVIEW',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.reviewStage}`,
           status: item.status,
         }));
       }

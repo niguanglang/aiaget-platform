@@ -81,6 +81,8 @@ export const PERMISSION_CODES = {
   roleScenarioManage: 'scenario:package:manage',
   solutionPackageView: 'solution:package:view',
   solutionPackageManage: 'solution:package:manage',
+  deliveryReviewView: 'delivery:review:view',
+  deliveryReviewManage: 'delivery:review:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -392,6 +394,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     name: 'Solution Package Manage',
     module: 'solution',
     resource: 'package',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.deliveryReviewView,
+    legacy_code: 'delivery_review.read',
+    name: 'Delivery Review View',
+    module: 'delivery',
+    resource: 'review',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.deliveryReviewManage,
+    legacy_code: 'delivery_review.write',
+    name: 'Delivery Review Manage',
+    module: 'delivery',
+    resource: 'review',
     action: 'manage',
   },
   {
@@ -957,6 +975,7 @@ export type DataScopeResourceType =
   | 'AGENT_TEAM'
   | 'ROLE_SCENARIO'
   | 'SOLUTION_PACKAGE'
+  | 'DELIVERY_REVIEW'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5452,6 +5471,108 @@ export interface UpdateSolutionPackageInput {
   owner_id?: string | null;
   customer_assessment_id?: string | null;
   role_scenario_id?: string | null;
+}
+
+export type DeliveryReviewStage = 'PILOT_ACCEPTANCE' | 'FINAL_ACCEPTANCE' | 'EXPANSION_REVIEW' | 'RENEWAL_REVIEW';
+export type DeliveryReviewResult = 'PASSED' | 'PARTIAL' | 'FAILED' | 'DEFERRED';
+export type DeliveryReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'COMPLETED' | 'ACTION_REQUIRED' | 'ARCHIVED';
+export type DeliveryReviewSatisfactionLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+
+export interface DeliveryReviewOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface DeliveryReviewSolutionPackageSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  package_stage: SolutionPackageStage;
+  status: SolutionPackageStatus;
+  package_score: number;
+}
+
+export interface DeliveryReviewLinkedResources {
+  solution_package: DeliveryReviewSolutionPackageSummary | null;
+}
+
+export interface DeliveryReviewListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  review_stage: DeliveryReviewStage;
+  result: DeliveryReviewResult;
+  status: DeliveryReviewStatus;
+  satisfaction_level: DeliveryReviewSatisfactionLevel;
+  acceptance_score: number;
+  acceptance_summary_preview: string;
+  issue_summary_preview: string;
+  owner: DeliveryReviewOwnerSummary | null;
+  linked_resources: DeliveryReviewLinkedResources;
+  reviewed_at: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryReviewDetail extends DeliveryReviewListItem {
+  delivered_scope: string;
+  acceptance_summary: string;
+  issue_summary: string;
+  improvement_actions: string;
+  expansion_plan: string;
+  reusable_assets: string;
+  next_action: string;
+  notes: string | null;
+}
+
+export interface CreateDeliveryReviewInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  review_stage?: DeliveryReviewStage;
+  result?: DeliveryReviewResult;
+  status?: DeliveryReviewStatus;
+  satisfaction_level?: DeliveryReviewSatisfactionLevel;
+  acceptance_score?: number;
+  delivered_scope: string;
+  acceptance_summary: string;
+  issue_summary: string;
+  improvement_actions: string;
+  expansion_plan: string;
+  reusable_assets: string;
+  next_action: string;
+  reviewed_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  solution_package_id: string;
+}
+
+export interface UpdateDeliveryReviewInput {
+  name?: string;
+  customer_name?: string;
+  review_stage?: DeliveryReviewStage;
+  result?: DeliveryReviewResult;
+  status?: DeliveryReviewStatus;
+  satisfaction_level?: DeliveryReviewSatisfactionLevel;
+  acceptance_score?: number;
+  delivered_scope?: string;
+  acceptance_summary?: string;
+  issue_summary?: string;
+  improvement_actions?: string;
+  expansion_plan?: string;
+  reusable_assets?: string;
+  next_action?: string;
+  reviewed_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  solution_package_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

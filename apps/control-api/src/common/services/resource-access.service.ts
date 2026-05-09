@@ -162,6 +162,38 @@ export class ResourceAccessService {
         await addUsers([solutionPackage.ownerId, solutionPackage.createdBy, solutionPackage.updatedBy]);
         break;
       }
+      case 'DELIVERY_REVIEW': {
+        const review = await this.prisma.deliveryReview.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+            solutionPackage: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+          },
+        });
+        if (!review) return null;
+        await addUsers([
+          review.ownerId,
+          review.createdBy,
+          review.updatedBy,
+          review.solutionPackage.ownerId,
+          review.solutionPackage.createdBy,
+          review.solutionPackage.updatedBy,
+        ]);
+        break;
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const assessment = await this.prisma.customerAssessment.findFirst({
           where: {

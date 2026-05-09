@@ -37,6 +37,7 @@ import type {
   CreateAgentPromptBindingInput,
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
+  CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
   CreateSolutionPackageInput,
   CreateTenantApiKeyInput,
@@ -190,6 +191,8 @@ import type {
   RoleScenarioListItem,
   SolutionPackageDetail,
   SolutionPackageListItem,
+  DeliveryReviewDetail,
+  DeliveryReviewListItem,
   RollbackAgentInput,
   RollbackPromptInput,
   ExternalApiObservabilityOverview,
@@ -288,6 +291,7 @@ import type {
   UpdateAgentTeamInput,
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
+  UpdateDeliveryReviewInput,
   UpdateRoleScenarioInput,
   UpdateSolutionPackageInput,
   UpdateAgentKnowledgeBindingInput,
@@ -2106,6 +2110,44 @@ export function updateSolutionPackage(packageId: string, input: UpdateSolutionPa
 
 export function deleteSolutionPackage(packageId: string) {
   return request<{ success: boolean }>(`/solution-packages/${packageId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listDeliveryReviews(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  review_stage?: string;
+  result?: string;
+  status?: string;
+  satisfaction_level?: string;
+  owner_id?: string;
+  solution_package_id?: string;
+}) {
+  return request<PaginatedResult<DeliveryReviewListItem>>(`/delivery-reviews?${toSearchParams(params)}`);
+}
+
+export function createDeliveryReview(input: CreateDeliveryReviewInput) {
+  return request<DeliveryReviewDetail>('/delivery-reviews', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getDeliveryReview(reviewId: string) {
+  return request<DeliveryReviewDetail>(`/delivery-reviews/${reviewId}`);
+}
+
+export function updateDeliveryReview(reviewId: string, input: UpdateDeliveryReviewInput) {
+  return request<DeliveryReviewDetail>(`/delivery-reviews/${reviewId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteDeliveryReview(reviewId: string) {
+  return request<{ success: boolean }>(`/delivery-reviews/${reviewId}`, {
     method: 'DELETE',
   });
 }

@@ -9,6 +9,7 @@ export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'AGENT_TEAM',
   'ROLE_SCENARIO',
   'SOLUTION_PACKAGE',
+  'DELIVERY_REVIEW',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -70,6 +71,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: '落地方案包',
     description: '控制具体 AI 落地方案包的查看、编辑、归档、验收和商务推进。',
     permission_codes: ['solution:package:view', 'solution:package:manage'],
+  },
+  {
+    resource_type: 'DELIVERY_REVIEW',
+    name: '验收复盘',
+    description: '控制具体交付验收复盘的查看、编辑、归档、问题复盘和扩展计划。',
+    permission_codes: ['delivery:review:view', 'delivery:review:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

@@ -38,6 +38,7 @@ import type {
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
   CreateDeliveryAssetInput,
+  CreateCustomerSuccessActionInput,
   CreateCustomerSuccessPlanInput,
   CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
@@ -195,6 +196,8 @@ import type {
   SolutionPackageListItem,
   DeliveryAssetDetail,
   DeliveryAssetListItem,
+  CustomerSuccessActionDetail,
+  CustomerSuccessActionListItem,
   CustomerSuccessPlanDetail,
   CustomerSuccessPlanListItem,
   DeliveryReviewDetail,
@@ -298,6 +301,7 @@ import type {
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
   UpdateDeliveryAssetInput,
+  UpdateCustomerSuccessActionInput,
   UpdateCustomerSuccessPlanInput,
   UpdateDeliveryReviewInput,
   UpdateRoleScenarioInput,
@@ -2237,6 +2241,47 @@ export function updateCustomerSuccessPlan(planId: string, input: UpdateCustomerS
 
 export function deleteCustomerSuccessPlan(planId: string) {
   return request<{ success: boolean }>(`/customer-success-plans/${planId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listCustomerSuccessActions(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  action_type?: string;
+  status?: string;
+  priority?: string;
+  risk_level?: string;
+  owner_id?: string;
+  customer_success_plan_id?: string;
+  delivery_review_id?: string;
+  delivery_asset_id?: string;
+  solution_package_id?: string;
+}) {
+  return request<PaginatedResult<CustomerSuccessActionListItem>>(`/customer-success-actions?${toSearchParams(params)}`);
+}
+
+export function createCustomerSuccessAction(input: CreateCustomerSuccessActionInput) {
+  return request<CustomerSuccessActionDetail>('/customer-success-actions', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getCustomerSuccessAction(actionId: string) {
+  return request<CustomerSuccessActionDetail>(`/customer-success-actions/${actionId}`);
+}
+
+export function updateCustomerSuccessAction(actionId: string, input: UpdateCustomerSuccessActionInput) {
+  return request<CustomerSuccessActionDetail>(`/customer-success-actions/${actionId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteCustomerSuccessAction(actionId: string) {
+  return request<{ success: boolean }>(`/customer-success-actions/${actionId}`, {
     method: 'DELETE',
   });
 }

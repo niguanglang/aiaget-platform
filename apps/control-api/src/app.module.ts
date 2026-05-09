@@ -13,6 +13,7 @@ import { OperationLogInterceptor } from './common/interceptors/operation-log.int
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ConversationsModule } from './conversations/conversations.module';
 import { CustomerAssessmentsModule } from './customer-assessments/customer-assessments.module';
+import { CustomerSuccessActionsModule } from './customer-success-actions/customer-success-actions.module';
 import { CustomerSuccessPlansModule } from './customer-success-plans/customer-success-plans.module';
 import { DataScopesModule } from './data-scopes/data-scopes.module';
 import { DeliveryAssetsModule } from './delivery-assets/delivery-assets.module';
@@ -46,7 +47,7 @@ import { ToolsModule } from './tools/tools.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, DepartmentsModule, AgentsModule, AgentTeamsModule, RoleScenariosModule, SolutionPackagesModule, DeliveryReviewsModule, DeliveryAssetsModule, CustomerSuccessPlansModule, CustomerAssessmentsModule, SkillsModule, ModelsModule, PromptsModule, KnowledgeModule, ToolGatewayModule, ToolsModule, ConversationsModule, RuntimeExecutionModule, ExternalApiModule, ApprovalsModule, MonitorModule, AuditModule, BillingModule, ChannelsModule, RolesModule, ApiKeysModule, StorageModule, SystemSettingsModule, SecurityPoliciesModule, SecurityCenterModule, MenusModule, DataScopesModule, ResourceAclsModule, PlatformEventsModule, PluginsModule],
+  imports: [PrismaModule, AuthModule, TenantsModule, UsersModule, DepartmentsModule, AgentsModule, AgentTeamsModule, RoleScenariosModule, SolutionPackagesModule, DeliveryReviewsModule, DeliveryAssetsModule, CustomerSuccessPlansModule, CustomerSuccessActionsModule, CustomerAssessmentsModule, SkillsModule, ModelsModule, PromptsModule, KnowledgeModule, ToolGatewayModule, ToolsModule, ConversationsModule, RuntimeExecutionModule, ExternalApiModule, ApprovalsModule, MonitorModule, AuditModule, BillingModule, ChannelsModule, RolesModule, ApiKeysModule, StorageModule, SystemSettingsModule, SecurityPoliciesModule, SecurityCenterModule, MenusModule, DataScopesModule, ResourceAclsModule, PlatformEventsModule, PluginsModule],
   controllers: [HealthController, RuntimeHealthController],
   providers: [
     RuntimeHealthService,

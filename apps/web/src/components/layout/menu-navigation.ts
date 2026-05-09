@@ -17,6 +17,7 @@ import {
   KeySquare,
   KeyRound,
   LayoutDashboard,
+  ListChecks,
   ListTree,
   MessageSquareText,
   Network,
@@ -61,6 +62,7 @@ const iconMap: Record<string, LucideIcon> = {
   KeySquare,
   KeyRound,
   LayoutDashboard,
+  ListChecks,
   ListTree,
   MessageSquareText,
   Network,
@@ -125,6 +127,7 @@ const codeIconMap: Record<string, LucideIcon> = {
   data_scopes: SlidersHorizontal,
   resource_acls: KeyRound,
   menus: ListTree,
+  customer_success_actions: ListChecks,
 };
 
 export function buildNavigationLinks(menus: AuthorizedMenuItem[] | undefined, permissions: readonly string[] = []): NavigationLink[] {

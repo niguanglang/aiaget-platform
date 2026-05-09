@@ -271,6 +271,11 @@ POST /api/v1/customer-success-plans
 GET  /api/v1/customer-success-plans/:id
 PATCH /api/v1/customer-success-plans/:id
 DELETE /api/v1/customer-success-plans/:id
+GET  /api/v1/customer-success-actions
+POST /api/v1/customer-success-actions
+GET  /api/v1/customer-success-actions/:id
+PATCH /api/v1/customer-success-actions/:id
+DELETE /api/v1/customer-success-actions/:id
 POST /runtime/conversations/respond-stream
 ```
 
@@ -310,6 +315,7 @@ images/frontend-reference-design/m26-opensearch-hybrid-retrieval/
 images/frontend-reference-design/knowledge-background-tasks/
 images/frontend-reference-design/deliveryassets/
 images/frontend-reference-design/customer-success-plans/
+images/frontend-reference-design/customer-success-actions/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

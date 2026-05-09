@@ -87,6 +87,8 @@ export const PERMISSION_CODES = {
   deliveryAssetManage: 'delivery:asset:manage',
   customerSuccessView: 'customer:success:view',
   customerSuccessManage: 'customer:success:manage',
+  customerSuccessActionView: 'customer:success_action:view',
+  customerSuccessActionManage: 'customer:success_action:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -446,6 +448,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     name: 'Customer Success Manage',
     module: 'customer',
     resource: 'success',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessActionView,
+    legacy_code: 'customer_success_action.read',
+    name: 'Customer Success Action View',
+    module: 'customer',
+    resource: 'success_action',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessActionManage,
+    legacy_code: 'customer_success_action.write',
+    name: 'Customer Success Action Manage',
+    module: 'customer',
+    resource: 'success_action',
     action: 'manage',
   },
   {
@@ -1014,6 +1032,7 @@ export type DataScopeResourceType =
   | 'DELIVERY_REVIEW'
   | 'DELIVERY_ASSET'
   | 'CUSTOMER_SUCCESS_PLAN'
+  | 'CUSTOMER_SUCCESS_ACTION'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5881,6 +5900,120 @@ export interface UpdateCustomerSuccessPlanInput {
   risk_summary?: string;
   next_action?: string;
   due_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
+}
+
+export type CustomerSuccessActionType =
+  | 'MEETING'
+  | 'ASSET_REUSE'
+  | 'ROLLOUT'
+  | 'TRAINING'
+  | 'RENEWAL'
+  | 'RISK_REVIEW'
+  | 'FOLLOW_UP';
+export type CustomerSuccessActionStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE' | 'CANCELLED' | 'ARCHIVED';
+export type CustomerSuccessActionPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type CustomerSuccessActionRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface CustomerSuccessActionPlanSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  plan_stage: CustomerSuccessPlanStage;
+  status: CustomerSuccessPlanStatus;
+  priority: CustomerSuccessPlanPriority;
+  health_level: CustomerSuccessPlanHealthLevel;
+  success_score: number;
+}
+
+export interface CustomerSuccessActionLinkedResources {
+  customer_success_plan: CustomerSuccessActionPlanSummary | null;
+  delivery_review: CustomerSuccessPlanReviewSummary | null;
+  delivery_asset: CustomerSuccessPlanAssetSummary | null;
+  solution_package: CustomerSuccessPlanSolutionPackageSummary | null;
+}
+
+export interface CustomerSuccessActionListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  action_type: CustomerSuccessActionType;
+  status: CustomerSuccessActionStatus;
+  priority: CustomerSuccessActionPriority;
+  risk_level: CustomerSuccessActionRiskLevel;
+  action_score: number;
+  action_summary_preview: string;
+  next_action_preview: string;
+  owner: CustomerSuccessPlanOwnerSummary | null;
+  linked_resources: CustomerSuccessActionLinkedResources;
+  due_at: string | null;
+  completed_at: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSuccessActionDetail extends CustomerSuccessActionListItem {
+  action_summary: string;
+  expected_outcome: string;
+  execution_notes: string;
+  blocker_summary: string;
+  completion_evidence: string;
+  next_action: string;
+  notes: string | null;
+}
+
+export interface CreateCustomerSuccessActionInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  customer_success_plan_id: string;
+  action_type?: CustomerSuccessActionType;
+  status?: CustomerSuccessActionStatus;
+  priority?: CustomerSuccessActionPriority;
+  risk_level?: CustomerSuccessActionRiskLevel;
+  action_score?: number;
+  action_summary: string;
+  expected_outcome: string;
+  execution_notes: string;
+  blocker_summary: string;
+  completion_evidence: string;
+  next_action: string;
+  due_at?: string | null;
+  completed_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
+}
+
+export interface UpdateCustomerSuccessActionInput {
+  name?: string;
+  customer_name?: string;
+  customer_success_plan_id?: string;
+  action_type?: CustomerSuccessActionType;
+  status?: CustomerSuccessActionStatus;
+  priority?: CustomerSuccessActionPriority;
+  risk_level?: CustomerSuccessActionRiskLevel;
+  action_score?: number;
+  action_summary?: string;
+  expected_outcome?: string;
+  execution_notes?: string;
+  blocker_summary?: string;
+  completion_evidence?: string;
+  next_action?: string;
+  due_at?: string | null;
+  completed_at?: string | null;
   tags?: string[];
   notes?: string | null;
   owner_id?: string | null;

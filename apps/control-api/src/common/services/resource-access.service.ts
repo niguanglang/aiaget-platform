@@ -338,6 +338,68 @@ export class ResourceAccessService {
         ]);
         break;
       }
+      case 'CUSTOMER_SUCCESS_ACTION': {
+        const action = await this.prisma.customerSuccessAction.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+            customerSuccessPlan: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            deliveryReview: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            deliveryAsset: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+            solutionPackage: {
+              select: {
+                ownerId: true,
+                createdBy: true,
+                updatedBy: true,
+              },
+            },
+          },
+        });
+        if (!action) return null;
+        await addUsers([
+          action.ownerId,
+          action.createdBy,
+          action.updatedBy,
+          action.customerSuccessPlan.ownerId,
+          action.customerSuccessPlan.createdBy,
+          action.customerSuccessPlan.updatedBy,
+          action.deliveryReview?.ownerId,
+          action.deliveryReview?.createdBy,
+          action.deliveryReview?.updatedBy,
+          action.deliveryAsset?.ownerId,
+          action.deliveryAsset?.createdBy,
+          action.deliveryAsset?.updatedBy,
+          action.solutionPackage?.ownerId,
+          action.solutionPackage?.createdBy,
+          action.solutionPackage?.updatedBy,
+        ]);
+        break;
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const assessment = await this.prisma.customerAssessment.findFirst({
           where: {

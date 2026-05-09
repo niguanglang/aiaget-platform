@@ -598,6 +598,38 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'CUSTOMER_SUCCESS_ACTION': {
+        const items = await this.prisma.customerSuccessAction.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { customerName: contains },
+                    { actionSummary: contains },
+                    { expectedOutcome: contains },
+                    { nextAction: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CUSTOMER_SUCCESS_ACTION',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.actionType}`,
+          status: item.status,
+        }));
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const items = await this.prisma.customerAssessment.findMany({
           where: {
@@ -970,6 +1002,19 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: `${item.customerName} / ${item.planStage}`,
+          status: item.status,
+        }));
+      }
+      case 'CUSTOMER_SUCCESS_ACTION': {
+        const items = await this.prisma.customerSuccessAction.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CUSTOMER_SUCCESS_ACTION',
+          name: item.name,
+          code: item.code,
+          description: `${item.customerName} / ${item.actionType}`,
           status: item.status,
         }));
       }

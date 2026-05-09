@@ -151,6 +151,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M122 交付验收复盘中心](./m122-delivery-review-center.md)
 - [M123 成果资产中心](./m123-delivery-asset-center.md)
 - [M124 客户成功计划中心](./m124-customer-success-plan-center.md)
+- [M125 客户成功行动中心](./m125-customer-success-action-center.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

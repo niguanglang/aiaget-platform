@@ -596,10 +596,22 @@ async function main() {
   }
 
   const seededAgentTeam = await seedAgentTeam(tenant.id, admin.id, seededAgent.id);
+  const seededCustomerAssessment = await seedCustomerAssessment(tenant.id, admin.id);
+  const seededSkill = await seedSkill(tenant.id, admin.id, seededAgent.id);
   const seededChannel = await seedPublishChannels(tenant.id, admin.id, seededAgent.id);
   const seededPlugin = await seedPlugins(tenant.id, admin.id);
 
-  await seedResourceAcls(tenant.id, admin.id, adminRole.id, seededAgent.id, seededAgentTeam.id, seededChannel.id, seededPlugin.id);
+  await seedResourceAcls(
+    tenant.id,
+    admin.id,
+    adminRole.id,
+    seededAgent.id,
+    seededAgentTeam.id,
+    seededCustomerAssessment.id,
+    seededSkill.id,
+    seededChannel.id,
+    seededPlugin.id,
+  );
 
   console.log(
     `Seeded tenant "${defaultTenantCode}" with default admin "${defaultAdminEmail}". Password: "${defaultAdminPassword}"`,
@@ -633,7 +645,9 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'agents', parentCode: 'agent_center', name: 'Agent 管理', type: 'MENU', path: '/agents', component: 'agents/page', icon: 'Bot', permissionCode: PERMISSION_CODES.agentAgentView, sortOrder: 10 },
   { code: 'agent_teams', parentCode: 'agent_center', name: 'Agent 协作', type: 'MENU', path: '/agent-teams', component: 'agent-teams/page', icon: 'GitBranch', permissionCode: PERMISSION_CODES.agentTeamView, sortOrder: 20 },
   { code: 'agent_team_report_archives', parentCode: 'agent_teams', name: '报告归档', type: 'MENU', path: '/agent-teams/report-archives', component: 'agent-teams/report-archives/page', icon: 'FileArchive', permissionCode: PERMISSION_CODES.agentTeamView, sortOrder: 10 },
-  { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 30 },
+  { code: 'customer_assessments', parentCode: 'agent_center', name: '客户评估', type: 'MENU', path: '/customer-assessments', component: 'customer-assessments/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.customerAssessmentView, sortOrder: 30 },
+  { code: 'skills', parentCode: 'agent_center', name: '技能资产', type: 'MENU', path: '/skills', component: 'skills/page', icon: 'Blocks', permissionCode: PERMISSION_CODES.skillHubView, sortOrder: 40 },
+  { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 50 },
   { code: 'channel_publish', parentCode: 'channels', name: '发布渠道', type: 'MENU', path: '/channels/publish', component: 'channels/publish/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 10 },
   { code: 'channel_providers', parentCode: 'channels', name: '渠道提供方', type: 'MENU', path: '/channels/providers', component: 'channels/providers/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 20 },
   { code: 'channel_accounts', parentCode: 'channels', name: '渠道账号', type: 'MENU', path: '/channels/accounts', component: 'channels/accounts/page', icon: 'KeyRound', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 30 },
@@ -705,6 +719,13 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'agent_team_create', parentCode: 'agent_teams', name: '新建 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 10, visible: false },
   { code: 'agent_team_update', parentCode: 'agent_teams', name: '编辑 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 20, visible: false },
   { code: 'agent_team_run', parentCode: 'agent_teams', name: '启动 Agent 协作任务', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamRun, sortOrder: 30, visible: false },
+  { code: 'customer_assessment_create', parentCode: 'customer_assessments', name: '新建客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 10, visible: false },
+  { code: 'customer_assessment_update', parentCode: 'customer_assessments', name: '编辑客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 20, visible: false },
+  { code: 'customer_assessment_archive', parentCode: 'customer_assessments', name: '归档客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 30, visible: false },
+  { code: 'skill_create', parentCode: 'skills', name: '新建技能资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.skillHubManage, sortOrder: 10, visible: false },
+  { code: 'skill_update', parentCode: 'skills', name: '编辑技能资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.skillHubManage, sortOrder: 20, visible: false },
+  { code: 'skill_publish', parentCode: 'skills', name: '发布技能版本', type: 'BUTTON', permissionCode: PERMISSION_CODES.skillHubManage, sortOrder: 30, visible: false },
+  { code: 'skill_delete', parentCode: 'skills', name: '归档技能资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.skillHubManage, sortOrder: 40, visible: false },
   { code: 'channel_create', parentCode: 'channels', name: '新建发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishManage, sortOrder: 10, visible: false },
   { code: 'channel_update', parentCode: 'channels', name: '编辑发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishManage, sortOrder: 20, visible: false },
   { code: 'channel_enable', parentCode: 'channels', name: '启用发布渠道', type: 'BUTTON', permissionCode: PERMISSION_CODES.channelPublishDeploy, sortOrder: 30, visible: false },
@@ -787,6 +808,8 @@ function toSeedJsonInput(value: Record<string, unknown>): Prisma.InputJsonValue 
 const dataScopeResourceTypes = [
   'AGENT',
   'AGENT_TEAM',
+  'CUSTOMER_ASSESSMENT',
+  'SKILL',
   'CHANNEL',
   'PLUGIN',
   'KNOWLEDGE_BASE',
@@ -917,6 +940,193 @@ async function seedAgentTeam(tenantId: string, operatorId: string, agentId: stri
   });
 
   return team;
+}
+
+async function seedSkill(tenantId: string, operatorId: string, agentId: string) {
+  const skill = await prisma.skill.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'meeting_summary_archive',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      name: '会议纪要归档 Skill',
+      code: 'meeting_summary_archive',
+      category: 'OPERATIONS',
+      status: 'PUBLISHED',
+      version: 1,
+      description: '将会议内容沉淀为可追踪纪要、待办和风险项的标准业务技能。',
+      triggerScenario: '会议结束后需要沉淀结论、责任人、截止时间和风险提醒。',
+      inputRequirements: '会议录音转写、会议主题、参会人、业务背景和补充附件。',
+      executionSteps: '1. 提取议题和结论\n2. 识别行动项和责任人\n3. 标记风险和待确认事项\n4. 输出归档纪要',
+      outputFormat: 'Markdown 纪要，包含议题、结论、行动项、风险和后续跟进。',
+      qualityCriteria: '行动项必须包含责任人和截止时间，风险项必须给出影响说明。',
+      boundaryRules: '不得编造未在输入中出现的客户事实，涉及敏感信息必须脱敏。',
+      tags: ['会议', '运营', '归档'],
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      name: '会议纪要归档 Skill',
+      category: 'OPERATIONS',
+      status: 'PUBLISHED',
+      version: 1,
+      description: '将会议内容沉淀为可追踪纪要、待办和风险项的标准业务技能。',
+      triggerScenario: '会议结束后需要沉淀结论、责任人、截止时间和风险提醒。',
+      inputRequirements: '会议录音转写、会议主题、参会人、业务背景和补充附件。',
+      executionSteps: '1. 提取议题和结论\n2. 识别行动项和责任人\n3. 标记风险和待确认事项\n4. 输出归档纪要',
+      outputFormat: 'Markdown 纪要，包含议题、结论、行动项、风险和后续跟进。',
+      qualityCriteria: '行动项必须包含责任人和截止时间，风险项必须给出影响说明。',
+      boundaryRules: '不得编造未在输入中出现的客户事实，涉及敏感信息必须脱敏。',
+      tags: ['会议', '运营', '归档'],
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  await prisma.skillVersion.upsert({
+    where: {
+      tenantId_skillId_version: {
+        tenantId,
+        skillId: skill.id,
+        version: 1,
+      },
+    },
+    create: {
+      tenantId,
+      skillId: skill.id,
+      version: 1,
+      status: 'PUBLISHED',
+      snapshot: {
+        id: skill.id,
+        name: skill.name,
+        code: skill.code,
+        category: skill.category,
+        status: skill.status,
+        description: skill.description,
+        trigger_scenario: skill.triggerScenario,
+        input_requirements: skill.inputRequirements,
+        execution_steps: skill.executionSteps,
+        output_format: skill.outputFormat,
+        quality_criteria: skill.qualityCriteria,
+        boundary_rules: skill.boundaryRules,
+        tags: skill.tags,
+      },
+      changeNote: '初始化默认会议纪要归档技能。',
+      publishedAt: new Date(),
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      status: 'PUBLISHED',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  await prisma.agentSkillBinding.upsert({
+    where: {
+      tenantId_agentId_skillId_bindingType: {
+        tenantId,
+        agentId,
+        skillId: skill.id,
+        bindingType: 'SUPPORTING',
+      },
+    },
+    create: {
+      tenantId,
+      agentId,
+      skillId: skill.id,
+      bindingType: 'SUPPORTING',
+      sortOrder: 10,
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      bindingType: 'SUPPORTING',
+      sortOrder: 10,
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+
+  return skill;
+}
+
+async function seedCustomerAssessment(tenantId: string, operatorId: string) {
+  const scores = {
+    customer_type_clarity: 5,
+    decision_intent: 5,
+    business_goal: 4,
+    process_maturity: 4,
+    data_assets: 5,
+    management_budget: 5,
+  };
+  const readinessScore = calculateSeedReadinessScore(scores);
+
+  return prisma.customerAssessment.upsert({
+    where: {
+      id: '00000000-0000-0000-0000-00000000c119',
+    },
+    create: {
+      id: '00000000-0000-0000-0000-00000000c119',
+      tenantId,
+      ownerId: operatorId,
+      customerName: '华中设计院',
+      customerType: 'TASK_DRIVEN',
+      decisionStage: 'PROCUREMENT',
+      status: 'QUALIFIED',
+      industry: '设计院',
+      contactName: '李总',
+      contactInfo: 'li@example.test',
+      businessGoal: '降低方案返工并确保资料引用可信。',
+      processMaturity: '已有投标与方案评审流程。',
+      dataAssetStatus: '历史方案、规范和项目资料较完整。',
+      managementSupport: '院领导推动，预算已预留。',
+      budgetSignal: '预算明确，等待验收方案。',
+      sixQuestionScores: scores,
+      readinessScore,
+      recommendedStrategy: '任务型客户：优先准备安全、合规、交付和验收材料，快速进入样板成果。当前准备度较高，可以围绕样板成果和验收口径推进。',
+      riskSummary: '需要提前确认数据不出域、权限边界和验收口径。',
+      nextAction: '补齐合规方案并安排样板知识库检索演示。',
+      notes: '从讲义六问判断看，客户已进入采购决策。',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      customerName: '华中设计院',
+      customerType: 'TASK_DRIVEN',
+      decisionStage: 'PROCUREMENT',
+      status: 'QUALIFIED',
+      industry: '设计院',
+      contactName: '李总',
+      contactInfo: 'li@example.test',
+      businessGoal: '降低方案返工并确保资料引用可信。',
+      processMaturity: '已有投标与方案评审流程。',
+      dataAssetStatus: '历史方案、规范和项目资料较完整。',
+      managementSupport: '院领导推动，预算已预留。',
+      budgetSignal: '预算明确，等待验收方案。',
+      sixQuestionScores: scores,
+      readinessScore,
+      recommendedStrategy: '任务型客户：优先准备安全、合规、交付和验收材料，快速进入样板成果。当前准备度较高，可以围绕样板成果和验收口径推进。',
+      riskSummary: '需要提前确认数据不出域、权限边界和验收口径。',
+      nextAction: '补齐合规方案并安排样板知识库检索演示。',
+      notes: '从讲义六问判断看，客户已进入采购决策。',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+}
+
+function calculateSeedReadinessScore(scores: Record<string, number>) {
+  const sum = Object.values(scores).reduce((total, score) => total + score, 0);
+
+  return Math.round((sum / 30) * 100);
 }
 
 async function seedPlugins(tenantId: string, operatorId: string) {
@@ -1314,6 +1524,8 @@ async function seedResourceAcls(
   adminRoleId: string,
   agentId: string,
   agentTeamId: string,
+  customerAssessmentId: string,
+  skillId: string,
   channelId: string,
   pluginId: string,
 ) {
@@ -1358,6 +1570,22 @@ async function seedResourceAcls(
       permissionCode: PERMISSION_CODES.agentTeamRun,
       effect: 'ALLOW',
     },
+    ...[PERMISSION_CODES.customerAssessmentView, PERMISSION_CODES.customerAssessmentManage].map((permissionCode) => ({
+      resourceType: 'CUSTOMER_ASSESSMENT',
+      resourceId: customerAssessmentId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
+    ...[PERMISSION_CODES.skillHubView, PERMISSION_CODES.skillHubManage].map((permissionCode) => ({
+      resourceType: 'SKILL',
+      resourceId: skillId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
     ...[
       PERMISSION_CODES.channelPublishView,
       PERMISSION_CODES.channelPublishManage,

@@ -18,6 +18,8 @@ export const DATA_SCOPE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
 export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
+  'CUSTOMER_ASSESSMENT',
+  'SKILL',
   'CHANNEL',
   'PLUGIN',
   'KNOWLEDGE_BASE',
@@ -40,6 +42,18 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: 'Agent 协作团队',
     description: '控制多 Agent 团队、成员、运行、接力和反馈数据的可访问范围。',
     permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'CUSTOMER_ASSESSMENT',
+    name: '客户评估',
+    description: '控制客户分层、六问判断、准备度评分、建议打法和风险动作的可访问范围。',
+    permission_codes: ['customer:assessment:view', 'customer:assessment:manage'],
+  },
+  {
+    resource_type: 'SKILL',
+    name: '技能资产',
+    description: '控制可复用业务技能、发布版本、Agent 引用和技能沉淀资产的可访问范围。',
+    permission_codes: ['skill:hub:view', 'skill:hub:manage'],
   },
   {
     resource_type: 'CHANNEL',

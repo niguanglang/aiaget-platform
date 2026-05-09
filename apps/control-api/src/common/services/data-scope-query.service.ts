@@ -198,6 +198,7 @@ function userOwnedWhere(resourceType: DataScopeResourceType, userIds: string[]) 
     switch (resourceType) {
     case 'AGENT':
     case 'AGENT_TEAM':
+    case 'CUSTOMER_ASSESSMENT':
     case 'PLUGIN':
     case 'KNOWLEDGE_BASE':
       return { OR: [{ ownerId: { in: userIds } }, { createdBy: { in: userIds } }, { updatedBy: { in: userIds } }] };
@@ -232,6 +233,7 @@ function departmentOwnedWhere(resourceType: DataScopeResourceType, departmentIds
     switch (resourceType) {
     case 'AGENT':
     case 'AGENT_TEAM':
+    case 'CUSTOMER_ASSESSMENT':
     case 'PLUGIN':
     case 'KNOWLEDGE_BASE':
       return { owner: { departmentId: { in: departmentIds } } };

@@ -77,6 +77,10 @@ export const PERMISSION_CODES = {
   agentTeamManage: 'agent:team:manage',
   agentTeamRun: 'agent:team:run',
   agentTeamHandoffReview: 'security:approval:handle',
+  customerAssessmentView: 'customer:assessment:view',
+  customerAssessmentManage: 'customer:assessment:manage',
+  skillHubView: 'skill:hub:view',
+  skillHubManage: 'skill:hub:manage',
   promptTemplateView: 'prompt:template:view',
   promptTemplateManage: 'prompt:template:manage',
   modelConfigView: 'model:config:view',
@@ -353,6 +357,38 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'agent',
     resource: 'team_handoff',
     action: 'review',
+  },
+  {
+    code: PERMISSION_CODES.customerAssessmentView,
+    legacy_code: 'customer_assessment.read',
+    name: 'Customer Assessment View',
+    module: 'customer',
+    resource: 'assessment',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.customerAssessmentManage,
+    legacy_code: 'customer_assessment.write',
+    name: 'Customer Assessment Manage',
+    module: 'customer',
+    resource: 'assessment',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.skillHubView,
+    legacy_code: 'skill.read',
+    name: 'Skill Hub View',
+    module: 'skill',
+    resource: 'hub',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.skillHubManage,
+    legacy_code: 'skill.write',
+    name: 'Skill Hub Manage',
+    module: 'skill',
+    resource: 'hub',
+    action: 'manage',
   },
   {
     code: PERMISSION_CODES.promptTemplateView,
@@ -883,6 +919,8 @@ export type DataScopeStatus = 'ACTIVE' | 'DISABLED' | 'DELETED';
 export type DataScopeResourceType =
   | 'AGENT'
   | 'AGENT_TEAM'
+  | 'CUSTOMER_ASSESSMENT'
+  | 'SKILL'
   | 'CHANNEL'
   | 'PLUGIN'
   | 'KNOWLEDGE_BASE'
@@ -4947,6 +4985,197 @@ export interface PromptTemplateDetail extends PromptTemplateListItem {
     created_at: string;
     operator: PromptOwnerSummary | null;
   }>;
+}
+
+export type SkillStatus = 'DRAFT' | 'PUBLISHED' | 'DISABLED' | 'ARCHIVED';
+export type SkillCategory = 'GENERAL' | 'SALES' | 'DESIGN' | 'OPERATIONS' | 'TRAINING' | 'REVIEW';
+export type SkillBindingType = 'PRIMARY' | 'SUPPORTING';
+
+export interface SkillOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface SkillVersionItem {
+  id: string;
+  version: number;
+  status: SkillStatus;
+  change_note: string | null;
+  published_at: string | null;
+  created_at: string;
+  created_by: SkillOwnerSummary | null;
+}
+
+export interface SkillAgentReferenceItem {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_code: string;
+  agent_status: string;
+  binding_type: SkillBindingType;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SkillListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  category: SkillCategory;
+  status: SkillStatus;
+  version: number;
+  description: string | null;
+  trigger_scenario_preview: string;
+  output_format_preview: string;
+  owner: SkillOwnerSummary | null;
+  tags: string[];
+  agent_reference_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SkillDetail extends SkillListItem {
+  trigger_scenario: string;
+  input_requirements: string;
+  execution_steps: string;
+  output_format: string;
+  quality_criteria: string;
+  boundary_rules: string;
+  versions: SkillVersionItem[];
+  agent_references: SkillAgentReferenceItem[];
+  audit_records: Array<{
+    id: string;
+    action: string;
+    message: string;
+    created_at: string;
+    operator: SkillOwnerSummary | null;
+  }>;
+}
+
+export interface CreateSkillInput {
+  name: string;
+  code: string;
+  category?: SkillCategory;
+  description?: string | null;
+  trigger_scenario: string;
+  input_requirements: string;
+  execution_steps: string;
+  output_format: string;
+  quality_criteria: string;
+  boundary_rules: string;
+  tags?: string[];
+  owner_id?: string | null;
+}
+
+export interface UpdateSkillInput {
+  name?: string;
+  category?: SkillCategory;
+  status?: SkillStatus;
+  description?: string | null;
+  trigger_scenario?: string;
+  input_requirements?: string;
+  execution_steps?: string;
+  output_format?: string;
+  quality_criteria?: string;
+  boundary_rules?: string;
+  tags?: string[];
+  owner_id?: string | null;
+}
+
+export interface PublishSkillInput {
+  change_note?: string | null;
+}
+
+export type CustomerAssessmentType = 'UNKNOWN' | 'ANXIOUS' | 'TASK_DRIVEN' | 'CLEAR';
+export type CustomerAssessmentDecisionStage = 'LEARNING' | 'EVALUATION' | 'PROCUREMENT' | 'PILOT' | 'DELIVERY';
+export type CustomerAssessmentStatus = 'DISCOVERY' | 'QUALIFIED' | 'NURTURING' | 'WON' | 'LOST' | 'ARCHIVED';
+
+export interface CustomerAssessmentSixQuestionScores {
+  customer_type_clarity: number;
+  decision_intent: number;
+  business_goal: number;
+  process_maturity: number;
+  data_assets: number;
+  management_budget: number;
+}
+
+export interface CustomerAssessmentOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CustomerAssessmentListItem {
+  id: string;
+  tenant_id: string;
+  customer_name: string;
+  customer_type: CustomerAssessmentType;
+  decision_stage: CustomerAssessmentDecisionStage;
+  status: CustomerAssessmentStatus;
+  industry: string | null;
+  contact_name: string | null;
+  readiness_score: number;
+  business_goal_preview: string;
+  recommended_strategy_preview: string;
+  owner: CustomerAssessmentOwnerSummary | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerAssessmentDetail extends CustomerAssessmentListItem {
+  contact_info: string | null;
+  business_goal: string;
+  process_maturity: string;
+  data_asset_status: string;
+  management_support: string;
+  budget_signal: string;
+  six_question_scores: CustomerAssessmentSixQuestionScores;
+  recommended_strategy: string;
+  risk_summary: string;
+  next_action: string;
+  notes: string | null;
+}
+
+export interface CreateCustomerAssessmentInput {
+  customer_name: string;
+  customer_type?: CustomerAssessmentType;
+  decision_stage?: CustomerAssessmentDecisionStage;
+  status?: CustomerAssessmentStatus;
+  industry?: string | null;
+  contact_name?: string | null;
+  contact_info?: string | null;
+  business_goal: string;
+  process_maturity: string;
+  data_asset_status: string;
+  management_support: string;
+  budget_signal: string;
+  six_question_scores: CustomerAssessmentSixQuestionScores;
+  risk_summary: string;
+  next_action: string;
+  notes?: string | null;
+  owner_id?: string | null;
+}
+
+export interface UpdateCustomerAssessmentInput {
+  customer_name?: string;
+  customer_type?: CustomerAssessmentType;
+  decision_stage?: CustomerAssessmentDecisionStage;
+  status?: CustomerAssessmentStatus;
+  industry?: string | null;
+  contact_name?: string | null;
+  contact_info?: string | null;
+  business_goal?: string;
+  process_maturity?: string;
+  data_asset_status?: string;
+  management_support?: string;
+  budget_signal?: string;
+  six_question_scores?: CustomerAssessmentSixQuestionScores;
+  risk_summary?: string;
+  next_action?: string;
+  notes?: string | null;
+  owner_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

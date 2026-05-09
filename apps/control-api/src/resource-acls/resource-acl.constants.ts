@@ -7,6 +7,8 @@ import type {
 export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
+  'CUSTOMER_ASSESSMENT',
+  'SKILL',
   'CHANNEL',
   'PLUGIN',
   'KNOWLEDGE_BASE',
@@ -54,6 +56,18 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: 'Agent 协作团队',
     description: '控制具体多 Agent 团队的查看、编辑、运行、接力和反馈。',
     permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'CUSTOMER_ASSESSMENT',
+    name: '客户评估',
+    description: '控制具体客户评估的查看、编辑、归档和客户准备度判断。',
+    permission_codes: ['customer:assessment:view', 'customer:assessment:manage'],
+  },
+  {
+    resource_type: 'SKILL',
+    name: '技能资产',
+    description: '控制具体业务技能资产的查看、编辑、发布、复制和 Agent 绑定引用。',
+    permission_codes: ['skill:hub:view', 'skill:hub:manage'],
   },
   {
     resource_type: 'CHANNEL',

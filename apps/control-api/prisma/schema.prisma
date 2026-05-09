@@ -40,6 +40,7 @@ model Tenant {
   agentTeamSteps            AgentTeamStep[]
   agentTeamHandoffs         AgentTeamHandoff[]
   agentTeamFeedback         AgentTeamFeedback[]
+  customerAssessments       CustomerAssessment[]
   agentVersions             AgentVersion[]
   agentModelBindings        AgentModelBinding[]
   agentPromptBindings       AgentPromptBinding[]
@@ -63,6 +64,9 @@ model Tenant {
   promptVersions            PromptVersion[]
   promptVariables           PromptVariable[]
   promptTestRecords         PromptTestRecord[]
+  skills                    Skill[]
+  skillVersions             SkillVersion[]
+  agentSkillBindings        AgentSkillBinding[]
   knowledgeBases            KnowledgeBase[]
   knowledgeDocuments        KnowledgeDocument[]
   knowledgeSegments         KnowledgeSegment[]
@@ -137,6 +141,9 @@ model User {
   ownedPromptTemplates          PromptTemplate[]           @relation("PromptTemplateOwner")
   createdPromptVersions         PromptVersion[]            @relation("PromptVersionCreator")
   promptTestRecords             PromptTestRecord[]         @relation("PromptTestOperator")
+  ownedCustomerAssessments      CustomerAssessment[]        @relation("CustomerAssessmentOwner")
+  ownedSkills                   Skill[]                    @relation("SkillOwner")
+  createdSkillVersions          SkillVersion[]             @relation("SkillVersionCreator")
   ownedKnowledgeBases           KnowledgeBase[]            @relation("KnowledgeBaseOwner")
   uploadedKnowledgeDocuments    KnowledgeDocument[]        @relation("KnowledgeDocumentUploader")
   knowledgeRecallLogs           KnowledgeRecallLog[]       @relation("KnowledgeRecallOperator")
@@ -785,6 +792,7 @@ model Agent {
   versions                AgentVersion[]
   modelBindings           AgentModelBinding[]
   promptBindings          AgentPromptBinding[]
+  skillBindings           AgentSkillBinding[]
   knowledgeBindings       AgentKnowledgeBinding[]
   toolBindings            AgentToolBinding[]
   toolApprovalRequests    ToolApprovalRequest[]
@@ -884,6 +892,34 @@ model AgentPromptBinding {
   @@index([updatedAt])
   @@index([deletedAt])
   @@map("agent_prompt_binding")
+}
+
+model AgentSkillBinding {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  agentId     String    @map("agent_id") @db.Uuid
+  skillId     String    @map("skill_id") @db.Uuid
+  bindingType String    @default("PRIMARY") @map("binding_type") @db.VarChar(30)
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  skill       Skill     @relation(fields: [skillId], references: [id])
+
+  @@unique([tenantId, agentId, skillId, bindingType])
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([skillId])
+  @@index([bindingType])
+  @@index([sortOrder])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("agent_skill_binding")
 }
 
 model AgentKnowledgeBinding {
@@ -2481,6 +2517,117 @@ model PromptTestRecord {
   @@index([status])
   @@index([createdAt])
   @@map("prompt_test_record")
+}
+
+model CustomerAssessment {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  ownerId             String?   @map("owner_id") @db.Uuid
+  customerName        String    @map("customer_name") @db.VarChar(160)
+  customerType        String    @default("UNKNOWN") @map("customer_type") @db.VarChar(40)
+  decisionStage       String    @default("LEARNING") @map("decision_stage") @db.VarChar(40)
+  status              String    @default("DISCOVERY") @db.VarChar(40)
+  industry            String?   @db.VarChar(120)
+  contactName         String?   @map("contact_name") @db.VarChar(120)
+  contactInfo         String?   @map("contact_info") @db.VarChar(240)
+  businessGoal        String    @map("business_goal") @db.Text
+  processMaturity     String    @map("process_maturity") @db.Text
+  dataAssetStatus     String    @map("data_asset_status") @db.Text
+  managementSupport   String    @map("management_support") @db.Text
+  budgetSignal        String    @map("budget_signal") @db.Text
+  sixQuestionScores   Json      @map("six_question_scores")
+  readinessScore      Int       @default(0) @map("readiness_score")
+  recommendedStrategy String    @map("recommended_strategy") @db.Text
+  riskSummary         String    @map("risk_summary") @db.Text
+  nextAction          String    @map("next_action") @db.Text
+  notes               String?   @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+  createdBy           String?   @map("created_by") @db.Uuid
+  updatedBy           String?   @map("updated_by") @db.Uuid
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  owner               User?     @relation("CustomerAssessmentOwner", fields: [ownerId], references: [id])
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([customerType])
+  @@index([decisionStage])
+  @@index([status])
+  @@index([industry])
+  @@index([readinessScore])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("customer_assessment")
+}
+
+model Skill {
+  id                String              @id @default(uuid()) @db.Uuid
+  tenantId          String              @map("tenant_id") @db.Uuid
+  ownerId           String?             @map("owner_id") @db.Uuid
+  name              String              @db.VarChar(160)
+  code              String              @db.VarChar(100)
+  category          String              @default("GENERAL") @db.VarChar(50)
+  status            String              @default("DRAFT") @db.VarChar(30)
+  version           Int                 @default(0)
+  description       String?             @db.Text
+  triggerScenario   String              @map("trigger_scenario") @db.Text
+  inputRequirements String              @map("input_requirements") @db.Text
+  executionSteps    String              @map("execution_steps") @db.Text
+  outputFormat      String              @map("output_format") @db.Text
+  qualityCriteria   String              @map("quality_criteria") @db.Text
+  boundaryRules     String              @map("boundary_rules") @db.Text
+  tags              String[]            @default([])
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  deletedAt         DateTime?           @map("deleted_at")
+  createdBy         String?             @map("created_by") @db.Uuid
+  updatedBy         String?             @map("updated_by") @db.Uuid
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  owner             User?               @relation("SkillOwner", fields: [ownerId], references: [id])
+  versions          SkillVersion[]
+  agentBindings     AgentSkillBinding[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([category])
+  @@index([status])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("skill")
+}
+
+model SkillVersion {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  skillId     String    @map("skill_id") @db.Uuid
+  version     Int
+  status      String    @default("PUBLISHED") @db.VarChar(30)
+  snapshot    Json
+  changeNote  String?   @map("change_note") @db.Text
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  skill       Skill     @relation(fields: [skillId], references: [id])
+  creator     User?     @relation("SkillVersionCreator", fields: [createdBy], references: [id])
+
+  @@unique([tenantId, skillId, version])
+  @@index([tenantId])
+  @@index([skillId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@map("skill_version")
 }
 
 model KnowledgeBase {

@@ -438,6 +438,68 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'CUSTOMER_ASSESSMENT': {
+        const items = await this.prisma.customerAssessment.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { customerName: contains },
+                    { industry: contains },
+                    { contactName: contains },
+                    { businessGoal: contains },
+                    { recommendedStrategy: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CUSTOMER_ASSESSMENT',
+          name: item.customerName,
+          code: item.industry,
+          description: item.recommendedStrategy,
+          status: item.status,
+        }));
+      }
+      case 'SKILL': {
+        const items = await this.prisma.skill.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { description: contains },
+                    { triggerScenario: contains },
+                    { outputFormat: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'SKILL',
+          name: item.name,
+          code: item.code,
+          description: item.description ?? item.triggerScenario,
+          status: item.status,
+        }));
+      }
       case 'CHANNEL': {
         const items = await this.prisma.agentPublishChannel.findMany({
           where: {
@@ -683,6 +745,32 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: item.description,
+          status: item.status,
+        }));
+      }
+      case 'CUSTOMER_ASSESSMENT': {
+        const items = await this.prisma.customerAssessment.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'CUSTOMER_ASSESSMENT',
+          name: item.customerName,
+          code: item.industry,
+          description: item.recommendedStrategy,
+          status: item.status,
+        }));
+      }
+      case 'SKILL': {
+        const items = await this.prisma.skill.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'SKILL',
+          name: item.name,
+          code: item.code,
+          description: item.description ?? item.triggerScenario,
           status: item.status,
         }));
       }

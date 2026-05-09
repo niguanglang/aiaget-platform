@@ -1,0 +1,21 @@
+# Project UI Brief
+
+- 页面目标：M118 Skill Hub 是企业 AI Agent 平台的“技能资产中心”，用于沉淀可复用业务技能资产，包括触发场景、输入要求、执行步骤、输出结构、质量标准和边界规则。它不是提示词中心，不承载提示词渲染、变量、模型测试或 Prompt Marketplace。
+- 路由边界：`/skills` 为技能资产列表页，`/skills/create` 为新建页，`/skills/[id]` 为详情页，`/skills/[id]/edit` 为编辑页。列表、详情、表单必须分离；完整 SOP 字段、版本记录和 Agent 引用只进入详情或表单，不塞进列表。
+- 目标用户：业务运营负责人、Agent 管理员、技能资产维护人、租户管理员、只读审计用户。
+- 权限：查看需要 `skill:hub:view`，新建、编辑、删除、复制、发布需要 `skill:hub:manage`。前端无管理权限时保留查看入口并禁用写操作；后端由 `JwtAuthGuard` 与 `PermissionsGuard` 兜底。
+- API：`GET /skills`、`POST /skills`、`GET /skills/:id`、`PATCH /skills/:id`、`DELETE /skills/:id`、`POST /skills/:id/copy`、`POST /skills/:id/publish`。控制台请求会通过既有 API Client 追加平台统一前缀。
+- 查询参数：`page`、`page_size`、`keyword`、`category`、`status`、`owner_id`。
+- 数据表：`skill`、`skill_version`、`agent_skill_binding`。`skill_version.snapshot` 保存发布时不可变快照，`agent_skill_binding` 用于展示 Agent 对技能的主能力或辅助能力引用。
+- 数据类型：`SkillListItem`、`SkillDetail`、`SkillVersionItem`、`SkillAgentReferenceItem`、`CreateSkillInput`、`UpdateSkillInput`、`PublishSkillInput`。
+- 状态枚举：`DRAFT` 草稿、`PUBLISHED` 已发布、`DISABLED` 已停用、`ARCHIVED` 已归档。
+- 分类枚举：`GENERAL` 通用、`SALES` 销售、`DESIGN` 设计、`OPERATIONS` 运营、`TRAINING` 培训、`REVIEW` 评审。
+- 绑定类型：`PRIMARY` 主能力、`SUPPORTING` 辅助能力。
+- 列表页字段：名称、编码、分类、状态、版本、负责人、标签、触发场景预览、输出结构预览、Agent 引用数、更新时间、操作。列表不展示 `input_requirements`、`execution_steps`、`quality_criteria`、`boundary_rules` 全量内容。
+- 详情页字段：基础信息、触发场景、输入要求、执行步骤、输出结构、质量标准、边界规则、标签、版本记录、Agent 引用、审计记录。
+- 表单字段：`name`、`code`、`category`、`status`、`description`、`trigger_scenario`、`input_requirements`、`execution_steps`、`output_format`、`quality_criteria`、`boundary_rules`、`tags`、`owner_id`。新建时 `code` 必填且符合 `^[a-z][a-z0-9_-]{2,99}$`。
+- 列表动作：新建 Skill、搜索、筛选、查看、编辑、复制、删除。发布属于详情页版本操作，不放在列表行内主操作。
+- 详情动作：编辑、复制、删除、发布版本并填写变更说明、查看版本快照、查看 Agent 引用。
+- 页面状态：加载、空列表、接口错误、表单校验错误、无权限、写操作禁用、删除二次确认、复制成功、发布成功、保存成功。
+- 组件库约束：Next.js App Router、React、TypeScript、React Query、Tailwind CSS、shadcn 风格 `Button`、`Card`、`Input`、`Textarea`、`Select`、`Badge`、`EmptyState`、`MetricCard`、`StatusBadge`、确认对话框。
+- 视觉约束：企业 SaaS 后台，中文界面，密度适中，列表用于检索和导航，详情用于资产理解和治理；避免营销落地页、提示词编辑器化、过度装饰和单色主题。

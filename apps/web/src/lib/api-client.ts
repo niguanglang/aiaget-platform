@@ -36,6 +36,7 @@ import type {
   CreateAgentModelBindingInput,
   CreateAgentPromptBindingInput,
   CreateAgentToolBindingInput,
+  CreateCustomerAssessmentInput,
   CreateTenantApiKeyInput,
   CreateTenantApiKeyResult,
   RotateTenantApiKeyResult,
@@ -107,6 +108,8 @@ import type {
   ConversationFeedbackItem,
   ConversationListItem,
   ConversationStreamEvent,
+  CustomerAssessmentDetail,
+  CustomerAssessmentListItem,
   CurrentUserResponse,
   HealthResponse,
   KnowledgeBaseDetail,
@@ -175,6 +178,7 @@ import type {
   PublishChannelListItem,
   PublishChannelOverview,
   PublishPromptInput,
+  PublishSkillInput,
   RenderPromptInput,
   RenderPromptResult,
   RoleDetail,
@@ -243,6 +247,8 @@ import type {
   SecurityOperationAlertSlaTaskRunResult,
   SimulateSecurityPolicyInput,
   SimulateSecurityPolicyResult,
+  SkillDetail,
+  SkillListItem,
   StorageDownloadUrlResult,
   StorageEnsureBucketResult,
   StorageObjectListResult,
@@ -275,12 +281,14 @@ import type {
   UpdateAgentInput,
   UpdateAgentTeamInput,
   UpdateAgentTeamMemberInput,
+  UpdateCustomerAssessmentInput,
   UpdateAgentKnowledgeBindingInput,
   UpdateAgentToolBindingInput,
   UpdateDepartmentInput,
   UpdateMenuInput,
   UpdateMenuRoleBindingInput,
   UpdateSecurityPolicyInput,
+  UpdateSkillInput,
   UpdateSystemSettingInput,
   UpdateToolInput,
   SendConversationMessageInput,
@@ -293,6 +301,7 @@ import type {
   ResourceAclOptionResult,
   ResourceAclOverview,
   CreateSecurityPolicyInput,
+  CreateSkillInput,
   CreateToolInput,
   CreatePromptTemplateInput,
   CreatePromptVariableInput,
@@ -1932,6 +1941,90 @@ export function updatePromptVariable(promptId: string, variableId: string, input
 
 export function deletePromptVariable(promptId: string, variableId: string) {
   return request<PromptTemplateDetail>(`/prompt-templates/${promptId}/variables/${variableId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listSkills(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  category?: string;
+  status?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<SkillListItem>>(`/skills?${toSearchParams(params)}`);
+}
+
+export function createSkill(input: CreateSkillInput) {
+  return request<SkillDetail>('/skills', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getSkill(skillId: string) {
+  return request<SkillDetail>(`/skills/${skillId}`);
+}
+
+export function updateSkill(skillId: string, input: UpdateSkillInput) {
+  return request<SkillDetail>(`/skills/${skillId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteSkill(skillId: string) {
+  return request<{ success: boolean }>(`/skills/${skillId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function copySkill(skillId: string) {
+  return request<SkillDetail>(`/skills/${skillId}/copy`, {
+    method: 'POST',
+  });
+}
+
+export function publishSkill(skillId: string, input: PublishSkillInput) {
+  return request<SkillDetail>(`/skills/${skillId}/publish`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function listCustomerAssessments(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  customer_type?: string;
+  decision_stage?: string;
+  status?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<CustomerAssessmentListItem>>(`/customer-assessments?${toSearchParams(params)}`);
+}
+
+export function createCustomerAssessment(input: CreateCustomerAssessmentInput) {
+  return request<CustomerAssessmentDetail>('/customer-assessments', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getCustomerAssessment(assessmentId: string) {
+  return request<CustomerAssessmentDetail>(`/customer-assessments/${assessmentId}`);
+}
+
+export function updateCustomerAssessment(assessmentId: string, input: UpdateCustomerAssessmentInput) {
+  return request<CustomerAssessmentDetail>(`/customer-assessments/${assessmentId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteCustomerAssessment(assessmentId: string) {
+  return request<{ success: boolean }>(`/customer-assessments/${assessmentId}`, {
     method: 'DELETE',
   });
 }

@@ -126,6 +126,24 @@ export class ResourceAccessService {
         await addUsers([team.ownerId, team.createdBy, team.updatedBy]);
         break;
       }
+      case 'CUSTOMER_ASSESSMENT': {
+        const assessment = await this.prisma.customerAssessment.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+          },
+        });
+        if (!assessment) return null;
+        await addUsers([assessment.ownerId, assessment.createdBy, assessment.updatedBy]);
+        break;
+      }
       case 'CHANNEL': {
         const channel = await this.prisma.agentPublishChannel.findFirst({
           where: {

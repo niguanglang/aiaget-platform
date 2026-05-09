@@ -598,6 +598,7 @@ async function main() {
   const seededAgentTeam = await seedAgentTeam(tenant.id, admin.id, seededAgent.id);
   const seededCustomerAssessment = await seedCustomerAssessment(tenant.id, admin.id);
   const seededSkill = await seedSkill(tenant.id, admin.id, seededAgent.id);
+  const seededRoleScenario = await seedRoleScenario(tenant.id, admin.id, seededAgent.id, seededSkill.id);
   const seededChannel = await seedPublishChannels(tenant.id, admin.id, seededAgent.id);
   const seededPlugin = await seedPlugins(tenant.id, admin.id);
 
@@ -607,6 +608,7 @@ async function main() {
     adminRole.id,
     seededAgent.id,
     seededAgentTeam.id,
+    seededRoleScenario.id,
     seededCustomerAssessment.id,
     seededSkill.id,
     seededChannel.id,
@@ -645,6 +647,7 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'agents', parentCode: 'agent_center', name: 'Agent 管理', type: 'MENU', path: '/agents', component: 'agents/page', icon: 'Bot', permissionCode: PERMISSION_CODES.agentAgentView, sortOrder: 10 },
   { code: 'agent_teams', parentCode: 'agent_center', name: 'Agent 协作', type: 'MENU', path: '/agent-teams', component: 'agent-teams/page', icon: 'GitBranch', permissionCode: PERMISSION_CODES.agentTeamView, sortOrder: 20 },
   { code: 'agent_team_report_archives', parentCode: 'agent_teams', name: '报告归档', type: 'MENU', path: '/agent-teams/report-archives', component: 'agent-teams/report-archives/page', icon: 'FileArchive', permissionCode: PERMISSION_CODES.agentTeamView, sortOrder: 10 },
+  { code: 'role_scenarios', parentCode: 'agent_center', name: '岗位场景', type: 'MENU', path: '/role-scenarios', component: 'role-scenarios/page', icon: 'Workflow', permissionCode: PERMISSION_CODES.roleScenarioView, sortOrder: 25 },
   { code: 'customer_assessments', parentCode: 'agent_center', name: '客户评估', type: 'MENU', path: '/customer-assessments', component: 'customer-assessments/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.customerAssessmentView, sortOrder: 30 },
   { code: 'skills', parentCode: 'agent_center', name: '技能资产', type: 'MENU', path: '/skills', component: 'skills/page', icon: 'Blocks', permissionCode: PERMISSION_CODES.skillHubView, sortOrder: 40 },
   { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 50 },
@@ -719,6 +722,9 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'agent_team_create', parentCode: 'agent_teams', name: '新建 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 10, visible: false },
   { code: 'agent_team_update', parentCode: 'agent_teams', name: '编辑 Agent 协作团队', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamManage, sortOrder: 20, visible: false },
   { code: 'agent_team_run', parentCode: 'agent_teams', name: '启动 Agent 协作任务', type: 'BUTTON', permissionCode: PERMISSION_CODES.agentTeamRun, sortOrder: 30, visible: false },
+  { code: 'role_scenario_create', parentCode: 'role_scenarios', name: '新建岗位场景', type: 'BUTTON', permissionCode: PERMISSION_CODES.roleScenarioManage, sortOrder: 10, visible: false },
+  { code: 'role_scenario_update', parentCode: 'role_scenarios', name: '编辑岗位场景', type: 'BUTTON', permissionCode: PERMISSION_CODES.roleScenarioManage, sortOrder: 20, visible: false },
+  { code: 'role_scenario_archive', parentCode: 'role_scenarios', name: '归档岗位场景', type: 'BUTTON', permissionCode: PERMISSION_CODES.roleScenarioManage, sortOrder: 30, visible: false },
   { code: 'customer_assessment_create', parentCode: 'customer_assessments', name: '新建客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 10, visible: false },
   { code: 'customer_assessment_update', parentCode: 'customer_assessments', name: '编辑客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 20, visible: false },
   { code: 'customer_assessment_archive', parentCode: 'customer_assessments', name: '归档客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 30, visible: false },
@@ -808,6 +814,7 @@ function toSeedJsonInput(value: Record<string, unknown>): Prisma.InputJsonValue 
 const dataScopeResourceTypes = [
   'AGENT',
   'AGENT_TEAM',
+  'ROLE_SCENARIO',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -1117,6 +1124,98 @@ async function seedCustomerAssessment(tenantId: string, operatorId: string) {
       riskSummary: '需要提前确认数据不出域、权限边界和验收口径。',
       nextAction: '补齐合规方案并安排样板知识库检索演示。',
       notes: '从讲义六问判断看，客户已进入采购决策。',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+}
+
+async function seedRoleScenario(tenantId: string, operatorId: string, agentId: string, skillId: string) {
+  const tool = await prisma.tool.findUnique({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'runtime_health_probe',
+      },
+    },
+  });
+  const knowledge = await prisma.knowledgeBase.findFirst({
+    where: {
+      tenantId,
+      deletedAt: null,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+  const prompt = await prisma.promptTemplate.findFirst({
+    where: {
+      tenantId,
+      deletedAt: null,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+
+  return prisma.roleScenario.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'sales_solution_delivery',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      agentId,
+      skillId,
+      knowledgeId: knowledge?.id ?? null,
+      toolId: tool?.id ?? null,
+      promptId: prompt?.id ?? null,
+      name: '售前方案交付场景包',
+      code: 'sales_solution_delivery',
+      roleName: '售前顾问',
+      departmentName: '解决方案部',
+      scenarioType: 'SALES',
+      status: 'READY',
+      priority: 'HIGH',
+      painPoint: '客户资料分散，售前方案需要反复返工，引用来源和风险口径难以统一。',
+      businessGoal: '将客户六问、知识检索、方案生成、工具校验和验收材料串成标准化 AI 落地场景包。',
+      workflowSummary: '客户分层 -> 资料检索 -> Skill 执行 -> Agent 生成方案 -> 工具校验 -> 样板成果验收。',
+      expectedOutcome: '形成可复用售前方案包，减少方案准备时间并提升引用可信度。',
+      sampleDeliverable: 'Markdown 方案包，包含客户画像、目标场景、架构建议、引用来源、风险清单和验收口径。',
+      acceptanceCriteria: '引用来源完整，关键风险有处理建议，输出格式符合交付模板，客户可以基于样板成果做试点验收。',
+      roiMetric: '单次方案准备时间下降 40%，方案返工次数下降 30%，引用遗漏率低于 5%。',
+      impactScore: 96,
+      tags: ['售前', '方案', '样板成果', '场景包'],
+      notes: '作为 M120 默认样板，用于连接客户评估、Skill Hub 和 Agent 执行。',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      agentId,
+      skillId,
+      knowledgeId: knowledge?.id ?? null,
+      toolId: tool?.id ?? null,
+      promptId: prompt?.id ?? null,
+      name: '售前方案交付场景包',
+      roleName: '售前顾问',
+      departmentName: '解决方案部',
+      scenarioType: 'SALES',
+      status: 'READY',
+      priority: 'HIGH',
+      painPoint: '客户资料分散，售前方案需要反复返工，引用来源和风险口径难以统一。',
+      businessGoal: '将客户六问、知识检索、方案生成、工具校验和验收材料串成标准化 AI 落地场景包。',
+      workflowSummary: '客户分层 -> 资料检索 -> Skill 执行 -> Agent 生成方案 -> 工具校验 -> 样板成果验收。',
+      expectedOutcome: '形成可复用售前方案包，减少方案准备时间并提升引用可信度。',
+      sampleDeliverable: 'Markdown 方案包，包含客户画像、目标场景、架构建议、引用来源、风险清单和验收口径。',
+      acceptanceCriteria: '引用来源完整，关键风险有处理建议，输出格式符合交付模板，客户可以基于样板成果做试点验收。',
+      roiMetric: '单次方案准备时间下降 40%，方案返工次数下降 30%，引用遗漏率低于 5%。',
+      impactScore: 96,
+      tags: ['售前', '方案', '样板成果', '场景包'],
+      notes: '作为 M120 默认样板，用于连接客户评估、Skill Hub 和 Agent 执行。',
       deletedAt: null,
       updatedBy: operatorId,
     },
@@ -1524,6 +1623,7 @@ async function seedResourceAcls(
   adminRoleId: string,
   agentId: string,
   agentTeamId: string,
+  roleScenarioId: string,
   customerAssessmentId: string,
   skillId: string,
   channelId: string,
@@ -1570,6 +1670,14 @@ async function seedResourceAcls(
       permissionCode: PERMISSION_CODES.agentTeamRun,
       effect: 'ALLOW',
     },
+    ...[PERMISSION_CODES.roleScenarioView, PERMISSION_CODES.roleScenarioManage].map((permissionCode) => ({
+      resourceType: 'ROLE_SCENARIO',
+      resourceId: roleScenarioId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
     ...[PERMISSION_CODES.customerAssessmentView, PERMISSION_CODES.customerAssessmentManage].map((permissionCode) => ({
       resourceType: 'CUSTOMER_ASSESSMENT',
       resourceId: customerAssessmentId,

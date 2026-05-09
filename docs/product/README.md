@@ -146,6 +146,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M117 安全中心细分审批统一工作台](./m117-security-approval-workbench.md)
 - [M118 技能资产中心](./m118-skill-hub.md)
 - [M119 客户分层与六问评估中心](./m119-customer-assessment-center.md)
+- [M120 岗位场景编排中心](./m120-role-scenario-center.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

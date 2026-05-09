@@ -37,6 +37,7 @@ import type {
   CreateAgentPromptBindingInput,
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
+  CreateRoleScenarioInput,
   CreateTenantApiKeyInput,
   CreateTenantApiKeyResult,
   RotateTenantApiKeyResult,
@@ -184,6 +185,8 @@ import type {
   RoleDetail,
   RoleListItem,
   RoleOverview,
+  RoleScenarioDetail,
+  RoleScenarioListItem,
   RollbackAgentInput,
   RollbackPromptInput,
   ExternalApiObservabilityOverview,
@@ -282,6 +285,7 @@ import type {
   UpdateAgentTeamInput,
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
+  UpdateRoleScenarioInput,
   UpdateAgentKnowledgeBindingInput,
   UpdateAgentToolBindingInput,
   UpdateDepartmentInput,
@@ -2025,6 +2029,42 @@ export function updateCustomerAssessment(assessmentId: string, input: UpdateCust
 
 export function deleteCustomerAssessment(assessmentId: string) {
   return request<{ success: boolean }>(`/customer-assessments/${assessmentId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listRoleScenarios(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  scenario_type?: string;
+  status?: string;
+  priority?: string;
+  owner_id?: string;
+}) {
+  return request<PaginatedResult<RoleScenarioListItem>>(`/role-scenarios?${toSearchParams(params)}`);
+}
+
+export function createRoleScenario(input: CreateRoleScenarioInput) {
+  return request<RoleScenarioDetail>('/role-scenarios', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getRoleScenario(scenarioId: string) {
+  return request<RoleScenarioDetail>(`/role-scenarios/${scenarioId}`);
+}
+
+export function updateRoleScenario(scenarioId: string, input: UpdateRoleScenarioInput) {
+  return request<RoleScenarioDetail>(`/role-scenarios/${scenarioId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteRoleScenario(scenarioId: string) {
+  return request<{ success: boolean }>(`/role-scenarios/${scenarioId}`, {
     method: 'DELETE',
   });
 }

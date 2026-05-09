@@ -77,6 +77,8 @@ export const PERMISSION_CODES = {
   agentTeamManage: 'agent:team:manage',
   agentTeamRun: 'agent:team:run',
   agentTeamHandoffReview: 'security:approval:handle',
+  roleScenarioView: 'scenario:package:view',
+  roleScenarioManage: 'scenario:package:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -357,6 +359,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'agent',
     resource: 'team_handoff',
     action: 'review',
+  },
+  {
+    code: PERMISSION_CODES.roleScenarioView,
+    legacy_code: 'scenario.read',
+    name: 'Scenario Package View',
+    module: 'scenario',
+    resource: 'package',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.roleScenarioManage,
+    legacy_code: 'scenario.write',
+    name: 'Scenario Package Manage',
+    module: 'scenario',
+    resource: 'package',
+    action: 'manage',
   },
   {
     code: PERMISSION_CODES.customerAssessmentView,
@@ -919,6 +937,7 @@ export type DataScopeStatus = 'ACTIVE' | 'DISABLED' | 'DELETED';
 export type DataScopeResourceType =
   | 'AGENT'
   | 'AGENT_TEAM'
+  | 'ROLE_SCENARIO'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5176,6 +5195,122 @@ export interface UpdateCustomerAssessmentInput {
   next_action?: string;
   notes?: string | null;
   owner_id?: string | null;
+}
+
+export type RoleScenarioType =
+  | 'SALES'
+  | 'SERVICE'
+  | 'OPERATIONS'
+  | 'DESIGN'
+  | 'TRAINING'
+  | 'MANAGEMENT'
+  | 'CUSTOM';
+export type RoleScenarioStatus = 'DRAFT' | 'READY' | 'PILOTING' | 'ACTIVE' | 'ARCHIVED';
+export type RoleScenarioPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface RoleScenarioOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface RoleScenarioAssetSummary {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+  extra?: string | null;
+}
+
+export interface RoleScenarioLinkedResources {
+  agent: RoleScenarioAssetSummary | null;
+  skill: RoleScenarioAssetSummary | null;
+  knowledge: RoleScenarioAssetSummary | null;
+  tool: RoleScenarioAssetSummary | null;
+  prompt: RoleScenarioAssetSummary | null;
+}
+
+export interface RoleScenarioListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  role_name: string;
+  department_name: string;
+  scenario_type: RoleScenarioType;
+  status: RoleScenarioStatus;
+  priority: RoleScenarioPriority;
+  impact_score: number;
+  pain_point_preview: string;
+  workflow_preview: string;
+  expected_outcome_preview: string;
+  owner: RoleScenarioOwnerSummary | null;
+  linked_resources: RoleScenarioLinkedResources;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleScenarioDetail extends RoleScenarioListItem {
+  pain_point: string;
+  business_goal: string;
+  workflow_summary: string;
+  expected_outcome: string;
+  sample_deliverable: string;
+  acceptance_criteria: string;
+  roi_metric: string;
+  notes: string | null;
+}
+
+export interface CreateRoleScenarioInput {
+  name: string;
+  code: string;
+  role_name: string;
+  department_name: string;
+  scenario_type?: RoleScenarioType;
+  status?: RoleScenarioStatus;
+  priority?: RoleScenarioPriority;
+  pain_point: string;
+  business_goal: string;
+  workflow_summary: string;
+  expected_outcome: string;
+  sample_deliverable: string;
+  acceptance_criteria: string;
+  roi_metric: string;
+  impact_score?: number;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  agent_id?: string | null;
+  skill_id?: string | null;
+  knowledge_id?: string | null;
+  tool_id?: string | null;
+  prompt_id?: string | null;
+}
+
+export interface UpdateRoleScenarioInput {
+  name?: string;
+  role_name?: string;
+  department_name?: string;
+  scenario_type?: RoleScenarioType;
+  status?: RoleScenarioStatus;
+  priority?: RoleScenarioPriority;
+  pain_point?: string;
+  business_goal?: string;
+  workflow_summary?: string;
+  expected_outcome?: string;
+  sample_deliverable?: string;
+  acceptance_criteria?: string;
+  roi_metric?: string;
+  impact_score?: number;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  agent_id?: string | null;
+  skill_id?: string | null;
+  knowledge_id?: string | null;
+  tool_id?: string | null;
+  prompt_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

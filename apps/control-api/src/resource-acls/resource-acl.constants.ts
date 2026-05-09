@@ -7,6 +7,7 @@ import type {
 export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
+  'ROLE_SCENARIO',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -56,6 +57,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: 'Agent 协作团队',
     description: '控制具体多 Agent 团队的查看、编辑、运行、接力和反馈。',
     permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'ROLE_SCENARIO',
+    name: '岗位场景',
+    description: '控制具体岗位场景包的查看、编辑、归档和关联资产编排。',
+    permission_codes: ['scenario:package:view', 'scenario:package:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

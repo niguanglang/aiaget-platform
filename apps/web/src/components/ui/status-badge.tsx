@@ -2,7 +2,7 @@ import type { HealthStatus } from '@aiaget/shared-types';
 
 import { cn } from '@/lib/utils';
 
-type StatusTone = HealthStatus | 'planned' | 'ready' | 'mock' | 'loading';
+type StatusTone = HealthStatus | 'planned' | 'ready' | 'mock' | 'loading' | 'muted';
 
 const toneClasses: Record<StatusTone, string> = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -12,6 +12,7 @@ const toneClasses: Record<StatusTone, string> = {
   planned: 'border-slate-200 bg-slate-50 text-slate-700',
   mock: 'border-blue-200 bg-blue-50 text-blue-700',
   loading: 'border-slate-200 bg-slate-50 text-slate-500',
+  muted: 'border-slate-200 bg-slate-50 text-slate-500',
 };
 
 export function StatusBadge({
@@ -35,4 +36,3 @@ export function StatusBadge({
     </span>
   );
 }
-

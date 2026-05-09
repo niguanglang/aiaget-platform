@@ -438,6 +438,38 @@ export class ResourceAclsService {
           status: item.status,
         }));
       }
+      case 'ROLE_SCENARIO': {
+        const items = await this.prisma.roleScenario.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(contains
+              ? {
+                  OR: [
+                    { name: contains },
+                    { code: contains },
+                    { roleName: contains },
+                    { departmentName: contains },
+                    { painPoint: contains },
+                    { workflowSummary: contains },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: {
+            updatedAt: 'desc',
+          },
+          take,
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'ROLE_SCENARIO',
+          name: item.name,
+          code: item.code,
+          description: `${item.roleName} / ${item.departmentName}`,
+          status: item.status,
+        }));
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const items = await this.prisma.customerAssessment.findMany({
           where: {
@@ -745,6 +777,19 @@ export class ResourceAclsService {
           name: item.name,
           code: item.code,
           description: item.description,
+          status: item.status,
+        }));
+      }
+      case 'ROLE_SCENARIO': {
+        const items = await this.prisma.roleScenario.findMany({
+          where: { tenantId, id: idFilter, deletedAt: null },
+        });
+        return items.map((item) => ({
+          id: item.id,
+          type: 'ROLE_SCENARIO',
+          name: item.name,
+          code: item.code,
+          description: `${item.roleName} / ${item.departmentName}`,
           status: item.status,
         }));
       }

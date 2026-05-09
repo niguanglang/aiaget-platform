@@ -18,6 +18,7 @@ export const DATA_SCOPE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'] as const;
 export const DATA_SCOPE_RESOURCE_TYPES: DataScopeResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
+  'ROLE_SCENARIO',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -42,6 +43,12 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     name: 'Agent 协作团队',
     description: '控制多 Agent 团队、成员、运行、接力和反馈数据的可访问范围。',
     permission_codes: ['agent:team:view', 'agent:team:manage', 'agent:team:run'],
+  },
+  {
+    resource_type: 'ROLE_SCENARIO',
+    name: '岗位场景',
+    description: '控制岗位场景包、流程编排、样板成果、验收标准和关联资产的可访问范围。',
+    permission_codes: ['scenario:package:view', 'scenario:package:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

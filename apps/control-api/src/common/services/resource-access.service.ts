@@ -126,6 +126,24 @@ export class ResourceAccessService {
         await addUsers([team.ownerId, team.createdBy, team.updatedBy]);
         break;
       }
+      case 'ROLE_SCENARIO': {
+        const scenario = await this.prisma.roleScenario.findFirst({
+          where: {
+            tenantId,
+            id: canonicalResourceId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            createdBy: true,
+            updatedBy: true,
+          },
+        });
+        if (!scenario) return null;
+        await addUsers([scenario.ownerId, scenario.createdBy, scenario.updatedBy]);
+        break;
+      }
       case 'CUSTOMER_ASSESSMENT': {
         const assessment = await this.prisma.customerAssessment.findFirst({
           where: {

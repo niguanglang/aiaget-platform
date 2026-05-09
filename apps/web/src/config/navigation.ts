@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   SquareTerminal,
   Wrench,
+  Workflow,
 } from 'lucide-react';
 
 import { moduleSpecs } from '@/config/modules';
@@ -40,6 +41,7 @@ export interface ConsoleNavItem {
 const moduleIconMap: Record<string, LucideIcon> = {
   agents: Bot,
   agent_teams: GitBranch,
+  role_scenarios: Workflow,
   channels: RadioTower,
   customer_assessments: ClipboardList,
   prompts: FileText,

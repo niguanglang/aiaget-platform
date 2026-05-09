@@ -3,6 +3,7 @@ import type { DataScopeResourceType, DataScopeType } from '@aiaget/shared-types'
 export const dataScopeResourceOrder: DataScopeResourceType[] = [
   'AGENT',
   'AGENT_TEAM',
+  'ROLE_SCENARIO',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -18,6 +19,7 @@ export const dataScopeResourceOrder: DataScopeResourceType[] = [
 export const dataScopeResourceLabels: Record<DataScopeResourceType, string> = {
   AGENT: 'Agent 数据',
   AGENT_TEAM: 'Agent 协作团队',
+  ROLE_SCENARIO: '岗位场景',
   CUSTOMER_ASSESSMENT: '客户评估',
   SKILL: '技能资产',
   CHANNEL: '发布渠道',

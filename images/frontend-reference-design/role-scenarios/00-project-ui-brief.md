@@ -1,0 +1,24 @@
+# M120 岗位场景编排中心 UI Brief
+
+- Page: 岗位场景编排中心
+- Route: `/role-scenarios`
+- Parent layout: Next.js App Router 控制台布局，页面在 `apps/web/src/app/(console)/role-scenarios` 下。
+- Target users: 租户管理员、Agent 管理员、业务运营负责人、交付负责人。
+- Permission: `scenario:package:view` 查看，`scenario:package:manage` 新建、编辑、归档。
+- Business goal: 把岗位目标、业务流程、Agent、Skill、知识库、工具、提示词和验收标准组合成可复用、可交付、可验收的 AI 落地场景包。
+- API services: `listRoleScenarios`, `createRoleScenario`, `getRoleScenario`, `updateRoleScenario`, `deleteRoleScenario`。表单选择项复用 `listUsers`, `listAgents`, `listSkills`, `listKnowledgeBases`, `listTools`, `listPromptTemplates`。
+- Entity fields:
+  - list: `name`, `code`, `role_name`, `department_name`, `scenario_type`, `status`, `priority`, `impact_score`, `pain_point_preview`, `workflow_preview`, `expected_outcome_preview`, `owner`, `linked_resources`, `tags`, `updated_at`
+  - detail: `pain_point`, `business_goal`, `workflow_summary`, `expected_outcome`, `sample_deliverable`, `acceptance_criteria`, `roi_metric`, `notes`
+  - linked assets: Agent, Skill, 知识库, 工具, 提示词。
+- Status/enums:
+  - scenario type: `SALES`, `SERVICE`, `OPERATIONS`, `DESIGN`, `TRAINING`, `MANAGEMENT`, `CUSTOM`
+  - status: `DRAFT`, `READY`, `PILOTING`, `ACTIVE`, `ARCHIVED`
+  - priority: `LOW`, `MEDIUM`, `HIGH`
+- Page responsibility:
+  - list page only supports query/filter/overview/table/row actions and must not show full acceptance criteria or full sample deliverable.
+  - detail page owns workflow, deliverables, acceptance, ROI and linked asset detail.
+  - create/edit are independent pages because the form is multi-section and includes cross-asset binding.
+- Existing components/design system: Tailwind CSS, shadcn-style `Button`, `Card`, `Input`, `EmptyState`, `MetricCard`, `StatusBadge`, `useQuery`, `useMutation`, `motion/react`, `lucide-react` icons.
+- Required states: loading, empty, error, validation, disabled, success by navigation/query invalidation, permission-denied disabled buttons.
+- Visual constraints: Chinese visible text, clean SaaS admin layout, subtle border/soft shadow/backdrop blur, restrained Motion, no decorative clutter, no overstuffed list table.

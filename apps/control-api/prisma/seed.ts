@@ -624,6 +624,13 @@ async function main() {
     seededAgent.id,
     seededKnowledge?.id ?? null,
   );
+  const seededCustomerSuccessPlan = await seedCustomerSuccessPlan(
+    tenant.id,
+    admin.id,
+    seededDeliveryReview.id,
+    seededDeliveryAsset.id,
+    seededSolutionPackage.id,
+  );
   const seededChannel = await seedPublishChannels(tenant.id, admin.id, seededAgent.id);
   const seededPlugin = await seedPlugins(tenant.id, admin.id);
 
@@ -637,6 +644,7 @@ async function main() {
     seededSolutionPackage.id,
     seededDeliveryReview.id,
     seededDeliveryAsset.id,
+    seededCustomerSuccessPlan.id,
     seededCustomerAssessment.id,
     seededSkill.id,
     seededChannel.id,
@@ -679,6 +687,7 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'solution_packages', parentCode: 'agent_center', name: '落地方案', type: 'MENU', path: '/solution-packages', component: 'solution-packages/page', icon: 'FileCheck2', permissionCode: PERMISSION_CODES.solutionPackageView, sortOrder: 30 },
   { code: 'delivery_reviews', parentCode: 'agent_center', name: '验收复盘', type: 'MENU', path: '/delivery-reviews', component: 'delivery-reviews/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.deliveryReviewView, sortOrder: 35 },
   { code: 'delivery_assets', parentCode: 'agent_center', name: '成果资产', type: 'MENU', path: '/delivery-assets', component: 'delivery-assets/page', icon: 'ArchiveRestore', permissionCode: PERMISSION_CODES.deliveryAssetView, sortOrder: 37 },
+  { code: 'customer_success_plans', parentCode: 'agent_center', name: '客户成功', type: 'MENU', path: '/customer-success-plans', component: 'customer-success-plans/page', icon: 'TrendingUp', permissionCode: PERMISSION_CODES.customerSuccessView, sortOrder: 38 },
   { code: 'customer_assessments', parentCode: 'agent_center', name: '客户评估', type: 'MENU', path: '/customer-assessments', component: 'customer-assessments/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.customerAssessmentView, sortOrder: 40 },
   { code: 'skills', parentCode: 'agent_center', name: '技能资产', type: 'MENU', path: '/skills', component: 'skills/page', icon: 'Blocks', permissionCode: PERMISSION_CODES.skillHubView, sortOrder: 45 },
   { code: 'channels', parentCode: 'agent_center', name: '渠道发布', type: 'MENU', path: '/channels', component: 'channels/page', icon: 'RadioTower', permissionCode: PERMISSION_CODES.channelPublishView, sortOrder: 50 },
@@ -765,6 +774,9 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'delivery_asset_create', parentCode: 'delivery_assets', name: '新建成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 10, visible: false },
   { code: 'delivery_asset_update', parentCode: 'delivery_assets', name: '编辑成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 20, visible: false },
   { code: 'delivery_asset_archive', parentCode: 'delivery_assets', name: '归档成果资产', type: 'BUTTON', permissionCode: PERMISSION_CODES.deliveryAssetManage, sortOrder: 30, visible: false },
+  { code: 'customer_success_plan_create', parentCode: 'customer_success_plans', name: '新建客户成功计划', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerSuccessManage, sortOrder: 10, visible: false },
+  { code: 'customer_success_plan_update', parentCode: 'customer_success_plans', name: '编辑客户成功计划', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerSuccessManage, sortOrder: 20, visible: false },
+  { code: 'customer_success_plan_archive', parentCode: 'customer_success_plans', name: '归档客户成功计划', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerSuccessManage, sortOrder: 30, visible: false },
   { code: 'customer_assessment_create', parentCode: 'customer_assessments', name: '新建客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 10, visible: false },
   { code: 'customer_assessment_update', parentCode: 'customer_assessments', name: '编辑客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 20, visible: false },
   { code: 'customer_assessment_archive', parentCode: 'customer_assessments', name: '归档客户评估', type: 'BUTTON', permissionCode: PERMISSION_CODES.customerAssessmentManage, sortOrder: 30, visible: false },
@@ -858,6 +870,7 @@ const dataScopeResourceTypes = [
   'SOLUTION_PACKAGE',
   'DELIVERY_REVIEW',
   'DELIVERY_ASSET',
+  'CUSTOMER_SUCCESS_PLAN',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -1465,6 +1478,75 @@ async function seedDeliveryAsset(
   });
 }
 
+async function seedCustomerSuccessPlan(
+  tenantId: string,
+  operatorId: string,
+  deliveryReviewId: string,
+  deliveryAssetId: string,
+  solutionPackageId: string,
+) {
+  return prisma.customerSuccessPlan.upsert({
+    where: {
+      tenantId_code: {
+        tenantId,
+        code: 'huazhong_design_success_expansion',
+      },
+    },
+    create: {
+      tenantId,
+      ownerId: operatorId,
+      deliveryReviewId,
+      deliveryAssetId,
+      solutionPackageId,
+      name: '华中设计院客户成功扩展计划',
+      code: 'huazhong_design_success_expansion',
+      customerName: '华中设计院',
+      planStage: 'EXPANSION_DESIGN',
+      status: 'ACTIVE',
+      priority: 'HIGH',
+      healthLevel: 'HIGH',
+      successScore: 88,
+      expansionScope: '扩展到投标资料问答、项目复盘助手和客户成功运营看板。',
+      successObjectives: '30 天完成第二批岗位场景试点，复用成果资产并形成续约材料。',
+      stakeholderPlan: '客户 CIO 负责业务牵引，设计院运营经理负责资料准备，平台客户成功经理每周复盘。',
+      assetReusePlan: '复用售前方案验收资产包，复制验收清单、风险提示和引用来源检查表。',
+      renewalPlan: '在试点验收后 45 天形成续约方案和新增部门推广清单。',
+      riskSummary: '资料权限边界、跨部门目标不一致和知识库密级需要提前确认。',
+      nextAction: '组织扩展方案评审会，确认第二批岗位场景和资料范围。',
+      dueAt: new Date('2026-06-15T10:00:00.000Z'),
+      tags: ['客户成功', '扩展', '续约', '复用'],
+      notes: 'M124 默认样板，用于把验收复盘和成果资产转成可执行客户成功计划。',
+      createdBy: operatorId,
+      updatedBy: operatorId,
+    },
+    update: {
+      ownerId: operatorId,
+      deliveryReviewId,
+      deliveryAssetId,
+      solutionPackageId,
+      name: '华中设计院客户成功扩展计划',
+      customerName: '华中设计院',
+      planStage: 'EXPANSION_DESIGN',
+      status: 'ACTIVE',
+      priority: 'HIGH',
+      healthLevel: 'HIGH',
+      successScore: 88,
+      expansionScope: '扩展到投标资料问答、项目复盘助手和客户成功运营看板。',
+      successObjectives: '30 天完成第二批岗位场景试点，复用成果资产并形成续约材料。',
+      stakeholderPlan: '客户 CIO 负责业务牵引，设计院运营经理负责资料准备，平台客户成功经理每周复盘。',
+      assetReusePlan: '复用售前方案验收资产包，复制验收清单、风险提示和引用来源检查表。',
+      renewalPlan: '在试点验收后 45 天形成续约方案和新增部门推广清单。',
+      riskSummary: '资料权限边界、跨部门目标不一致和知识库密级需要提前确认。',
+      nextAction: '组织扩展方案评审会，确认第二批岗位场景和资料范围。',
+      dueAt: new Date('2026-06-15T10:00:00.000Z'),
+      tags: ['客户成功', '扩展', '续约', '复用'],
+      notes: 'M124 默认样板，用于把验收复盘和成果资产转成可执行客户成功计划。',
+      deletedAt: null,
+      updatedBy: operatorId,
+    },
+  });
+}
+
 function calculateSeedReadinessScore(scores: Record<string, number>) {
   const sum = Object.values(scores).reduce((total, score) => total + score, 0);
 
@@ -1870,6 +1952,7 @@ async function seedResourceAcls(
   solutionPackageId: string,
   deliveryReviewId: string,
   deliveryAssetId: string,
+  customerSuccessPlanId: string,
   customerAssessmentId: string,
   skillId: string,
   channelId: string,
@@ -1943,6 +2026,14 @@ async function seedResourceAcls(
     ...[PERMISSION_CODES.deliveryAssetView, PERMISSION_CODES.deliveryAssetManage].map((permissionCode) => ({
       resourceType: 'DELIVERY_ASSET',
       resourceId: deliveryAssetId,
+      subjectType: 'ROLE',
+      subjectId: adminRoleId,
+      permissionCode,
+      effect: 'ALLOW',
+    })),
+    ...[PERMISSION_CODES.customerSuccessView, PERMISSION_CODES.customerSuccessManage].map((permissionCode) => ({
+      resourceType: 'CUSTOMER_SUCCESS_PLAN',
+      resourceId: customerSuccessPlanId,
       subjectType: 'ROLE',
       subjectId: adminRoleId,
       permissionCode,

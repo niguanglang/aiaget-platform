@@ -38,6 +38,7 @@ import type {
   CreateAgentToolBindingInput,
   CreateCustomerAssessmentInput,
   CreateDeliveryAssetInput,
+  CreateCustomerSuccessPlanInput,
   CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
   CreateSolutionPackageInput,
@@ -194,6 +195,8 @@ import type {
   SolutionPackageListItem,
   DeliveryAssetDetail,
   DeliveryAssetListItem,
+  CustomerSuccessPlanDetail,
+  CustomerSuccessPlanListItem,
   DeliveryReviewDetail,
   DeliveryReviewListItem,
   RollbackAgentInput,
@@ -295,6 +298,7 @@ import type {
   UpdateAgentTeamMemberInput,
   UpdateCustomerAssessmentInput,
   UpdateDeliveryAssetInput,
+  UpdateCustomerSuccessPlanInput,
   UpdateDeliveryReviewInput,
   UpdateRoleScenarioInput,
   UpdateSolutionPackageInput,
@@ -2193,6 +2197,46 @@ export function updateDeliveryAsset(assetId: string, input: UpdateDeliveryAssetI
 
 export function deleteDeliveryAsset(assetId: string) {
   return request<{ success: boolean }>(`/delivery-assets/${assetId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function listCustomerSuccessPlans(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  plan_stage?: string;
+  status?: string;
+  priority?: string;
+  health_level?: string;
+  owner_id?: string;
+  delivery_review_id?: string;
+  delivery_asset_id?: string;
+  solution_package_id?: string;
+}) {
+  return request<PaginatedResult<CustomerSuccessPlanListItem>>(`/customer-success-plans?${toSearchParams(params)}`);
+}
+
+export function createCustomerSuccessPlan(input: CreateCustomerSuccessPlanInput) {
+  return request<CustomerSuccessPlanDetail>('/customer-success-plans', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function getCustomerSuccessPlan(planId: string) {
+  return request<CustomerSuccessPlanDetail>(`/customer-success-plans/${planId}`);
+}
+
+export function updateCustomerSuccessPlan(planId: string, input: UpdateCustomerSuccessPlanInput) {
+  return request<CustomerSuccessPlanDetail>(`/customer-success-plans/${planId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteCustomerSuccessPlan(planId: string) {
+  return request<{ success: boolean }>(`/customer-success-plans/${planId}`, {
     method: 'DELETE',
   });
 }

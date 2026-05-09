@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   SquareTerminal,
+  TrendingUp,
   Wrench,
   Workflow,
 } from 'lucide-react';
@@ -47,6 +48,7 @@ const moduleIconMap: Record<string, LucideIcon> = {
   solution_packages: FileCheck2,
   delivery_reviews: ClipboardCheck,
   delivery_assets: ArchiveRestore,
+  customer_success_plans: TrendingUp,
   channels: RadioTower,
   customer_assessments: ClipboardList,
   prompts: FileText,

@@ -1,0 +1,12 @@
+{
+  "page": "客户成功计划中心",
+  "route": "/customer-success-plans",
+  "feature": "把验收复盘和成果资产转成客户成功扩展、续约准备、资产复用和健康运营计划",
+  "created_at": "2026-05-09T19:00:00+08:00",
+  "assets": {
+    "project_ui_brief": "00-project-ui-brief.md",
+    "product_ui_design_prompt": "01-product-ui-design-prompt.md",
+    "product_prototype_prompt": "02-product-prototype-prompt.md",
+    "component_mapping": "03-component-mapping.md"
+  }
+}

@@ -85,6 +85,8 @@ export const PERMISSION_CODES = {
   deliveryReviewManage: 'delivery:review:manage',
   deliveryAssetView: 'delivery:asset:view',
   deliveryAssetManage: 'delivery:asset:manage',
+  customerSuccessView: 'customer:success:view',
+  customerSuccessManage: 'customer:success:manage',
   customerAssessmentView: 'customer:assessment:view',
   customerAssessmentManage: 'customer:assessment:manage',
   skillHubView: 'skill:hub:view',
@@ -428,6 +430,22 @@ export const permissionDefinitions: PermissionDefinition[] = [
     name: 'Delivery Asset Manage',
     module: 'delivery',
     resource: 'asset',
+    action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessView,
+    legacy_code: 'customer_success.read',
+    name: 'Customer Success View',
+    module: 'customer',
+    resource: 'success',
+    action: 'view',
+  },
+  {
+    code: PERMISSION_CODES.customerSuccessManage,
+    legacy_code: 'customer_success.write',
+    name: 'Customer Success Manage',
+    module: 'customer',
+    resource: 'success',
     action: 'manage',
   },
   {
@@ -995,6 +1013,7 @@ export type DataScopeResourceType =
   | 'SOLUTION_PACKAGE'
   | 'DELIVERY_REVIEW'
   | 'DELIVERY_ASSET'
+  | 'CUSTOMER_SUCCESS_PLAN'
   | 'CUSTOMER_ASSESSMENT'
   | 'SKILL'
   | 'CHANNEL'
@@ -5735,6 +5754,139 @@ export interface UpdateDeliveryAssetInput {
   skill_id?: string | null;
   agent_id?: string | null;
   knowledge_id?: string | null;
+}
+
+export type CustomerSuccessPlanStage =
+  | 'DISCOVERY'
+  | 'EXPANSION_DESIGN'
+  | 'PILOT_ROLLOUT'
+  | 'RENEWAL_PREP'
+  | 'CLOSED';
+export type CustomerSuccessPlanStatus = 'DRAFT' | 'ACTIVE' | 'BLOCKED' | 'COMPLETED' | 'ARCHIVED';
+export type CustomerSuccessPlanPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type CustomerSuccessPlanHealthLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface CustomerSuccessPlanOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CustomerSuccessPlanReviewSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  result: DeliveryReviewResult;
+  status: DeliveryReviewStatus;
+  acceptance_score: number;
+}
+
+export interface CustomerSuccessPlanAssetSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  asset_type: DeliveryAssetType;
+  status: DeliveryAssetStatus;
+  reuse_score: number;
+}
+
+export interface CustomerSuccessPlanSolutionPackageSummary {
+  id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  package_stage: SolutionPackageStage;
+  status: SolutionPackageStatus;
+  package_score: number;
+}
+
+export interface CustomerSuccessPlanLinkedResources {
+  delivery_review: CustomerSuccessPlanReviewSummary | null;
+  delivery_asset: CustomerSuccessPlanAssetSummary | null;
+  solution_package: CustomerSuccessPlanSolutionPackageSummary | null;
+}
+
+export interface CustomerSuccessPlanListItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  customer_name: string;
+  plan_stage: CustomerSuccessPlanStage;
+  status: CustomerSuccessPlanStatus;
+  priority: CustomerSuccessPlanPriority;
+  health_level: CustomerSuccessPlanHealthLevel;
+  success_score: number;
+  expansion_scope_preview: string;
+  next_action_preview: string;
+  owner: CustomerSuccessPlanOwnerSummary | null;
+  linked_resources: CustomerSuccessPlanLinkedResources;
+  due_at: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSuccessPlanDetail extends CustomerSuccessPlanListItem {
+  expansion_scope: string;
+  success_objectives: string;
+  stakeholder_plan: string;
+  asset_reuse_plan: string;
+  renewal_plan: string;
+  risk_summary: string;
+  next_action: string;
+  notes: string | null;
+}
+
+export interface CreateCustomerSuccessPlanInput {
+  name: string;
+  code: string;
+  customer_name: string;
+  plan_stage?: CustomerSuccessPlanStage;
+  status?: CustomerSuccessPlanStatus;
+  priority?: CustomerSuccessPlanPriority;
+  health_level?: CustomerSuccessPlanHealthLevel;
+  success_score?: number;
+  expansion_scope: string;
+  success_objectives: string;
+  stakeholder_plan: string;
+  asset_reuse_plan: string;
+  renewal_plan: string;
+  risk_summary: string;
+  next_action: string;
+  due_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id: string;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
+}
+
+export interface UpdateCustomerSuccessPlanInput {
+  name?: string;
+  customer_name?: string;
+  plan_stage?: CustomerSuccessPlanStage;
+  status?: CustomerSuccessPlanStatus;
+  priority?: CustomerSuccessPlanPriority;
+  health_level?: CustomerSuccessPlanHealthLevel;
+  success_score?: number;
+  expansion_scope?: string;
+  success_objectives?: string;
+  stakeholder_plan?: string;
+  asset_reuse_plan?: string;
+  renewal_plan?: string;
+  risk_summary?: string;
+  next_action?: string;
+  due_at?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  owner_id?: string | null;
+  delivery_review_id?: string | null;
+  delivery_asset_id?: string | null;
+  solution_package_id?: string | null;
 }
 
 export interface CreatePromptTemplateInput {

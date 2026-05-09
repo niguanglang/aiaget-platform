@@ -266,6 +266,11 @@ POST /api/v1/delivery-assets
 GET  /api/v1/delivery-assets/:id
 PATCH /api/v1/delivery-assets/:id
 DELETE /api/v1/delivery-assets/:id
+GET  /api/v1/customer-success-plans
+POST /api/v1/customer-success-plans
+GET  /api/v1/customer-success-plans/:id
+PATCH /api/v1/customer-success-plans/:id
+DELETE /api/v1/customer-success-plans/:id
 POST /runtime/conversations/respond-stream
 ```
 
@@ -304,6 +309,7 @@ images/frontend-reference-design/m26-qdrant-vector-store/
 images/frontend-reference-design/m26-opensearch-hybrid-retrieval/
 images/frontend-reference-design/knowledge-background-tasks/
 images/frontend-reference-design/deliveryassets/
+images/frontend-reference-design/customer-success-plans/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

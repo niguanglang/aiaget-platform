@@ -11,6 +11,7 @@ export const RESOURCE_ACL_RESOURCE_TYPES: ResourceAclResourceType[] = [
   'SOLUTION_PACKAGE',
   'DELIVERY_REVIEW',
   'DELIVERY_ASSET',
+  'CUSTOMER_SUCCESS_PLAN',
   'CUSTOMER_ASSESSMENT',
   'SKILL',
   'CHANNEL',
@@ -84,6 +85,12 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     name: '成果资产',
     description: '控制具体成果资产的查看、编辑、归档、复用指引和关联资源。',
     permission_codes: ['delivery:asset:view', 'delivery:asset:manage'],
+  },
+  {
+    resource_type: 'CUSTOMER_SUCCESS_PLAN',
+    name: '客户成功计划',
+    description: '控制具体客户成功计划的查看、编辑、归档、扩展推广、续约准备和资产复用计划。',
+    permission_codes: ['customer:success:view', 'customer:success:manage'],
   },
   {
     resource_type: 'CUSTOMER_ASSESSMENT',

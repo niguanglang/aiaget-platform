@@ -169,6 +169,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M140 客户成功复盘通知审计来源筛选](./m140-customer-success-close-won-notification-audit-source.md)
 - [M141 通知审计归档筛选上下文闭环](./m141-notification-audit-archive-filter-context.md)
 - [M142 归档删除审批筛选上下文聚合展示](./m142-archive-deletion-approval-filter-context.md)
+- [M143 审批工作台导出筛选上下文](./m143-approval-workbench-export-filter-context.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

@@ -202,6 +202,21 @@ test('approval workbench export limits filtered csv and records an audit event w
   });
 });
 
+test('approval workbench export includes operation alert notification archive filter context', async () => {
+  const service = createService();
+
+  const csv = await service.exportCsv(buildUser(), {
+    page: 1,
+    page_size: 20,
+    type: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE',
+  });
+
+  assert.match(csv, /"通知筛选来源","通知筛选状态","通知筛选关键词"/);
+  assert.match(csv, /"客户成功复盘归档删除"/);
+  assert.match(csv, /"已发送"/);
+  assert.match(csv, /"trace-customer"/);
+});
+
 function createService(
   input: {
     calls?: Array<{ service: string; id: string; note: string | null }>;

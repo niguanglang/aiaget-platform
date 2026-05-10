@@ -102,6 +102,12 @@ const NOTIFICATION_SETTING_KEYS = [
 
 const AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX = 'agent-team-run-reports';
 const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX = 'customer-success-close-won-reports';
+const NOTIFICATION_ARCHIVE_STATUS_LABELS = {
+  SENT: '已发送',
+  PARTIAL: '部分成功',
+  SKIPPED: '已跳过',
+  FAILED: '失败',
+} as const;
 
 @Injectable()
 export class SecurityApprovalWorkbenchService {
@@ -180,7 +186,7 @@ export class SecurityApprovalWorkbenchService {
       dedupeKey: null,
     });
 
-    return buildApprovalWorkbenchCsv(items.map(stripDetail));
+    return buildApprovalWorkbenchCsv(items);
   }
 
   async get(currentUser: AuthenticatedUser, id: string): Promise<SecurityApprovalWorkbenchDetail> {
@@ -848,7 +854,7 @@ function approvalWorkbenchExportFilter(query: ListSecurityApprovalWorkbenchDto) 
   };
 }
 
-function buildApprovalWorkbenchCsv(items: SecurityApprovalWorkbenchItem[]) {
+function buildApprovalWorkbenchCsv(items: WorkbenchSourceRecord[]) {
   const rows = [
     [
       '审批ID',
@@ -870,6 +876,9 @@ function buildApprovalWorkbenchCsv(items: SecurityApprovalWorkbenchItem[]) {
       '审批时间',
       '请求ID',
       'Trace ID',
+      '通知筛选来源',
+      '通知筛选状态',
+      '通知筛选关键词',
     ],
     ...items.map((item) => [
       item.id,
@@ -891,10 +900,24 @@ function buildApprovalWorkbenchCsv(items: SecurityApprovalWorkbenchItem[]) {
       item.reviewed_at ?? '',
       item.request_id ?? '',
       item.trace_id ?? '',
+      notificationArchiveFilterLabel(item.metadata.alert_category_label),
+      notificationArchiveStatusLabel(item.metadata.status_filter),
+      notificationArchiveFilterLabel(item.metadata.keyword),
     ]),
   ];
 
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function notificationArchiveFilterLabel(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function notificationArchiveStatusLabel(value: unknown) {
+  if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') {
+    return NOTIFICATION_ARCHIVE_STATUS_LABELS[value];
+  }
+  return '';
 }
 
 function csvCell(value: string) {

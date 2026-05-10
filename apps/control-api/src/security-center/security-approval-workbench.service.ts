@@ -17,6 +17,7 @@ import type {
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { CustomerSuccessOpportunitiesService } from '../customer-success-opportunities/customer-success-opportunities.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -100,6 +101,7 @@ const NOTIFICATION_SETTING_KEYS = [
 ] as const;
 
 const AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX = 'agent-team-run-reports';
+const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX = 'customer-success-close-won-reports';
 
 @Injectable()
 export class SecurityApprovalWorkbenchService {
@@ -110,6 +112,8 @@ export class SecurityApprovalWorkbenchService {
     @Inject(SystemSettingsService) private readonly systemSettingsService: SystemSettingsService,
     @Inject(SecurityCenterService) private readonly securityCenterService: SecurityCenterService,
     @Inject(SecurityOperationAlertSlaService) private readonly operationAlertSlaService: SecurityOperationAlertSlaService,
+    @Inject(CustomerSuccessOpportunitiesService)
+    private readonly customerSuccessOpportunitiesService: CustomerSuccessOpportunitiesService,
     @Inject(PlatformEventsService) private readonly platformEventsService: PlatformEventsService,
   ) {}
 
@@ -221,6 +225,12 @@ export class SecurityApprovalWorkbenchService {
       } else {
         await this.agentTeamsService.rejectRunReportArchiveDeleteApproval(currentUser, item.source_id, payload);
       }
+    } else if (item.type === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE') {
+      if (input.decision === 'APPROVE') {
+        await this.customerSuccessOpportunitiesService.approveCloseWonReportArchiveDeleteApproval(currentUser, item.source_id, payload);
+      } else {
+        await this.customerSuccessOpportunitiesService.rejectCloseWonReportArchiveDeleteApproval(currentUser, item.source_id, payload);
+      }
     } else if (item.type === 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE') {
       if (input.decision === 'APPROVE') {
         await this.securityCenterService.approveOperationAlertNotificationArchiveApproval(currentUser, item.source_id, payload);
@@ -250,6 +260,7 @@ export class SecurityApprovalWorkbenchService {
       notificationApprovals,
       approvalAuditEvents,
       agentTeamReportArchiveEvents,
+      customerSuccessReportArchiveEvents,
       operationNotificationEvents,
       slaEvents,
       recoveryEvents,
@@ -259,6 +270,7 @@ export class SecurityApprovalWorkbenchService {
         this.loadNotificationApprovals(tenantId),
         this.loadApprovalAuditArchiveEvents(tenantId),
         this.loadAgentTeamRunReportArchiveEvents(tenantId),
+        this.loadCustomerSuccessCloseWonReportArchiveEvents(tenantId),
         this.loadPlatformArchiveEvents(tenantId, [
           'platform.security.approval_operation_alert_notification.archive.delete_requested',
           'platform.security.approval_operation_alert_notification.archive.delete_approved',
@@ -284,6 +296,7 @@ export class SecurityApprovalWorkbenchService {
       ...notificationApprovals.map(mapNotificationApproval),
       ...buildApprovalAuditArchiveDeleteItems(approvalAuditEvents),
       ...buildAgentTeamRunReportArchiveDeleteItems(agentTeamReportArchiveEvents),
+      ...buildCustomerSuccessCloseWonReportArchiveDeleteItems(customerSuccessReportArchiveEvents),
       ...buildPlatformArchiveDeleteItems(operationNotificationEvents, {
         type: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE',
         sourceModule: '运营告警通知归档',
@@ -348,6 +361,19 @@ export class SecurityApprovalWorkbenchService {
       where: {
         tenantId,
         sourceType: 'AGENT_TEAM_RUN_REPORT_ARCHIVE',
+        eventType: { in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'] },
+      },
+      include: approvalAuditInclude,
+      orderBy: { occurredAt: 'desc' },
+      take: 500,
+    });
+  }
+
+  private loadCustomerSuccessCloseWonReportArchiveEvents(tenantId: string) {
+    return this.prisma.approvalAuditEvent.findMany({
+      where: {
+        tenantId,
+        sourceType: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE',
         eventType: { in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'] },
       },
       include: approvalAuditInclude,
@@ -483,12 +509,30 @@ function buildAgentTeamRunReportArchiveDeleteItems(events: ApprovalAuditEventRec
     .filter((item): item is WorkbenchSourceRecord => Boolean(item));
 }
 
+function buildCustomerSuccessCloseWonReportArchiveDeleteItems(events: ApprovalAuditEventRecord[]): WorkbenchSourceRecord[] {
+  const groups = groupBySource(events.map(mapApprovalAuditTimeline));
+  return Array.from(groups.entries())
+    .map(([sourceId, timeline]) => buildArchiveItemFromTimeline(timeline, {
+      sourceId,
+      type: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+      sourceModule: '客户成功复盘归档',
+      title: '客户成功成交复盘归档删除',
+      description: '删除续约机会成交复盘报告归档属于高危审计操作，需要审批后生效。',
+      riskDomain: 'AUDIT_ARCHIVE',
+    }))
+    .filter((item): item is WorkbenchSourceRecord => Boolean(item));
+}
+
 function buildPlatformArchiveDeleteItems(
   events: PlatformEventRecord[],
   config: {
     type: Exclude<
       SecurityApprovalWorkbenchType,
-      'TOOL_CALL' | 'NOTIFICATION_POLICY' | 'APPROVAL_AUDIT_ARCHIVE_DELETE' | 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE'
+      | 'TOOL_CALL'
+      | 'NOTIFICATION_POLICY'
+      | 'APPROVAL_AUDIT_ARCHIVE_DELETE'
+      | 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE'
+      | 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE'
     >;
     sourceModule: string;
     title: string;
@@ -635,6 +679,8 @@ function archiveTimelineMetadata(metadata: Record<string, unknown>) {
     team_name: typeof metadata.team_name === 'string' ? metadata.team_name : null,
     run_id: typeof metadata.run_id === 'string' ? metadata.run_id : inferred.runId,
     run_objective: typeof metadata.run_objective === 'string' ? metadata.run_objective : null,
+    opportunity_id: typeof metadata.opportunity_id === 'string' ? metadata.opportunity_id : inferred.opportunityId,
+    opportunity_code: typeof metadata.opportunity_code === 'string' ? metadata.opportunity_code : null,
   };
 }
 
@@ -652,6 +698,8 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     team_name?: string | null;
     run_id?: string | null;
     run_objective?: string | null;
+    opportunity_id?: string | null;
+    opportunity_code?: string | null;
   };
   const archiveKey = raw.archive_key ?? '';
   const inferred = inferArchiveContext(archiveKey || null);
@@ -668,6 +716,8 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     team_name: raw.team_name ?? null,
     run_id: raw.run_id ?? inferred.runId,
     run_objective: raw.run_objective ?? null,
+    opportunity_id: raw.opportunity_id ?? inferred.opportunityId,
+    opportunity_code: raw.opportunity_code ?? null,
   };
 }
 
@@ -679,6 +729,7 @@ function inferArchiveContext(archiveKey: string | null) {
       archiveContext: null,
       teamId: null,
       runId: null,
+      opportunityId: null,
     };
   }
 
@@ -690,13 +741,16 @@ function inferArchiveContext(archiveKey: string | null) {
   const candidateRunId = fileNameWithoutExtension.slice(-36);
   const teamId = parts.length >= 3 && parts[0] === AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
   const runId = teamId && isUuid(candidateRunId) ? candidateRunId : null;
+  const opportunityId =
+    parts.length >= 3 && parts[0] === CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
 
   return {
     archiveFolder,
     archiveSource,
-    archiveContext: teamId || runId ? '团队运行报告归档' : archiveSource,
+    archiveContext: opportunityId ? '成交复盘报告归档' : teamId || runId ? '团队运行报告归档' : archiveSource,
     teamId,
     runId,
+    opportunityId,
   };
 }
 

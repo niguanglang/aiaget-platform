@@ -134,6 +134,7 @@ type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations']
   archive_delete_pending_oldest_at: Date | null;
   operation_alert_notification_archive_delete_pending_oldest_at: Date | null;
   agent_team_report_archive_delete_pending_oldest_at: Date | null;
+  customer_success_close_won_report_archive_delete_pending_oldest_at: Date | null;
   sla_dead_letter_archive_delete_pending_oldest_at: Date | null;
   notification_task_recovery_audit_archive_delete_pending_oldest_at: Date | null;
   notification_task_failure_oldest_at: Date | null;
@@ -1755,6 +1756,7 @@ export class SecurityCenterService {
       archiveDeleteEvents,
       operationAlertNotificationArchiveDeleteEvents,
       agentTeamReportArchiveDeleteEvents,
+      customerSuccessCloseWonReportArchiveDeleteEvents,
       slaDeadLetterArchiveDeleteEvents,
       notificationTaskRecoveryAuditArchiveDeleteEvents,
       notificationTaskEvents,
@@ -1873,6 +1875,24 @@ export class SecurityCenterService {
         where: {
           tenantId,
           sourceType: 'AGENT_TEAM_RUN_REPORT_ARCHIVE',
+          eventType: {
+            in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
+          },
+        },
+        select: {
+          sourceId: true,
+          eventType: true,
+          occurredAt: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 500,
+      }),
+      this.prisma.approvalAuditEvent.findMany({
+        where: {
+          tenantId,
+          sourceType: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE',
           eventType: {
             in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
           },
@@ -2065,6 +2085,9 @@ export class SecurityCenterService {
       operationAlertNotificationArchiveDeleteEvents,
     );
     const agentTeamReportArchiveDeleteStats = summarizeArchiveDeleteEvents(agentTeamReportArchiveDeleteEvents);
+    const customerSuccessCloseWonReportArchiveDeleteStats = summarizeArchiveDeleteEvents(
+      customerSuccessCloseWonReportArchiveDeleteEvents,
+    );
     const slaDeadLetterArchiveDeleteStats = summarizeSlaDeadLetterArchiveDeleteEvents(slaDeadLetterArchiveDeleteEvents);
     const notificationTaskRecoveryAuditArchiveDeleteStats = summarizeNotificationTaskRecoveryAuditArchiveDeleteEvents(
       notificationTaskRecoveryAuditArchiveDeleteEvents,
@@ -2078,6 +2101,9 @@ export class SecurityCenterService {
       operationAlertNotificationArchiveDeleteEvents,
     );
     const agentTeamReportArchiveDeletePendingOldest = oldestPendingArchiveDeleteAt(agentTeamReportArchiveDeleteEvents);
+    const customerSuccessCloseWonReportArchiveDeletePendingOldest = oldestPendingArchiveDeleteAt(
+      customerSuccessCloseWonReportArchiveDeleteEvents,
+    );
     const slaDeadLetterArchiveDeletePendingOldest = oldestPendingSlaDeadLetterArchiveDeleteAt(slaDeadLetterArchiveDeleteEvents);
     const notificationTaskRecoveryAuditArchiveDeletePendingOldest =
       oldestPendingNotificationTaskRecoveryAuditArchiveDeleteAt(notificationTaskRecoveryAuditArchiveDeleteEvents);
@@ -2108,6 +2134,14 @@ export class SecurityCenterService {
       agent_team_report_archive_delete_approved: agentTeamReportArchiveDeleteStats.approved,
       agent_team_report_archive_delete_rejected: agentTeamReportArchiveDeleteStats.rejected,
       agent_team_report_archive_delete_applied: agentTeamReportArchiveDeleteStats.applied,
+      customer_success_close_won_report_archive_delete_pending:
+        customerSuccessCloseWonReportArchiveDeleteStats.pending,
+      customer_success_close_won_report_archive_delete_approved:
+        customerSuccessCloseWonReportArchiveDeleteStats.approved,
+      customer_success_close_won_report_archive_delete_rejected:
+        customerSuccessCloseWonReportArchiveDeleteStats.rejected,
+      customer_success_close_won_report_archive_delete_applied:
+        customerSuccessCloseWonReportArchiveDeleteStats.applied,
       sla_dead_letter_archive_delete_pending: slaDeadLetterArchiveDeleteStats.pending,
       sla_dead_letter_archive_delete_approved: slaDeadLetterArchiveDeleteStats.approved,
       sla_dead_letter_archive_delete_rejected: slaDeadLetterArchiveDeleteStats.rejected,
@@ -2155,6 +2189,8 @@ export class SecurityCenterService {
       operation_alert_notification_archive_delete_pending_oldest_at:
         operationAlertNotificationArchiveDeletePendingOldest,
       agent_team_report_archive_delete_pending_oldest_at: agentTeamReportArchiveDeletePendingOldest,
+      customer_success_close_won_report_archive_delete_pending_oldest_at:
+        customerSuccessCloseWonReportArchiveDeletePendingOldest,
       sla_dead_letter_archive_delete_pending_oldest_at: slaDeadLetterArchiveDeletePendingOldest,
       notification_task_recovery_audit_archive_delete_pending_oldest_at:
         notificationTaskRecoveryAuditArchiveDeletePendingOldest,
@@ -3993,6 +4029,18 @@ function buildRiskSignals(
     });
   }
 
+  if (approvalOperations.customer_success_close_won_report_archive_delete_pending > 0) {
+    risks.push({
+      id: 'customer-success-close-won-report-archive-delete-pending-risk',
+      title: '客户成功复盘归档删除待审批',
+      description: '成交复盘报告归档删除申请尚未审批，建议确认删除原因、续约机会证据、审计留存要求和 Trace 链路。',
+      severity:
+        approvalOperations.customer_success_close_won_report_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.customer_success_close_won_report_archive_delete_pending} 个删除申请`,
+    });
+  }
+
   if (
     approvalOperations.operation_alert_notification_archive_delete_rejected > 0 &&
     approvalOperations.operation_alert_notification_archive_delete_rejected >=
@@ -4021,6 +4069,22 @@ function buildRiskSignals(
       severity: approvalOperations.agent_team_report_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
       href: '/security',
       metric: `${approvalOperations.agent_team_report_archive_delete_rejected} 个拒绝`,
+    });
+  }
+
+  if (
+    approvalOperations.customer_success_close_won_report_archive_delete_rejected > 0 &&
+    approvalOperations.customer_success_close_won_report_archive_delete_rejected >=
+      approvalOperations.customer_success_close_won_report_archive_delete_applied
+  ) {
+    risks.push({
+      id: 'customer-success-close-won-report-archive-delete-rejected-risk',
+      title: '客户成功复盘归档删除拒绝偏多',
+      description: '成交复盘报告归档删除被拒绝数量不低于已生效数量，需要复核申请理由和复盘报告留存策略。',
+      severity:
+        approvalOperations.customer_success_close_won_report_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${approvalOperations.customer_success_close_won_report_archive_delete_rejected} 个拒绝`,
     });
   }
 
@@ -4142,6 +4206,7 @@ function buildApprovalOperationAlerts(
     operations.archive_delete_pending +
     operations.operation_alert_notification_archive_delete_pending +
     operations.agent_team_report_archive_delete_pending +
+    operations.customer_success_close_won_report_archive_delete_pending +
     operations.sla_dead_letter_archive_delete_pending +
     operations.notification_task_recovery_audit_archive_delete_pending;
   const auditRiskTotal = operations.audit_failed_24h + operations.audit_warning_24h;
@@ -4162,6 +4227,7 @@ function buildApprovalOperationAlerts(
         operations.archive_delete_pending_oldest_at,
         operations.operation_alert_notification_archive_delete_pending_oldest_at,
         operations.agent_team_report_archive_delete_pending_oldest_at,
+        operations.customer_success_close_won_report_archive_delete_pending_oldest_at,
         operations.sla_dead_letter_archive_delete_pending_oldest_at,
         operations.notification_task_recovery_audit_archive_delete_pending_oldest_at,
       ]).toISOString(),
@@ -4267,6 +4333,39 @@ function buildApprovalOperationAlerts(
       href: '/security',
       metric: `${operations.agent_team_report_archive_delete_rejected} 个拒绝`,
       action_label: '复核团队报告审批',
+      triggered_at: operations.archive_storage_checked_at.toISOString(),
+    });
+  }
+
+  if (operations.customer_success_close_won_report_archive_delete_pending > 0) {
+    alerts.push({
+      id: 'customer-success-close-won-report-archive-delete-pending',
+      title: '客户成功复盘归档删除等待审批',
+      description: '成交复盘报告归档删除申请正在等待审批，请核对续约机会、归档文件、申请原因和 Trace 链路。',
+      severity: operations.customer_success_close_won_report_archive_delete_pending >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.customer_success_close_won_report_archive_delete_pending} 个删除申请`,
+      action_label: '查看复盘归档审批',
+      triggered_at: (
+        operations.customer_success_close_won_report_archive_delete_pending_oldest_at ??
+        operations.archive_storage_checked_at
+      ).toISOString(),
+    });
+  }
+
+  if (
+    operations.customer_success_close_won_report_archive_delete_rejected > 0 &&
+    operations.customer_success_close_won_report_archive_delete_rejected >=
+      operations.customer_success_close_won_report_archive_delete_applied
+  ) {
+    alerts.push({
+      id: 'customer-success-close-won-report-archive-delete-rejected-risk',
+      title: '客户成功复盘归档删除拒绝偏多',
+      description: '成交复盘报告归档删除被拒绝数量不低于已生效数量，建议复核删除申请原因和复盘报告留存策略。',
+      severity: operations.customer_success_close_won_report_archive_delete_rejected >= 3 ? 'HIGH' : 'MEDIUM',
+      href: '/security',
+      metric: `${operations.customer_success_close_won_report_archive_delete_rejected} 个拒绝`,
+      action_label: '复核复盘归档审批',
       triggered_at: operations.archive_storage_checked_at.toISOString(),
     });
   }
@@ -4551,7 +4650,7 @@ function buildApprovalOperationAlerts(
     });
   }
 
-  return alerts.slice(0, 6).map((alert) => ({
+  return alerts.slice(0, 8).map((alert) => ({
     ...alert,
     ...securityOperationLifecycleFields(lifecycleMap.get(alert.id) ?? null),
   }));
@@ -4568,6 +4667,9 @@ function securityOperationAlertNotificationTargets(alert: SecurityCenterOperatio
     return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
   }
   if (isAgentTeamReportArchiveDeleteAlert(alert.id)) {
+    return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
+  }
+  if (isCustomerSuccessCloseWonReportArchiveDeleteAlert(alert.id)) {
     return alert.severity === 'HIGH' ? ['租户管理员', '安全管理员', '审计员'] : ['安全管理员', '审计员'];
   }
   if (isSlaDeadLetterArchiveDeleteAlert(alert.id)) {
@@ -4607,6 +4709,13 @@ function isAgentTeamReportArchiveDeleteAlert(alertId: string) {
   );
 }
 
+function isCustomerSuccessCloseWonReportArchiveDeleteAlert(alertId: string) {
+  return (
+    alertId === 'customer-success-close-won-report-archive-delete-pending' ||
+    alertId === 'customer-success-close-won-report-archive-delete-rejected-risk'
+  );
+}
+
 function isNotificationTaskFailureAlert(alertId: string) {
   return (
     alertId === 'operation-alert-notification-task-failure-risk' ||
@@ -4641,6 +4750,9 @@ function securityOperationAlertCategory(alert: SecurityCenterOperationalAlert) {
     return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
   }
   if (isAgentTeamReportArchiveDeleteAlert(alert.id)) return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
+  if (isCustomerSuccessCloseWonReportArchiveDeleteAlert(alert.id)) {
+    return 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE';
+  }
   if (isSlaDeadLetterArchiveDeleteAlert(alert.id)) return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
   if (alert.id.includes('archive')) return 'ARCHIVE_OPERATION';
   if (alert.id.includes('notification')) return 'NOTIFICATION_POLICY';

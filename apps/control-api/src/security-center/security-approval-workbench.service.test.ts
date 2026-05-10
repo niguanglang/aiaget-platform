@@ -12,12 +12,13 @@ test('approval workbench aggregates tool, policy, audit archive, and security ar
 
   const result = await service.list(buildUser(), { page: 1, page_size: 20 });
 
-  assert.equal(result.total, 7);
+  assert.equal(result.total, 8);
   assert.deepEqual(
     result.items.map((item) => item.type).sort(),
     [
       'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE',
       'APPROVAL_AUDIT_ARCHIVE_DELETE',
+      'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
       'NOTIFICATION_POLICY',
       'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
       'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE',
@@ -36,7 +37,7 @@ test('approval workbench filters, returns detail timeline, and forwards review d
   const service = createService({ calls });
 
   const filtered = await service.list(buildUser(), { page: 1, page_size: 20, risk_domain: 'AUDIT_ARCHIVE' });
-  assert.equal(filtered.total, 4);
+  assert.equal(filtered.total, 5);
   assert.ok(filtered.items.every((item) => item.risk_domain === 'AUDIT_ARCHIVE'));
 
   const detail = await service.get(buildUser(), 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE:platform-sla-request');
@@ -118,6 +119,39 @@ test('approval workbench includes agent team report archive delete approvals and
       service: 'team.approve',
       id: 'team-request-event',
       note: '允许删除团队运行报告归档',
+    },
+  ]);
+});
+
+test('approval workbench includes customer success report archive delete approvals and forwards decisions', async () => {
+  const calls: Array<{ service: string; id: string; note: string | null }> = [];
+  const service = createService({ calls });
+
+  const filtered = await service.list(buildUser(), {
+    page: 1,
+    page_size: 20,
+    type: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+  });
+  assert.equal(filtered.total, 1);
+  assert.equal(filtered.items[0]?.risk_domain, 'AUDIT_ARCHIVE');
+  assert.equal(filtered.items[0]?.source_module, '客户成功复盘归档');
+
+  const detail = await service.get(buildUser(), 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE:customer-success-request-event');
+  assert.equal(detail.type, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(detail.metadata.archive_file_name, 'customer-success.md');
+  assert.equal(detail.metadata.opportunity_id, 'opportunity-1');
+  assert.equal(detail.timeline.length, 1);
+
+  await service.review(buildUser(), 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE:customer-success-request-event', {
+    decision: 'REJECT',
+    decision_note: '成交复盘报告仍需留存到季度审计结束',
+  });
+
+  assert.deepEqual(calls, [
+    {
+      service: 'customer-success.reject',
+      id: 'customer-success-request-event',
+      note: '成交复盘报告仍需留存到季度审计结束',
     },
   ]);
 });
@@ -212,6 +246,14 @@ function createService(
       },
     } as never,
     {
+      approveCloseWonReportArchiveDeleteApproval: async (_user: unknown, id: string, payload: { decision_note?: string | null }) => {
+        calls.push({ service: 'customer-success.approve', id, note: payload.decision_note ?? null });
+      },
+      rejectCloseWonReportArchiveDeleteApproval: async (_user: unknown, id: string, payload: { decision_note?: string | null }) => {
+        calls.push({ service: 'customer-success.reject', id, note: payload.decision_note ?? null });
+      },
+    } as never,
+    {
       recordEvent: async (event: PlatformEventInput) => {
         recordedEvents.push(event);
         return { id: `event-${recordedEvents.length}` };
@@ -250,6 +292,21 @@ function buildPrisma() {
         }
         if (args.where.sourceType === 'AGENT_TEAM_RUN_REPORT_ARCHIVE') {
           return [buildApprovalAuditEvent('team-request', 'AGENT_TEAM_RUN_REPORT_ARCHIVE', 'DELETE_REQUESTED', 'team.csv')];
+        }
+        if (args.where.sourceType === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE') {
+          return [
+            buildApprovalAuditEvent(
+              'customer-success-request',
+              'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE',
+              'DELETE_REQUESTED',
+              'customer-success.md',
+              {
+                archive_context: '成交复盘报告归档',
+                opportunity_id: 'opportunity-1',
+                opportunity_code: 'huazhong_design_renewal_expansion',
+              },
+            ),
+          ];
         }
         return [];
       },
@@ -347,7 +404,13 @@ function buildNotificationPolicyApproval() {
   };
 }
 
-function buildApprovalAuditEvent(sourceId: string, sourceType: string, eventType: string, fileName: string) {
+function buildApprovalAuditEvent(
+  sourceId: string,
+  sourceType: string,
+  eventType: string,
+  fileName: string,
+  metadata: Record<string, unknown> = {},
+) {
   return {
     id: `${sourceId}-event`,
     tenantId: 'tenant-1',
@@ -365,6 +428,7 @@ function buildApprovalAuditEvent(sourceId: string, sourceType: string, eventType
       archive_file_name: fileName,
       archive_size_bytes: 1024,
       source_id: sourceId,
+      ...metadata,
     },
     actorId: 'user-1',
     occurredAt: new Date('2026-05-08T08:02:00.000Z'),

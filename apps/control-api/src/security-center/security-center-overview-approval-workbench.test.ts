@@ -14,6 +14,10 @@ test('getOverview surfaces approval workbench export metrics and operation alert
   assert.equal(operations.approval_workbench_exported_records_24h, 7_150);
   assert.equal(operations.approval_workbench_high_risk_exports_24h, 5);
   assert.equal(operations.approval_workbench_repeated_exports_24h, 8);
+  assert.equal(operations.customer_success_close_won_report_archive_delete_pending, 1);
+  assert.equal(operations.customer_success_close_won_report_archive_delete_approved, 0);
+  assert.equal(operations.customer_success_close_won_report_archive_delete_rejected, 0);
+  assert.equal(operations.customer_success_close_won_report_archive_delete_applied, 0);
 
   const alerts = new Map(operations.operational_alerts.map((alert) => [alert.id, alert]));
 
@@ -27,7 +31,11 @@ test('getOverview surfaces approval workbench export metrics and operation alert
   assert.equal(alerts.get('approval-workbench-export-repeated-risk')?.severity, 'HIGH');
   assert.equal(alerts.get('approval-workbench-export-repeated-risk')?.metric, '8 次重复导出');
 
+  assert.equal(alerts.get('customer-success-close-won-report-archive-delete-pending')?.severity, 'MEDIUM');
+  assert.equal(alerts.get('customer-success-close-won-report-archive-delete-pending')?.metric, '1 个删除申请');
+
   assert.ok(overview.recent.security_denials.some((item) => item.source === 'APPROVAL_WORKBENCH'));
+  assert.ok(overview.risks.some((item) => item.id === 'customer-success-close-won-report-archive-delete-pending-risk'));
 });
 
 test('operation alert notify and lifecycle actions persist approval workbench export alert events', async () => {
@@ -84,6 +92,11 @@ test('operation alert notify and lifecycle actions persist archive approval sour
     {
       alertId: 'notification-task-recovery-audit-archive-delete-pending',
       category: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
+      expectedTargets: ['安全管理员', '审计员'],
+    },
+    {
+      alertId: 'customer-success-close-won-report-archive-delete-pending',
+      category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
       expectedTargets: ['安全管理员', '审计员'],
     },
   ];
@@ -246,6 +259,15 @@ function buildPrisma() {
               sourceId: 'team-report-request',
               eventType: 'DELETE_REQUESTED',
               occurredAt: new Date('2026-05-08T08:04:30.000Z'),
+            },
+          ];
+        }
+        if (args.where?.sourceType === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE') {
+          return [
+            {
+              sourceId: 'customer-success-report-request',
+              eventType: 'DELETE_REQUESTED',
+              occurredAt: new Date('2026-05-08T08:04:45.000Z'),
             },
           ];
         }

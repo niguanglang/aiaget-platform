@@ -64,6 +64,7 @@ const approvalTypes: Array<{ label: string; value: SecurityApprovalWorkbenchType
   { label: '通知策略审批', value: 'NOTIFICATION_POLICY' },
   { label: '审批审计归档删除', value: 'APPROVAL_AUDIT_ARCHIVE_DELETE' },
   { label: '团队报告归档删除', value: 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE' },
+  { label: '客户成功复盘归档删除', value: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE' },
   { label: '告警通知归档删除', value: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE' },
   { label: 'SLA 死信归档删除', value: 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE' },
   { label: '自愈审计归档删除', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
@@ -389,6 +390,48 @@ export function SecurityAlertsContent() {
             当前导出治理指标处于正常范围，若发生新的导出风险，运营告警会在下方进入通知和处置闭环。
           </div>
         )}
+      </Card>
+
+      <Card className="grid gap-4 p-5">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+          <div>
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">客户成功复盘归档删除运营</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              续约机会成交复盘报告归档删除审批，只展示审批运营指标和处置入口，报告正文和机会详情仍在客户成功模块查看。
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/approvals/archive-deletions">
+              <ArrowRight className="size-4" />
+              查看归档审批
+            </Link>
+          </Button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            helper="成交复盘报告删除申请"
+            label="客户成功复盘删除待审"
+            value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_pending)}
+          />
+          <MetricCard
+            helper="已批准但未必已删除"
+            label="复盘删除已批准"
+            value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_approved)}
+          />
+          <MetricCard
+            helper="留存策略或申请原因未通过"
+            label="复盘删除已拒绝"
+            value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_rejected)}
+          />
+          <MetricCard
+            helper="已从对象存储删除"
+            label="复盘删除已生效"
+            value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_applied)}
+          />
+        </div>
       </Card>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -880,6 +923,8 @@ function invalidateApprovalWorkbenchSourceQueries(queryClient: ReturnType<typeof
     queryClient.invalidateQueries({ queryKey: ['approval-audit-overview'] }),
     queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
     queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] }),
+    queryClient.invalidateQueries({ queryKey: ['customer-success-close-won-report-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['customer-success-opportunity-close-won-report-archives'] }),
     queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-archive-approvals'] }),
     queryClient.invalidateQueries({ queryKey: ['security-operation-alert-notification-task-recovery-audit-archive-approvals'] }),
     queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approvals'] }),

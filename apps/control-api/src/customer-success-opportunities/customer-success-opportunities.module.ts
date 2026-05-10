@@ -10,5 +10,6 @@ import { CustomerSuccessOpportunitiesService } from './customer-success-opportun
   imports: [AuthModule, PlatformEventsModule, StorageModule],
   controllers: [CustomerSuccessOpportunitiesController],
   providers: [CustomerSuccessOpportunitiesService],
+  exports: [CustomerSuccessOpportunitiesService],
 })
 export class CustomerSuccessOpportunitiesModule {}

@@ -174,6 +174,10 @@ test('alerts page owns approval and alert operation data flow and Chinese page r
   assert.match(source, /listSecurityApprovalWorkbenchItems/);
   assert.match(source, /listSecurityOperationAlertNotifications/);
   assert.match(source, /getSecurityOperationAlertSlaOverview/);
+  assert.match(source, /客户成功复盘归档删除/);
+  assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);
+  assert.match(source, /customer_success_close_won_report_archive_delete_pending/);
+  assert.match(source, /客户成功复盘删除待审/);
   assert.doesNotMatch(source, /listSecurityPolicies/);
   assert.doesNotMatch(source, /listSecurityCenterEvents/);
 });
@@ -213,6 +217,8 @@ test('alerts page refreshes original approval source pages after unified review'
   assert.match(source, /\['approval-audit-overview'\]/);
   assert.match(source, /\['agent-team-run-report-archive-approvals'\]/);
   assert.match(source, /\['agent-team-run-report-archives'\]/);
+  assert.match(source, /\['customer-success-close-won-report-archive-approvals'\]/);
+  assert.match(source, /\['customer-success-opportunity-close-won-report-archives'\]/);
   assert.match(source, /\['security-operation-alert-notification-archive-approvals'\]/);
   assert.match(source, /\['security-operation-alert-notification-task-recovery-audit-archive-approvals'\]/);
   assert.match(source, /\['security-operation-alert-sla-dead-letter-audit-archive-approvals'\]/);

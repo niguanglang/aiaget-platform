@@ -2303,6 +2303,7 @@ export type SecurityApprovalWorkbenchType =
   | 'NOTIFICATION_POLICY'
   | 'APPROVAL_AUDIT_ARCHIVE_DELETE'
   | 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE'
+  | 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE'
   | 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE'
   | 'SLA_DEAD_LETTER_AUDIT_ARCHIVE_DELETE'
   | 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
@@ -3338,6 +3339,10 @@ export interface SecurityCenterOverview {
     agent_team_report_archive_delete_approved: number;
     agent_team_report_archive_delete_rejected: number;
     agent_team_report_archive_delete_applied: number;
+    customer_success_close_won_report_archive_delete_pending: number;
+    customer_success_close_won_report_archive_delete_approved: number;
+    customer_success_close_won_report_archive_delete_rejected: number;
+    customer_success_close_won_report_archive_delete_applied: number;
     sla_dead_letter_archive_delete_pending: number;
     sla_dead_letter_archive_delete_approved: number;
     sla_dead_letter_archive_delete_rejected: number;

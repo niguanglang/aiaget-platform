@@ -131,6 +131,9 @@ const APPROVAL_WORKBENCH_EXPORT_FIELDS = [
   '通知筛选来源',
   '通知筛选状态',
   '通知筛选关键词',
+  '通知归档字段账本',
+  '导出字段数',
+  '归档筛选字段数',
 ] as const;
 const NOTIFICATION_ARCHIVE_FILTER_EXPORT_FIELDS = [
   '通知筛选来源',
@@ -935,6 +938,9 @@ function buildApprovalWorkbenchCsv(items: WorkbenchSourceRecord[]) {
       notificationArchiveFilterLabel(item.metadata.alert_category_label),
       notificationArchiveStatusLabel(item.metadata.status_filter),
       notificationArchiveFilterLabel(item.metadata.keyword),
+      notificationArchiveFieldLedgerLabel(item.metadata.has_export_field_ledger),
+      notificationArchiveFieldCountLabel(item.metadata.exported_field_count),
+      notificationArchiveFieldCountLabel(item.metadata.notification_archive_filter_field_count),
     ]),
   ];
 
@@ -949,6 +955,15 @@ function notificationArchiveStatusLabel(value: unknown) {
   if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') {
     return NOTIFICATION_ARCHIVE_STATUS_LABELS[value];
   }
+  return '';
+}
+
+function notificationArchiveFieldLedgerLabel(value: unknown) {
+  return value === true ? '已保留' : '';
+}
+
+function notificationArchiveFieldCountLabel(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return String(value);
   return '';
 }
 

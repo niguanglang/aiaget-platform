@@ -223,6 +223,9 @@ test('approval workbench export limits filtered csv and records an audit event w
     '通知筛选来源',
     '通知筛选状态',
     '通知筛选关键词',
+    '通知归档字段账本',
+    '导出字段数',
+    '归档筛选字段数',
   ]);
   assert.deepEqual(recordedEvents[0]?.payloadJson.notification_archive_filter_fields, [
     '通知筛选来源',
@@ -247,9 +250,11 @@ test('approval workbench export includes operation alert notification archive fi
   });
 
   assert.match(csv, /"通知筛选来源","通知筛选状态","通知筛选关键词"/);
+  assert.match(csv, /"通知归档字段账本","导出字段数","归档筛选字段数"/);
   assert.match(csv, /"客户成功复盘归档删除"/);
   assert.match(csv, /"已发送"/);
   assert.match(csv, /"trace-customer"/);
+  assert.match(csv, /"已保留","3","3"/);
 });
 
 function createService(

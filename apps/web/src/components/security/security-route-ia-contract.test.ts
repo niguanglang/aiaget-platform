@@ -262,6 +262,8 @@ test('alerts page exports current unified approval filters with guarded Chinese 
   assert.match(source, /当前筛选无结果，无法导出/);
   assert.match(source, /导出会包含通知归档筛选上下文/);
   assert.match(source, /通知筛选来源、状态和关键词/);
+  assert.match(source, /通知归档字段账本计数/);
+  assert.match(source, /字段账本是否保留、导出字段数和归档筛选字段数/);
   assert.match(source, /审批工作台导出完成/);
   assert.match(source, /审批工作台导出失败/);
   assert.match(source, /downloadBlob/);

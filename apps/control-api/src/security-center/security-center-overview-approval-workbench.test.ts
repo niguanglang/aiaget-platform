@@ -77,6 +77,55 @@ test('operation alert notify and lifecycle actions persist approval workbench ex
   assert.equal(alertAfterAction?.last_note, '已经安排审计员复核。');
 });
 
+test('approval workbench export alert notifications preserve exported field ledger', async () => {
+  const prisma = buildPrisma();
+  const service = new SecurityCenterService(prisma as never, buildStorage() as never);
+  stubOverviewDependencies(service);
+
+  await service.notifyOperationAlert(buildUser(), 'approval-workbench-export-volume-risk', {
+    channels: ['IN_APP'],
+    note: '请安全管理员复核审批工作台导出字段。',
+  });
+
+  assert.deepEqual(prisma.createdEvents[0]?.data.payloadJson.exported_fields, [
+    '审批ID',
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+    '审批类型',
+  ]);
+  assert.deepEqual(prisma.createdEvents[0]?.data.payloadJson.notification_archive_filter_fields, [
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
+
+  const notifications = await service.listOperationAlertNotifications(buildUser(), {
+    alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+  });
+
+  assert.deepEqual(notifications.items[0]?.exported_fields, [
+    '审批ID',
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+    '审批类型',
+  ]);
+  assert.deepEqual(notifications.items[0]?.notification_archive_filter_fields, [
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
+
+  const csv = await service.exportOperationAlertNotifications(buildUser(), {
+    alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+  });
+
+  assert.match(csv, /导出字段清单/);
+  assert.match(csv, /通知归档筛选字段/);
+  assert.match(csv, /通知筛选来源、通知筛选状态、通知筛选关键词/);
+});
+
 test('operation alert notify and lifecycle actions persist archive approval source categories', async () => {
   const cases = [
     {
@@ -346,6 +395,12 @@ function buildPrisma(input: {
     summary: '统一安全审批工作台导出完成',
     payloadJson: {
       exported_count: index === 0 ? 1_200 : index === 1 ? 950 : 500,
+      exported_fields:
+        index === 0
+          ? ['审批ID', '通知筛选来源', '通知筛选状态', '通知筛选关键词']
+          : ['审批ID', '审批类型'],
+      notification_archive_filter_fields:
+        index === 0 ? ['通知筛选来源', '通知筛选状态', '通知筛选关键词'] : [],
       filter: highRiskFilter(index),
     },
     occurredAt: new Date(exportedAt.getTime() + index * 60_000),
@@ -408,7 +463,12 @@ function buildPrisma(input: {
           return args.include ? exportEvents : exportEvents.map(({ user, ...event }) => event);
         }
         if (eventType === 'platform.security.approval_operation_alert.notification_sent') {
-          return input.operationAlertNotificationEvents ?? [];
+          return [
+            ...(input.operationAlertNotificationEvents ?? []),
+            ...createdEvents
+              .map((event, index) => buildCreatedPlatformEvent(index, event.data))
+              .filter((event) => event.eventType === 'platform.security.approval_operation_alert.notification_sent'),
+          ];
         }
         if (
           typeof eventType === 'object' &&

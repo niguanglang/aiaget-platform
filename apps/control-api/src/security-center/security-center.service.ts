@@ -126,6 +126,8 @@ type ApprovalWorkbenchExportStats = {
   highRiskExports: number;
   repeatedExports: number;
   oldestRiskAt: Date | null;
+  exportedFields: string[];
+  notificationArchiveFilterFields: string[];
 };
 
 type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations'], 'operational_alerts'> & {
@@ -141,6 +143,8 @@ type ApprovalOperationStats = Omit<SecurityCenterOverview['approval_operations']
   notification_task_recovery_audit_archive_delete_pending_oldest_at: Date | null;
   notification_task_failure_oldest_at: Date | null;
   approval_workbench_export_risk_oldest_at: Date | null;
+  approval_workbench_exported_fields: string[];
+  approval_workbench_notification_archive_filter_fields: string[];
   audit_risk_oldest_at: Date | null;
   audit_trace_gap_oldest_at: Date | null;
   approval_audit_oldest_at: Date | null;
@@ -1350,6 +1354,7 @@ export class SecurityCenterService {
     const deliveredAt = new Date();
     const targets = securityOperationAlertNotificationTargets(alert);
     const alertCategory = securityOperationAlertCategory(alert);
+    const fieldLedger = approvalWorkbenchExportAlertFieldLedger(alert);
     const webhookUrl = channels.includes('WEBHOOK') ? await this.loadExternalWebhookUrl(currentUser.tenantId) : null;
     const webhookResult = webhookUrl
       ? await deliverSecurityOperationAlertWebhook(webhookUrl, alert, input.note ?? null, targets, alertCategory)
@@ -1383,6 +1388,8 @@ export class SecurityCenterService {
           channels,
           targets,
           alert_category: alertCategory,
+          exported_fields: fieldLedger.exportedFields,
+          notification_archive_filter_fields: fieldLedger.notificationArchiveFilterFields,
           note: input.note ?? null,
           webhook_status: webhookResult?.status ?? null,
           webhook_error: webhookResult?.error ?? null,
@@ -2215,6 +2222,9 @@ export class SecurityCenterService {
         notificationTaskRecoveryAuditArchiveDeletePendingOldest,
       notification_task_failure_oldest_at: notificationTaskStats.oldestFailureAt,
       approval_workbench_export_risk_oldest_at: approvalWorkbenchExportStats.oldestRiskAt,
+      approval_workbench_exported_fields: approvalWorkbenchExportStats.exportedFields,
+      approval_workbench_notification_archive_filter_fields:
+        approvalWorkbenchExportStats.notificationArchiveFilterFields,
       audit_risk_oldest_at: auditRiskOldest,
       audit_trace_gap_oldest_at: auditTraceGapOldest,
       approval_audit_oldest_at: approvalAuditOldest,
@@ -3162,12 +3172,20 @@ function summarizeApprovalWorkbenchExportEvents(
   events: Array<{ userId: string | null; payloadJson: Prisma.JsonValue; occurredAt: Date }>,
 ): ApprovalWorkbenchExportStats {
   const userExportCounts = new Map<string, number>();
+  const exportedFields = new Set<string>();
+  const notificationArchiveFilterFields = new Set<string>();
   const items = events.map((event) => {
     const payload = normalizeJsonObjectOutput(event.payloadJson);
     const filter = normalizeJsonObjectOutput(payload?.filter);
     const exportedRecords = numericPayloadField(payload?.exported_count);
     const userKey = event.userId ?? 'SYSTEM';
     userExportCounts.set(userKey, (userExportCounts.get(userKey) ?? 0) + 1);
+    for (const field of stringArrayValue(payload?.exported_fields)) {
+      exportedFields.add(field);
+    }
+    for (const field of stringArrayValue(payload?.notification_archive_filter_fields)) {
+      notificationArchiveFilterFields.add(field);
+    }
 
     return {
       exportedRecords,
@@ -3185,6 +3203,8 @@ function summarizeApprovalWorkbenchExportEvents(
     highRiskExports: highRiskItems.length,
     repeatedExports,
     oldestRiskAt: oldestDateOrNull([...highRiskItems, ...volumeRiskItems].map((item) => item.occurredAt)),
+    exportedFields: Array.from(exportedFields),
+    notificationArchiveFilterFields: Array.from(notificationArchiveFilterFields),
   };
 }
 
@@ -4708,6 +4728,8 @@ function buildApprovalOperationAlerts(
       metric: `${operations.approval_workbench_exports_24h} 次 / ${operations.approval_workbench_exported_records_24h} 条`,
       action_label: '查看导出事件',
       triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      exported_fields: operations.approval_workbench_exported_fields,
+      notification_archive_filter_fields: operations.approval_workbench_notification_archive_filter_fields,
     });
   }
 
@@ -4721,6 +4743,8 @@ function buildApprovalOperationAlerts(
       metric: `${operations.approval_workbench_high_risk_exports_24h} 次高风险导出`,
       action_label: '复核导出范围',
       triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      exported_fields: operations.approval_workbench_exported_fields,
+      notification_archive_filter_fields: operations.approval_workbench_notification_archive_filter_fields,
     });
   }
 
@@ -4734,6 +4758,8 @@ function buildApprovalOperationAlerts(
       metric: `${operations.approval_workbench_repeated_exports_24h} 次重复导出`,
       action_label: '查看导出链路',
       triggered_at: (operations.approval_workbench_export_risk_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      exported_fields: operations.approval_workbench_exported_fields,
+      notification_archive_filter_fields: operations.approval_workbench_notification_archive_filter_fields,
     });
   }
 
@@ -4837,6 +4863,20 @@ function isApprovalWorkbenchExportAlert(alertId: string) {
     alertId === 'approval-workbench-export-high-risk-filter' ||
     alertId === 'approval-workbench-export-repeated-risk'
   );
+}
+
+function approvalWorkbenchExportAlertFieldLedger(alert: SecurityCenterOperationalAlert) {
+  if (!isApprovalWorkbenchExportAlert(alert.id)) {
+    return {
+      exportedFields: [],
+      notificationArchiveFilterFields: [],
+    };
+  }
+
+  return {
+    exportedFields: stringArrayValue(alert.exported_fields),
+    notificationArchiveFilterFields: stringArrayValue(alert.notification_archive_filter_fields),
+  };
 }
 
 function isSlaDeadLetterArchiveDeleteAlert(alertId: string) {
@@ -5099,6 +5139,8 @@ function mapSecurityOperationAlertNotificationEvent(
     alert_category_label: securityOperationAlertCategoryLabel(
       typeof payload?.alert_category === 'string' ? payload.alert_category : null,
     ),
+    exported_fields: stringArrayValue(payload?.exported_fields),
+    notification_archive_filter_fields: stringArrayValue(payload?.notification_archive_filter_fields),
     status,
     channels,
     targets,
@@ -5135,6 +5177,8 @@ function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAler
       '状态',
       '渠道',
       '目标',
+      '导出字段清单',
+      '通知归档筛选字段',
       'Webhook 状态',
       'Webhook 错误',
       '重试次数',
@@ -5152,6 +5196,8 @@ function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAler
       item.status,
       item.channels.join('、'),
       item.targets.join('、'),
+      item.exported_fields.join('、'),
+      item.notification_archive_filter_fields.join('、'),
       item.webhook_status === null ? '' : String(item.webhook_status),
       item.webhook_error ?? '',
       String(item.retry_count),

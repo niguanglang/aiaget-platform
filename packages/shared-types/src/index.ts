@@ -2543,6 +2543,8 @@ export interface SecurityCenterOperationalAlert extends SecurityCenterRiskSignal
   last_note: string | null;
   updated_at: string | null;
   triggered_at: string;
+  exported_fields?: string[];
+  notification_archive_filter_fields?: string[];
 }
 
 export type SecurityOperationAlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'ESCALATED' | 'CLOSED';
@@ -2583,6 +2585,8 @@ export interface SecurityOperationAlertNotificationItem extends SecurityOperatio
   notification_event_id: string;
   alert_category: string | null;
   alert_category_label: string;
+  exported_fields: string[];
+  notification_archive_filter_fields: string[];
   webhook_error: string | null;
   retry_count: number;
   retried_from_event_id: string | null;

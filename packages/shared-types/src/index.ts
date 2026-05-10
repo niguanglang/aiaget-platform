@@ -2333,6 +2333,10 @@ export interface SecurityApprovalWorkbenchTimelineItem {
   request_id: string | null;
   trace_id: string | null;
   occurred_at: string;
+  status_filter?: SecurityOperationAlertNotificationStatus | null;
+  alert_category?: string | null;
+  alert_category_label?: string | null;
+  keyword?: string | null;
 }
 
 export interface SecurityApprovalWorkbenchItem {

@@ -6,6 +6,7 @@ import type {
   ApprovalAuditArchiveApprovalDetail,
   ApprovalAuditArchiveApprovalItem,
   CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
+  SecurityOperationAlertNotificationStatus,
   SecurityOperationAlertNotificationArchiveApprovalItem,
   SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem,
   SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem,
@@ -58,6 +59,12 @@ import {
 } from '@/lib/api-client';
 
 type ArchiveSource = 'APPROVAL_AUDIT' | 'OPERATION_ALERT' | 'RECOVERY_AUDIT' | 'SLA_DEAD_LETTER' | 'AGENT_TEAM_REPORT' | 'CUSTOMER_SUCCESS_REPORT';
+type NotificationArchiveFilterFields = {
+  status_filter?: SecurityOperationAlertNotificationStatus | null;
+  alert_category?: string | null;
+  alert_category_label?: string | null;
+  keyword?: string | null;
+};
 type ArchiveApprovalItem = {
   id: string;
   source: ArchiveSource;
@@ -68,6 +75,10 @@ type ArchiveApprovalItem = {
   archiveSizeBytes: number;
   status: ApprovalAuditArchiveApprovalItem['status'];
   reason: string | null;
+  statusFilter: SecurityOperationAlertNotificationStatus | null;
+  alertCategory: string | null;
+  alertCategoryLabel: string | null;
+  keyword: string | null;
   requestedBy: { name: string; email: string } | null;
   reviewedBy: { name: string; email: string } | null;
   requestedAt: string;
@@ -83,6 +94,15 @@ const sourceOptions: Array<{ label: string; value: ArchiveSource | '' }> = [
   { label: 'Agent 团队报告', value: 'AGENT_TEAM_REPORT' },
   { label: '客户成功复盘', value: 'CUSTOMER_SUCCESS_REPORT' },
 ];
+const notificationArchiveStatusLabels = {
+  SENT: '已发送',
+  PARTIAL: '部分成功',
+  SKIPPED: '已跳过',
+  FAILED: '失败',
+} as const;
+const notificationArchiveCategoryFallbackLabels: Record<string, string> = {
+  CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE: '客户成功复盘归档删除',
+};
 
 export function ArchiveDeletionApprovalsContent() {
   const queryClient = useQueryClient();
@@ -316,6 +336,7 @@ function ArchiveDeletionApprovalTable({
               <td className="px-4 py-3">
                 <div className="font-medium">{approval.archiveFileName}</div>
                 <div className="text-xs text-muted-foreground">{formatBytes(approval.archiveSizeBytes)}</div>
+                <ArchiveFilterSummary approval={approval} compact />
               </td>
               <td className="px-4 py-3">
                 <StatusBadge tone={archiveApprovalTone(approval.status)}>{archiveApprovalLabel(approval.status)}</StatusBadge>
@@ -387,6 +408,8 @@ function ArchiveDeletionApprovalDetailPanel({
               {activeApproval.reason}
             </div>
           ) : null}
+
+          <ArchiveFilterSummary approval={activeApproval} />
 
           <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/15 p-3">
             <div className="text-sm font-medium">上下文入口</div>
@@ -476,10 +499,69 @@ function toArchiveApprovalItem(
     archiveSizeBytes: item.archive_size_bytes,
     status: item.status,
     reason: item.reason,
+    ...archiveApprovalFilterContext(item),
     requestedBy: item.requested_by,
     reviewedBy: item.reviewed_by,
     requestedAt: item.requested_at,
     reviewedAt: item.reviewed_at,
+  };
+}
+
+function ArchiveFilterSummary({ approval, compact = false }: { approval: ArchiveApprovalItem; compact?: boolean }) {
+  const items = archiveFilterSummary(approval);
+  if (items.length === 0) return null;
+
+  if (compact) {
+    return (
+      <div className="mt-2 flex max-w-[320px] flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span className="rounded-md border bg-muted/30 px-2 py-1 text-xs text-muted-foreground" key={item.label}>
+            {item.label}：{item.value}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground md:grid-cols-3">
+      {items.map((item) => (
+        <span key={item.label}>{item.label}：{item.value}</span>
+      ))}
+    </div>
+  );
+}
+
+function archiveFilterSummary(approval: ArchiveApprovalItem) {
+  const statusLabel = approval.statusFilter ? notificationArchiveStatusLabels[approval.statusFilter] : null;
+  const sourceLabel = approval.alertCategoryLabel ?? notificationArchiveCategoryLabel(approval.alertCategory);
+  return [
+    sourceLabel ? { label: '筛选来源', value: sourceLabel } : null,
+    statusLabel ? { label: '筛选状态', value: statusLabel } : null,
+    approval.keyword ? { label: '筛选关键词', value: approval.keyword } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+}
+
+function notificationArchiveCategoryLabel(category: string | null) {
+  if (!category) return null;
+  return notificationArchiveCategoryFallbackLabels[category] ?? category;
+}
+
+function archiveApprovalFilterContext(
+  item:
+    | ApprovalAuditArchiveApprovalItem
+    | SecurityOperationAlertNotificationArchiveApprovalItem
+    | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem
+    | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem
+    | AgentTeamRunReportArchiveApprovalItem
+    | CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
+) {
+  const filter = item as NotificationArchiveFilterFields;
+  return {
+    statusFilter: filter.status_filter ?? null,
+    alertCategory: filter.alert_category ?? null,
+    alertCategoryLabel: filter.alert_category_label ?? null,
+    keyword: filter.keyword ?? null,
   };
 }
 

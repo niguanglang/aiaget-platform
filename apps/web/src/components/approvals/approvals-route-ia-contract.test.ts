@@ -93,6 +93,13 @@ test('archive deletion approvals child page owns archive deletion approval APIs 
   assert.match(source, /approveCustomerSuccessOpportunityCloseWonReportArchiveApproval/);
   assert.match(source, /rejectCustomerSuccessOpportunityCloseWonReportArchiveApproval/);
   assert.match(source, /客户成功复盘/);
+  assert.match(source, /archiveFilterSummary/);
+  assert.match(source, /statusFilter/);
+  assert.match(source, /alertCategoryLabel/);
+  assert.match(source, /筛选来源/);
+  assert.match(source, /筛选状态/);
+  assert.match(source, /筛选关键词/);
+  assert.match(source, /客户成功复盘归档删除/);
   assert.doesNotMatch(source, /listNotificationPolicyApprovals/);
   assert.doesNotMatch(source, /listToolApprovals/);
 });

@@ -681,6 +681,7 @@ function archiveTimelineMetadata(metadata: Record<string, unknown>) {
     run_objective: typeof metadata.run_objective === 'string' ? metadata.run_objective : null,
     opportunity_id: typeof metadata.opportunity_id === 'string' ? metadata.opportunity_id : inferred.opportunityId,
     opportunity_code: typeof metadata.opportunity_code === 'string' ? metadata.opportunity_code : null,
+    ...archiveNotificationFilterContext(metadata),
   };
 }
 
@@ -700,6 +701,10 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     run_objective?: string | null;
     opportunity_id?: string | null;
     opportunity_code?: string | null;
+    status_filter?: string | null;
+    alert_category?: string | null;
+    alert_category_label?: string | null;
+    keyword?: string | null;
   };
   const archiveKey = raw.archive_key ?? '';
   const inferred = inferArchiveContext(archiveKey || null);
@@ -718,7 +723,31 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     run_objective: raw.run_objective ?? null,
     opportunity_id: raw.opportunity_id ?? inferred.opportunityId,
     opportunity_code: raw.opportunity_code ?? null,
+    status_filter: normalizeNotificationArchiveStatusFilter(raw.status_filter),
+    alert_category: nullableString(raw.alert_category),
+    alert_category_label: nullableString(raw.alert_category_label),
+    keyword: nullableString(raw.keyword),
   };
+}
+
+function archiveNotificationFilterContext(metadata: Record<string, unknown>) {
+  return {
+    status_filter: normalizeNotificationArchiveStatusFilter(metadata.status_filter),
+    alert_category: nullableString(metadata.alert_category),
+    alert_category_label: nullableString(metadata.alert_category_label),
+    keyword: nullableString(metadata.keyword),
+  };
+}
+
+function normalizeNotificationArchiveStatusFilter(value: unknown) {
+  if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') return value;
+  return null;
+}
+
+function nullableString(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function inferArchiveContext(archiveKey: string | null) {

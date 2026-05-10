@@ -59,6 +59,26 @@ test('approval workbench filters, returns detail timeline, and forwards review d
   ]);
 });
 
+test('approval workbench preserves operation alert notification archive filter context', async () => {
+  const service = createService();
+
+  const detail = await service.get(
+    buildUser(),
+    'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE:platform-operation-request',
+  );
+
+  assert.equal(detail.type, 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE');
+  assert.equal(detail.metadata.archive_file_name, 'operation.csv');
+  assert.equal(detail.metadata.status_filter, 'SENT');
+  assert.equal(detail.metadata.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(detail.metadata.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(detail.metadata.keyword, 'trace-customer');
+  assert.equal(detail.timeline[0]?.status_filter, 'SENT');
+  assert.equal(detail.timeline[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(detail.timeline[0]?.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(detail.timeline[0]?.keyword, 'trace-customer');
+});
+
 test('approval workbench includes recovery audit archive delete approvals and forwards decisions', async () => {
   const calls: Array<{ service: string; id: string; note: string | null }> = [];
   const service = createService({ calls });
@@ -315,7 +335,19 @@ function buildPrisma() {
       findMany: async (args: { where: { eventType: { in: string[] } } }) => {
         const eventTypes = args.where.eventType.in;
         if (eventTypes.includes('platform.security.approval_operation_alert_notification.archive.delete_requested')) {
-          return [buildPlatformArchiveEvent('platform-operation-request', 'platform.security.approval_operation_alert_notification.archive.delete_requested', 'operation.csv')];
+          return [
+            buildPlatformArchiveEvent(
+              'platform-operation-request',
+              'platform.security.approval_operation_alert_notification.archive.delete_requested',
+              'operation.csv',
+              {
+                status_filter: 'SENT',
+                alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+                alert_category_label: '客户成功复盘归档删除',
+                keyword: 'trace-customer',
+              },
+            ),
+          ];
         }
         if (eventTypes.includes('platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_requested')) {
           return [buildPlatformArchiveEvent('platform-sla-request', 'platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_requested', 'sla.csv')];
@@ -436,7 +468,12 @@ function buildApprovalAuditEvent(
   };
 }
 
-function buildPlatformArchiveEvent(id: string, eventType: string, fileName: string) {
+function buildPlatformArchiveEvent(
+  id: string,
+  eventType: string,
+  fileName: string,
+  payload: Record<string, unknown> = {},
+) {
   return {
     id,
     tenantId: 'tenant-1',
@@ -458,6 +495,7 @@ function buildPlatformArchiveEvent(id: string, eventType: string, fileName: stri
       archive_key: `security/${fileName}`,
       archive_file_name: fileName,
       archive_size_bytes: 2048,
+      ...payload,
     },
     occurredAt: new Date('2026-05-08T08:03:00.000Z'),
     user: buildActor('user-1', '申请人'),

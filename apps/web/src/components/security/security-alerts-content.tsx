@@ -262,7 +262,7 @@ export function SecurityAlertsContent() {
     onSuccess: async (blob) => {
       downloadBlob(blob, `安全审批工作台-${new Date().toISOString().slice(0, 10)}.csv`);
       setApprovalError(null);
-      setApprovalNotice(`审批工作台导出完成，当前筛选命中 ${formatNumber(approvalTotal)} 条。`);
+      setApprovalNotice(`审批工作台导出完成，当前筛选命中 ${formatNumber(approvalTotal)} 条，CSV 已包含通知筛选来源、状态和关键词。`);
       await queryClient.invalidateQueries({ queryKey: ['security-alerts-page-overview'] });
     },
     onError: (error: ApiClientError) => {
@@ -523,7 +523,7 @@ export function SecurityAlertsContent() {
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                当前筛选命中 {formatNumber(approvalTotal)} 条{approvalTotal === 0 ? '，当前筛选无结果，无法导出。' : '，导出会写入安全审计事件。'}
+                当前筛选命中 {formatNumber(approvalTotal)} 条{approvalTotal === 0 ? '，当前筛选无结果，无法导出。' : '，导出会写入安全审计事件，并且导出会包含通知归档筛选上下文。'}
               </p>
               <Button
                 disabled={!canViewApprovals || approvalTotal === 0 || exportMutation.isPending || approvalItemsQuery.isFetching}

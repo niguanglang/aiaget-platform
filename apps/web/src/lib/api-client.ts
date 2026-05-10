@@ -204,6 +204,7 @@ import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
   CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
@@ -2355,6 +2356,41 @@ export function listCustomerSuccessOpportunityCloseWonReportArchives(opportunity
 export function getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl(opportunityId: string, archiveId: string) {
   return request<StorageDownloadUrlResult>(
     `/customer-success-opportunities/${opportunityId}/close-won-report/archives/${archiveId}/download-url`,
+  );
+}
+
+export function deleteCustomerSuccessOpportunityCloseWonReportArchive(opportunityId: string, archiveId: string) {
+  return request<{ success: boolean; approval_id: string }>(
+    `/customer-success-opportunities/${opportunityId}/close-won-report/archives/${archiveId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export function listCustomerSuccessOpportunityCloseWonReportArchiveApprovals() {
+  return request<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem[]>(
+    '/customer-success-opportunities/close-won-report/archive-approvals',
+  );
+}
+
+export function approveCustomerSuccessOpportunityCloseWonReportArchiveApproval(approvalId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem>(
+    `/customer-success-opportunities/close-won-report/archive-approvals/${approvalId}/approve`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  );
+}
+
+export function rejectCustomerSuccessOpportunityCloseWonReportArchiveApproval(approvalId: string, input: ReviewAgentTeamHandoffInput) {
+  return request<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem>(
+    `/customer-success-opportunities/close-won-report/archive-approvals/${approvalId}/reject`,
+    {
+      method: 'POST',
+      body: input,
+    },
   );
 }
 

@@ -6293,6 +6293,22 @@ export interface CreateCustomerSuccessOpportunityCloseWonReportArchiveResult {
   item: CustomerSuccessOpportunityCloseWonReportArchiveItem;
 }
 
+export type CustomerSuccessOpportunityCloseWonReportArchiveApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED';
+
+export interface CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem {
+  id: string;
+  archive_id: string;
+  archive_key: string;
+  archive_file_name: string;
+  archive_size_bytes: number;
+  status: CustomerSuccessOpportunityCloseWonReportArchiveApprovalStatus;
+  reason: string | null;
+  requested_by: CustomerSuccessPlanOwnerSummary | null;
+  reviewed_by: CustomerSuccessPlanOwnerSummary | null;
+  requested_at: string;
+  reviewed_at: string | null;
+}
+
 export interface CreatePromptTemplateInput {
   name: string;
   code: string;

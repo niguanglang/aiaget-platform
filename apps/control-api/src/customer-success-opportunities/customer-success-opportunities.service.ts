@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
@@ -13,6 +15,7 @@ import type {
   CustomerSuccessOpportunityActionSummary,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
   CustomerSuccessOpportunityCloseWonReportArchiveItem,
   CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
@@ -63,6 +66,18 @@ type CustomerSuccessActionRecord = Prisma.CustomerSuccessActionGetPayload<{
   include: typeof customerSuccessActionInclude;
 }>;
 type BillingAdjustmentRecord = Prisma.BillingAdjustmentGetPayload<{ include: { invoice: true } }>;
+const closeWonReportArchiveApprovalAuditInclude = {
+  actor: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ApprovalAuditEventInclude;
+type CloseWonReportArchiveAuditEventRecord = Prisma.ApprovalAuditEventGetPayload<{
+  include: typeof closeWonReportArchiveApprovalAuditInclude;
+}>;
 const customerSuccessOpportunityStages: CustomerSuccessOpportunityStageFunnelItem['stage'][] = [
   'DISCOVERY',
   'QUALIFICATION',
@@ -92,9 +107,10 @@ type DataScopeQueryLike = Pick<DataScopeQueryService, 'buildWhere'>;
 type PlatformEventsLike = Pick<PlatformEventsService, 'recordEvent'>;
 type StorageServiceLike = Pick<
   StorageService,
-  'putTenantObject' | 'listTenantObjects' | 'getTenantObjectDownloadUrl'
+  'putTenantObject' | 'listTenantObjects' | 'getTenantObjectDownloadUrl' | 'deleteTenantObject'
 >;
 const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX = 'customer-success-close-won-reports';
+const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_SOURCE_TYPE = 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE';
 const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
 
 @Injectable()
@@ -362,6 +378,140 @@ export class CustomerSuccessOpportunitiesService {
     );
 
     return result;
+  }
+
+  async requestDeleteCloseWonReportArchive(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+    opportunityId?: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    const key = closeWonReportArchiveKeyFromId(archiveId);
+    const metadata = parseCloseWonReportArchiveKey(key);
+    if (opportunityId && metadata.opportunityId !== opportunityId) {
+      throw new BadRequestException('成交复盘报告归档不属于当前续约机会。');
+    }
+    const sourceId = closeWonReportArchiveSourceIdFromKey(key);
+    const existing = await this.findPendingCloseWonReportArchiveDeleteApproval(currentUser.tenantId, sourceId);
+
+    if (existing) {
+      return {
+        success: true,
+        approval_id: existing.id,
+      };
+    }
+
+    const event = await this.recordCloseWonReportArchiveApprovalEvent({
+      tenantId: currentUser.tenantId,
+      sourceId,
+      eventType: 'DELETE_REQUESTED',
+      eventStatus: 'WARNING',
+      title: '成交复盘报告归档删除待审批',
+      note: '删除成交复盘报告归档属于高危审计操作，已进入审批队列。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_id: archiveId,
+        archive_key: key,
+        archive_file_name: key.split('/').at(-1) ?? key,
+        archive_folder: key.split('/').slice(0, -1).join('/') || null,
+        archive_source: CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX,
+        archive_context: '成交复盘报告归档',
+        opportunity_id: metadata.opportunityId,
+        opportunity_code: metadata.opportunityCode,
+      },
+      actorId: currentUser.id,
+    });
+
+    return {
+      success: true,
+      approval_id: event.id,
+    };
+  }
+
+  async listCloseWonReportArchiveDeleteApprovals(
+    currentUser: AuthenticatedUser,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem[]> {
+    const events = await this.loadCloseWonReportArchiveDeleteEvents(currentUser.tenantId);
+    return buildCloseWonReportArchiveDeleteApprovals(events);
+  }
+
+  async approveCloseWonReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    dto: { decision_note?: string | null },
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem> {
+    if (!this.storageService) {
+      throw new BadRequestException('Storage service is not available');
+    }
+
+    const detail = await this.getCloseWonReportArchiveDeleteApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的成交复盘报告归档删除申请可以通过。');
+    }
+
+    await this.recordCloseWonReportArchiveApprovalEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'APPROVED',
+      eventStatus: 'SUCCESS',
+      title: '成交复盘报告归档删除已批准',
+      note: nullableText(dto.decision_note),
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    await this.storageService.deleteTenantObject(currentUser.tenantId, detail.archive_key);
+    await this.recordCloseWonReportArchiveApprovalEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'DELETE_APPLIED',
+      eventStatus: 'SUCCESS',
+      title: '成交复盘报告归档删除已生效',
+      note: '成交复盘报告归档文件已从对象存储删除。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    return this.getCloseWonReportArchiveDeleteApproval(currentUser, approvalId);
+  }
+
+  async rejectCloseWonReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+    dto: { decision_note?: string | null },
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem> {
+    const detail = await this.getCloseWonReportArchiveDeleteApproval(currentUser, approvalId);
+    if (detail.status !== 'PENDING') {
+      throw new BadRequestException('只有待审批的成交复盘报告归档删除申请可以拒绝。');
+    }
+
+    await this.recordCloseWonReportArchiveApprovalEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: detail.archive_id,
+      eventType: 'REJECTED',
+      eventStatus: 'WARNING',
+      title: '成交复盘报告归档删除已拒绝',
+      note: nullableText(dto.decision_note) ?? '成交复盘报告归档删除申请已拒绝。',
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      metadata: {
+        archive_key: detail.archive_key,
+        archive_file_name: detail.archive_file_name,
+      },
+      actorId: currentUser.id,
+    });
+
+    return this.getCloseWonReportArchiveDeleteApproval(currentUser, approvalId);
   }
 
   async update(
@@ -744,6 +894,74 @@ export class CustomerSuccessOpportunitiesService {
       sourceSystem: 'customer_success',
       sourceId: archive.id,
       dedupeKey: null,
+    });
+  }
+
+  private async getCloseWonReportArchiveDeleteApproval(
+    currentUser: AuthenticatedUser,
+    approvalId: string,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem> {
+    const items = await this.listCloseWonReportArchiveDeleteApprovals(currentUser);
+    const item = items.find((approval) => approval.id === approvalId);
+
+    if (!item) {
+      throw new NotFoundException('成交复盘报告归档删除审批不存在。');
+    }
+
+    return item;
+  }
+
+  private async loadCloseWonReportArchiveDeleteEvents(tenantId: string) {
+    const items = await this.prisma.approvalAuditEvent.findMany({
+      where: {
+        tenantId,
+        sourceType: CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_SOURCE_TYPE,
+        eventType: {
+          in: ['DELETE_REQUESTED', 'APPROVED', 'REJECTED', 'DELETE_APPLIED'],
+        },
+      },
+      include: closeWonReportArchiveApprovalAuditInclude,
+      orderBy: {
+        occurredAt: 'desc',
+      },
+      take: 500,
+    });
+
+    return items.map(mapCloseWonReportArchiveAuditEvent);
+  }
+
+  private async findPendingCloseWonReportArchiveDeleteApproval(tenantId: string, sourceId: string) {
+    const events = (await this.loadCloseWonReportArchiveDeleteEvents(tenantId)).filter((event) => event.source_id === sourceId);
+    const approval = buildCloseWonReportArchiveDeleteApprovals(events)[0] ?? null;
+    return approval?.status === 'PENDING' ? approval : null;
+  }
+
+  private async recordCloseWonReportArchiveApprovalEvent(input: {
+    tenantId: string;
+    sourceId: string;
+    eventType: string;
+    eventStatus: string;
+    title: string;
+    note?: string | null;
+    requestId?: string | null;
+    traceId?: string | null;
+    metadata?: Record<string, unknown> | null;
+    actorId?: string | null;
+  }) {
+    return this.prisma.approvalAuditEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        sourceType: CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_SOURCE_TYPE,
+        sourceId: input.sourceId,
+        eventType: input.eventType,
+        eventStatus: input.eventStatus,
+        title: input.title,
+        note: input.note ?? null,
+        requestId: input.requestId ?? null,
+        traceId: input.traceId ?? null,
+        metadata: input.metadata ? toJsonInput(input.metadata) : Prisma.JsonNull,
+        actorId: input.actorId ?? null,
+      },
     });
   }
 
@@ -1469,6 +1687,118 @@ function closeWonReportArchiveKeyFromId(archiveId: string) {
     throw new BadRequestException('无效的成交复盘报告归档 ID。');
   }
   return key;
+}
+
+function closeWonReportArchiveSourceIdFromKey(key: string) {
+  return uuidFromText(`customer-success-close-won-report-archive:${key}`);
+}
+
+function buildCloseWonReportArchiveDeleteApprovals(
+  events: CloseWonReportArchiveAuditEventItem[],
+): CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem[] {
+  const groups = new Map<string, CloseWonReportArchiveAuditEventItem[]>();
+
+  for (const event of events) {
+    groups.set(event.source_id, [...(groups.get(event.source_id) ?? []), event]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([sourceId, groupEvents]) => {
+      const sorted = [...groupEvents].sort((left, right) => Date.parse(left.occurred_at) - Date.parse(right.occurred_at));
+      const request = sorted.find((event) => event.event_type === 'DELETE_REQUESTED');
+      if (!request) return null;
+      const reversed = [...sorted].reverse();
+      const applied = reversed.find((event) => event.event_type === 'DELETE_APPLIED') ?? null;
+      const approved = reversed.find((event) => event.event_type === 'APPROVED') ?? null;
+      const rejected = reversed.find((event) => event.event_type === 'REJECTED') ?? null;
+      const latestDecision = applied ?? rejected ?? approved;
+      const metadata = normalizeCloseWonReportArchiveMetadata(request.metadata);
+
+      return {
+        id: request.id,
+        archive_id: sourceId,
+        archive_key: metadata.archive_key,
+        archive_file_name: metadata.archive_file_name,
+        archive_size_bytes: metadata.archive_size_bytes,
+        status: closeWonReportArchiveApprovalStatus({ applied, approved, rejected }),
+        reason: request.note,
+        requested_by: request.actor,
+        reviewed_by: latestDecision?.actor ?? null,
+        requested_at: request.occurred_at,
+        reviewed_at: latestDecision?.occurred_at ?? null,
+      };
+    })
+    .filter((item): item is CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem => Boolean(item))
+    .sort((left, right) => Date.parse(right.requested_at) - Date.parse(left.requested_at));
+}
+
+function closeWonReportArchiveApprovalStatus(input: {
+  applied: CloseWonReportArchiveAuditEventItem | null;
+  approved: CloseWonReportArchiveAuditEventItem | null;
+  rejected: CloseWonReportArchiveAuditEventItem | null;
+}): CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem['status'] {
+  if (input.applied) return 'APPLIED';
+  if (input.rejected) return 'REJECTED';
+  if (input.approved) return 'APPROVED';
+  return 'PENDING';
+}
+
+function normalizeCloseWonReportArchiveMetadata(metadata: Record<string, unknown> | null) {
+  const archiveKey = typeof metadata?.archive_key === 'string' ? metadata.archive_key : '';
+  return {
+    archive_key: archiveKey,
+    archive_file_name:
+      typeof metadata?.archive_file_name === 'string'
+        ? metadata.archive_file_name
+        : archiveKey.split('/').at(-1) ?? '成交复盘报告归档.md',
+    archive_size_bytes:
+      typeof metadata?.archive_size_bytes === 'number'
+        ? metadata.archive_size_bytes
+        : 0,
+  };
+}
+
+function mapCloseWonReportArchiveAuditEvent(item: CloseWonReportArchiveAuditEventRecord): CloseWonReportArchiveAuditEventItem {
+  return {
+    id: item.id,
+    source_id: item.sourceId,
+    event_type: item.eventType,
+    note: item.note,
+    metadata: normalizeJsonRecord(item.metadata),
+    actor: item.actor ? {
+      id: item.actor.id,
+      name: item.actor.name,
+      email: item.actor.email,
+    } : null,
+    occurred_at: item.occurredAt.toISOString(),
+  };
+}
+
+interface CloseWonReportArchiveAuditEventItem {
+  id: string;
+  source_id: string;
+  event_type: string;
+  note: string | null;
+  metadata: Record<string, unknown> | null;
+  actor: CustomerSuccessPlanOwnerSummary | null;
+  occurred_at: string;
+}
+
+function toJsonInput(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeJsonRecord(value: Prisma.JsonValue | null): Record<string, unknown> | null {
+  return isPlainRecord(value) ? value : null;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function uuidFromText(value: string) {
+  const hash = createHash('sha256').update(value).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
 function markdownBillingTrace(adjustments: BillingAdjustmentItem[]) {

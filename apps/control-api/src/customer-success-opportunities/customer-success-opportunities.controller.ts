@@ -18,6 +18,7 @@ import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
   CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
@@ -42,6 +43,7 @@ import { CloseWonCustomerSuccessOpportunityDto } from './dto/close-won-customer-
 import { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
 import { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
 import { ListCustomerSuccessOpportunitiesDto } from './dto/list-customer-success-opportunities.dto';
+import { ReviewCloseWonReportArchiveApprovalDto } from './dto/review-close-won-report-archive-approval.dto';
 import { UpdateCustomerSuccessOpportunityDto } from './dto/update-customer-success-opportunity.dto';
 
 @ApiTags('customer-success-opportunities')
@@ -176,6 +178,53 @@ export class CustomerSuccessOpportunitiesController {
     @Param('archiveId') archiveId: string,
   ): Promise<StorageDownloadUrlResult> {
     return this.customerSuccessOpportunitiesService.getCloseWonReportArchiveDownloadUrl(currentUser, archiveId, id);
+  }
+
+  @Delete(':id/close-won-report/archives/:archiveId')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'Request close-won report archive deletion approval' })
+  async requestDeleteCloseWonReportArchive(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('archiveId') archiveId: string,
+  ): Promise<{ success: boolean; approval_id: string }> {
+    return this.customerSuccessOpportunitiesService.requestDeleteCloseWonReportArchive(currentUser, archiveId, id);
+  }
+
+  @Get('close-won-report/archive-approvals')
+  @Permissions('security:approval:view')
+  @ApiOkResponse({ description: 'List close-won report archive delete approvals' })
+  async listCloseWonReportArchiveDeleteApprovals(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem[]> {
+    return this.customerSuccessOpportunitiesService.listCloseWonReportArchiveDeleteApprovals(currentUser);
+  }
+
+  @Post('close-won-report/archive-approvals/:approvalId/approve')
+  @Permissions('security:approval:handle')
+  @ApiOkResponse({ description: 'Approve close-won report archive deletion' })
+  async approveCloseWonReportArchiveDeleteApproval(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+    @Body() dto: ReviewCloseWonReportArchiveApprovalDto,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem> {
+    return this.customerSuccessOpportunitiesService.approveCloseWonReportArchiveDeleteApproval(currentUser, approvalId, dto);
+  }
+
+  @Post('close-won-report/archive-approvals/:approvalId/reject')
+  @Permissions('security:approval:handle')
+  @ApiOkResponse({ description: 'Reject close-won report archive deletion' })
+  async rejectCloseWonReportArchiveDeleteApproval(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('approvalId') approvalId: string,
+    @Body() dto: ReviewCloseWonReportArchiveApprovalDto,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem> {
+    return this.customerSuccessOpportunitiesService.rejectCloseWonReportArchiveDeleteApproval(currentUser, approvalId, dto);
   }
 
   @Post(':id/follow-up-actions')

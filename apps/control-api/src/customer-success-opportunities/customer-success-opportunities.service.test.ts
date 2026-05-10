@@ -815,6 +815,153 @@ test('customer success opportunity close won report archive download url derives
   assert.equal(result.expires_in, 300);
 });
 
+test('customer success opportunity close won report archive deletion requires approval before object removal', async () => {
+  const archiveKey = 'customer-success-close-won-reports/opportunity-1/huazhong_design_renewal_expansion/2026-07-18T10-00-00-000Z-opportunity-1.md';
+  const archiveId = Buffer.from(archiveKey, 'utf8').toString('base64url');
+  const auditEvents: Array<{
+    id: string;
+    tenantId: string;
+    sourceType: string;
+    sourceId: string;
+    eventType: string;
+    eventStatus: string;
+    title: string;
+    note: string | null;
+    metadata: Record<string, unknown> | null;
+    actor: { id: string; name: string; email: string } | null;
+    occurredAt: Date;
+  }> = [];
+  const deletedKeys: string[] = [];
+  const prisma = {
+    approvalAuditEvent: {
+      findMany: async () => auditEvents,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const event = {
+          id: `approval-${auditEvents.length + 1}`,
+          tenantId: String(data.tenantId),
+          sourceType: String(data.sourceType),
+          sourceId: String(data.sourceId),
+          eventType: String(data.eventType),
+          eventStatus: String(data.eventStatus),
+          title: String(data.title),
+          note: data.note ? String(data.note) : null,
+          metadata: data.metadata as Record<string, unknown> | null,
+          actor: { id: 'user-1', name: '客户成功经理', email: 'operator@example.test' },
+          occurredAt: new Date(`2026-07-18T10:0${auditEvents.length}:00.000Z`),
+        };
+        auditEvents.push(event);
+        return event;
+      },
+    },
+  };
+  const storage = {
+    deleteTenantObject: async (_tenantId: string, key: string) => {
+      deletedKeys.push(key);
+      return { success: true };
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never, undefined, undefined, storage as never);
+
+  const requested = await service.requestDeleteCloseWonReportArchive(currentUser, archiveId);
+  const approvalsAfterRequest = await service.listCloseWonReportArchiveDeleteApprovals(currentUser);
+
+  assert.equal(requested.success, true);
+  assert.equal(requested.approval_id, 'approval-1');
+  assert.equal(deletedKeys.length, 0);
+  assert.equal(approvalsAfterRequest[0]?.status, 'PENDING');
+  assert.equal(approvalsAfterRequest[0]?.archive_key, archiveKey);
+
+  const approved = await service.approveCloseWonReportArchiveDeleteApproval(currentUser, requested.approval_id, {
+    decision_note: '确认归档已转存到审计目录。',
+  });
+
+  assert.equal(approved.status, 'APPLIED');
+  assert.deepEqual(deletedKeys, [archiveKey]);
+});
+
+test('customer success opportunity close won report archive deletion rejection keeps object untouched', async () => {
+  const archiveKey = 'customer-success-close-won-reports/opportunity-1/huazhong_design_renewal_expansion/2026-07-18T10-00-00-000Z-opportunity-1.md';
+  const archiveId = Buffer.from(archiveKey, 'utf8').toString('base64url');
+  const auditEvents: Array<{
+    id: string;
+    tenantId: string;
+    sourceType: string;
+    sourceId: string;
+    eventType: string;
+    eventStatus: string;
+    title: string;
+    note: string | null;
+    metadata: Record<string, unknown> | null;
+    actor: { id: string; name: string; email: string } | null;
+    occurredAt: Date;
+  }> = [];
+  const deletedKeys: string[] = [];
+  const prisma = {
+    approvalAuditEvent: {
+      findMany: async () => auditEvents,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const event = {
+          id: `approval-${auditEvents.length + 1}`,
+          tenantId: String(data.tenantId),
+          sourceType: String(data.sourceType),
+          sourceId: String(data.sourceId),
+          eventType: String(data.eventType),
+          eventStatus: String(data.eventStatus),
+          title: String(data.title),
+          note: data.note ? String(data.note) : null,
+          metadata: data.metadata as Record<string, unknown> | null,
+          actor: { id: 'user-1', name: '客户成功经理', email: 'operator@example.test' },
+          occurredAt: new Date(`2026-07-18T10:0${auditEvents.length}:00.000Z`),
+        };
+        auditEvents.push(event);
+        return event;
+      },
+    },
+  };
+  const storage = {
+    deleteTenantObject: async (_tenantId: string, key: string) => {
+      deletedKeys.push(key);
+      return { success: true };
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never, undefined, undefined, storage as never);
+
+  const requested = await service.requestDeleteCloseWonReportArchive(currentUser, archiveId);
+  const rejected = await service.rejectCloseWonReportArchiveDeleteApproval(currentUser, requested.approval_id, {
+    decision_note: '需要继续保留到季度审计完成。',
+  });
+
+  assert.equal(rejected.status, 'REJECTED');
+  assert.deepEqual(deletedKeys, []);
+});
+
+test('customer success opportunity close won report archive deletion validates opportunity ownership', async () => {
+  const archiveKey = 'customer-success-close-won-reports/opportunity-1/huazhong_design_renewal_expansion/2026-07-18T10-00-00-000Z-opportunity-1.md';
+  const archiveId = Buffer.from(archiveKey, 'utf8').toString('base64url');
+  const auditEvents: unknown[] = [];
+  const prisma = {
+    approvalAuditEvent: {
+      findMany: async () => auditEvents,
+      create: async ({ data }: { data: unknown }) => {
+        auditEvents.push(data);
+        return data;
+      },
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+  const requestDelete = service.requestDeleteCloseWonReportArchive as unknown as (
+    user: typeof currentUser,
+    archiveIdValue: string,
+    opportunityId: string,
+  ) => Promise<unknown>;
+
+  await assert.rejects(
+    () => requestDelete.call(service, currentUser, archiveId, 'another-opportunity'),
+    (error) => error instanceof BadRequestException && error.message === '成交复盘报告归档不属于当前续约机会。',
+  );
+  assert.equal(auditEvents.length, 0);
+});
+
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {
   const prisma = {
     customerSuccessOpportunity: {

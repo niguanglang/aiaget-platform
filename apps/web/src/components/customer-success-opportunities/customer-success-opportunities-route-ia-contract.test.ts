@@ -139,10 +139,13 @@ test('customer success opportunity close won report owns read-only post-sale rev
   assert.match(reportSource, /createCustomerSuccessOpportunityCloseWonReportArchive/);
   assert.match(reportSource, /listCustomerSuccessOpportunityCloseWonReportArchives/);
   assert.match(reportSource, /getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl/);
+  assert.match(reportSource, /deleteCustomerSuccessOpportunityCloseWonReportArchive/);
   assert.match(reportSource, /成交复盘报告/);
   assert.match(reportSource, /导出报告/);
   assert.match(reportSource, /归档留存/);
   assert.match(reportSource, /下载归档/);
+  assert.match(reportSource, /申请删除/);
+  assert.match(reportSource, /确认申请/);
   assert.match(reportSource, /客户价值复盘/);
   assert.match(reportSource, /来源链路/);
   assert.match(reportSource, /入账追踪/);
@@ -158,8 +161,10 @@ test('customer success opportunity close won report owns read-only post-sale rev
   assert.doesNotMatch(listSource, /exportCustomerSuccessOpportunityCloseWonReport/);
   assert.doesNotMatch(listSource, /createCustomerSuccessOpportunityCloseWonReportArchive/);
   assert.doesNotMatch(listSource, /listCustomerSuccessOpportunityCloseWonReportArchives/);
+  assert.doesNotMatch(listSource, /deleteCustomerSuccessOpportunityCloseWonReportArchive/);
   assert.doesNotMatch(analyticsSource, /getCustomerSuccessOpportunityCloseWonReport/);
   assert.doesNotMatch(analyticsSource, /exportCustomerSuccessOpportunityCloseWonReport/);
   assert.doesNotMatch(analyticsSource, /createCustomerSuccessOpportunityCloseWonReportArchive/);
   assert.doesNotMatch(analyticsSource, /listCustomerSuccessOpportunityCloseWonReportArchives/);
+  assert.doesNotMatch(analyticsSource, /deleteCustomerSuccessOpportunityCloseWonReportArchive/);
 });

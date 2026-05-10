@@ -5,6 +5,7 @@ import type {
   AgentTeamRunReportArchiveApprovalItem,
   ApprovalAuditArchiveApprovalDetail,
   ApprovalAuditArchiveApprovalItem,
+  CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
   SecurityOperationAlertNotificationArchiveApprovalItem,
   SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem,
   SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem,
@@ -36,6 +37,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveAgentTeamRunReportArchiveApproval,
   approveApprovalAuditArchiveApproval,
+  approveCustomerSuccessOpportunityCloseWonReportArchiveApproval,
   approveSecurityOperationAlertNotificationArchiveApproval,
   approveSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval,
   approveSecurityOperationAlertSlaDeadLetterAuditArchiveApproval,
@@ -43,17 +45,19 @@ import {
   getApprovalAuditArchiveApprovalOverview,
   listAgentTeamRunReportArchiveApprovals,
   listApprovalAuditArchiveApprovals,
+  listCustomerSuccessOpportunityCloseWonReportArchiveApprovals,
   listSecurityOperationAlertNotificationArchiveApprovals,
   listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals,
   listSecurityOperationAlertSlaDeadLetterAuditArchiveApprovals,
   rejectAgentTeamRunReportArchiveApproval,
   rejectApprovalAuditArchiveApproval,
+  rejectCustomerSuccessOpportunityCloseWonReportArchiveApproval,
   rejectSecurityOperationAlertNotificationArchiveApproval,
   rejectSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApproval,
   rejectSecurityOperationAlertSlaDeadLetterAuditArchiveApproval,
 } from '@/lib/api-client';
 
-type ArchiveSource = 'APPROVAL_AUDIT' | 'OPERATION_ALERT' | 'RECOVERY_AUDIT' | 'SLA_DEAD_LETTER' | 'AGENT_TEAM_REPORT';
+type ArchiveSource = 'APPROVAL_AUDIT' | 'OPERATION_ALERT' | 'RECOVERY_AUDIT' | 'SLA_DEAD_LETTER' | 'AGENT_TEAM_REPORT' | 'CUSTOMER_SUCCESS_REPORT';
 type ArchiveApprovalItem = {
   id: string;
   source: ArchiveSource;
@@ -77,6 +81,7 @@ const sourceOptions: Array<{ label: string; value: ArchiveSource | '' }> = [
   { label: '自愈恢复审计', value: 'RECOVERY_AUDIT' },
   { label: 'SLA 死信审计', value: 'SLA_DEAD_LETTER' },
   { label: 'Agent 团队报告', value: 'AGENT_TEAM_REPORT' },
+  { label: '客户成功复盘', value: 'CUSTOMER_SUCCESS_REPORT' },
 ];
 
 export function ArchiveDeletionApprovalsContent() {
@@ -111,6 +116,10 @@ export function ArchiveDeletionApprovalsContent() {
     queryKey: ['agent-team-run-report-archive-approvals'],
     queryFn: listAgentTeamRunReportArchiveApprovals,
   });
+  const customerSuccessReportQuery = useQuery({
+    queryKey: ['customer-success-close-won-report-archive-approvals'],
+    queryFn: listCustomerSuccessOpportunityCloseWonReportArchiveApprovals,
+  });
 
   const approvals = useMemo(() => {
     const items = [
@@ -119,10 +128,11 @@ export function ArchiveDeletionApprovalsContent() {
       ...(recoveryAuditQuery.data ?? []).map((item) => toArchiveApprovalItem(item, 'RECOVERY_AUDIT', '自愈恢复审计')),
       ...(slaDeadLetterQuery.data ?? []).map((item) => toArchiveApprovalItem(item, 'SLA_DEAD_LETTER', 'SLA 死信审计')),
       ...(agentTeamReportQuery.data ?? []).map((item) => toArchiveApprovalItem(item, 'AGENT_TEAM_REPORT', 'Agent 团队报告')),
+      ...(customerSuccessReportQuery.data ?? []).map((item) => toArchiveApprovalItem(item, 'CUSTOMER_SUCCESS_REPORT', '客户成功复盘')),
     ];
 
     return items.sort((left, right) => new Date(right.requestedAt).getTime() - new Date(left.requestedAt).getTime());
-  }, [agentTeamReportQuery.data, approvalAuditQuery.data, operationAlertQuery.data, recoveryAuditQuery.data, slaDeadLetterQuery.data]);
+  }, [agentTeamReportQuery.data, approvalAuditQuery.data, customerSuccessReportQuery.data, operationAlertQuery.data, recoveryAuditQuery.data, slaDeadLetterQuery.data]);
   const visibleApprovals = sourceFilter ? approvals.filter((item) => item.source === sourceFilter) : approvals;
   const activeApproval = selectedApproval ?? visibleApprovals[0] ?? null;
 
@@ -171,13 +181,15 @@ export function ArchiveDeletionApprovalsContent() {
     operationAlertQuery.isLoading ||
     recoveryAuditQuery.isLoading ||
     slaDeadLetterQuery.isLoading ||
-    agentTeamReportQuery.isLoading;
+    agentTeamReportQuery.isLoading ||
+    customerSuccessReportQuery.isLoading;
   const hasError =
     approvalAuditQuery.isError ||
     operationAlertQuery.isError ||
     recoveryAuditQuery.isError ||
     slaDeadLetterQuery.isError ||
     agentTeamReportQuery.isError ||
+    customerSuccessReportQuery.isError ||
     overviewQuery.isError;
 
   return (
@@ -207,6 +219,7 @@ export function ArchiveDeletionApprovalsContent() {
             void recoveryAuditQuery.refetch();
             void slaDeadLetterQuery.refetch();
             void agentTeamReportQuery.refetch();
+            void customerSuccessReportQuery.refetch();
             void selectedApprovalAuditDetailQuery.refetch();
           }}
           type="button"
@@ -242,7 +255,7 @@ export function ArchiveDeletionApprovalsContent() {
               ))}
             </select>
             <div className="flex h-9 items-center rounded-md border bg-muted/25 px-3 text-sm text-muted-foreground">
-              审批审计 / 安全告警 / 自愈恢复 / SLA 死信 / Agent 团队报告
+              审批审计 / 安全告警 / 自愈恢复 / SLA 死信 / Agent 团队报告 / 客户成功复盘
             </div>
           </div>
           {loading ? (
@@ -403,6 +416,11 @@ function ArchiveDeletionApprovalDetailPanel({
                   <Link href="/agent-teams/report-archives">打开报告归档</Link>
                 </Button>
               ) : null}
+              {activeApproval.source === 'CUSTOMER_SUCCESS_REPORT' ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/customer-success-opportunities">打开续约机会</Link>
+                </Button>
+              ) : null}
               <Button asChild size="sm" variant="outline">
                 <Link href="/storage">打开文件存储</Link>
               </Button>
@@ -443,7 +461,8 @@ function toArchiveApprovalItem(
     | SecurityOperationAlertNotificationArchiveApprovalItem
     | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem
     | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem
-    | AgentTeamRunReportArchiveApprovalItem,
+    | AgentTeamRunReportArchiveApprovalItem
+    | CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
   source: ArchiveSource,
   sourceLabel: string,
 ): ArchiveApprovalItem {
@@ -479,6 +498,9 @@ function approveArchiveApproval(approval: ArchiveApprovalItem, decisionNote: str
   if (approval.source === 'AGENT_TEAM_REPORT') {
     return approveAgentTeamRunReportArchiveApproval(approval.id, input);
   }
+  if (approval.source === 'CUSTOMER_SUCCESS_REPORT') {
+    return approveCustomerSuccessOpportunityCloseWonReportArchiveApproval(approval.id, input);
+  }
   return approveApprovalAuditArchiveApproval(approval.id, input);
 }
 
@@ -497,6 +519,9 @@ function rejectArchiveApproval(approval: ArchiveApprovalItem, decisionNote: stri
   if (approval.source === 'AGENT_TEAM_REPORT') {
     return rejectAgentTeamRunReportArchiveApproval(approval.id, input);
   }
+  if (approval.source === 'CUSTOMER_SUCCESS_REPORT') {
+    return rejectCustomerSuccessOpportunityCloseWonReportArchiveApproval(approval.id, input);
+  }
   return rejectApprovalAuditArchiveApproval(approval.id, input);
 }
 
@@ -511,6 +536,8 @@ function invalidateArchiveApprovalQueries(queryClient: ReturnType<typeof useQuer
     queryClient.invalidateQueries({ queryKey: ['security-operation-alert-sla-dead-letter-audit-archive-approvals'] }),
     queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archive-approvals'] }),
     queryClient.invalidateQueries({ queryKey: ['agent-team-run-report-archives'] }),
+    queryClient.invalidateQueries({ queryKey: ['customer-success-close-won-report-archive-approvals'] }),
+    queryClient.invalidateQueries({ queryKey: ['customer-success-opportunity-close-won-report-archives'] }),
     queryClient.invalidateQueries({ queryKey: ['security-center-overview'] }),
   ]);
 }

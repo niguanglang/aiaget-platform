@@ -2,7 +2,7 @@
 
 import type { BillingAdjustmentItem, CustomerSuccessOpportunityCloseWonReportArchiveItem } from '@aiaget/shared-types';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Archive, ArrowLeft, ClipboardList, Download, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
+import { Archive, ArrowLeft, ClipboardList, Download, FileText, Link2, ReceiptText, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -33,6 +33,7 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   createCustomerSuccessOpportunityCloseWonReportArchive,
+  deleteCustomerSuccessOpportunityCloseWonReportArchive,
   exportCustomerSuccessOpportunityCloseWonReport,
   getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl,
   getCustomerSuccessOpportunityCloseWonReport,
@@ -43,6 +44,7 @@ import {
 export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId }: { opportunityId: string }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveSuccess, setArchiveSuccess] = useState<string | null>(null);
   const reportQuery = useQuery({
     queryKey: ['customer-success-opportunity-close-won-report', opportunityId],
     queryFn: () => getCustomerSuccessOpportunityCloseWonReport(opportunityId),
@@ -74,6 +76,18 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
       window.open(result.url, '_blank', 'noopener,noreferrer');
     },
     onError: (error: ApiClientError) => setArchiveError(error.message),
+  });
+  const requestDeleteArchiveMutation = useMutation({
+    mutationFn: (archiveId: string) => deleteCustomerSuccessOpportunityCloseWonReportArchive(opportunityId, archiveId),
+    onSuccess: async (result) => {
+      setArchiveError(null);
+      setArchiveSuccess(`删除审批已提交：${result.approval_id}`);
+      await archiveQuery.refetch();
+    },
+    onError: (error: ApiClientError) => {
+      setArchiveSuccess(null);
+      setArchiveError(error.message);
+    },
   });
 
   if (reportQuery.isLoading) {
@@ -168,6 +182,12 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
         </Card>
       ) : null}
 
+      {archiveSuccess ? (
+        <Card className="border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-emerald-700">
+          {archiveSuccess}，审批通过后才会删除对象存储中的归档文件。
+        </Card>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard helper="机会原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
         <MetricCard helper="金额 x 概率" label="加权金额" value={formatMoney(report.summary.weighted_amount)} />
@@ -179,9 +199,11 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
       <ArchiveRetentionCard
         archives={archiveQuery.data?.items ?? []}
         isArchiving={archiveMutation.isPending}
+        isDeleting={requestDeleteArchiveMutation.isPending}
         isDownloading={downloadArchiveMutation.isPending}
         isLoading={archiveQuery.isLoading}
         onArchive={() => archiveMutation.mutate()}
+        onRequestDelete={(archiveId) => requestDeleteArchiveMutation.mutate(archiveId)}
         onDownload={(archiveId) => downloadArchiveMutation.mutate(archiveId)}
         totalSizeBytes={archiveQuery.data?.summary.total_size_bytes ?? 0}
       />
@@ -252,20 +274,26 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
 function ArchiveRetentionCard({
   archives,
   isArchiving,
+  isDeleting,
   isDownloading,
   isLoading,
   onArchive,
+  onRequestDelete,
   onDownload,
   totalSizeBytes,
 }: {
   archives: CustomerSuccessOpportunityCloseWonReportArchiveItem[];
   isArchiving: boolean;
+  isDeleting: boolean;
   isDownloading: boolean;
   isLoading: boolean;
   onArchive: () => void;
+  onRequestDelete: (archiveId: string) => void;
   onDownload: (archiveId: string) => void;
   totalSizeBytes: number;
 }) {
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
   return (
     <Card className="p-5">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -302,10 +330,36 @@ function ArchiveRetentionCard({
                   <span>机会编号：{archive.opportunity_code ?? '-'}</span>
                 </div>
               </div>
-              <Button disabled={isDownloading} onClick={() => onDownload(archive.id)} size="sm" variant="outline">
-                <Download className="size-4" />
-                下载归档
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={isDownloading} onClick={() => onDownload(archive.id)} size="sm" variant="outline">
+                  <Download className="size-4" />
+                  下载归档
+                </Button>
+                {deleteTargetId === archive.id ? (
+                  <>
+                    <Button
+                      disabled={isDeleting}
+                      onClick={() => {
+                        onRequestDelete(archive.id);
+                        setDeleteTargetId(null);
+                      }}
+                      size="sm"
+                      variant="destructive"
+                    >
+                      <Trash2 className="size-4" />
+                      确认申请
+                    </Button>
+                    <Button disabled={isDeleting} onClick={() => setDeleteTargetId(null)} size="sm" variant="outline">
+                      取消
+                    </Button>
+                  </>
+                ) : (
+                  <Button disabled={isDeleting} onClick={() => setDeleteTargetId(archive.id)} size="sm" variant="outline">
+                    <Trash2 className="size-4" />
+                    申请删除
+                  </Button>
+                )}
+              </div>
             </div>
           ))
         ) : (

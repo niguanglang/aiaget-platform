@@ -40,6 +40,7 @@ import type {
   CreateDeliveryAssetInput,
   CreateCustomerSuccessActionInput,
   CreateCustomerSuccessOpportunityInput,
+  CreateCustomerSuccessOpportunityFollowUpActionInput,
   CreateCustomerSuccessPlanInput,
   CreateDeliveryReviewInput,
   CreateRoleScenarioInput,
@@ -201,6 +202,7 @@ import type {
   CustomerSuccessActionListItem,
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityDetail,
+  CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
   CustomerSuccessPlanDetail,
   CustomerSuccessPlanListItem,
@@ -2324,6 +2326,16 @@ export function createCustomerSuccessOpportunity(input: CreateCustomerSuccessOpp
 
 export function getCustomerSuccessOpportunity(opportunityId: string) {
   return request<CustomerSuccessOpportunityDetail>(`/customer-success-opportunities/${opportunityId}`);
+}
+
+export function createCustomerSuccessOpportunityFollowUpAction(
+  opportunityId: string,
+  input: CreateCustomerSuccessOpportunityFollowUpActionInput,
+) {
+  return request<CustomerSuccessOpportunityFollowUpActionResult>(`/customer-success-opportunities/${opportunityId}/follow-up-actions`, {
+    method: 'POST',
+    body: input,
+  });
 }
 
 export function updateCustomerSuccessOpportunity(opportunityId: string, input: UpdateCustomerSuccessOpportunityInput) {

@@ -48,6 +48,10 @@ test('customer success opportunity detail owns value, strategy, decision path, r
   assert.match(detailSource, /成功行动/);
   assert.match(detailSource, /来源复盘/);
   assert.match(detailSource, /成果资产/);
+  assert.match(detailSource, /跟进行动闭环/);
+  assert.match(detailSource, /createCustomerSuccessOpportunityFollowUpAction/);
+  assert.match(detailSource, /customer:success_action:manage/);
+  assert.match(detailSource, /确认生成/);
 });
 
 test('customer success opportunity create and edit pages use the shared form panel', () => {
@@ -77,6 +81,19 @@ test('customer success opportunity analytics owns funnel and dashboard data outs
   assert.match(analyticsSource, /近期关闭机会/);
   assert.match(analyticsSource, /customer:success_opportunity:view/);
   assert.doesNotMatch(analyticsSource, /createCustomerSuccessOpportunity/);
+  assert.doesNotMatch(analyticsSource, /createCustomerSuccessOpportunityFollowUpAction/);
   assert.doesNotMatch(analyticsSource, /updateCustomerSuccessOpportunity/);
   assert.doesNotMatch(analyticsSource, /deleteCustomerSuccessOpportunity/);
+});
+
+test('customer success opportunity follow-up action workflow stays on detail page and out of list analytics', () => {
+  const listSource = source('customer-success-opportunities-content.tsx');
+  const detailSource = source('customer-success-opportunity-detail-content.tsx');
+  const analyticsSource = source('customer-success-opportunity-analytics-content.tsx');
+
+  assert.match(detailSource, /生成跟进行动/);
+  assert.match(detailSource, /查看行动/);
+  assert.match(detailSource, /customer-success-actions/);
+  assert.doesNotMatch(listSource, /createCustomerSuccessOpportunityFollowUpAction/);
+  assert.doesNotMatch(analyticsSource, /生成跟进行动/);
 });

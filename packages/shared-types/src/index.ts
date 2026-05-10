@@ -6213,6 +6213,17 @@ export interface UpdateCustomerSuccessOpportunityInput {
   solution_package_id?: string | null;
 }
 
+export interface CreateCustomerSuccessOpportunityFollowUpActionInput {
+  name?: string;
+  due_at?: string | null;
+  owner_id?: string | null;
+}
+
+export interface CustomerSuccessOpportunityFollowUpActionResult {
+  action: CustomerSuccessActionDetail;
+  opportunity: CustomerSuccessOpportunityDetail;
+}
+
 export interface CreatePromptTemplateInput {
   name: string;
   code: string;

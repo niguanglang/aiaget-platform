@@ -113,6 +113,85 @@ function opportunityRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function followUpActionRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'follow-up-action-1',
+    tenantId: 'tenant-1',
+    ownerId: 'user-1',
+    customerSuccessPlanId: 'plan-1',
+    deliveryReviewId: 'review-1',
+    deliveryAssetId: 'asset-1',
+    solutionPackageId: 'package-1',
+    name: '华中设计院二期续约推进跟进行动',
+    code: 'huazhong_design_renewal_expansion_follow_up_test',
+    customerName: '华中设计院',
+    actionType: 'RENEWAL',
+    status: 'TODO',
+    priority: 'HIGH',
+    riskLevel: 'MEDIUM',
+    actionScore: 84,
+    actionSummary: '围绕续约机会推进下一次商务评审，明确客户价值、预算窗口和签约路径。',
+    expectedOutcome: '形成客户确认的续约推进计划和下一轮商务动作。',
+    executionNotes: '由续约机会自动生成，等待负责人补充执行记录。',
+    blockerSummary: '预算窗口和知识库密级审批可能影响签约节奏。',
+    completionEvidence: '待补充会议纪要、报价材料、客户确认记录或续约文件。',
+    nextAction: '准备二期扩展报价单并约定商务评审会。',
+    dueAt: new Date('2026-07-13T10:00:00.000Z'),
+    completedAt: null,
+    tags: ['续约', '扩展', '客户成功', '机会跟进'],
+    notes: '由续约机会 huazhong_design_renewal_expansion 自动生成。',
+    createdAt,
+    updatedAt: createdAt,
+    deletedAt: null,
+    createdBy: 'user-1',
+    updatedBy: 'user-1',
+    owner: {
+      id: 'user-1',
+      name: '客户成功经理',
+      email: 'operator@example.test',
+    },
+    customerSuccessPlan: {
+      id: 'plan-1',
+      name: '华中设计院客户成功扩展计划',
+      code: 'huazhong_design_success_expansion',
+      customerName: '华中设计院',
+      planStage: 'EXPANSION_DESIGN',
+      status: 'ACTIVE',
+      priority: 'HIGH',
+      healthLevel: 'HIGH',
+      successScore: 88,
+    },
+    deliveryReview: {
+      id: 'review-1',
+      name: '华中设计院试点验收复盘',
+      code: 'huazhong_design_pilot_review',
+      customerName: '华中设计院',
+      result: 'PASSED',
+      status: 'COMPLETED',
+      acceptanceScore: 95,
+    },
+    deliveryAsset: {
+      id: 'asset-1',
+      name: '售前方案验收资产包',
+      code: 'sales_solution_acceptance_asset',
+      customerName: '华中设计院',
+      assetType: 'SOLUTION_TEMPLATE',
+      status: 'PUBLISHED',
+      reuseScore: 92,
+    },
+    solutionPackage: {
+      id: 'package-1',
+      name: '华中设计院 AI 落地试点方案包',
+      code: 'huazhong_design_ai_pilot',
+      customerName: '华中设计院',
+      packageStage: 'PILOT_DESIGN',
+      status: 'APPROVED',
+      packageScore: 94,
+    },
+    ...overrides,
+  };
+}
+
 test('customer success opportunities derive score and keep list summaries compact', async () => {
   const writes: Array<{ type: string; data: Record<string, unknown> }> = [];
   const record = opportunityRecord();
@@ -255,6 +334,99 @@ test('customer success opportunities reject action bindings outside the selected
       }),
     BadRequestException,
   );
+});
+
+test('customer success opportunity can create and bind a follow-up customer success action', async () => {
+  const writes: Array<{ type: string; data: Record<string, unknown> }> = [];
+  const action = followUpActionRecord();
+  const updatedOpportunity = opportunityRecord({
+    customerSuccessActionId: 'follow-up-action-1',
+    customerSuccessAction: {
+      id: 'follow-up-action-1',
+      name: '华中设计院二期续约推进跟进行动',
+      code: 'huazhong_design_renewal_expansion_follow_up_test',
+      customerName: '华中设计院',
+      actionType: 'RENEWAL',
+      status: 'TODO',
+      priority: 'HIGH',
+      riskLevel: 'MEDIUM',
+      actionScore: 84,
+    },
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () =>
+        opportunityRecord({
+          customerSuccessActionId: null,
+          customerSuccessAction: null,
+        }),
+      update: async (args: { data: Record<string, unknown> }) => {
+        writes.push({ type: 'customerSuccessOpportunity.update', data: args.data });
+        return updatedOpportunity;
+      },
+    },
+    customerSuccessAction: {
+      create: async (args: { data: Record<string, unknown> }) => {
+        writes.push({ type: 'customerSuccessAction.create', data: args.data });
+        return action;
+      },
+    },
+    user: { findFirst: async () => ({ id: 'user-1' }) },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+
+  const result = await service.createFollowUpAction(currentUser, 'opportunity-1', {
+    due_at: '2026-07-13T10:00:00.000Z',
+  });
+
+  const createData = getWrite(writes, 'customerSuccessAction.create');
+  assert.equal(createData.tenantId, 'tenant-1');
+  assert.equal(createData.customerSuccessPlanId, 'plan-1');
+  assert.equal(createData.deliveryReviewId, 'review-1');
+  assert.equal(createData.deliveryAssetId, 'asset-1');
+  assert.equal(createData.solutionPackageId, 'package-1');
+  assert.equal(createData.ownerId, 'user-1');
+  assert.equal(createData.customerName, '华中设计院');
+  assert.equal(createData.actionType, 'RENEWAL');
+  assert.equal(createData.priority, 'HIGH');
+  assert.equal(createData.riskLevel, 'MEDIUM');
+  assert.match(String(createData.code), /^huazhong_design_renewal_expansion_follow_up_/);
+  assert.match(String(createData.actionSummary), /华中设计院二期续约扩展机会/);
+  assert.match(String(createData.blockerSummary), /预算窗口/);
+  assert.deepEqual(createData.tags, ['续约', '扩展', '客户成功', '机会跟进']);
+  const updateData = getWrite(writes, 'customerSuccessOpportunity.update');
+  const actionBinding = updateData.customerSuccessAction as { connect?: { id?: string } } | undefined;
+  assert.equal(actionBinding?.connect?.id, 'follow-up-action-1');
+  assert.equal(result.action.id, 'follow-up-action-1');
+  assert.equal(result.action.action_type, 'RENEWAL');
+  assert.equal(result.opportunity.linked_resources.customer_success_action?.id, 'follow-up-action-1');
+});
+
+test('customer success opportunity rejects duplicate follow-up action creation when an action is already bound', async () => {
+  const writes: Array<{ type: string; data: Record<string, unknown> }> = [];
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () => opportunityRecord(),
+      update: async (args: { data: Record<string, unknown> }) => {
+        writes.push({ type: 'customerSuccessOpportunity.update', data: args.data });
+        return opportunityRecord();
+      },
+    },
+    customerSuccessAction: {
+      create: async (args: { data: Record<string, unknown> }) => {
+        writes.push({ type: 'customerSuccessAction.create', data: args.data });
+        return followUpActionRecord();
+      },
+    },
+    user: { findFirst: async () => ({ id: 'user-1' }) },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+
+  await assert.rejects(
+    () => service.createFollowUpAction(currentUser, 'opportunity-1', {}),
+    BadRequestException,
+  );
+  assert.deepEqual(writes, []);
 });
 
 test('customer success opportunity analytics aggregate funnel, risk and upcoming close opportunities', async () => {

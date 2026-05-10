@@ -1,11 +1,16 @@
 'use client';
 
 import { hasPermission } from '@aiaget/shared-types';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Edit } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Edit, ListChecks } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
+import {
+  customerSuccessActionRiskLabel,
+  customerSuccessActionStatusLabel,
+} from '@/components/customer-success-actions/customer-success-action-status';
 import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
 import {
   customerSuccessOpportunityConfidenceLabel,
@@ -26,17 +31,54 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getCustomerSuccessOpportunity } from '@/lib/api-client';
+import {
+  createCustomerSuccessOpportunityFollowUpAction,
+  getCustomerSuccessOpportunity,
+  type ApiClientError,
+} from '@/lib/api-client';
 
 export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opportunityId: string }) {
+  const queryClient = useQueryClient();
   const { currentUser } = useAuth();
+  const [followUpName, setFollowUpName] = useState('');
+  const [followUpDueAt, setFollowUpDueAt] = useState('');
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [followUpNotice, setFollowUpNotice] = useState<string | null>(null);
+  const [confirmFollowUp, setConfirmFollowUp] = useState(false);
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
       hasPermission(currentUser?.user.permissions ?? [], 'customer:success_opportunity:manage'),
   );
+  const canCreateAction = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'customer:success_action:manage'),
+  );
   const opportunityQuery = useQuery({
     queryKey: ['customer-success-opportunity', opportunityId],
     queryFn: () => getCustomerSuccessOpportunity(opportunityId),
+  });
+  const followUpMutation = useMutation({
+    mutationFn: () =>
+      createCustomerSuccessOpportunityFollowUpAction(opportunityId, {
+        name: followUpName.trim() || undefined,
+        due_at: followUpDueAt ? new Date(followUpDueAt).toISOString() : undefined,
+      }),
+    onSuccess: async (result) => {
+      setFollowUpNotice(`已生成跟进行动：${result.action.name}`);
+      setFollowUpError(null);
+      setConfirmFollowUp(false);
+      setFollowUpName('');
+      setFollowUpDueAt('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customer-success-opportunity', opportunityId] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-success-opportunities'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-success-actions'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => {
+      setFollowUpNotice(null);
+      setFollowUpError(error.message);
+    },
   });
 
   if (opportunityQuery.isLoading) {
@@ -137,6 +179,36 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
         </Card>
       </section>
 
+      <FollowUpActionCard
+        canCreateAction={canWrite && canCreateAction}
+        dueAt={followUpDueAt}
+        error={followUpError}
+        isPending={followUpMutation.isPending}
+        name={followUpName}
+        notice={followUpNotice}
+        onCreate={() => setConfirmFollowUp(true)}
+        onDueAtChange={setFollowUpDueAt}
+        onNameChange={setFollowUpName}
+        opportunityAction={item.linked_resources.customer_success_action}
+      />
+
+      {confirmFollowUp ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 px-4 backdrop-blur-sm">
+          <Card className="w-full max-w-md p-5">
+            <h2 className="text-lg font-semibold">生成跟进行动</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              确认基于「{item.name}」生成客户成功跟进行动？生成后会自动绑定到当前续约机会，并在成功行动中心继续跟踪。
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button disabled={followUpMutation.isPending} onClick={() => setConfirmFollowUp(false)} variant="outline">取消</Button>
+              <Button disabled={followUpMutation.isPending} onClick={() => followUpMutation.mutate()}>
+                {followUpMutation.isPending ? '生成中...' : '确认生成'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2">
         <DetailCard title="客户价值" value={item.customer_value} />
         <DetailCard title="商务策略" value={item.commercial_strategy} />
@@ -156,6 +228,115 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
         </div>
       </Card>
     </main>
+  );
+}
+
+function FollowUpActionCard({
+  canCreateAction,
+  dueAt,
+  error,
+  isPending,
+  name,
+  notice,
+  onCreate,
+  onDueAtChange,
+  onNameChange,
+  opportunityAction,
+}: {
+  canCreateAction: boolean;
+  dueAt: string;
+  error: string | null;
+  isPending: boolean;
+  name: string;
+  notice: string | null;
+  onCreate: () => void;
+  onDueAtChange: (value: string) => void;
+  onNameChange: (value: string) => void;
+  opportunityAction: {
+    id: string;
+    name: string;
+    status: string;
+    priority: string;
+    risk_level: string;
+    action_score: number;
+  } | null;
+}) {
+  return (
+    <Card className="grid gap-4 p-5">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ListChecks className="size-4 text-primary" />
+            跟进行动闭环
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            将当前续约机会生成客户成功行动，后续在成功行动中心跟踪负责人、截止时间、执行记录和完成证据。
+          </p>
+        </div>
+        {opportunityAction ? (
+          <Button asChild variant="outline">
+            <Link href={`/customer-success-actions/${opportunityAction.id}`}>查看行动</Link>
+          </Button>
+        ) : null}
+      </div>
+
+      {opportunityAction ? (
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">{opportunityAction.name}</div>
+              <div className="mt-1 text-xs text-muted-foreground">已绑定客户成功行动，避免重复生成。</div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <StatusBadge tone={opportunityAction.status === 'DONE' ? 'healthy' : opportunityAction.status === 'BLOCKED' ? 'degraded' : 'ready'}>
+                {customerSuccessActionStatusLabel(opportunityAction.status)}
+              </StatusBadge>
+              <StatusBadge tone={opportunityAction.risk_level === 'HIGH' ? 'degraded' : opportunityAction.risk_level === 'MEDIUM' ? 'ready' : 'healthy'}>
+                {customerSuccessActionRiskLabel(opportunityAction.risk_level)}
+              </StatusBadge>
+              <StatusBadge tone={opportunityAction.action_score >= 80 ? 'healthy' : 'ready'}>{opportunityAction.action_score} 分</StatusBadge>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs text-muted-foreground">行动名称，可选</span>
+            <input
+              className="h-10 rounded-md border bg-background/80 px-3 outline-none transition-colors focus:border-primary"
+              disabled={!canCreateAction || isPending}
+              onChange={(event) => onNameChange(event.target.value)}
+              placeholder="不填写则按机会名称自动生成"
+              value={name}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs text-muted-foreground">截止时间，可选</span>
+            <input
+              className="h-10 rounded-md border bg-background/80 px-3 outline-none transition-colors focus:border-primary"
+              disabled={!canCreateAction || isPending}
+              onChange={(event) => onDueAtChange(event.target.value)}
+              type="datetime-local"
+              value={dueAt}
+            />
+          </label>
+          <div className="flex items-end">
+            <Button disabled={!canCreateAction || isPending} onClick={onCreate}>
+              <ListChecks className="size-4" />
+              {isPending ? '生成中...' : '生成跟进行动'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!canCreateAction && !opportunityAction ? (
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          当前账号缺少续约机会管理或成功行动管理权限，不能生成跟进行动。
+        </div>
+      ) : null}
+      {notice ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</div> : null}
+      {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</div> : null}
+    </Card>
   );
 }
 

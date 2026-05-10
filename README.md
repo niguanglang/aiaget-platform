@@ -280,6 +280,7 @@ GET  /api/v1/customer-success-opportunities
 GET  /api/v1/customer-success-opportunities/analytics
 POST /api/v1/customer-success-opportunities
 GET  /api/v1/customer-success-opportunities/:id
+POST /api/v1/customer-success-opportunities/:id/follow-up-actions
 PATCH /api/v1/customer-success-opportunities/:id
 DELETE /api/v1/customer-success-opportunities/:id
 POST /runtime/conversations/respond-stream
@@ -324,6 +325,7 @@ images/frontend-reference-design/customer-success-plans/
 images/frontend-reference-design/customer-success-actions/
 images/frontend-reference-design/customersuccessopportunities/
 images/frontend-reference-design/续约机会分析/
+images/frontend-reference-design/续约机会跟进行动/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

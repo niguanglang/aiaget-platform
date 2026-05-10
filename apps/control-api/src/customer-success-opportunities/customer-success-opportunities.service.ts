@@ -3,10 +3,13 @@ import { Prisma } from '@prisma/client';
 
 import type {
   CustomerSuccessActionPlanSummary,
+  CustomerSuccessActionDetail,
+  CustomerSuccessActionListItem,
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityAnalyticsBucket,
   CustomerSuccessOpportunityActionSummary,
   CustomerSuccessOpportunityDetail,
+  CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityLinkedResources,
   CustomerSuccessOpportunityListItem,
   CustomerSuccessOpportunityStageFunnelItem,
@@ -21,6 +24,7 @@ import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/d
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
+import type { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
 import type { ListCustomerSuccessOpportunitiesDto } from './dto/list-customer-success-opportunities.dto';
 import type { UpdateCustomerSuccessOpportunityDto } from './dto/update-customer-success-opportunity.dto';
 
@@ -32,9 +36,19 @@ const customerSuccessOpportunityInclude = {
   deliveryAsset: true,
   solutionPackage: true,
 } satisfies Prisma.CustomerSuccessOpportunityInclude;
+const customerSuccessActionInclude = {
+  owner: true,
+  customerSuccessPlan: true,
+  deliveryReview: true,
+  deliveryAsset: true,
+  solutionPackage: true,
+} satisfies Prisma.CustomerSuccessActionInclude;
 
 type CustomerSuccessOpportunityRecord = Prisma.CustomerSuccessOpportunityGetPayload<{
   include: typeof customerSuccessOpportunityInclude;
+}>;
+type CustomerSuccessActionRecord = Prisma.CustomerSuccessActionGetPayload<{
+  include: typeof customerSuccessActionInclude;
 }>;
 const customerSuccessOpportunityStages: CustomerSuccessOpportunityStageFunnelItem['stage'][] = [
   'DISCOVERY',
@@ -301,6 +315,73 @@ export class CustomerSuccessOpportunitiesService {
     });
 
     return { success: true };
+  }
+
+  async createFollowUpAction(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: CreateCustomerSuccessOpportunityFollowUpActionDto,
+  ): Promise<CustomerSuccessOpportunityFollowUpActionResult> {
+    const opportunity = await this.findOpportunity(currentUser.tenantId, id);
+    if (opportunity.customerSuccessActionId) {
+      throw new BadRequestException('Customer success opportunity already has a bound customer success action');
+    }
+
+    const actionName = dto.name?.trim() || `${opportunity.name}跟进行动`;
+    const dueAt = nullableDate(dto.due_at) ?? deriveFollowUpDueAt(opportunity.expectedCloseAt);
+    const actionType = opportunity.opportunityType === 'RISK_SAVE' ? 'RISK_REVIEW' : 'RENEWAL';
+    const ownerId = dto.owner_id || opportunity.ownerId || currentUser.id;
+
+    await this.ensureUser(currentUser.tenantId, ownerId);
+
+    const action = await this.prisma.customerSuccessAction.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        ownerId,
+        customerSuccessPlanId: opportunity.customerSuccessPlanId,
+        deliveryReviewId: opportunity.deliveryReviewId,
+        deliveryAssetId: opportunity.deliveryAssetId,
+        solutionPackageId: opportunity.solutionPackageId,
+        name: actionName,
+        code: `${opportunity.code}_follow_up_${Date.now().toString(36)}`,
+        customerName: opportunity.customerName,
+        actionType,
+        status: 'TODO',
+        priority: opportunity.priority,
+        riskLevel: opportunity.riskLevel,
+        actionScore: calculateFollowUpActionScore(opportunity),
+        actionSummary: `围绕续约机会「${opportunity.name}」推进客户成功跟进，聚焦机会阶段、客户价值和商务下一步。`,
+        expectedOutcome: `推动「${opportunity.name}」从 ${opportunity.stage} 阶段进入下一步，沉淀客户确认、商务材料或风险处理结论。`,
+        executionNotes: '由续约机会自动生成，等待负责人补充执行记录。',
+        blockerSummary: opportunity.riskSummary,
+        completionEvidence: '待补充会议纪要、报价材料、客户确认记录或续约文件。',
+        nextAction: opportunity.nextAction,
+        dueAt,
+        completedAt: null,
+        tags: normalizeTags([...opportunity.tags, '机会跟进']),
+        notes: `由续约机会 ${opportunity.code} 自动生成。`,
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+      include: customerSuccessActionInclude,
+    });
+    const updatedOpportunity = await this.prisma.customerSuccessOpportunity.update({
+      where: { id: opportunity.id },
+      data: {
+        customerSuccessAction: {
+          connect: {
+            id: action.id,
+          },
+        },
+        updatedBy: currentUser.id,
+      },
+      include: customerSuccessOpportunityInclude,
+    });
+
+    return {
+      action: this.mapActionDetail(action),
+      opportunity: this.mapDetail(updatedOpportunity),
+    };
   }
 
   async analytics(currentUser: AuthenticatedUser): Promise<CustomerSuccessOpportunityAnalytics> {
@@ -660,6 +741,48 @@ export class CustomerSuccessOpportunitiesService {
     };
   }
 
+  private mapActionDetail(action: CustomerSuccessActionRecord): CustomerSuccessActionDetail {
+    return {
+      ...this.mapActionListItem(action),
+      action_summary: action.actionSummary,
+      expected_outcome: action.expectedOutcome,
+      execution_notes: action.executionNotes,
+      blocker_summary: action.blockerSummary,
+      completion_evidence: action.completionEvidence,
+      next_action: action.nextAction,
+      notes: action.notes,
+    };
+  }
+
+  private mapActionListItem(action: CustomerSuccessActionRecord): CustomerSuccessActionListItem {
+    return {
+      id: action.id,
+      tenant_id: action.tenantId,
+      name: action.name,
+      code: action.code,
+      customer_name: action.customerName,
+      action_type: action.actionType as CustomerSuccessActionListItem['action_type'],
+      status: action.status as CustomerSuccessActionListItem['status'],
+      priority: action.priority as CustomerSuccessActionListItem['priority'],
+      risk_level: action.riskLevel as CustomerSuccessActionListItem['risk_level'],
+      action_score: action.actionScore,
+      action_summary_preview: preview(action.actionSummary),
+      next_action_preview: preview(action.nextAction),
+      owner: action.owner ? this.mapOwner(action.owner) : null,
+      linked_resources: {
+        customer_success_plan: action.customerSuccessPlan ? this.mapPlan(action.customerSuccessPlan) : null,
+        delivery_review: action.deliveryReview ? this.mapDeliveryReview(action.deliveryReview) : null,
+        delivery_asset: action.deliveryAsset ? this.mapDeliveryAsset(action.deliveryAsset) : null,
+        solution_package: action.solutionPackage ? this.mapSolutionPackage(action.solutionPackage) : null,
+      },
+      due_at: action.dueAt?.toISOString() ?? null,
+      completed_at: action.completedAt?.toISOString() ?? null,
+      tags: action.tags,
+      created_at: action.createdAt.toISOString(),
+      updated_at: action.updatedAt.toISOString(),
+    };
+  }
+
   private mapDeliveryReview(review: NonNullable<CustomerSuccessOpportunityRecord['deliveryReview']>): CustomerSuccessPlanReviewSummary {
     return {
       id: review.id,
@@ -778,6 +901,27 @@ function nullableDate(value?: string | null) {
   const normalized = value?.trim();
 
   return normalized ? new Date(normalized) : null;
+}
+
+function deriveFollowUpDueAt(expectedCloseAt?: Date | null) {
+  const baseDate = expectedCloseAt ? new Date(expectedCloseAt) : new Date();
+  baseDate.setDate(baseDate.getDate() - 7);
+
+  return baseDate;
+}
+
+function calculateFollowUpActionScore(opportunity: Pick<CustomerSuccessOpportunityRecord, 'priority' | 'riskLevel' | 'opportunityScore' | 'probability'>) {
+  let score = 45;
+  if (opportunity.priority === 'HIGH') score += 10;
+  else if (opportunity.priority === 'MEDIUM') score += 6;
+  if (opportunity.riskLevel === 'LOW') score += 10;
+  else if (opportunity.riskLevel === 'MEDIUM') score += 5;
+  else if (opportunity.riskLevel === 'HIGH') score -= 6;
+  if (opportunity.probability >= 70) score += 10;
+  else if (opportunity.probability >= 40) score += 6;
+  score += Math.round(opportunity.opportunityScore * 0.2);
+
+  return Math.max(0, Math.min(100, score));
 }
 
 function preview(value: string, length = 54) {

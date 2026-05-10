@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityDetail,
+  CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
   PaginatedResult,
 } from '@aiaget/shared-types';
@@ -31,6 +32,7 @@ import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CustomerSuccessOpportunitiesService } from './customer-success-opportunities.service';
 import { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
+import { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
 import { ListCustomerSuccessOpportunitiesDto } from './dto/list-customer-success-opportunities.dto';
 import { UpdateCustomerSuccessOpportunityDto } from './dto/update-customer-success-opportunity.dto';
 
@@ -84,6 +86,22 @@ export class CustomerSuccessOpportunitiesController {
     @Param('id') id: string,
   ): Promise<CustomerSuccessOpportunityDetail> {
     return this.customerSuccessOpportunitiesService.get(currentUser, id);
+  }
+
+  @Post(':id/follow-up-actions')
+  @Permissions('customer:success_opportunity:manage', 'customer:success_action:manage')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:manage',
+  })
+  @ApiOkResponse({ description: 'Create follow-up customer success action from opportunity' })
+  async createFollowUpAction(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreateCustomerSuccessOpportunityFollowUpActionDto,
+  ): Promise<CustomerSuccessOpportunityFollowUpActionResult> {
+    return this.customerSuccessOpportunitiesService.createFollowUpAction(currentUser, id, dto);
   }
 
   @Patch(':id')

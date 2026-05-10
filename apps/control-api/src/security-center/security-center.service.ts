@@ -115,6 +115,7 @@ type NotificationTaskRecoveryFailureSourceSummary = {
   failureSource: SecurityOperationAlertNotificationTaskRecoveryFailureSource;
   slaDeadLetterFailedCount: number;
   agentTeamReportArchiveDeleteFailedCount: number;
+  customerSuccessCloseWonReportArchiveDeleteFailedCount: number;
   recoveryArchiveDeleteFailedCount: number;
 };
 
@@ -842,6 +843,8 @@ export class SecurityCenterService {
           sla_dead_letter_failed_count: suggestion.sla_dead_letter_failed_count,
           agent_team_report_archive_delete_failed_count:
             suggestion.agent_team_report_archive_delete_failed_count,
+          customer_success_close_won_report_archive_delete_failed_count:
+            suggestion.customer_success_close_won_report_archive_delete_failed_count,
           recovery_archive_delete_failed_count: suggestion.recovery_archive_delete_failed_count,
           action: input.action,
           status,
@@ -2162,6 +2165,8 @@ export class SecurityCenterService {
       notification_task_sla_dead_letter_failed_24h: notificationTaskStats.slaDeadLetterFailed,
       notification_task_agent_team_report_archive_delete_failed_24h:
         notificationTaskStats.agentTeamReportArchiveDeleteFailed,
+      notification_task_customer_success_close_won_report_archive_delete_failed_24h:
+        notificationTaskStats.customerSuccessCloseWonReportArchiveDeleteFailed,
       notification_task_recovery_archive_delete_failed_24h: notificationTaskStats.recoveryArchiveDeleteFailed,
       notification_task_recovery_suggestions: buildNotificationTaskRecoverySuggestions({
         deliveryStats: notificationDeliveryStats,
@@ -3073,6 +3078,9 @@ function summarizeNotificationTaskEvents(
         agentTeamReportArchiveDeleteNotifyCount: numericPayloadField(
           payload?.agent_team_report_archive_delete_notify_count,
         ),
+        customerSuccessCloseWonReportArchiveDeleteNotifyCount: numericPayloadField(
+          payload?.customer_success_close_won_report_archive_delete_notify_count,
+        ),
         recoveryArchiveDeleteNotifyCount: numericPayloadField(payload?.recovery_archive_delete_notify_count),
       };
     });
@@ -3091,6 +3099,10 @@ function summarizeNotificationTaskEvents(
     ),
     agentTeamReportArchiveDeleteFailed: [...failedItems, ...skippedItems].reduce(
       (sum, item) => sum + item.agentTeamReportArchiveDeleteNotifyCount,
+      0,
+    ),
+    customerSuccessCloseWonReportArchiveDeleteFailed: [...failedItems, ...skippedItems].reduce(
+      (sum, item) => sum + item.customerSuccessCloseWonReportArchiveDeleteNotifyCount,
       0,
     ),
     recoveryArchiveDeleteFailed: [...failedItems, ...skippedItems].reduce(
@@ -3196,6 +3208,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-webhook-not-configured') ?? null),
       primary_action_label: '配置外部集成',
@@ -3218,6 +3232,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-webhook-delivery-failed') ?? null),
       primary_action_label: '查看投递审计',
@@ -3242,6 +3258,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-auto-notify-disabled') ?? null),
       primary_action_label: '打开通知策略',
@@ -3264,6 +3282,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-auto-retry-disabled') ?? null),
       primary_action_label: '打开通知策略',
@@ -3286,6 +3306,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-consecutive-failures') ?? null),
       primary_action_label: '查看任务历史',
@@ -3308,6 +3330,8 @@ function buildNotificationTaskRecoverySuggestions(input: {
       sla_dead_letter_failed_count: failureSourceSummary.slaDeadLetterFailedCount,
       agent_team_report_archive_delete_failed_count:
         failureSourceSummary.agentTeamReportArchiveDeleteFailedCount,
+      customer_success_close_won_report_archive_delete_failed_count:
+        failureSourceSummary.customerSuccessCloseWonReportArchiveDeleteFailedCount,
       recovery_archive_delete_failed_count: failureSourceSummary.recoveryArchiveDeleteFailedCount,
       ...notificationTaskRecoveryLifecycleFields(input.lifecycleMap.get('notification-task-high-failure-rate') ?? null),
       primary_action_label: '查看任务历史',
@@ -3327,6 +3351,9 @@ function notificationTaskFailureSourceEvidence(stats: NotificationTaskStats) {
     stats.agentTeamReportArchiveDeleteFailed > 0
       ? `团队报告归档删除覆盖 ${stats.agentTeamReportArchiveDeleteFailed} 条`
       : null,
+    stats.customerSuccessCloseWonReportArchiveDeleteFailed > 0
+      ? `客户成功复盘归档删除覆盖 ${stats.customerSuccessCloseWonReportArchiveDeleteFailed} 条`
+      : null,
     stats.recoveryArchiveDeleteFailed > 0 ? `自愈归档删除覆盖 ${stats.recoveryArchiveDeleteFailed} 条` : null,
   ].filter((item): item is string => Boolean(item));
 
@@ -3340,6 +3367,8 @@ function notificationTaskRecoveryFailureSourceSummary(
     failureSource: notificationTaskRecoveryFailureSource(stats),
     slaDeadLetterFailedCount: stats.slaDeadLetterFailed,
     agentTeamReportArchiveDeleteFailedCount: stats.agentTeamReportArchiveDeleteFailed,
+    customerSuccessCloseWonReportArchiveDeleteFailedCount:
+      stats.customerSuccessCloseWonReportArchiveDeleteFailed,
     recoveryArchiveDeleteFailedCount: stats.recoveryArchiveDeleteFailed,
   };
 }
@@ -3347,17 +3376,24 @@ function notificationTaskRecoveryFailureSourceSummary(
 function notificationTaskRecoveryFailureSource(
   stats: Pick<
     NotificationTaskStats,
-    'slaDeadLetterFailed' | 'agentTeamReportArchiveDeleteFailed' | 'recoveryArchiveDeleteFailed'
+    | 'slaDeadLetterFailed'
+    | 'agentTeamReportArchiveDeleteFailed'
+    | 'customerSuccessCloseWonReportArchiveDeleteFailed'
+    | 'recoveryArchiveDeleteFailed'
   >,
 ): SecurityOperationAlertNotificationTaskRecoveryFailureSource {
   const sourceCount = [
     stats.slaDeadLetterFailed,
     stats.agentTeamReportArchiveDeleteFailed,
+    stats.customerSuccessCloseWonReportArchiveDeleteFailed,
     stats.recoveryArchiveDeleteFailed,
   ].filter((count) => count > 0).length;
   if (sourceCount > 1) return 'MIXED';
   if (stats.slaDeadLetterFailed > 0) return 'SLA_DEAD_LETTER_ARCHIVE_DELETE';
   if (stats.agentTeamReportArchiveDeleteFailed > 0) return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
+  if (stats.customerSuccessCloseWonReportArchiveDeleteFailed > 0) {
+    return 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE';
+  }
   if (stats.recoveryArchiveDeleteFailed > 0) return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';
   return 'UNKNOWN';
 }
@@ -3465,6 +3501,9 @@ function mapNotificationTaskRecoveryAuditEvent(
     agent_team_report_archive_delete_failed_count: numericPayloadField(
       payload?.agent_team_report_archive_delete_failed_count,
     ),
+    customer_success_close_won_report_archive_delete_failed_count: numericPayloadField(
+      payload?.customer_success_close_won_report_archive_delete_failed_count,
+    ),
     recovery_archive_delete_failed_count: numericPayloadField(payload?.recovery_archive_delete_failed_count),
     action,
     status,
@@ -3486,6 +3525,9 @@ function buildNotificationTaskRecoveryAuditSummary(items: SecurityOperationAlert
     agent_team_report_archive_delete_source_count: items.filter(
       (item) => item.failure_source === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE',
     ).length,
+    customer_success_close_won_report_archive_delete_source_count: items.filter(
+      (item) => item.failure_source === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+    ).length,
     recovery_archive_delete_source_count: items.filter(
       (item) => item.failure_source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
     ).length,
@@ -3505,6 +3547,7 @@ function buildNotificationTaskRecoveryAuditCsv(items: SecurityOperationAlertNoti
       '失败来源',
       'SLA 死信失败数',
       '团队报告归档失败数',
+      '客户成功复盘归档失败数',
       '自愈归档失败数',
       '风险等级',
       '动作',
@@ -3523,6 +3566,7 @@ function buildNotificationTaskRecoveryAuditCsv(items: SecurityOperationAlertNoti
       notificationTaskRecoveryFailureSourceLabel(item.failure_source),
       String(item.sla_dead_letter_failed_count),
       String(item.agent_team_report_archive_delete_failed_count),
+      String(item.customer_success_close_won_report_archive_delete_failed_count),
       String(item.recovery_archive_delete_failed_count),
       securityRiskLevelLabel(item.severity),
       notificationTaskRecoveryActionLabel(item.action),
@@ -3567,6 +3611,7 @@ function notificationTaskRecoveryFailureSourceLabel(
 ) {
   if (source === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档删除';
   if (source === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
+  if (source === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE') return '客户成功复盘归档删除';
   if (source === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈归档删除';
   if (source === 'MIXED') return '混合来源';
   return '未知来源';
@@ -3899,6 +3944,7 @@ function normalizeNotificationTaskRecoveryFailureSource(
   if (
     value === 'SLA_DEAD_LETTER_ARCHIVE_DELETE' ||
     value === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE' ||
+    value === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE' ||
     value === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' ||
     value === 'MIXED' ||
     value === 'UNKNOWN'
@@ -3910,6 +3956,9 @@ function normalizeNotificationTaskRecoveryFailureSource(
     slaDeadLetterFailed: numericPayloadField(payload?.sla_dead_letter_failed_count),
     agentTeamReportArchiveDeleteFailed: numericPayloadField(
       payload?.agent_team_report_archive_delete_failed_count,
+    ),
+    customerSuccessCloseWonReportArchiveDeleteFailed: numericPayloadField(
+      payload?.customer_success_close_won_report_archive_delete_failed_count,
     ),
     recoveryArchiveDeleteFailed: numericPayloadField(payload?.recovery_archive_delete_failed_count),
   });
@@ -4442,6 +4491,7 @@ function buildApprovalOperationAlerts(
     const failedSourceCounts = [
       operations.notification_task_sla_dead_letter_failed_24h,
       operations.notification_task_agent_team_report_archive_delete_failed_24h,
+      operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h,
       operations.notification_task_recovery_archive_delete_failed_24h,
     ];
     const failedSourceKindCount = failedSourceCounts.filter((count) => count > 0).length;
@@ -4450,11 +4500,12 @@ function buildApprovalOperationAlerts(
       const sourceFailureTotal =
         operations.notification_task_sla_dead_letter_failed_24h +
         operations.notification_task_agent_team_report_archive_delete_failed_24h +
+        operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h +
         operations.notification_task_recovery_archive_delete_failed_24h;
       alerts.push({
         id: 'operation-alert-notification-task-mixed-failure-source',
         title: failedSourceKindCount >= 3 ? '通知任务多来源失败' : '通知任务双来源失败',
-        description: 'SLA 死信、团队报告或自愈归档删除通知任务同时出现失败或跳过，需要优先排查 Webhook、调度和通知策略。',
+        description: 'SLA 死信、团队报告、客户成功复盘或自愈归档删除通知任务同时出现失败或跳过，需要优先排查 Webhook、调度和通知策略。',
         severity:
           sourceFailureTotal >= 3 ||
           operations.notification_task_failure_rate_24h >= 50 ||
@@ -4462,7 +4513,7 @@ function buildApprovalOperationAlerts(
             ? 'HIGH'
             : 'MEDIUM',
         href: '/security',
-        metric: `SLA ${operations.notification_task_sla_dead_letter_failed_24h} / 团队 ${operations.notification_task_agent_team_report_archive_delete_failed_24h} / 自愈 ${operations.notification_task_recovery_archive_delete_failed_24h}`,
+        metric: `SLA ${operations.notification_task_sla_dead_letter_failed_24h} / 团队 ${operations.notification_task_agent_team_report_archive_delete_failed_24h} / 客成 ${operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h} / 自愈 ${operations.notification_task_recovery_archive_delete_failed_24h}`,
         action_label: failedSourceKindCount >= 3 ? '排查多来源失败' : '排查双来源失败',
         triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
       });
@@ -4496,6 +4547,22 @@ function buildApprovalOperationAlerts(
         href: '/security',
         metric: `${operations.notification_task_agent_team_report_archive_delete_failed_24h} 条团队报告来源失败`,
         action_label: '排查团队报告来源',
+        triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
+      });
+    } else if (operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h > 0) {
+      alerts.push({
+        id: 'operation-alert-notification-task-customer-success-close-won-report-archive-failure-source',
+        title: '客户成功复盘归档通知来源失败',
+        description: '客户成功成交复盘报告归档删除审批告警自动通知出现失败或跳过，可能影响复盘报告删除审批触达。',
+        severity:
+          operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h >= 3 ||
+          operations.notification_task_failure_rate_24h >= 50 ||
+          operations.notification_task_consecutive_failures >= 3
+            ? 'HIGH'
+            : 'MEDIUM',
+        href: '/security',
+        metric: `${operations.notification_task_customer_success_close_won_report_archive_delete_failed_24h} 条客户成功来源失败`,
+        action_label: '排查客户成功来源',
         triggered_at: (operations.notification_task_failure_oldest_at ?? operations.archive_storage_checked_at).toISOString(),
       });
     } else if (operations.notification_task_recovery_archive_delete_failed_24h > 0) {
@@ -4728,6 +4795,7 @@ function isNotificationTaskFailureSourceAlert(alertId: string) {
   return (
     alertId === 'operation-alert-notification-task-sla-dead-letter-failure-source' ||
     alertId === 'operation-alert-notification-task-agent-team-report-archive-failure-source' ||
+    alertId === 'operation-alert-notification-task-customer-success-close-won-report-archive-failure-source' ||
     alertId === 'operation-alert-notification-task-recovery-archive-failure-source' ||
     alertId === 'operation-alert-notification-task-mixed-failure-source'
   );
@@ -4740,6 +4808,9 @@ function securityOperationAlertCategory(alert: SecurityCenterOperationalAlert) {
   }
   if (alert.id === 'operation-alert-notification-task-agent-team-report-archive-failure-source') {
     return 'AGENT_TEAM_REPORT_ARCHIVE_DELETE';
+  }
+  if (alert.id === 'operation-alert-notification-task-customer-success-close-won-report-archive-failure-source') {
+    return 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE';
   }
   if (alert.id === 'operation-alert-notification-task-recovery-archive-failure-source') {
     return 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE';

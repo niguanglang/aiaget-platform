@@ -71,6 +71,7 @@ const recoveryReasons: Array<{ label: string; value: SecurityOperationAlertNotif
 const failureSources: Array<{ label: string; value: SecurityOperationAlertNotificationTaskRecoveryFailureSource }> = [
   { label: 'SLA 死信归档删除', value: 'SLA_DEAD_LETTER_ARCHIVE_DELETE' },
   { label: '团队报告归档删除', value: 'AGENT_TEAM_REPORT_ARCHIVE_DELETE' },
+  { label: '客户成功复盘归档删除', value: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE' },
   { label: '自愈审计归档删除', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
   { label: '混合来源', value: 'MIXED' },
   { label: '未知来源', value: 'UNKNOWN' },
@@ -261,6 +262,9 @@ export function SecurityRecoveryContent() {
                     <span className="font-medium">{suggestion.title}</span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{suggestion.description}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    客户成功复盘归档删除失败 {formatNumber(suggestion.customer_success_close_won_report_archive_delete_failed_count)} 条
+                  </p>
                   <p className="mt-2 text-xs text-muted-foreground">{suggestion.evidence}</p>
                 </div>
               ))}

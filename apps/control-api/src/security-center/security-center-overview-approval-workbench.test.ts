@@ -130,6 +130,29 @@ test('operation alert notify and lifecycle actions persist archive approval sour
   }
 });
 
+test('notification task recovery summaries preserve customer success archive delete as its own failure source', async () => {
+  const prisma = buildPrisma({
+    notificationTaskEvents: [
+      buildNotificationTaskEvent('customer-success-auto-notify-failed', {
+        status: 'FAILED',
+        customer_success_close_won_report_archive_delete_notify_count: 2,
+        failed_count: 2,
+      }),
+    ],
+  });
+  const service = new SecurityCenterService(prisma as never, buildStorage() as never);
+  stubOverviewDependencies(service);
+
+  const overview = await service.getOverview(buildUser());
+  const suggestion = overview.approval_operations.notification_task_recovery_suggestions.find(
+    (item) => item.failure_source === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+  );
+
+  assert.ok(suggestion);
+  assert.equal(suggestion.customer_success_close_won_report_archive_delete_failed_count, 2);
+  assert.match(suggestion.evidence, /客户成功复盘归档删除覆盖 2 条/);
+});
+
 function stubOverviewDependencies(service: SecurityCenterService) {
   const target = service as unknown as {
     loadPolicyStats: () => Promise<unknown>;
@@ -206,7 +229,7 @@ function stubOverviewDependencies(service: SecurityCenterService) {
   target.loadRecentMonitorErrors = async () => [];
 }
 
-function buildPrisma() {
+function buildPrisma(input: { notificationTaskEvents?: ReturnType<typeof buildNotificationTaskEvent>[] } = {}) {
   const exportedAt = new Date('2026-05-08T08:00:00.000Z');
   const createdEvents: Array<{ data: PlatformEventData }> = [];
   const exportEvents = Array.from({ length: 12 }, (_, index) => ({
@@ -285,6 +308,12 @@ function buildPrisma() {
         if (eventType === 'platform.security.approval_workbench.exported') {
           return args.include ? exportEvents : exportEvents.map(({ user, ...event }) => event);
         }
+        if (
+          typeof eventType === 'object' &&
+          eventType.in?.includes('platform.security.approval_operation_alert_notification_task.auto_notify_finished')
+        ) {
+          return input.notificationTaskEvents ?? [];
+        }
         if (typeof eventType === 'object' && eventType.in?.includes('platform.security.approval_workbench.exported')) {
           return exportEvents;
         }
@@ -330,6 +359,35 @@ function buildPrisma() {
   };
 
   return prisma;
+}
+
+function buildNotificationTaskEvent(id: string, payload: Record<string, unknown>) {
+  return {
+    id,
+    tenantId: 'tenant-1',
+    userId: null,
+    resourceType: 'security_operation_alert_notification_task',
+    resourceId: 'auto_notify',
+    requestId: `request-${id}`,
+    traceId: `trace-${id}`,
+    eventSource: 'security_center',
+    eventType: 'platform.security.approval_operation_alert_notification_task.auto_notify_finished',
+    status: payload.status === 'FAILED' ? 'FAILED' : 'SUCCESS',
+    severity: payload.status === 'FAILED' ? 'WARN' : 'INFO',
+    summary: '审批与归档告警自动通知完成',
+    payloadJson: {
+      task: 'AUTO_NOTIFY',
+      scanned_count: 2,
+      notified_count: 2,
+      success_count: 0,
+      skipped_count: 0,
+      started_at: '2026-05-08T08:00:00.000Z',
+      finished_at: '2026-05-08T08:01:00.000Z',
+      ...payload,
+    },
+    occurredAt: new Date('2026-05-08T08:01:00.000Z'),
+    createdAt: new Date('2026-05-08T08:01:00.000Z'),
+  };
 }
 
 type PlatformEventData = {

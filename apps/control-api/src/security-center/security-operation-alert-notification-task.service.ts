@@ -36,10 +36,13 @@ const AUTO_NOTIFY_ALERT_IDS = new Set([
   'sla-dead-letter-archive-delete-rejected-risk',
   'agent-team-report-archive-delete-pending',
   'agent-team-report-archive-delete-rejected-risk',
+  'customer-success-close-won-report-archive-delete-pending',
+  'customer-success-close-won-report-archive-delete-rejected-risk',
   'notification-task-recovery-audit-archive-delete-pending',
   'notification-task-recovery-audit-archive-delete-rejected-risk',
   'operation-alert-notification-task-sla-dead-letter-failure-source',
   'operation-alert-notification-task-agent-team-report-archive-failure-source',
+  'operation-alert-notification-task-customer-success-close-won-report-archive-failure-source',
   'operation-alert-notification-task-recovery-archive-failure-source',
   'operation-alert-notification-task-mixed-failure-source',
 ]);
@@ -53,6 +56,12 @@ const AGENT_TEAM_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS = new Set([
   'agent-team-report-archive-delete-pending',
   'agent-team-report-archive-delete-rejected-risk',
   'operation-alert-notification-task-agent-team-report-archive-failure-source',
+  'operation-alert-notification-task-mixed-failure-source',
+]);
+const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS = new Set([
+  'customer-success-close-won-report-archive-delete-pending',
+  'customer-success-close-won-report-archive-delete-rejected-risk',
+  'operation-alert-notification-task-customer-success-close-won-report-archive-failure-source',
   'operation-alert-notification-task-mixed-failure-source',
 ]);
 const RECOVERY_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS = new Set([
@@ -283,6 +292,7 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
     let skippedCount = 0;
     let slaDeadLetterNotifyCount = 0;
     let agentTeamReportArchiveDeleteNotifyCount = 0;
+    let customerSuccessCloseWonReportArchiveDeleteNotifyCount = 0;
     let recoveryArchiveDeleteNotifyCount = 0;
     let errorMessage: string | null = null;
 
@@ -298,6 +308,9 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
         }
         if (AGENT_TEAM_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
           agentTeamReportArchiveDeleteNotifyCount += 1;
+        }
+        if (CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
+          customerSuccessCloseWonReportArchiveDeleteNotifyCount += 1;
         }
         if (RECOVERY_ARCHIVE_DELETE_AUTO_NOTIFY_ALERT_IDS.has(alert.id)) {
           recoveryArchiveDeleteNotifyCount += 1;
@@ -322,6 +335,8 @@ export class SecurityOperationAlertNotificationTaskService implements OnModuleIn
       notified_count: notifiedCount,
       sla_dead_letter_notify_count: slaDeadLetterNotifyCount,
       agent_team_report_archive_delete_notify_count: agentTeamReportArchiveDeleteNotifyCount,
+      customer_success_close_won_report_archive_delete_notify_count:
+        customerSuccessCloseWonReportArchiveDeleteNotifyCount,
       recovery_archive_delete_notify_count: recoveryArchiveDeleteNotifyCount,
       success_count: successCount,
       failed_count: failedCount,
@@ -568,6 +583,8 @@ function buildTaskResult(
     retried_count: input.retried_count ?? 0,
     sla_dead_letter_notify_count: input.sla_dead_letter_notify_count ?? 0,
     agent_team_report_archive_delete_notify_count: input.agent_team_report_archive_delete_notify_count ?? 0,
+    customer_success_close_won_report_archive_delete_notify_count:
+      input.customer_success_close_won_report_archive_delete_notify_count ?? 0,
     recovery_archive_delete_notify_count: input.recovery_archive_delete_notify_count ?? 0,
     success_count: input.success_count ?? 0,
     failed_count: failedCount,
@@ -606,6 +623,9 @@ function mapTaskRunEvent(
     retried_count: numberField(payload?.retried_count),
     sla_dead_letter_notify_count: numberField(payload?.sla_dead_letter_notify_count),
     agent_team_report_archive_delete_notify_count: numberField(payload?.agent_team_report_archive_delete_notify_count),
+    customer_success_close_won_report_archive_delete_notify_count: numberField(
+      payload?.customer_success_close_won_report_archive_delete_notify_count,
+    ),
     recovery_archive_delete_notify_count: numberField(payload?.recovery_archive_delete_notify_count),
     success_count: numberField(payload?.success_count),
     failed_count: numberField(payload?.failed_count),
@@ -636,6 +656,10 @@ function buildTaskRunSummary(items: SecurityOperationAlertNotificationTaskRunOve
     sla_dead_letter_notify_count: items.reduce((sum, item) => sum + item.sla_dead_letter_notify_count, 0),
     agent_team_report_archive_delete_notify_count: items.reduce(
       (sum, item) => sum + item.agent_team_report_archive_delete_notify_count,
+      0,
+    ),
+    customer_success_close_won_report_archive_delete_notify_count: items.reduce(
+      (sum, item) => sum + item.customer_success_close_won_report_archive_delete_notify_count,
       0,
     ),
     recovery_archive_delete_notify_count: items.reduce(

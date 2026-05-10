@@ -288,6 +288,9 @@ test('recovery page owns notification task recovery data flow and Chinese page r
   assert.match(source, /listSecurityOperationAlertNotificationTaskRuns/);
   assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAudits/);
   assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals/);
+  assert.match(source, /客户成功复盘归档删除/);
+  assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);
+  assert.match(source, /customer_success_close_won_report_archive_delete_failed_count/);
   assert.doesNotMatch(source, /listSecurityPolicies/);
   assert.doesNotMatch(source, /listSecurityCenterEvents/);
 });

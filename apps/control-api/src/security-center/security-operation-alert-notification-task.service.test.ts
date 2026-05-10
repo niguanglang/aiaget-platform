@@ -9,6 +9,7 @@ test('runAutoNotify sends focused archive approval alerts and records source cou
     alerts: [
       buildAlert('sla-dead-letter-archive-delete-pending', 'SLA 死信归档删除等待审批'),
       buildAlert('agent-team-report-archive-delete-pending', '团队报告归档删除等待审批'),
+      buildAlert('customer-success-close-won-report-archive-delete-pending', '客户成功复盘归档删除等待审批'),
       buildAlert('notification-task-recovery-audit-archive-delete-pending', '自愈审计归档删除等待审批'),
       buildAlert('approval-workbench-export-volume-risk', '审批工作台导出量偏高'),
     ],
@@ -19,20 +20,23 @@ test('runAutoNotify sends focused archive approval alerts and records source cou
 
   assert.equal(result.task, 'AUTO_NOTIFY');
   assert.equal(result.status, 'SUCCESS');
-  assert.equal(result.scanned_count, 3);
-  assert.equal(result.notified_count, 3);
-  assert.equal(result.success_count, 3);
+  assert.equal(result.scanned_count, 4);
+  assert.equal(result.notified_count, 4);
+  assert.equal(result.success_count, 4);
   assert.equal(result.sla_dead_letter_notify_count, 1);
   assert.equal(result.agent_team_report_archive_delete_notify_count, 1);
+  assert.equal(result.customer_success_close_won_report_archive_delete_notify_count, 1);
   assert.equal(result.recovery_archive_delete_notify_count, 1);
   assert.deepEqual(securityCenter.notifiedAlertIds, [
     'sla-dead-letter-archive-delete-pending',
     'agent-team-report-archive-delete-pending',
+    'customer-success-close-won-report-archive-delete-pending',
     'notification-task-recovery-audit-archive-delete-pending',
   ]);
   assert.equal(prisma.createdEvents.at(-1)?.data.eventType, 'platform.security.approval_operation_alert_notification_task.manual_auto_notify');
   assert.equal(prisma.createdEvents.at(-1)?.data.payloadJson.sla_dead_letter_notify_count, 1);
   assert.equal(prisma.createdEvents.at(-1)?.data.payloadJson.agent_team_report_archive_delete_notify_count, 1);
+  assert.equal(prisma.createdEvents.at(-1)?.data.payloadJson.customer_success_close_won_report_archive_delete_notify_count, 1);
   assert.equal(prisma.createdEvents.at(-1)?.data.payloadJson.recovery_archive_delete_notify_count, 1);
 });
 
@@ -74,6 +78,7 @@ test('runAutoNotify skips archive alerts that already have recent notifications'
     alerts: [
       buildAlert('sla-dead-letter-archive-delete-pending', 'SLA 死信归档删除等待审批'),
       buildAlert('agent-team-report-archive-delete-pending', '团队报告归档删除等待审批'),
+      buildAlert('customer-success-close-won-report-archive-delete-pending', '客户成功复盘归档删除等待审批'),
     ],
     notifications: [
       buildNotification('existing-sla-notification', 'SENT', {
@@ -89,9 +94,12 @@ test('runAutoNotify skips archive alerts that already have recent notifications'
 
   assert.equal(result.task, 'AUTO_NOTIFY');
   assert.equal(result.status, 'SUCCESS');
-  assert.equal(result.scanned_count, 1);
-  assert.equal(result.notified_count, 1);
-  assert.deepEqual(securityCenter.notifiedAlertIds, ['agent-team-report-archive-delete-pending']);
+  assert.equal(result.scanned_count, 2);
+  assert.equal(result.notified_count, 2);
+  assert.deepEqual(securityCenter.notifiedAlertIds, [
+    'agent-team-report-archive-delete-pending',
+    'customer-success-close-won-report-archive-delete-pending',
+  ]);
 });
 
 test('runAutoNotify records failed task result when notification delivery fails', async () => {
@@ -135,6 +143,7 @@ test('runAutoNotify classifies mixed failure source alerts for all archive appro
   assert.equal(result.notified_count, 1);
   assert.equal(result.sla_dead_letter_notify_count, 1);
   assert.equal(result.agent_team_report_archive_delete_notify_count, 1);
+  assert.equal(result.customer_success_close_won_report_archive_delete_notify_count, 1);
   assert.equal(result.recovery_archive_delete_notify_count, 1);
   assert.deepEqual(securityCenter.notifiedAlertIds, ['operation-alert-notification-task-mixed-failure-source']);
 });

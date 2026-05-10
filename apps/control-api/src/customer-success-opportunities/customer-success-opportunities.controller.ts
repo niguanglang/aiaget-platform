@@ -18,10 +18,13 @@ import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
+  CreateCustomerSuccessOpportunityCloseWonReportArchiveResult,
   PaginatedResult,
+  StorageDownloadUrlResult,
 } from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -127,6 +130,52 @@ export class CustomerSuccessOpportunitiesController {
     response.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     response.send(`\uFEFF${markdown}`);
+  }
+
+  @Post(':id/close-won-report/archives')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'Archive close-won customer success opportunity review report' })
+  async createCloseWonReportArchive(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<CreateCustomerSuccessOpportunityCloseWonReportArchiveResult> {
+    return this.customerSuccessOpportunitiesService.createCloseWonReportArchive(currentUser, id);
+  }
+
+  @Get(':id/close-won-report/archives')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'List close-won customer success opportunity review report archives' })
+  async listCloseWonReportArchives(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveListResult> {
+    return this.customerSuccessOpportunitiesService.listCloseWonReportArchives(currentUser, id);
+  }
+
+  @Get(':id/close-won-report/archives/:archiveId/download-url')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'Get close-won customer success opportunity review report archive download URL' })
+  async getCloseWonReportArchiveDownloadUrl(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('archiveId') archiveId: string,
+  ): Promise<StorageDownloadUrlResult> {
+    return this.customerSuccessOpportunitiesService.getCloseWonReportArchiveDownloadUrl(currentUser, archiveId, id);
   }
 
   @Post(':id/follow-up-actions')

@@ -706,6 +706,115 @@ test('customer success opportunity close won report export records an audit even
   assert.match(recordedEvents[0]?.summary ?? '', /成交复盘报告已导出/);
 });
 
+test('customer success opportunity close won report archive stores markdown and records audit event', async () => {
+  const storedObjects: Array<{
+    tenantId: string;
+    key: string;
+    body: string | Buffer;
+    contentType: string;
+    metadata?: Record<string, string>;
+  }> = [];
+  const recordedEvents: Array<{
+    eventType: string;
+    resourceType: string;
+    resourceId: string;
+    payloadJson: Record<string, unknown>;
+    summary: string;
+  }> = [];
+  const billingAdjustment = billingAdjustmentRecord({
+    adjustmentNo: 'ADJ-20260718-0002',
+    amount: '680000.00',
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () => opportunityRecord({
+        stage: 'WON',
+        status: 'WON',
+        probability: 100,
+        closedAt: new Date('2026-07-18T10:00:00.000Z'),
+      }),
+    },
+    billingAdjustment: {
+      findMany: async () => [billingAdjustment],
+    },
+  };
+  const storage = {
+    putTenantObject: async (input: {
+      tenantId: string;
+      key: string;
+      body: string | Buffer;
+      contentType: string;
+      metadata?: Record<string, string>;
+    }) => {
+      storedObjects.push(input);
+      return {
+        key: input.key,
+        relative_key: input.key,
+        file_name: input.key.split('/').at(-1) ?? input.key,
+        folder: input.key.split('/').slice(0, -1).join('/'),
+        size_bytes: typeof input.body === 'string' ? Buffer.byteLength(input.body, 'utf8') : input.body.byteLength,
+        etag: null,
+        last_modified: '2026-07-18T10:00:00.000Z',
+      };
+    },
+  };
+  const platformEvents = {
+    recordEvent: async (event: {
+      eventType: string;
+      resourceType: string;
+      resourceId: string;
+      payloadJson: Record<string, unknown>;
+      summary: string;
+    }) => {
+      recordedEvents.push(event);
+      return { id: `event-${recordedEvents.length}` };
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(
+    prisma as never,
+    undefined,
+    platformEvents as never,
+    storage as never,
+  );
+
+  const result = await service.createCloseWonReportArchive(currentUser, 'opportunity-1');
+
+  assert.equal(storedObjects.length, 1);
+  assert.equal(storedObjects[0]?.tenantId, 'tenant-1');
+  assert.equal(storedObjects[0]?.contentType, 'text/markdown; charset=utf-8');
+  assert.match(storedObjects[0]?.key ?? '', /^customer-success-close-won-reports\/opportunity-1\//);
+  assert.match(storedObjects[0]?.key ?? '', /\.md$/);
+  assert.match(String(storedObjects[0]?.body ?? ''), /^﻿?# 成交复盘报告：华中设计院二期续约扩展机会/m);
+  assert.equal(storedObjects[0]?.metadata?.archive_type, 'customer_success_close_won_report');
+  assert.equal(storedObjects[0]?.metadata?.opportunity_id, 'opportunity-1');
+  assert.equal(result.item.opportunity_id, 'opportunity-1');
+  assert.equal(result.item.customer_name, '华中设计院');
+  assert.equal(result.item.download_expires_in, 300);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal(recordedEvents[0]?.eventType, 'customer_success.opportunity.close_won_report.archived');
+  assert.equal(recordedEvents[0]?.resourceType, 'CUSTOMER_SUCCESS_OPPORTUNITY_CLOSE_WON_REPORT_ARCHIVE');
+  assert.equal(recordedEvents[0]?.resourceId, result.item.id);
+  assert.equal(recordedEvents[0]?.payloadJson.archive_key, result.item.key);
+  assert.match(recordedEvents[0]?.summary ?? '', /成交复盘报告已归档/);
+});
+
+test('customer success opportunity close won report archive download url derives from archive id', async () => {
+  const storage = {
+    getTenantObjectDownloadUrl: async (_tenantId: string, key: string, expiresIn: number) => ({
+      url: `https://example.test/${key}`,
+      expires_in: expiresIn,
+    }),
+  };
+  const service = new CustomerSuccessOpportunitiesService({} as never, undefined, undefined, storage as never);
+  const archiveKey = 'customer-success-close-won-reports/opportunity-1/2026-07-18T10-00-00-000Z-opportunity-1.md';
+  const archiveId = Buffer.from(archiveKey, 'utf8').toString('base64url');
+
+  const result = await service.getCloseWonReportArchiveDownloadUrl(currentUser, archiveId);
+
+  assert.equal(result.url, `https://example.test/${archiveKey}`);
+  assert.equal(result.expires_in, 300);
+});
+
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {
   const prisma = {
     customerSuccessOpportunity: {

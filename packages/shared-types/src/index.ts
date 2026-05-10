@@ -6264,6 +6264,35 @@ export interface CustomerSuccessOpportunityCloseWonReport {
   next_actions: string[];
 }
 
+export interface CustomerSuccessOpportunityCloseWonReportArchiveItem {
+  id: string;
+  key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+  download_expires_in: number;
+  opportunity_id: string | null;
+  opportunity_code: string | null;
+  opportunity_name: string | null;
+  customer_name: string | null;
+  created_by: string | null;
+}
+
+export interface CustomerSuccessOpportunityCloseWonReportArchiveListResult {
+  items: CustomerSuccessOpportunityCloseWonReportArchiveItem[];
+  total: number;
+  summary: {
+    archive_count: number;
+    total_size_bytes: number;
+  };
+}
+
+export interface CreateCustomerSuccessOpportunityCloseWonReportArchiveResult {
+  item: CustomerSuccessOpportunityCloseWonReportArchiveItem;
+}
+
 export interface CreatePromptTemplateInput {
   name: string;
   code: string;

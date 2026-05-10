@@ -204,9 +204,11 @@ import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
+  CreateCustomerSuccessOpportunityCloseWonReportArchiveResult,
   CustomerSuccessPlanDetail,
   CustomerSuccessPlanListItem,
   DeliveryReviewDetail,
@@ -2333,6 +2335,27 @@ export function getCustomerSuccessOpportunity(opportunityId: string) {
 
 export function getCustomerSuccessOpportunityCloseWonReport(opportunityId: string) {
   return request<CustomerSuccessOpportunityCloseWonReport>(`/customer-success-opportunities/${opportunityId}/close-won-report`);
+}
+
+export function createCustomerSuccessOpportunityCloseWonReportArchive(opportunityId: string) {
+  return request<CreateCustomerSuccessOpportunityCloseWonReportArchiveResult>(
+    `/customer-success-opportunities/${opportunityId}/close-won-report/archives`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function listCustomerSuccessOpportunityCloseWonReportArchives(opportunityId: string) {
+  return request<CustomerSuccessOpportunityCloseWonReportArchiveListResult>(
+    `/customer-success-opportunities/${opportunityId}/close-won-report/archives`,
+  );
+}
+
+export function getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl(opportunityId: string, archiveId: string) {
+  return request<StorageDownloadUrlResult>(
+    `/customer-success-opportunities/${opportunityId}/close-won-report/archives/${archiveId}/download-url`,
+  );
 }
 
 export async function exportCustomerSuccessOpportunityCloseWonReport(opportunityId: string) {

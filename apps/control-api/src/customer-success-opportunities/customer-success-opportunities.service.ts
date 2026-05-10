@@ -13,6 +13,8 @@ import type {
   CustomerSuccessOpportunityActionSummary,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityCloseWonReport,
+  CustomerSuccessOpportunityCloseWonReportArchiveItem,
+  CustomerSuccessOpportunityCloseWonReportArchiveListResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityLinkedResources,
@@ -22,13 +24,16 @@ import type {
   CustomerSuccessPlanOwnerSummary,
   CustomerSuccessPlanReviewSummary,
   CustomerSuccessPlanSolutionPackageSummary,
+  CreateCustomerSuccessOpportunityCloseWonReportArchiveResult,
   PaginatedResult,
+  StorageDownloadUrlResult,
 } from '@aiaget/shared-types';
 
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import type { CloseWonCustomerSuccessOpportunityDto } from './dto/close-won-customer-success-opportunity.dto';
 import type { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
 import type { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
@@ -85,6 +90,12 @@ type DeliveryReviewReference = { id: string; solutionPackageId: string };
 type DeliveryAssetReference = { id: string; solutionPackageId: string | null; deliveryReviewId: string };
 type DataScopeQueryLike = Pick<DataScopeQueryService, 'buildWhere'>;
 type PlatformEventsLike = Pick<PlatformEventsService, 'recordEvent'>;
+type StorageServiceLike = Pick<
+  StorageService,
+  'putTenantObject' | 'listTenantObjects' | 'getTenantObjectDownloadUrl'
+>;
+const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX = 'customer-success-close-won-reports';
+const CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
 
 @Injectable()
 export class CustomerSuccessOpportunitiesService {
@@ -92,6 +103,7 @@ export class CustomerSuccessOpportunitiesService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery?: DataScopeQueryLike,
     @Inject(PlatformEventsService) private readonly platformEvents?: PlatformEventsLike,
+    @Inject(StorageService) private readonly storageService?: StorageServiceLike,
   ) {}
 
   async list(
@@ -262,6 +274,94 @@ export class CustomerSuccessOpportunitiesService {
     await this.recordCloseWonReportExportEvent(currentUser, report);
 
     return buildCloseWonReportMarkdown(report);
+  }
+
+  async createCloseWonReportArchive(
+    currentUser: AuthenticatedUser,
+    id: string,
+  ): Promise<CreateCustomerSuccessOpportunityCloseWonReportArchiveResult> {
+    if (!this.storageService) {
+      throw new BadRequestException('Storage service is not available');
+    }
+
+    const report = await this.getCloseWonReport(currentUser, id);
+    const markdown = buildCloseWonReportMarkdown(report);
+    const createdAt = new Date();
+    const archiveKey = `${CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX}/${report.opportunity.id}/${report.opportunity.code}/${createdAt.toISOString().replace(/[:.]/g, '-')}-${report.opportunity.id}.md`;
+    const item = await this.storageService.putTenantObject({
+      tenantId: currentUser.tenantId,
+      key: archiveKey,
+      body: `\uFEFF${markdown}`,
+      contentType: 'text/markdown; charset=utf-8',
+      metadata: {
+        archive_type: 'customer_success_close_won_report',
+        opportunity_id: report.opportunity.id,
+        opportunity_code: report.opportunity.code,
+        opportunity_name: report.summary.opportunity_name,
+        customer_name: report.summary.customer_name,
+        export_format: 'markdown',
+        created_by: currentUser.id,
+      },
+    });
+    const mappedItem = {
+      ...mapCustomerSuccessCloseWonReportArchive(item),
+      opportunity_id: report.opportunity.id,
+      opportunity_code: report.opportunity.code,
+      opportunity_name: report.summary.opportunity_name,
+      customer_name: report.summary.customer_name,
+      created_by: currentUser.id,
+    };
+
+    await this.recordCloseWonReportArchiveEvent(currentUser, report, mappedItem);
+
+    return { item: mappedItem };
+  }
+
+  async listCloseWonReportArchives(
+    currentUser: AuthenticatedUser,
+    id?: string,
+  ): Promise<CustomerSuccessOpportunityCloseWonReportArchiveListResult> {
+    if (!this.storageService) {
+      throw new BadRequestException('Storage service is not available');
+    }
+
+    const items = (await this.storageService.listTenantObjects({
+      tenantId: currentUser.tenantId,
+      prefix: id ? `${CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX}/${id}` : CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX,
+      limit: 200,
+    })).map(mapCustomerSuccessCloseWonReportArchive);
+
+    return {
+      items,
+      total: items.length,
+      summary: {
+        archive_count: items.length,
+        total_size_bytes: items.reduce((sum, item) => sum + item.size_bytes, 0),
+      },
+    };
+  }
+
+  async getCloseWonReportArchiveDownloadUrl(
+    currentUser: AuthenticatedUser,
+    archiveId: string,
+    opportunityId?: string,
+  ): Promise<StorageDownloadUrlResult> {
+    if (!this.storageService) {
+      throw new BadRequestException('Storage service is not available');
+    }
+
+    const key = closeWonReportArchiveKeyFromId(archiveId);
+    const metadata = parseCloseWonReportArchiveKey(key);
+    if (opportunityId && metadata.opportunityId !== opportunityId) {
+      throw new BadRequestException('成交复盘报告归档不属于当前续约机会。');
+    }
+    const result = await this.storageService.getTenantObjectDownloadUrl(
+      currentUser.tenantId,
+      key,
+      CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    );
+
+    return result;
   }
 
   async update(
@@ -599,6 +699,50 @@ export class CustomerSuccessOpportunitiesService {
       },
       sourceSystem: 'customer_success',
       sourceId: report.opportunity.id,
+      dedupeKey: null,
+    });
+  }
+
+  private async recordCloseWonReportArchiveEvent(
+    currentUser: AuthenticatedUser,
+    report: CustomerSuccessOpportunityCloseWonReport,
+    archive: CustomerSuccessOpportunityCloseWonReportArchiveItem,
+  ) {
+    if (!this.platformEvents) return;
+
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY_CLOSE_WON_REPORT_ARCHIVE',
+      resourceId: archive.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      parentTraceId: currentUser.parentSpanId ?? null,
+      eventSource: 'customer_success',
+      eventType: 'customer_success.opportunity.close_won_report.archived',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: `成交复盘报告已归档：${report.summary.opportunity_name}`,
+      payloadJson: {
+        archive_id: archive.id,
+        archive_key: archive.key,
+        archive_file_name: archive.file_name,
+        opportunity_id: report.opportunity.id,
+        opportunity_code: report.opportunity.code,
+        opportunity_name: report.summary.opportunity_name,
+        customer_name: report.summary.customer_name,
+        export_format: 'markdown',
+        estimated_amount: report.summary.estimated_amount,
+        close_amount: report.summary.close_amount,
+        adjustment_count: report.summary.adjustment_count,
+        billing_adjustment_nos: report.billing_trace.map((adjustment) => adjustment.adjustment_no),
+      },
+      sourceSystem: 'customer_success',
+      sourceId: archive.id,
       dedupeKey: null,
     });
   }
@@ -1274,6 +1418,57 @@ function buildCloseWonReportMarkdown(report: CustomerSuccessOpportunityCloseWonR
   ];
 
   return lines.join('\n');
+}
+
+function mapCustomerSuccessCloseWonReportArchive(item: {
+  key: string;
+  relative_key: string;
+  file_name: string;
+  folder: string;
+  size_bytes: number;
+  etag: string | null;
+  last_modified: string | null;
+}): CustomerSuccessOpportunityCloseWonReportArchiveItem {
+  const metadata = parseCloseWonReportArchiveKey(item.key);
+
+  return {
+    id: Buffer.from(item.key, 'utf8').toString('base64url'),
+    key: item.key,
+    file_name: item.file_name,
+    folder: item.folder,
+    size_bytes: item.size_bytes,
+    etag: item.etag,
+    last_modified: item.last_modified,
+    download_expires_in: CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    opportunity_id: metadata.opportunityId,
+    opportunity_code: metadata.opportunityCode,
+    opportunity_name: metadata.opportunityName,
+    customer_name: metadata.customerName,
+    created_by: null,
+  };
+}
+
+function parseCloseWonReportArchiveKey(key: string) {
+  const parts = key.split('/');
+  const fileName = parts.at(-1) ?? '';
+  const fileNameWithoutExtension = fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName;
+  const opportunityId = parts.length >= 3 && parts[0] === CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
+  const opportunityCode = parts.length >= 4 && parts[0] === CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX ? parts[2] ?? null : null;
+
+  return {
+    opportunityId,
+    opportunityCode,
+    opportunityName: null,
+    customerName: null,
+  };
+}
+
+function closeWonReportArchiveKeyFromId(archiveId: string) {
+  const key = Buffer.from(archiveId, 'base64url').toString('utf8');
+  if (!key.startsWith(`${CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX}/`)) {
+    throw new BadRequestException('无效的成交复盘报告归档 ID。');
+  }
+  return key;
 }
 
 function markdownBillingTrace(adjustments: BillingAdjustmentItem[]) {

@@ -1,8 +1,8 @@
 'use client';
 
-import type { BillingAdjustmentItem } from '@aiaget/shared-types';
+import type { BillingAdjustmentItem, CustomerSuccessOpportunityCloseWonReportArchiveItem } from '@aiaget/shared-types';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ClipboardList, Download, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
+import { Archive, ArrowLeft, ClipboardList, Download, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -32,16 +32,24 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
+  createCustomerSuccessOpportunityCloseWonReportArchive,
   exportCustomerSuccessOpportunityCloseWonReport,
+  getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl,
   getCustomerSuccessOpportunityCloseWonReport,
+  listCustomerSuccessOpportunityCloseWonReportArchives,
   type ApiClientError,
 } from '@/lib/api-client';
 
 export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId }: { opportunityId: string }) {
   const [exportError, setExportError] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const reportQuery = useQuery({
     queryKey: ['customer-success-opportunity-close-won-report', opportunityId],
     queryFn: () => getCustomerSuccessOpportunityCloseWonReport(opportunityId),
+  });
+  const archiveQuery = useQuery({
+    queryKey: ['customer-success-opportunity-close-won-report-archives', opportunityId],
+    queryFn: () => listCustomerSuccessOpportunityCloseWonReportArchives(opportunityId),
   });
   const exportMutation = useMutation({
     mutationFn: () => exportCustomerSuccessOpportunityCloseWonReport(opportunityId),
@@ -50,6 +58,22 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
       downloadBlob(blob, closeWonReportFileName(reportQuery.data?.opportunity.code ?? opportunityId));
     },
     onError: (error: ApiClientError) => setExportError(error.message),
+  });
+  const archiveMutation = useMutation({
+    mutationFn: () => createCustomerSuccessOpportunityCloseWonReportArchive(opportunityId),
+    onSuccess: async () => {
+      setArchiveError(null);
+      await archiveQuery.refetch();
+    },
+    onError: (error: ApiClientError) => setArchiveError(error.message),
+  });
+  const downloadArchiveMutation = useMutation({
+    mutationFn: (archiveId: string) => getCustomerSuccessOpportunityCloseWonReportArchiveDownloadUrl(opportunityId, archiveId),
+    onSuccess: (result) => {
+      setArchiveError(null);
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    },
+    onError: (error: ApiClientError) => setArchiveError(error.message),
   });
 
   if (reportQuery.isLoading) {
@@ -125,12 +149,22 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
             <Download className="size-4" />
             {exportMutation.isPending ? '导出中...' : '导出报告'}
           </Button>
+          <Button disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate()} variant="outline">
+            <Archive className="size-4" />
+            {archiveMutation.isPending ? '归档中...' : '归档留存'}
+          </Button>
         </div>
       </section>
 
       {exportError ? (
         <Card className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           导出报告失败：{exportError}
+        </Card>
+      ) : null}
+
+      {archiveError ? (
+        <Card className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          归档操作失败：{archiveError}
         </Card>
       ) : null}
 
@@ -141,6 +175,16 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
         <MetricCard helper="关联入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
         <MetricCard helper={`生成 ${formatDateTime(report.generated_at)}`} label="关闭时间" value={formatDateTime(report.summary.closed_at)} />
       </section>
+
+      <ArchiveRetentionCard
+        archives={archiveQuery.data?.items ?? []}
+        isArchiving={archiveMutation.isPending}
+        isDownloading={downloadArchiveMutation.isPending}
+        isLoading={archiveQuery.isLoading}
+        onArchive={() => archiveMutation.mutate()}
+        onDownload={(archiveId) => downloadArchiveMutation.mutate(archiveId)}
+        totalSizeBytes={archiveQuery.data?.summary.total_size_bytes ?? 0}
+      />
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="p-5">
@@ -202,6 +246,79 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
         <InsightList icon={<ShieldCheck className="size-4 text-primary" />} items={report.next_actions} title="下一步动作" />
       </section>
     </main>
+  );
+}
+
+function ArchiveRetentionCard({
+  archives,
+  isArchiving,
+  isDownloading,
+  isLoading,
+  onArchive,
+  onDownload,
+  totalSizeBytes,
+}: {
+  archives: CustomerSuccessOpportunityCloseWonReportArchiveItem[];
+  isArchiving: boolean;
+  isDownloading: boolean;
+  isLoading: boolean;
+  onArchive: () => void;
+  onDownload: (archiveId: string) => void;
+  totalSizeBytes: number;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Archive className="size-4 text-primary" />
+            归档留存
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            将当前 Markdown 报告保存到对象存储，形成可下载、可审计、可复盘的成交资料留存。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge tone="planned">{archives.length} 份归档</StatusBadge>
+          <StatusBadge tone="healthy">{formatBytes(totalSizeBytes)}</StatusBadge>
+          <Button disabled={isArchiving} onClick={onArchive} variant="outline">
+            <Archive className="size-4" />
+            {isArchiving ? '归档中...' : '生成归档'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {isLoading ? (
+          <div className="rounded-md border bg-muted/15 px-3 py-4 text-sm text-muted-foreground">正在加载归档记录...</div>
+        ) : archives.length > 0 ? (
+          archives.slice(0, 5).map((archive) => (
+            <div className="flex flex-col justify-between gap-3 rounded-lg border bg-background/80 p-4 md:flex-row md:items-center" key={archive.id}>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{archive.file_name}</div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>大小：{formatBytes(archive.size_bytes)}</span>
+                  <span>更新时间：{formatDateTime(archive.last_modified)}</span>
+                  <span>机会编号：{archive.opportunity_code ?? '-'}</span>
+                </div>
+              </div>
+              <Button disabled={isDownloading} onClick={() => onDownload(archive.id)} size="sm" variant="outline">
+                <Download className="size-4" />
+                下载归档
+              </Button>
+            </div>
+          ))
+        ) : (
+          <div className="flex flex-col justify-between gap-3 rounded-md border bg-muted/15 px-3 py-4 text-sm text-muted-foreground md:flex-row md:items-center">
+            <span>暂无归档文件，生成归档后可在这里下载留存版本。</span>
+            <Button disabled={isArchiving} onClick={onArchive} size="sm" variant="outline">
+              <Archive className="size-4" />
+              生成归档
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -316,4 +433,18 @@ function downloadBlob(blob: Blob, fileName: string) {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }

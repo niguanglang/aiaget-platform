@@ -2,12 +2,16 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 
 import type {
+  BillingAdjustmentItem,
+  BillingAdjustmentStatus,
+  BillingAdjustmentType,
   CustomerSuccessActionPlanSummary,
   CustomerSuccessActionDetail,
   CustomerSuccessActionListItem,
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityAnalyticsBucket,
   CustomerSuccessOpportunityActionSummary,
+  CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityLinkedResources,
@@ -23,6 +27,7 @@ import type {
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
+import type { CloseWonCustomerSuccessOpportunityDto } from './dto/close-won-customer-success-opportunity.dto';
 import type { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
 import type { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
 import type { ListCustomerSuccessOpportunitiesDto } from './dto/list-customer-success-opportunities.dto';
@@ -50,6 +55,7 @@ type CustomerSuccessOpportunityRecord = Prisma.CustomerSuccessOpportunityGetPayl
 type CustomerSuccessActionRecord = Prisma.CustomerSuccessActionGetPayload<{
   include: typeof customerSuccessActionInclude;
 }>;
+type BillingAdjustmentRecord = Prisma.BillingAdjustmentGetPayload<{ include: { invoice: true } }>;
 const customerSuccessOpportunityStages: CustomerSuccessOpportunityStageFunnelItem['stage'][] = [
   'DISCOVERY',
   'QUALIFICATION',
@@ -384,6 +390,92 @@ export class CustomerSuccessOpportunitiesService {
     };
   }
 
+  async closeWonAdjustment(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: CloseWonCustomerSuccessOpportunityDto,
+  ): Promise<CustomerSuccessOpportunityCloseWonAdjustmentResult> {
+    const opportunity = await this.findOpportunity(currentUser.tenantId, id);
+    if (opportunity.stage === 'WON' || opportunity.status === 'WON') {
+      throw new BadRequestException('Customer success opportunity is already won');
+    }
+
+    const existingAdjustment = await this.prisma.billingAdjustment.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        sourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+        sourceId: opportunity.id,
+        deletedAt: null,
+      },
+      include: {
+        invoice: true,
+      },
+    });
+    if (existingAdjustment) {
+      throw new BadRequestException('Customer success opportunity already has a billing adjustment');
+    }
+
+    const amount = dto.amount ?? decimalToNumber(opportunity.estimatedAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Close won amount must be greater than 0');
+    }
+
+    const closedAt = nullableDate(dto.closed_at) ?? new Date();
+    const note = dto.reason?.trim() || `续约机会成交入账：${opportunity.name}`;
+    const adjustment = await this.prisma.billingAdjustment.create({
+      data: {
+        tenantId: currentUser.tenantId,
+        invoiceId: null,
+        adjustmentNo: await this.nextBillingAdjustmentNo(currentUser.tenantId),
+        type: 'DEBIT',
+        status: 'APPLIED',
+        currency: 'USD',
+        amount: new Prisma.Decimal(amount),
+        reason: `续约机会成交入账：${opportunity.name}`,
+        description: note,
+        effectiveAt: closedAt,
+        approvedAt: closedAt,
+        approvedBy: currentUser.id,
+        sourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+        sourceId: opportunity.id,
+        metadata: {
+          opportunity_id: opportunity.id,
+          opportunity_code: opportunity.code,
+          opportunity_name: opportunity.name,
+          customer_name: opportunity.customerName,
+          expected_amount: decimalToNumber(opportunity.estimatedAmount),
+          close_amount: amount,
+          probability_before_close: opportunity.probability,
+          request_id: currentUser.requestId ?? null,
+          trace_id: currentUser.traceId ?? null,
+        },
+        createdBy: currentUser.id,
+        updatedBy: currentUser.id,
+      },
+      include: {
+        invoice: true,
+      },
+    });
+    const updatedOpportunity = await this.prisma.customerSuccessOpportunity.update({
+      where: {
+        id: opportunity.id,
+      },
+      data: {
+        stage: 'WON',
+        status: 'WON',
+        probability: 100,
+        closedAt,
+        updatedBy: currentUser.id,
+      },
+      include: customerSuccessOpportunityInclude,
+    });
+
+    return {
+      adjustment: mapBillingAdjustment(adjustment),
+      opportunity: this.mapDetail(updatedOpportunity),
+    };
+  }
+
   async analytics(currentUser: AuthenticatedUser): Promise<CustomerSuccessOpportunityAnalytics> {
     const where: Prisma.CustomerSuccessOpportunityWhereInput = {
       tenantId: currentUser.tenantId,
@@ -648,6 +740,21 @@ export class CustomerSuccessOpportunitiesService {
     if (!id) return;
     const found = await this.prisma.solutionPackage.findFirst({ where: { id, tenantId, deletedAt: null } });
     if (!found) throw new BadRequestException('Bound solution package does not exist in this tenant');
+  }
+
+  private async nextBillingAdjustmentNo(tenantId: string) {
+    const date = new Date();
+    const prefix = `ADJ-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+    const count = await this.prisma.billingAdjustment.count({
+      where: {
+        tenantId,
+        adjustmentNo: {
+          startsWith: prefix,
+        },
+      },
+    });
+
+    return `${prefix}-${String(count + 1).padStart(4, '0')}`;
   }
 
   private mapListItem(opportunity: CustomerSuccessOpportunityRecord): CustomerSuccessOpportunityListItem {
@@ -922,6 +1029,36 @@ function calculateFollowUpActionScore(opportunity: Pick<CustomerSuccessOpportuni
   score += Math.round(opportunity.opportunityScore * 0.2);
 
   return Math.max(0, Math.min(100, score));
+}
+
+function mapBillingAdjustment(adjustment: BillingAdjustmentRecord): BillingAdjustmentItem {
+  const amount = decimalToNumber(adjustment.amount);
+
+  return {
+    id: adjustment.id,
+    invoice_id: adjustment.invoiceId,
+    invoice_no: adjustment.invoice?.invoiceNo ?? null,
+    adjustment_no: adjustment.adjustmentNo,
+    type: adjustment.type as BillingAdjustmentType,
+    status: adjustment.status as BillingAdjustmentStatus,
+    currency: adjustment.currency,
+    amount,
+    signed_amount: signedAdjustmentAmount(adjustment.type, amount),
+    reason: adjustment.reason,
+    description: adjustment.description,
+    effective_at: adjustment.effectiveAt?.toISOString() ?? null,
+    approved_at: adjustment.approvedAt?.toISOString() ?? null,
+    approved_by: adjustment.approvedBy,
+    source_type: adjustment.sourceType,
+    source_id: adjustment.sourceId,
+    created_at: adjustment.createdAt.toISOString(),
+    updated_at: adjustment.updatedAt.toISOString(),
+  };
+}
+
+function signedAdjustmentAmount(type: string, amount: number) {
+  if (type === 'DEBIT') return roundMoney(Math.abs(amount));
+  return roundMoney(-Math.abs(amount));
 }
 
 function preview(value: string, length = 54) {

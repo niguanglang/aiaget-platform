@@ -39,6 +39,7 @@ import type {
   CreateCustomerAssessmentInput,
   CreateDeliveryAssetInput,
   CreateCustomerSuccessActionInput,
+  CloseWonCustomerSuccessOpportunityInput,
   CreateCustomerSuccessOpportunityInput,
   CreateCustomerSuccessOpportunityFollowUpActionInput,
   CreateCustomerSuccessPlanInput,
@@ -201,6 +202,7 @@ import type {
   CustomerSuccessActionDetail,
   CustomerSuccessActionListItem,
   CustomerSuccessOpportunityAnalytics,
+  CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
@@ -2333,6 +2335,16 @@ export function createCustomerSuccessOpportunityFollowUpAction(
   input: CreateCustomerSuccessOpportunityFollowUpActionInput,
 ) {
   return request<CustomerSuccessOpportunityFollowUpActionResult>(`/customer-success-opportunities/${opportunityId}/follow-up-actions`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export function closeWonCustomerSuccessOpportunity(
+  opportunityId: string,
+  input: CloseWonCustomerSuccessOpportunityInput,
+) {
+  return request<CustomerSuccessOpportunityCloseWonAdjustmentResult>(`/customer-success-opportunities/${opportunityId}/close-won-adjustment`, {
     method: 'POST',
     body: input,
   });

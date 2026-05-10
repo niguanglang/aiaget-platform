@@ -2,11 +2,17 @@
 
 import { hasPermission } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit, ListChecks } from 'lucide-react';
+import { ArrowLeft, Edit, ListChecks, ReceiptText } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
+import {
+  adjustmentStatusLabels,
+  adjustmentStatusTone,
+  adjustmentTypeLabels,
+  formatMoney as formatBillingMoney,
+} from '@/components/billing/billing-shared';
 import {
   customerSuccessActionRiskLabel,
   customerSuccessActionStatusLabel,
@@ -32,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
+  closeWonCustomerSuccessOpportunity,
   createCustomerSuccessOpportunityFollowUpAction,
   getCustomerSuccessOpportunity,
   type ApiClientError,
@@ -45,6 +52,11 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
   const [followUpError, setFollowUpError] = useState<string | null>(null);
   const [followUpNotice, setFollowUpNotice] = useState<string | null>(null);
   const [confirmFollowUp, setConfirmFollowUp] = useState(false);
+  const [closeWonAmount, setCloseWonAmount] = useState('');
+  const [closeWonReason, setCloseWonReason] = useState('');
+  const [closeWonError, setCloseWonError] = useState<string | null>(null);
+  const [closeWonNotice, setCloseWonNotice] = useState<string | null>(null);
+  const [confirmCloseWon, setConfirmCloseWon] = useState(false);
   const canWrite = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
       hasPermission(currentUser?.user.permissions ?? [], 'customer:success_opportunity:manage'),
@@ -52,6 +64,10 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
   const canCreateAction = Boolean(
     currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
       hasPermission(currentUser?.user.permissions ?? [], 'customer:success_action:manage'),
+  );
+  const canManageBillingAdjustment = Boolean(
+    currentUser?.user.roles.some((role) => role.code === 'tenant_admin') ||
+      hasPermission(currentUser?.user.permissions ?? [], 'billing:adjustment:manage'),
   );
   const opportunityQuery = useQuery({
     queryKey: ['customer-success-opportunity', opportunityId],
@@ -78,6 +94,31 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
     onError: (error: ApiClientError) => {
       setFollowUpNotice(null);
       setFollowUpError(error.message);
+    },
+  });
+  const closeWonMutation = useMutation({
+    mutationFn: () =>
+      closeWonCustomerSuccessOpportunity(opportunityId, {
+        amount: closeWonAmount ? Number(closeWonAmount) : undefined,
+        reason: closeWonReason.trim() || undefined,
+      }),
+    onSuccess: async (result) => {
+      setCloseWonNotice(`已生成成交入账记录：${result.adjustment.adjustment_no}`);
+      setCloseWonError(null);
+      setConfirmCloseWon(false);
+      setCloseWonAmount('');
+      setCloseWonReason('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customer-success-opportunity', opportunityId] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-success-opportunities'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-success-opportunity-analytics'] }),
+        queryClient.invalidateQueries({ queryKey: ['billing-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['billing-adjustments-page-overview'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => {
+      setCloseWonNotice(null);
+      setCloseWonError(error.message);
     },
   });
 
@@ -192,6 +233,21 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
         opportunityAction={item.linked_resources.customer_success_action}
       />
 
+      <CloseWonAdjustmentCard
+        amount={closeWonAmount}
+        canClose={canWrite && canManageBillingAdjustment}
+        error={closeWonError}
+        isClosed={item.stage === 'WON' || item.status === 'WON'}
+        isPending={closeWonMutation.isPending}
+        notice={closeWonNotice}
+        onAmountChange={setCloseWonAmount}
+        onCreate={() => setConfirmCloseWon(true)}
+        onReasonChange={setCloseWonReason}
+        opportunityAmount={item.estimated_amount}
+        reason={closeWonReason}
+        weightedAmount={item.weighted_amount}
+      />
+
       {confirmFollowUp ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 px-4 backdrop-blur-sm">
           <Card className="w-full max-w-md p-5">
@@ -203,6 +259,23 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
               <Button disabled={followUpMutation.isPending} onClick={() => setConfirmFollowUp(false)} variant="outline">取消</Button>
               <Button disabled={followUpMutation.isPending} onClick={() => followUpMutation.mutate()}>
                 {followUpMutation.isPending ? '生成中...' : '确认生成'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {confirmCloseWon ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 px-4 backdrop-blur-sm">
+          <Card className="w-full max-w-md p-5">
+            <h2 className="text-lg font-semibold">确认成交入账</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              确认将「{item.name}」标记为赢单，并生成计费调账来源记录？该操作会把当前机会阶段和状态更新为赢单。
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button disabled={closeWonMutation.isPending} onClick={() => setConfirmCloseWon(false)} variant="outline">取消</Button>
+              <Button disabled={closeWonMutation.isPending} onClick={() => closeWonMutation.mutate()}>
+                {closeWonMutation.isPending ? '入账中...' : '确认入账'}
               </Button>
             </div>
           </Card>
@@ -337,6 +410,131 @@ function FollowUpActionCard({
       {notice ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</div> : null}
       {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</div> : null}
     </Card>
+  );
+}
+
+function CloseWonAdjustmentCard({
+  amount,
+  canClose,
+  error,
+  isClosed,
+  isPending,
+  notice,
+  onAmountChange,
+  onCreate,
+  onReasonChange,
+  opportunityAmount,
+  reason,
+  weightedAmount,
+}: {
+  amount: string;
+  canClose: boolean;
+  error: string | null;
+  isClosed: boolean;
+  isPending: boolean;
+  notice: string | null;
+  onAmountChange: (value: string) => void;
+  onCreate: () => void;
+  onReasonChange: (value: string) => void;
+  opportunityAmount: number;
+  reason: string;
+  weightedAmount: number;
+}) {
+  const canSubmit = canClose && !isClosed && !isPending;
+
+  return (
+    <Card className="grid gap-4 p-5">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ReceiptText className="size-4 text-primary" />
+            成交入账闭环
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            将当前续约机会标记为赢单，并生成来源为续约机会的计费调账记录，后续在成本与额度中心继续核算。
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/billing/adjustments">查看调账记录</Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <SmallMetric label="预计金额" value={formatMoney(opportunityAmount)} />
+        <SmallMetric label="加权金额" value={formatMoney(weightedAmount)} />
+        <SmallMetric label="默认入账" value={amount ? formatBillingMoney(Number(amount)) : formatMoney(opportunityAmount)} />
+        <SmallMetric label="入账状态" value={isClosed ? '已赢单' : '待确认'} />
+      </div>
+
+      {isClosed ? (
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">机会已赢单</div>
+              <div className="mt-1 text-xs text-muted-foreground">若需要查看调账单号、审批和账单影响，请进入调账记录按来源筛选。</div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <StatusBadge tone="healthy">赢单</StatusBadge>
+              <StatusBadge tone="ready">{adjustmentTypeLabels.DEBIT}</StatusBadge>
+              <StatusBadge tone={adjustmentStatusTone('APPLIED')}>{adjustmentStatusLabels.APPLIED}</StatusBadge>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-[180px_1fr_auto]">
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs text-muted-foreground">成交金额，可选</span>
+            <input
+              className="h-10 rounded-md border bg-background/80 px-3 outline-none transition-colors focus:border-primary"
+              disabled={!canClose || isPending}
+              min="0.01"
+              onChange={(event) => onAmountChange(event.target.value)}
+              placeholder={String(opportunityAmount)}
+              type="number"
+              value={amount}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs text-muted-foreground">入账说明，可选</span>
+            <input
+              className="h-10 rounded-md border bg-background/80 px-3 outline-none transition-colors focus:border-primary"
+              disabled={!canClose || isPending}
+              onChange={(event) => onReasonChange(event.target.value)}
+              placeholder="不填写则按机会名称自动生成"
+              value={reason}
+            />
+          </label>
+          <div className="flex items-end">
+            <Button disabled={!canSubmit} onClick={onCreate}>
+              <ReceiptText className="size-4" />
+              {isPending ? '入账中...' : '确认成交入账'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!canClose && !isClosed ? (
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          当前账号缺少续约机会管理或计费调账管理权限，不能执行成交入账。
+        </div>
+      ) : null}
+      {!isClosed ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          成交入账会把机会阶段和状态更新为赢单，并创建已生效的补收调账记录。
+        </div>
+      ) : null}
+      {notice ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</div> : null}
+      {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</div> : null}
+    </Card>
+  );
+}
+
+function SmallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/15 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
   );
 }
 

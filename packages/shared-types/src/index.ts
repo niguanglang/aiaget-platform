@@ -6224,6 +6224,17 @@ export interface CustomerSuccessOpportunityFollowUpActionResult {
   opportunity: CustomerSuccessOpportunityDetail;
 }
 
+export interface CloseWonCustomerSuccessOpportunityInput {
+  amount?: number;
+  reason?: string | null;
+  closed_at?: string | null;
+}
+
+export interface CustomerSuccessOpportunityCloseWonAdjustmentResult {
+  adjustment: BillingAdjustmentItem;
+  opportunity: CustomerSuccessOpportunityDetail;
+}
+
 export interface CreatePromptTemplateInput {
   name: string;
   code: string;

@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import type {
   CustomerSuccessOpportunityAnalytics,
+  CustomerSuccessOpportunityCloseWonAdjustmentResult,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
@@ -31,6 +32,7 @@ import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
 import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CustomerSuccessOpportunitiesService } from './customer-success-opportunities.service';
+import { CloseWonCustomerSuccessOpportunityDto } from './dto/close-won-customer-success-opportunity.dto';
 import { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
 import { CreateCustomerSuccessOpportunityFollowUpActionDto } from './dto/create-customer-success-opportunity-follow-up-action.dto';
 import { ListCustomerSuccessOpportunitiesDto } from './dto/list-customer-success-opportunities.dto';
@@ -102,6 +104,22 @@ export class CustomerSuccessOpportunitiesController {
     @Body() dto: CreateCustomerSuccessOpportunityFollowUpActionDto,
   ): Promise<CustomerSuccessOpportunityFollowUpActionResult> {
     return this.customerSuccessOpportunitiesService.createFollowUpAction(currentUser, id, dto);
+  }
+
+  @Post(':id/close-won-adjustment')
+  @Permissions('customer:success_opportunity:manage', 'billing:adjustment:manage')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:manage',
+  })
+  @ApiOkResponse({ description: 'Close customer success opportunity as won and create billing adjustment source record' })
+  async closeWonAdjustment(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CloseWonCustomerSuccessOpportunityDto,
+  ): Promise<CustomerSuccessOpportunityCloseWonAdjustmentResult> {
+    return this.customerSuccessOpportunitiesService.closeWonAdjustment(currentUser, id, dto);
   }
 
   @Patch(':id')

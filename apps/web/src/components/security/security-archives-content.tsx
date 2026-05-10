@@ -72,6 +72,16 @@ type ArchiveApprovalItem =
   | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem
   | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem;
 
+type NotificationArchiveFilterContext = Pick<
+  SecurityOperationAlertNotificationArchiveItem,
+  'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+>;
+
+type NotificationArchiveApprovalFilterContext = Pick<
+  SecurityOperationAlertNotificationArchiveApprovalItem,
+  'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+>;
+
 type ArchiveDeleteTarget = {
   archiveId: string;
   fileName: string;
@@ -111,6 +121,15 @@ const archiveSourceByValue = archiveSources.reduce(
   },
   {} as Record<ArchiveSource, (typeof archiveSources)[number]>,
 );
+const notificationArchiveStatusLabels = {
+  SENT: '已发送',
+  PARTIAL: '部分成功',
+  SKIPPED: '已跳过',
+  FAILED: '失败',
+} as const;
+const notificationArchiveCategoryFallbackLabels = {
+  CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE: '客户成功复盘归档删除',
+} as const;
 
 export function SecurityArchivesContent() {
   const queryClient = useQueryClient();
@@ -462,12 +481,23 @@ function ArchiveRow({
   onDelete: () => void;
   onDownload: () => void;
 }) {
+  const filterSummary = archiveFilterSummary(archive);
+
   return (
     <tr className="border-b last:border-0">
       <td className="px-4 py-3">
         <div className="font-medium">{archive.file_name}</div>
         <div className="mt-1 max-w-[360px] truncate font-mono text-xs text-muted-foreground">{archive.key}</div>
         <div className="mt-1 text-xs text-muted-foreground">ETag：{archive.etag ?? '暂无'}</div>
+        {filterSummary.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {filterSummary.map((item) => (
+              <span className="rounded-md border bg-muted/30 px-2 py-1 text-xs text-muted-foreground" key={item.label}>
+                {item.label}：{item.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </td>
       <td className="px-4 py-3 text-muted-foreground">{archive.folder}</td>
       <td className="px-4 py-3 text-muted-foreground">{formatBytes(archive.size_bytes)}</td>
@@ -495,6 +525,8 @@ function ApprovalRow({
   approval: ArchiveApprovalItem;
   canHandle: boolean;
 }) {
+  const filterSummary = archiveFilterSummary(approval);
+
   return (
     <div className="grid gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -514,9 +546,40 @@ function ApprovalRow({
         <span>申请时间：{formatDateTime(approval.requested_at)}</span>
         <span>审批时间：{formatDateTime(approval.reviewed_at)}</span>
       </div>
+      {filterSummary.length > 0 ? (
+        <div className="grid gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground md:grid-cols-3">
+          {filterSummary.map((item) => (
+            <span key={item.label}>{item.label}：{item.value}</span>
+          ))}
+        </div>
+      ) : null}
       {approval.reason ? <p className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{approval.reason}</p> : null}
     </div>
   );
+}
+
+function archiveFilterSummary(item: ArchiveItem | ArchiveApprovalItem) {
+  if (!hasNotificationArchiveFilterContext(item)) return [];
+
+  const sourceLabel = item.alert_category_label || notificationArchiveCategoryLabel(item.alert_category);
+  const statusLabel = item.status_filter ? notificationArchiveStatusLabels[item.status_filter] : null;
+
+  return [
+    sourceLabel ? { label: '筛选来源', value: sourceLabel } : null,
+    item.status_filter && statusLabel ? { label: '筛选状态', value: statusLabel } : null,
+    item.keyword ? { label: '筛选关键词', value: item.keyword } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+}
+
+function hasNotificationArchiveFilterContext(
+  item: ArchiveItem | ArchiveApprovalItem,
+): item is (ArchiveItem & NotificationArchiveFilterContext) | (ArchiveApprovalItem & NotificationArchiveApprovalFilterContext) {
+  return 'status_filter' in item || 'alert_category_label' in item || 'keyword' in item;
+}
+
+function notificationArchiveCategoryLabel(value: string | null) {
+  if (!value) return null;
+  return notificationArchiveCategoryFallbackLabels[value as keyof typeof notificationArchiveCategoryFallbackLabels] ?? value;
 }
 
 function buildSourceSummary(archives: ArchiveListResult | undefined, approvals: ArchiveApprovalItem[] | undefined) {

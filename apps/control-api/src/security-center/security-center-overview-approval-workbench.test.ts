@@ -189,6 +189,66 @@ test('operation alert notification audit filters and exports customer success so
   assert.doesNotMatch(csv, /团队报告归档删除等待审批通知已发送/);
 });
 
+test('operation alert notification archives preserve notification audit filter context', async () => {
+  const prisma = buildPrisma();
+  const storage = buildStorage([
+    {
+      key: 'audit-archives/security-operation-alert-notifications/customer-success.csv',
+      relative_key: 'audit-archives/security-operation-alert-notifications/customer-success.csv',
+      file_name: 'customer-success.csv',
+      folder: 'audit-archives/security-operation-alert-notifications',
+      size_bytes: 2048,
+      etag: 'etag-customer-success',
+      last_modified: '2026-05-08T08:08:00.000Z',
+      metadata: {
+        archive_type: 'security_operation_alert_notification_audit',
+        status: 'SENT',
+        alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+        keyword: 'trace-customer',
+      },
+    },
+  ]);
+  const service = new SecurityCenterService(prisma as never, storage as never);
+  stubOverviewDependencies(service);
+
+  const archives = await service.listOperationAlertNotificationArchives(buildUser());
+
+  assert.equal(archives.items[0]?.status_filter, 'SENT');
+  assert.equal(archives.items[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(archives.items[0]?.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(archives.items[0]?.keyword, 'trace-customer');
+
+  const archive = archives.items[0];
+  assert.ok(archive);
+
+  const deletion = await service.deleteOperationAlertNotificationArchive(buildUser(), archive.id);
+
+  assert.equal(deletion.approval_id, 'platform-create-1');
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.archive_size_bytes, 2048);
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.status_filter, 'SENT');
+  assert.equal(
+    prisma.createdEvents[0]?.data.payloadJson.alert_category,
+    'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+  );
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.keyword, 'trace-customer');
+
+  const approvals = await service.listOperationAlertNotificationArchiveApprovals(buildUser());
+
+  assert.equal(approvals[0]?.archive_size_bytes, 2048);
+  assert.equal(approvals[0]?.status_filter, 'SENT');
+  assert.equal(approvals[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(approvals[0]?.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(approvals[0]?.keyword, 'trace-customer');
+
+  const detail = await service.getOperationAlertNotificationArchiveApproval(buildUser(), approvals[0]!.id);
+
+  assert.equal(detail.audit_timeline[0]?.status_filter, 'SENT');
+  assert.equal(detail.audit_timeline[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(detail.audit_timeline[0]?.alert_category_label, '客户成功复盘归档删除');
+  assert.equal(detail.audit_timeline[0]?.keyword, 'trace-customer');
+});
+
 function stubOverviewDependencies(service: SecurityCenterService) {
   const target = service as unknown as {
     loadPolicyStats: () => Promise<unknown>;
@@ -361,6 +421,14 @@ function buildPrisma(input: {
         }
         if (
           typeof eventType === 'object' &&
+          eventType.in?.includes('platform.security.approval_operation_alert_notification.archive.delete_requested')
+        ) {
+          return createdEvents
+            .map((event, index) => buildCreatedPlatformEvent(index, event.data))
+            .filter((event) => eventType.in?.includes(event.eventType));
+        }
+        if (
+          typeof eventType === 'object' &&
           eventType.in?.includes('platform.security.approval_operation_alert_sla.dead_letter_audit_archive.delete_requested')
         ) {
           return [
@@ -480,9 +548,51 @@ function buildPlatformArchiveDeleteEvent(sourceId: string, eventType: string) {
   };
 }
 
-function buildStorage() {
+function buildCreatedPlatformEvent(index: number, data: PlatformEventData) {
   return {
-    listTenantObjects: async () => [],
+    id: `platform-create-${index + 1}`,
+    ...data,
+    user: data.userId
+      ? {
+          id: data.userId,
+          name: '安全管理员',
+          email: 'security@example.test',
+        }
+      : null,
+    createdAt: data.occurredAt,
+  };
+}
+
+function buildStorage(initialObjects: Array<Record<string, unknown>> = []) {
+  const objects = [...initialObjects];
+
+  return {
+    listTenantObjects: async (input: { prefix: string }) =>
+      objects.filter((item) => typeof item.key === 'string' && item.key.startsWith(input.prefix)),
+    putTenantObject: async (input: {
+      key: string;
+      body: Buffer | string;
+      metadata?: Record<string, string>;
+    }) => {
+      const item = {
+        key: input.key,
+        relative_key: input.key,
+        file_name: input.key.split('/').at(-1) ?? input.key,
+        folder: input.key.split('/').slice(0, -1).join('/'),
+        size_bytes: typeof input.body === 'string' ? Buffer.byteLength(input.body) : input.body.byteLength,
+        etag: 'etag-created',
+        last_modified: '2026-05-08T08:09:00.000Z',
+        metadata: input.metadata ?? {},
+      };
+      objects.push(item);
+      return item;
+    },
+    getTenantObjectInfo: async (_tenantId: string, key: string) => {
+      const item = objects.find((object) => object.key === key);
+      if (!item) throw new Error(`missing object: ${key}`);
+      return item;
+    },
+    deleteTenantObject: async () => ({ success: true }),
   };
 }
 

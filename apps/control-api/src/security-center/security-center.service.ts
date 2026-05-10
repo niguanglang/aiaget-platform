@@ -24,6 +24,7 @@ import {
   type SecurityOperationAlertAction,
   type SecurityOperationAlertActionResult,
   type SecurityOperationAlertNotificationChannel,
+  type SecurityOperationAlertNotificationStatus,
   type SecurityOperationAlertNotificationArchiveApprovalDetail,
   type SecurityOperationAlertNotificationArchiveApprovalItem,
   type SecurityOperationAlertNotificationArchiveApprovalOverview,
@@ -33,7 +34,6 @@ import {
   type SecurityOperationAlertNotificationItem,
   type SecurityOperationAlertNotificationOverview,
   type SecurityOperationAlertNotificationResult,
-  type SecurityOperationAlertNotificationStatus,
   type SecurityOperationAlertNotificationTaskRecoveryAction,
   type SecurityOperationAlertNotificationTaskRecoveryActionResult,
   type SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalDetail,
@@ -51,6 +51,7 @@ import {
   type SecurityPolicyDecision,
   type SecurityPolicyEvaluationItem,
   type StorageDownloadUrlResult,
+  type StorageObjectItem,
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';
@@ -430,6 +431,7 @@ export class SecurityCenterService {
       tenantId: currentUser.tenantId,
       prefix: OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX,
       limit: 100,
+      includeMetadata: true,
     })).map(mapOperationAlertNotificationArchive);
 
     return {
@@ -471,15 +473,7 @@ export class SecurityCenterService {
       };
     }
 
-    const archive = mapOperationAlertNotificationArchive({
-      key,
-      relative_key: key,
-      file_name: key.split('/').at(-1) ?? key,
-      folder: OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX,
-      size_bytes: 0,
-      etag: null,
-      last_modified: null,
-    });
+    const archive = await this.loadOperationAlertNotificationArchiveForDeletion(currentUser.tenantId, key);
     const event = await this.recordOperationAlertNotificationArchiveEvent({
       tenantId: currentUser.tenantId,
       userId: currentUser.id,
@@ -496,6 +490,7 @@ export class SecurityCenterService {
         archive_key: key,
         archive_file_name: archive.file_name,
         archive_size_bytes: archive.size_bytes,
+        ...operationAlertNotificationArchiveFilterPayload(archive),
       },
     });
 
@@ -571,6 +566,7 @@ export class SecurityCenterService {
         archive_key: detail.archive_key,
         archive_file_name: detail.archive_file_name,
         archive_size_bytes: detail.archive_size_bytes,
+        ...operationAlertNotificationArchiveFilterPayload(detail),
       },
     });
 
@@ -591,6 +587,7 @@ export class SecurityCenterService {
         archive_key: detail.archive_key,
         archive_file_name: detail.archive_file_name,
         archive_size_bytes: detail.archive_size_bytes,
+        ...operationAlertNotificationArchiveFilterPayload(detail),
       },
     });
 
@@ -622,6 +619,7 @@ export class SecurityCenterService {
         archive_key: detail.archive_key,
         archive_file_name: detail.archive_file_name,
         archive_size_bytes: detail.archive_size_bytes,
+        ...operationAlertNotificationArchiveFilterPayload(detail),
       },
     });
 
@@ -707,6 +705,22 @@ export class SecurityCenterService {
     );
     const approval = buildOperationAlertNotificationArchiveDeleteApprovals(events)[0] ?? null;
     return approval?.status === 'PENDING' ? approval : null;
+  }
+
+  private async loadOperationAlertNotificationArchiveForDeletion(tenantId: string, key: string) {
+    try {
+      return mapOperationAlertNotificationArchive(await this.storageService.getTenantObjectInfo(tenantId, key));
+    } catch {
+      return mapOperationAlertNotificationArchive({
+        key,
+        relative_key: key,
+        file_name: key.split('/').at(-1) ?? key,
+        folder: OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX,
+        size_bytes: 0,
+        etag: null,
+        last_modified: null,
+      });
+    }
   }
 
   private async recordOperationAlertNotificationArchiveEvent(input: {
@@ -3656,7 +3670,10 @@ function mapOperationAlertNotificationArchive(item: {
   size_bytes: number;
   etag: string | null;
   last_modified: string | null;
+  metadata?: Record<string, string>;
 }): SecurityOperationAlertNotificationArchiveItem {
+  const context = operationAlertNotificationArchiveFilterContext(item.metadata);
+
   return {
     id: Buffer.from(item.key, 'utf8').toString('base64url'),
     key: item.key,
@@ -3666,7 +3683,68 @@ function mapOperationAlertNotificationArchive(item: {
     etag: item.etag,
     last_modified: item.last_modified,
     download_expires_in: OPERATION_ALERT_NOTIFICATION_ARCHIVE_DOWNLOAD_EXPIRES_IN,
+    ...context,
   };
+}
+
+function operationAlertNotificationArchiveFilterPayload(
+  item:
+    | Pick<
+        SecurityOperationAlertNotificationArchiveItem,
+        'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+      >
+    | Pick<
+        SecurityOperationAlertNotificationArchiveApprovalItem,
+        'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+      >,
+) {
+  return {
+    status_filter: item.status_filter,
+    alert_category: item.alert_category,
+    alert_category_label: item.alert_category_label,
+    keyword: item.keyword,
+  };
+}
+
+function operationAlertNotificationArchiveFilterContext(metadata?: Record<string, string> | null) {
+  const statusFilter = normalizeOptionalSecurityOperationNotificationStatus(metadata?.status);
+  const alertCategory = nullableMetadataText(metadata?.alert_category);
+
+  return {
+    status_filter: statusFilter,
+    alert_category: alertCategory,
+    alert_category_label: securityOperationAlertCategoryLabel(alertCategory),
+    keyword: nullableMetadataText(metadata?.keyword),
+  };
+}
+
+function operationAlertNotificationArchiveFilterContextFromPayload(payload: Record<string, unknown> | null) {
+  const alertCategory = nullablePayloadText(payload?.alert_category);
+
+  return {
+    status_filter: normalizeOptionalSecurityOperationNotificationStatus(payload?.status_filter),
+    alert_category: alertCategory,
+    alert_category_label:
+      nullablePayloadText(payload?.alert_category_label) ?? securityOperationAlertCategoryLabel(alertCategory),
+    keyword: nullablePayloadText(payload?.keyword),
+  };
+}
+
+function normalizeOptionalSecurityOperationNotificationStatus(value: unknown): SecurityOperationAlertNotificationStatus | null {
+  if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') return value;
+  return null;
+}
+
+function nullableMetadataText(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function nullablePayloadText(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function operationAlertNotificationArchiveKeyFromId(archiveId: string) {
@@ -3707,6 +3785,10 @@ function buildOperationAlertNotificationArchiveDeleteApprovals(
         archive_key: request.archive_key,
         archive_file_name: request.archive_file_name,
         archive_size_bytes: request.archive_size_bytes,
+        status_filter: request.status_filter,
+        alert_category: request.alert_category,
+        alert_category_label: request.alert_category_label,
+        keyword: request.keyword,
         status: operationAlertNotificationArchiveApprovalStatus({ applied, approved, rejected }),
         reason: request.note,
         requested_by: request.actor,
@@ -3745,6 +3827,7 @@ function mapOperationAlertNotificationArchiveApprovalEvent(
 ): SecurityOperationAlertNotificationArchiveApprovalTimelineItem {
   const payload = normalizeJsonObjectOutput(event.payloadJson);
   const archiveKey = typeof payload?.archive_key === 'string' ? payload.archive_key : '';
+  const filterContext = operationAlertNotificationArchiveFilterContextFromPayload(payload);
 
   return {
     event_id: event.id,
@@ -3769,6 +3852,7 @@ function mapOperationAlertNotificationArchiveApprovalEvent(
         ? payload.archive_file_name
         : archiveKey.split('/').at(-1) ?? '归档文件',
     archive_size_bytes: typeof payload?.archive_size_bytes === 'number' ? payload.archive_size_bytes : 0,
+    ...filterContext,
   };
 }
 

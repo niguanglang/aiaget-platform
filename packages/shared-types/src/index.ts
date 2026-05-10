@@ -1907,6 +1907,7 @@ export interface StorageObjectItem {
   size_bytes: number;
   etag: string | null;
   last_modified: string | null;
+  metadata?: Record<string, string>;
 }
 
 export interface StorageObjectListResult {
@@ -2608,6 +2609,10 @@ export interface SecurityOperationAlertNotificationArchiveItem {
   etag: string | null;
   last_modified: string | null;
   download_expires_in: number;
+  status_filter: SecurityOperationAlertNotificationStatus | null;
+  alert_category: string | null;
+  alert_category_label: string;
+  keyword: string | null;
 }
 
 export interface SecurityOperationAlertNotificationArchiveListResult {
@@ -2637,6 +2642,10 @@ export interface SecurityOperationAlertNotificationArchiveApprovalItem {
   archive_key: string;
   archive_file_name: string;
   archive_size_bytes: number;
+  status_filter: SecurityOperationAlertNotificationStatus | null;
+  alert_category: string | null;
+  alert_category_label: string;
+  keyword: string | null;
   status: SecurityOperationAlertNotificationArchiveApprovalStatus;
   reason: string | null;
   requested_by: SecurityOperationAlertNotificationArchiveApprovalActor | null;
@@ -2659,6 +2668,10 @@ export interface SecurityOperationAlertNotificationArchiveApprovalTimelineItem {
   archive_key: string;
   archive_file_name: string;
   archive_size_bytes: number;
+  status_filter: SecurityOperationAlertNotificationStatus | null;
+  alert_category: string | null;
+  alert_category_label: string;
+  keyword: string | null;
 }
 
 export interface SecurityOperationAlertNotificationArchiveApprovalDetail

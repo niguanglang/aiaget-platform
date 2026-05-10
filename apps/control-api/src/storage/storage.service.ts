@@ -7,6 +7,7 @@ import {
   CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -186,7 +187,11 @@ export class StorageService {
     );
 
     return {
-      item: mapObjectItem(tenantPrefix, key, buffer.byteLength, null, new Date()),
+      item: mapObjectItem(tenantPrefix, key, buffer.byteLength, null, new Date(), {
+        original_name: fileName,
+        tenant_id: currentUser.tenantId,
+        uploaded_by: currentUser.id,
+      }),
     };
   }
 
@@ -241,7 +246,10 @@ export class StorageService {
       }),
     );
 
-    return mapObjectItem(tenantPrefix, objectKey, body.byteLength, null, new Date());
+    return mapObjectItem(tenantPrefix, objectKey, body.byteLength, null, new Date(), {
+      tenant_id: input.tenantId,
+      ...(input.metadata ?? {}),
+    });
   }
 
   async listTenantObjects(input: {
@@ -249,6 +257,7 @@ export class StorageService {
     prefix: string;
     keyword?: string | null;
     limit?: number;
+    includeMetadata?: boolean;
   }): Promise<StorageObjectItem[]> {
     await this.assertBucketReady();
 
@@ -270,7 +279,9 @@ export class StorageService {
 
       for (const object of response.Contents ?? []) {
         if (!object.Key || object.Key.endsWith('/')) continue;
-        const item = mapObjectItem(tenantPrefix, object.Key, object.Size ?? 0, object.ETag, object.LastModified);
+        const item = input.includeMetadata
+          ? await this.getTenantObjectInfoByObjectKey(tenantPrefix, object.Key, object.Size ?? 0, object.ETag, object.LastModified)
+          : mapObjectItem(tenantPrefix, object.Key, object.Size ?? 0, object.ETag, object.LastModified);
         if (keyword && !`${item.relative_key} ${item.file_name} ${item.folder}`.toLowerCase().includes(keyword)) {
           continue;
         }
@@ -306,6 +317,14 @@ export class StorageService {
       url: await this.createSignedDownloadUrl(toTenantObjectKey(tenantId, key), expiresIn),
       expires_in: expiresIn,
     };
+  }
+
+  async getTenantObjectInfo(tenantId: string, key: string): Promise<StorageObjectItem> {
+    await this.assertBucketReady();
+
+    const tenantPrefix = buildTenantPrefix(tenantId);
+    const objectKey = toTenantObjectKey(tenantId, key);
+    return this.getTenantObjectInfoByObjectKey(tenantPrefix, objectKey);
   }
 
   private async assertBucketReady() {
@@ -345,6 +364,30 @@ export class StorageService {
     });
 
     return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  private async getTenantObjectInfoByObjectKey(
+    tenantPrefix: string,
+    objectKey: string,
+    size?: number | null,
+    etag?: string | null,
+    lastModified?: Date | null,
+  ): Promise<StorageObjectItem> {
+    const response = await this.client.send(
+      new HeadObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+      }),
+    );
+
+    return mapObjectItem(
+      tenantPrefix,
+      objectKey,
+      size ?? response.ContentLength ?? 0,
+      etag ?? response.ETag,
+      lastModified ?? response.LastModified,
+      response.Metadata,
+    );
   }
 }
 
@@ -401,6 +444,7 @@ function mapObjectItem(
   size: number,
   etag: string | null | undefined,
   lastModified: Date | null | undefined,
+  metadata?: Record<string, string>,
 ): StorageObjectItem {
   const relativeKey = key.startsWith(tenantPrefix) ? key.slice(tenantPrefix.length) : key;
   const parts = relativeKey.split('/');
@@ -415,6 +459,7 @@ function mapObjectItem(
     size_bytes: size,
     etag: etag ? etag.replaceAll('"', '') : null,
     last_modified: lastModified ? lastModified.toISOString() : null,
+    metadata: metadata ?? {},
   };
 }
 

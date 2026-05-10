@@ -92,6 +92,13 @@ test('archives page owns archive governance data flow and Chinese page responsib
   assert.match(source, /deleteSecurityOperationAlertNotificationArchive/);
   assert.match(source, /deleteSecurityOperationAlertNotificationTaskRecoveryAuditArchive/);
   assert.match(source, /deleteSecurityOperationAlertSlaDeadLetterAuditArchive/);
+  assert.match(source, /archiveFilterSummary/);
+  assert.match(source, /status_filter/);
+  assert.match(source, /alert_category_label/);
+  assert.match(source, /筛选来源/);
+  assert.match(source, /筛选关键词/);
+  assert.match(source, /客户成功复盘归档删除/);
+  assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);
   assert.doesNotMatch(source, /listSecurityPolicies/);
   assert.doesNotMatch(source, /listSecurityCenterEvents/);
 });

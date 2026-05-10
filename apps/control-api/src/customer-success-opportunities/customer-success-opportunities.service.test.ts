@@ -655,6 +655,57 @@ test('customer success opportunity close won report exports markdown for offline
   assert.match(markdown, /## 下一步动作/);
 });
 
+test('customer success opportunity close won report export records an audit event', async () => {
+  const recordedEvents: Array<{
+    eventType: string;
+    resourceType: string;
+    resourceId: string;
+    payloadJson: Record<string, unknown>;
+    summary: string;
+  }> = [];
+  const billingAdjustment = billingAdjustmentRecord({
+    adjustmentNo: 'ADJ-20260718-0002',
+    amount: '680000.00',
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () => opportunityRecord({
+        stage: 'WON',
+        status: 'WON',
+        probability: 100,
+        closedAt: new Date('2026-07-18T10:00:00.000Z'),
+      }),
+    },
+    billingAdjustment: {
+      findMany: async () => [billingAdjustment],
+    },
+  };
+  const platformEvents = {
+    recordEvent: async (event: {
+      eventType: string;
+      resourceType: string;
+      resourceId: string;
+      payloadJson: Record<string, unknown>;
+      summary: string;
+    }) => {
+      recordedEvents.push(event);
+      return { id: `event-${recordedEvents.length}` };
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never, undefined, platformEvents as never);
+
+  await service.exportCloseWonReportMarkdown(currentUser, 'opportunity-1');
+
+  assert.equal(recordedEvents.length, 1);
+  assert.equal(recordedEvents[0]?.eventType, 'customer_success.opportunity.close_won_report.exported');
+  assert.equal(recordedEvents[0]?.resourceType, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+  assert.equal(recordedEvents[0]?.resourceId, 'opportunity-1');
+  assert.equal(recordedEvents[0]?.payloadJson.customer_name, '华中设计院');
+  assert.equal(recordedEvents[0]?.payloadJson.adjustment_count, 1);
+  assert.equal(recordedEvents[0]?.payloadJson.export_format, 'markdown');
+  assert.match(recordedEvents[0]?.summary ?? '', /成交复盘报告已导出/);
+});
+
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {
   const prisma = {
     customerSuccessOpportunity: {

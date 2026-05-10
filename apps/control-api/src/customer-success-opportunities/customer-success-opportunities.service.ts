@@ -259,6 +259,7 @@ export class CustomerSuccessOpportunitiesService {
 
   async exportCloseWonReportMarkdown(currentUser: AuthenticatedUser, id: string): Promise<string> {
     const report = await this.getCloseWonReport(currentUser, id);
+    await this.recordCloseWonReportExportEvent(currentUser, report);
 
     return buildCloseWonReportMarkdown(report);
   }
@@ -559,6 +560,46 @@ export class CustomerSuccessOpportunitiesService {
       sourceSystem: 'billing',
       sourceId: adjustment.id,
       dedupeKey: `billing:close-won-adjustment:${adjustment.id}`,
+    });
+  }
+
+  private async recordCloseWonReportExportEvent(
+    currentUser: AuthenticatedUser,
+    report: CustomerSuccessOpportunityCloseWonReport,
+  ) {
+    if (!this.platformEvents) return;
+
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+      resourceId: report.opportunity.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      parentTraceId: currentUser.parentSpanId ?? null,
+      eventSource: 'customer_success',
+      eventType: 'customer_success.opportunity.close_won_report.exported',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: `成交复盘报告已导出：${report.summary.opportunity_name}`,
+      payloadJson: {
+        opportunity_id: report.opportunity.id,
+        opportunity_code: report.opportunity.code,
+        opportunity_name: report.summary.opportunity_name,
+        customer_name: report.summary.customer_name,
+        export_format: 'markdown',
+        estimated_amount: report.summary.estimated_amount,
+        close_amount: report.summary.close_amount,
+        adjustment_count: report.summary.adjustment_count,
+        billing_adjustment_nos: report.billing_trace.map((adjustment) => adjustment.adjustment_no),
+      },
+      sourceSystem: 'customer_success',
+      sourceId: report.opportunity.id,
+      dedupeKey: null,
     });
   }
 

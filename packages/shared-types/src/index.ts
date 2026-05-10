@@ -6113,6 +6113,43 @@ export interface CustomerSuccessOpportunityDetail extends CustomerSuccessOpportu
   notes: string | null;
 }
 
+export interface CustomerSuccessOpportunityAnalyticsSummary {
+  total_count: number;
+  open_count: number;
+  at_risk_count: number;
+  won_count: number;
+  lost_count: number;
+  total_estimated_amount: number;
+  weighted_amount: number;
+  average_probability: number;
+  average_score: number;
+  conversion_rate: number;
+  risk_rate: number;
+}
+
+export interface CustomerSuccessOpportunityAnalyticsBucket {
+  key: string;
+  count: number;
+  amount: number;
+  weighted_amount: number;
+}
+
+export interface CustomerSuccessOpportunityStageFunnelItem {
+  stage: CustomerSuccessOpportunityStage;
+  count: number;
+  amount: number;
+  weighted_amount: number;
+}
+
+export interface CustomerSuccessOpportunityAnalytics {
+  summary: CustomerSuccessOpportunityAnalyticsSummary;
+  stage_funnel: CustomerSuccessOpportunityStageFunnelItem[];
+  type_breakdown: CustomerSuccessOpportunityAnalyticsBucket[];
+  risk_breakdown: CustomerSuccessOpportunityAnalyticsBucket[];
+  top_opportunities: CustomerSuccessOpportunityListItem[];
+  upcoming_closes: CustomerSuccessOpportunityListItem[];
+}
+
 export interface CreateCustomerSuccessOpportunityInput {
   name: string;
   code: string;

@@ -3,10 +3,13 @@ import { Prisma } from '@prisma/client';
 
 import type {
   CustomerSuccessActionPlanSummary,
+  CustomerSuccessOpportunityAnalytics,
+  CustomerSuccessOpportunityAnalyticsBucket,
   CustomerSuccessOpportunityActionSummary,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityLinkedResources,
   CustomerSuccessOpportunityListItem,
+  CustomerSuccessOpportunityStageFunnelItem,
   CustomerSuccessPlanAssetSummary,
   CustomerSuccessPlanOwnerSummary,
   CustomerSuccessPlanReviewSummary,
@@ -33,6 +36,15 @@ const customerSuccessOpportunityInclude = {
 type CustomerSuccessOpportunityRecord = Prisma.CustomerSuccessOpportunityGetPayload<{
   include: typeof customerSuccessOpportunityInclude;
 }>;
+const customerSuccessOpportunityStages: CustomerSuccessOpportunityStageFunnelItem['stage'][] = [
+  'DISCOVERY',
+  'QUALIFICATION',
+  'PROPOSAL',
+  'NEGOTIATION',
+  'WON',
+  'LOST',
+  'ARCHIVED',
+];
 type CustomerSuccessPlanReference = {
   id: string;
   customerName: string;
@@ -289,6 +301,74 @@ export class CustomerSuccessOpportunitiesService {
     });
 
     return { success: true };
+  }
+
+  async analytics(currentUser: AuthenticatedUser): Promise<CustomerSuccessOpportunityAnalytics> {
+    const where: Prisma.CustomerSuccessOpportunityWhereInput = {
+      tenantId: currentUser.tenantId,
+      deletedAt: null,
+    };
+
+    if (this.dataScopeQuery) {
+      const dataScope = await this.dataScopeQuery.buildWhere<Prisma.CustomerSuccessOpportunityWhereInput>(
+        currentUser,
+        'CUSTOMER_SUCCESS_OPPORTUNITY',
+      );
+      mergeDataScopeWhere(where, dataScope.where);
+    }
+
+    const opportunities = await this.prisma.customerSuccessOpportunity.findMany({
+      where,
+      include: customerSuccessOpportunityInclude,
+      orderBy: {
+        expectedCloseAt: 'asc',
+      },
+    });
+
+    const listItems = opportunities.map((item) => this.mapListItem(item));
+    const totalCount = listItems.length;
+    const totalEstimatedAmount = sum(listItems.map((item) => item.estimated_amount));
+    const weightedAmount = sum(listItems.map((item) => item.weighted_amount));
+    const openCount = listItems.filter((item) => item.status === 'OPEN').length;
+    const atRiskCount = listItems.filter((item) => item.status === 'AT_RISK').length;
+    const wonCount = listItems.filter((item) => item.status === 'WON').length;
+    const lostCount = listItems.filter((item) => item.status === 'LOST').length;
+    const closedCount = wonCount + lostCount;
+
+    return {
+      summary: {
+        total_count: totalCount,
+        open_count: openCount,
+        at_risk_count: atRiskCount,
+        won_count: wonCount,
+        lost_count: lostCount,
+        total_estimated_amount: totalEstimatedAmount,
+        weighted_amount: roundMoney(weightedAmount),
+        average_probability: average(listItems.map((item) => item.probability)),
+        average_score: average(listItems.map((item) => item.opportunity_score)),
+        conversion_rate: closedCount === 0 ? 0 : roundPercent((wonCount / closedCount) * 100),
+        risk_rate: totalCount === 0 ? 0 : roundPercent((atRiskCount / totalCount) * 100),
+      },
+      stage_funnel: customerSuccessOpportunityStages.map((stage) => {
+        const items = listItems.filter((item) => item.stage === stage);
+
+        return {
+          stage,
+          count: items.length,
+          amount: sum(items.map((item) => item.estimated_amount)),
+          weighted_amount: sum(items.map((item) => item.weighted_amount)),
+        };
+      }),
+      type_breakdown: buildBreakdown(listItems, (item) => item.opportunity_type),
+      risk_breakdown: buildBreakdown(listItems, (item) => item.risk_level),
+      top_opportunities: [...listItems]
+        .sort((left, right) => right.weighted_amount - left.weighted_amount || right.opportunity_score - left.opportunity_score)
+        .slice(0, 5),
+      upcoming_closes: listItems
+        .filter((item) => item.expected_close_at && item.status !== 'WON' && item.status !== 'LOST' && item.status !== 'ARCHIVED')
+        .sort((left, right) => String(left.expected_close_at).localeCompare(String(right.expected_close_at)))
+        .slice(0, 5),
+    };
   }
 
   private async findOpportunity(tenantId: string, id: string): Promise<CustomerSuccessOpportunityRecord> {
@@ -710,4 +790,45 @@ function decimalToNumber(value: Prisma.Decimal | number | string) {
   if (value instanceof Prisma.Decimal) return value.toNumber();
 
   return Number(value);
+}
+
+function sum(values: number[]) {
+  return roundMoney(values.reduce((total, value) => total + value, 0));
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+
+  return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function roundPercent(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function buildBreakdown(
+  items: CustomerSuccessOpportunityListItem[],
+  keyOf: (item: CustomerSuccessOpportunityListItem) => string,
+): CustomerSuccessOpportunityAnalyticsBucket[] {
+  const buckets = new Map<string, CustomerSuccessOpportunityAnalyticsBucket>();
+
+  for (const item of items) {
+    const key = keyOf(item);
+    const current = buckets.get(key) ?? {
+      key,
+      count: 0,
+      amount: 0,
+      weighted_amount: 0,
+    };
+    current.count += 1;
+    current.amount = roundMoney(current.amount + item.estimated_amount);
+    current.weighted_amount = roundMoney(current.weighted_amount + item.weighted_amount);
+    buckets.set(key, current);
+  }
+
+  return Array.from(buckets.values()).sort((left, right) => right.weighted_amount - left.weighted_amount || right.count - left.count);
 }

@@ -2,7 +2,7 @@
 
 import { hasPermission, type CustomerSuccessOpportunityListItem } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
+import { BarChart3, Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -192,19 +192,27 @@ export function CustomerSuccessOpportunitiesContent() {
             把客户成功计划和成功行动转成可阶段推进、可金额预测、可风险跟踪的续约、扩展、增购和风险挽留机会。
           </p>
         </div>
-        {canWrite ? (
-          <Button asChild className="w-full md:w-auto">
-            <Link href="/customer-success-opportunities/create">
-              <Plus className="size-4" />
-              新建机会
+        <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/customer-success-opportunities/analytics">
+              <BarChart3 className="size-4" />
+              机会分析
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建机会
-          </Button>
-        )}
+          {canWrite ? (
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/customer-success-opportunities/create">
+                <Plus className="size-4" />
+                新建机会
+              </Link>
+            </Button>
+          ) : (
+            <Button className="w-full md:w-auto" disabled>
+              <Plus className="size-4" />
+              新建机会
+            </Button>
+          )}
+        </div>
       </motion.section>
 
       <motion.section

@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
-import type { CustomerSuccessOpportunityDetail, CustomerSuccessOpportunityListItem, PaginatedResult } from '@aiaget/shared-types';
+import type {
+  CustomerSuccessOpportunityAnalytics,
+  CustomerSuccessOpportunityDetail,
+  CustomerSuccessOpportunityListItem,
+  PaginatedResult,
+} from '@aiaget/shared-types';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RequireDataScope } from '../common/decorators/data-scope.decorator';
@@ -47,6 +52,13 @@ export class CustomerSuccessOpportunitiesController {
     @Query() query: ListCustomerSuccessOpportunitiesDto,
   ): Promise<PaginatedResult<CustomerSuccessOpportunityListItem>> {
     return this.customerSuccessOpportunitiesService.list(currentUser, query);
+  }
+
+  @Get('analytics')
+  @Permissions('customer:success_opportunity:view')
+  @ApiOkResponse({ description: 'Tenant-isolated customer success opportunity analytics' })
+  async analytics(@CurrentUser() currentUser: AuthenticatedUser): Promise<CustomerSuccessOpportunityAnalytics> {
+    return this.customerSuccessOpportunitiesService.analytics(currentUser);
   }
 
   @Post()

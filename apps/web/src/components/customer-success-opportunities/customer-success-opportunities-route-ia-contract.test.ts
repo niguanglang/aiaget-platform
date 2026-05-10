@@ -12,6 +12,7 @@ function source(fileName: string) {
 
 test('customer success opportunity center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/page.tsx')));
+  assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/analytics/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/create/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/[id]/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/[id]/edit/page.tsx')));
@@ -23,7 +24,10 @@ test('customer success opportunity list stays compact and does not embed full co
   assert.match(listSource, /续约机会/);
   assert.match(listSource, /listCustomerSuccessOpportunities/);
   assert.match(listSource, /新建机会/);
+  assert.match(listSource, /\/customer-success-opportunities\/analytics/);
   assert.match(listSource, /opportunity_score/);
+  assert.doesNotMatch(listSource, /stage_funnel/);
+  assert.doesNotMatch(listSource, /top_opportunities/);
   assert.doesNotMatch(listSource, /customer_value[\s\S]*<td/);
   assert.doesNotMatch(listSource, /commercial_strategy[\s\S]*<td/);
   assert.doesNotMatch(listSource, /decision_path[\s\S]*<td/);
@@ -59,4 +63,20 @@ test('customer success opportunity create and edit pages use the shared form pan
   assert.match(formSource, /customer_success_action_id/);
   assert.match(formSource, /commercial_strategy/);
   assert.match(formSource, /decision_path/);
+});
+
+test('customer success opportunity analytics owns funnel and dashboard data outside CRUD list', () => {
+  const analyticsSource = source('customer-success-opportunity-analytics-content.tsx');
+
+  assert.match(analyticsSource, /getCustomerSuccessOpportunityAnalytics/);
+  assert.match(analyticsSource, /续约机会分析/);
+  assert.match(analyticsSource, /阶段漏斗/);
+  assert.match(analyticsSource, /类型分布/);
+  assert.match(analyticsSource, /风险分布/);
+  assert.match(analyticsSource, /高价值机会 Top 5/);
+  assert.match(analyticsSource, /近期关闭机会/);
+  assert.match(analyticsSource, /customer:success_opportunity:view/);
+  assert.doesNotMatch(analyticsSource, /createCustomerSuccessOpportunity/);
+  assert.doesNotMatch(analyticsSource, /updateCustomerSuccessOpportunity/);
+  assert.doesNotMatch(analyticsSource, /deleteCustomerSuccessOpportunity/);
 });

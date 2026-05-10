@@ -199,6 +199,7 @@ import type {
   DeliveryAssetListItem,
   CustomerSuccessActionDetail,
   CustomerSuccessActionListItem,
+  CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityListItem,
   CustomerSuccessPlanDetail,
@@ -2308,6 +2309,10 @@ export function listCustomerSuccessOpportunities(params: {
   solution_package_id?: string;
 }) {
   return request<PaginatedResult<CustomerSuccessOpportunityListItem>>(`/customer-success-opportunities?${toSearchParams(params)}`);
+}
+
+export function getCustomerSuccessOpportunityAnalytics() {
+  return request<CustomerSuccessOpportunityAnalytics>('/customer-success-opportunities/analytics');
 }
 
 export function createCustomerSuccessOpportunity(input: CreateCustomerSuccessOpportunityInput) {

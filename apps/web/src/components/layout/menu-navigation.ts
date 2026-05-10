@@ -4,6 +4,7 @@ import { hasPermission, type AuthorizedMenuItem } from '@aiaget/shared-types';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  BarChart3,
   Bot,
   BookOpen,
   ClipboardCheck,
@@ -48,6 +49,7 @@ export interface NavigationLink {
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
+  BarChart3,
   Bot,
   BookOpen,
   Boxes,
@@ -127,6 +129,8 @@ const codeIconMap: Record<string, LucideIcon> = {
   data_scopes: SlidersHorizontal,
   resource_acls: KeyRound,
   menus: ListTree,
+  customer_success_opportunities: BarChart3,
+  customer_success_opportunity_analytics: BarChart3,
   customer_success_actions: ListChecks,
 };
 

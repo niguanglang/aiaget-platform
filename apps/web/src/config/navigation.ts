@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   ArchiveRestore,
+  BarChart3,
   Bot,
   BookOpen,
   Boxes,
@@ -51,6 +52,7 @@ const moduleIconMap: Record<string, LucideIcon> = {
   delivery_assets: ArchiveRestore,
   customer_success_plans: TrendingUp,
   customer_success_actions: ListChecks,
+  customer_success_opportunities: BarChart3,
   channels: RadioTower,
   customer_assessments: ClipboardList,
   prompts: FileText,

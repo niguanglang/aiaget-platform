@@ -153,6 +153,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M124 客户成功计划中心](./m124-customer-success-plan-center.md)
 - [M125 客户成功行动中心](./m125-customer-success-action-center.md)
 - [M126 客户成功续约机会中心](./m126-customer-success-opportunity-center.md)
+- [M127 客户成功续约机会分析](./m127-customer-success-opportunity-analytics.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

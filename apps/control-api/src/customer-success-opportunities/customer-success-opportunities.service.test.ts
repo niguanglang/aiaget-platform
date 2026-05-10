@@ -257,6 +257,105 @@ test('customer success opportunities reject action bindings outside the selected
   );
 });
 
+test('customer success opportunity analytics aggregate funnel, risk and upcoming close opportunities', async () => {
+  const records = [
+    opportunityRecord({
+      id: 'opportunity-proposal',
+      name: 'A 客户二期扩展机会',
+      code: 'a_expansion',
+      customerName: 'A 客户',
+      opportunityType: 'EXPANSION',
+      stage: 'PROPOSAL',
+      status: 'OPEN',
+      riskLevel: 'LOW',
+      opportunityScore: 90,
+      estimatedAmount: '600000.00',
+      probability: 70,
+      expectedCloseAt: new Date('2026-06-10T10:00:00.000Z'),
+    }),
+    opportunityRecord({
+      id: 'opportunity-risk',
+      name: 'B 客户风险挽留机会',
+      code: 'b_risk_save',
+      customerName: 'B 客户',
+      opportunityType: 'RISK_SAVE',
+      stage: 'NEGOTIATION',
+      status: 'AT_RISK',
+      riskLevel: 'HIGH',
+      opportunityScore: 58,
+      estimatedAmount: '400000.00',
+      probability: 50,
+      expectedCloseAt: new Date('2026-05-20T10:00:00.000Z'),
+    }),
+    opportunityRecord({
+      id: 'opportunity-won',
+      name: 'C 客户续约赢单机会',
+      code: 'c_renewal_won',
+      customerName: 'C 客户',
+      opportunityType: 'RENEWAL',
+      stage: 'WON',
+      status: 'WON',
+      riskLevel: 'LOW',
+      opportunityScore: 96,
+      estimatedAmount: '800000.00',
+      probability: 100,
+      expectedCloseAt: new Date('2026-04-01T10:00:00.000Z'),
+      closedAt: new Date('2026-04-03T10:00:00.000Z'),
+    }),
+    opportunityRecord({
+      id: 'opportunity-lost',
+      name: 'D 客户交叉销售输单机会',
+      code: 'd_cross_sell_lost',
+      customerName: 'D 客户',
+      opportunityType: 'CROSS_SELL',
+      stage: 'LOST',
+      status: 'LOST',
+      riskLevel: 'MEDIUM',
+      opportunityScore: 40,
+      estimatedAmount: '200000.00',
+      probability: 20,
+      expectedCloseAt: new Date('2026-03-01T10:00:00.000Z'),
+      closedAt: new Date('2026-03-15T10:00:00.000Z'),
+    }),
+  ];
+  const prisma = {
+    customerSuccessOpportunity: {
+      findMany: async () => records,
+    },
+  };
+  const dataScopeQuery = {
+    buildWhere: async () => ({
+      applied: true,
+      reason: '测试数据范围',
+      where: { ownerId: 'user-1' },
+    }),
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never, dataScopeQuery as never);
+
+  const analytics = await service.analytics(currentUser);
+
+  assert.equal(analytics.summary.total_count, 4);
+  assert.equal(analytics.summary.open_count, 1);
+  assert.equal(analytics.summary.at_risk_count, 1);
+  assert.equal(analytics.summary.won_count, 1);
+  assert.equal(analytics.summary.lost_count, 1);
+  assert.equal(analytics.summary.total_estimated_amount, 2000000);
+  assert.equal(analytics.summary.weighted_amount, 1460000);
+  assert.equal(analytics.summary.average_probability, 60);
+  assert.equal(analytics.summary.average_score, 71);
+  assert.equal(analytics.summary.conversion_rate, 50);
+  assert.equal(analytics.summary.risk_rate, 25);
+  assert.equal(analytics.stage_funnel.find((item) => item.stage === 'PROPOSAL')?.count, 1);
+  assert.equal(analytics.stage_funnel.find((item) => item.stage === 'WON')?.amount, 800000);
+  assert.equal(analytics.type_breakdown.find((item) => item.key === 'RISK_SAVE')?.count, 1);
+  assert.equal(analytics.risk_breakdown.find((item) => item.key === 'HIGH')?.weighted_amount, 200000);
+  assert.equal(analytics.top_opportunities[0]?.id, 'opportunity-won');
+  assert.deepEqual(
+    analytics.upcoming_closes.map((item) => item.id),
+    ['opportunity-risk', 'opportunity-proposal'],
+  );
+});
+
 function getWrite(writes: Array<{ type: string; data: Record<string, unknown> }>, type: string) {
   const found = writes.find((write) => write.type === type);
   assert.ok(found, `missing write ${type}`);

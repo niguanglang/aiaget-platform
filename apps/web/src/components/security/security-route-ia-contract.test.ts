@@ -163,6 +163,10 @@ test('security event detail page owns detail lookup without list filters', () =>
   assert.match(source, /安全事件详情/);
   assert.match(source, /getSecurityCenterEvent/);
   assert.match(source, /请求摘要/);
+  assert.match(source, /审批导出字段清单/);
+  assert.match(source, /通知归档筛选字段/);
+  assert.match(source, /exported_fields/);
+  assert.match(source, /notification_archive_filter_fields/);
   assert.match(source, /主体 \/ 资源 \/ 上下文/);
   assert.doesNotMatch(source, /listSecurityCenterEvents/);
   assert.doesNotMatch(source, /\bsetKeyword\b/);

@@ -172,6 +172,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M143 审批工作台导出筛选上下文](./m143-approval-workbench-export-filter-context.md)
 - [M144 审批导出筛选上下文前端提示](./m144-approval-export-filter-context-frontend-notice.md)
 - [M145 审批导出审计字段清单](./m145-approval-export-audit-field-ledger.md)
+- [M146 安全事件导出字段摘要](./m146-security-event-export-field-summary.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

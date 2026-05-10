@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-10T11:39:47.282544+00:00",
+  "page": "m146-安全事件导出字段摘要",
+  "route": "/security/events/[id]",
+  "feature": "安全事件详情以摘要区展示审批导出字段清单和通知归档筛选字段",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

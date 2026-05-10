@@ -129,6 +129,8 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
             </Card>
           </section>
 
+          <ExportFieldSummary context={event.context} />
+
           <Card className="grid gap-3 p-5">
             <h2 className="text-sm font-semibold">主体 / 资源 / 上下文</h2>
             <div className="grid gap-3 lg:grid-cols-3">
@@ -141,6 +143,51 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
       )}
     </main>
   );
+}
+
+function ExportFieldSummary({ context }: { context: Record<string, unknown> | null }) {
+  const exportedFields = stringArray(context?.exported_fields);
+  const notificationArchiveFilterFields = stringArray(context?.notification_archive_filter_fields);
+  if (exportedFields.length === 0 && notificationArchiveFilterFields.length === 0) return null;
+
+  return (
+    <Card className="grid gap-4 p-5">
+      <div>
+        <h2 className="text-sm font-semibold">审批导出字段清单</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          审批工作台导出事件的 CSV 字段范围，通知归档筛选字段单独标记，便于审计复核。
+        </p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <FieldChipGroup fields={exportedFields} title="导出字段" />
+        <FieldChipGroup fields={notificationArchiveFilterFields} title="通知归档筛选字段" />
+      </div>
+    </Card>
+  );
+}
+
+function FieldChipGroup({ fields, title }: { fields: string[]; title: string }) {
+  return (
+    <div className="grid gap-2 rounded-md border bg-muted/15 p-3">
+      <div className="text-xs font-medium text-muted-foreground">{title}</div>
+      {fields.length === 0 ? (
+        <div className="text-sm text-muted-foreground">暂无字段</div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {fields.map((field) => (
+            <span className="rounded-md border bg-background/80 px-2 py-1 text-xs text-muted-foreground" key={field}>
+              {field}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function stringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
 function TraceLine({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

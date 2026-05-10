@@ -267,6 +267,21 @@ test('alerts page exports current unified approval filters with guarded Chinese 
   assert.match(source, /disabled=\{!canViewApprovals \|\| approvalTotal === 0 \|\| exportMutation\.isPending/);
 });
 
+test('alerts page keeps notification audit export field ledger lightweight', () => {
+  const source = readSource(childComponents.alerts);
+
+  assert.match(source, /通知审计字段账本/);
+  assert.match(source, /导出字段清单/);
+  assert.match(source, /通知归档筛选字段/);
+  assert.match(source, /CSV 已包含导出字段清单和通知归档筛选字段/);
+  assert.match(source, /notificationExportFieldLedgerCount/);
+  assert.match(source, /exported_fields/);
+  assert.match(source, /notification_archive_filter_fields/);
+  assert.match(source, /字段账本/);
+  assert.doesNotMatch(source, /JsonBlock value=\{item/);
+  assert.doesNotMatch(source, /完整字段清单在列表中展开/);
+});
+
 test('alerts page exposes approval workbench export operations metrics and alert lifecycle actions', () => {
   const source = readSource(childComponents.alerts);
 

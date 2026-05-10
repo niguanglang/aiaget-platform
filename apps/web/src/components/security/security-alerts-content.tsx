@@ -204,6 +204,9 @@ export function SecurityAlertsContent() {
   const selectedApproval = approvalDetailQuery.data;
   const notifications = notificationQuery.data?.items ?? [];
   const notificationTotal = notificationQuery.data?.summary.total_count ?? 0;
+  const notificationExportFieldLedgerCount = notifications.filter(
+    (item) => item.exported_fields.length > 0 || item.notification_archive_filter_fields.length > 0,
+  ).length;
   const alerts = securityOverview?.approval_operations.operational_alerts ?? [];
   const slaItems = slaQuery.data?.items ?? [];
   const approvalOperations = securityOverview?.approval_operations;
@@ -281,7 +284,9 @@ export function SecurityAlertsContent() {
     onSuccess: (blob) => {
       downloadBlob(blob, `安全运营通知审计-${new Date().toISOString().slice(0, 10)}.csv`);
       setNotificationAuditError(null);
-      setNotificationAuditNotice(`通知审计导出完成，当前筛选命中 ${formatNumber(notificationTotal)} 条。`);
+      setNotificationAuditNotice(
+        `通知审计导出完成，当前筛选命中 ${formatNumber(notificationTotal)} 条，CSV 已包含导出字段清单和通知归档筛选字段。`,
+      );
     },
     onError: (error: ApiClientError) => {
       setNotificationAuditNotice(null);
@@ -624,6 +629,9 @@ export function SecurityAlertsContent() {
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">通知审计</h2>
             <p className="mt-1 text-sm text-muted-foreground">按状态、来源和关键词检索运营告警通知审计，当前筛选可导出 CSV 或创建对象存储归档。</p>
+            <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
+              通知审计字段账本：当前页 {formatNumber(notificationExportFieldLedgerCount)} 条通知带有字段账本，导出 CSV 已包含导出字段清单和通知归档筛选字段。
+            </div>
             <div className="mt-4 grid gap-2 md:grid-cols-[170px_230px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setNotificationStatus(event.target.value as SecurityOperationAlertNotificationStatus | '')} value={notificationStatus}>
                 <option value="">全部状态</option>
@@ -682,6 +690,11 @@ export function SecurityAlertsContent() {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
                       <StatusBadge tone="planned">{item.alert_category_label}</StatusBadge>
+                      {item.exported_fields.length > 0 || item.notification_archive_filter_fields.length > 0 ? (
+                        <StatusBadge tone="mock">
+                          字段账本 {item.exported_fields.length} / {item.notification_archive_filter_fields.length}
+                        </StatusBadge>
+                      ) : null}
                       <span className="font-medium">{shortId(item.alert_id)}</span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.message}</p>

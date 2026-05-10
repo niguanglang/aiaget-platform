@@ -174,6 +174,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M145 审批导出审计字段清单](./m145-approval-export-audit-field-ledger.md)
 - [M146 安全事件导出字段摘要](./m146-security-event-export-field-summary.md)
 - [M147 审批导出通知审计字段账本](./m147-approval-export-notification-field-ledger.md)
+- [M148 通知审计字段账本前端提示](./m148-notification-audit-field-ledger-frontend.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

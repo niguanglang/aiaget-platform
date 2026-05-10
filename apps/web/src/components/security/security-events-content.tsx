@@ -221,6 +221,7 @@ function SecurityEventRow({
         <p className="mt-1 break-all text-xs text-muted-foreground">
           {event.method} {event.path} · request_id {event.request_id}
         </p>
+        <SecurityEventFieldLedgerChips event={event} />
       </div>
       <div className="text-sm text-muted-foreground">资源：{event.resource_type ?? '暂无'}</div>
       <div className="text-sm text-muted-foreground">{formatDateTime(event.occurred_at)}</div>
@@ -229,5 +230,29 @@ function SecurityEventRow({
           <ArrowRight className="size-4" />
       </div>
     </Link>
+  );
+}
+
+function SecurityEventFieldLedgerChips({ event }: { event: SecurityCenterEventListItem }) {
+  if (event.has_export_field_ledger !== true) return null;
+
+  const chips = [
+    { label: '字段账本', value: '已保留' },
+    typeof event.exported_field_count === 'number' && event.exported_field_count > 0
+      ? { label: '导出字段', value: `${event.exported_field_count} 项` }
+      : null,
+    typeof event.notification_archive_filter_field_count === 'number' && event.notification_archive_filter_field_count > 0
+      ? { label: '归档筛选字段', value: `${event.notification_archive_filter_field_count} 项` }
+      : null,
+  ].filter((chip): chip is { label: string; value: string } => Boolean(chip));
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {chips.map((chip) => (
+        <span className="rounded-md border bg-background/80 px-2 py-1 text-xs text-muted-foreground" key={chip.label}>
+          {chip.label}：{chip.value}
+        </span>
+      ))}
+    </div>
   );
 }

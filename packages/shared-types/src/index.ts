@@ -3319,6 +3319,9 @@ export interface SecurityCenterEventListItem extends SecurityCenterDenialItem {
   has_trace: boolean;
   source_record_type: 'security_event' | 'operation_log' | 'security_policy_evaluation' | 'platform_event';
   source_record_id: string;
+  has_export_field_ledger?: boolean;
+  exported_field_count?: number;
+  notification_archive_filter_field_count?: number;
 }
 
 export interface SecurityCenterEventDetail extends SecurityCenterEventListItem {

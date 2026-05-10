@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-10T15:13:47.577910+00:00",
+  "page": "M154 安全事件字段账本计数",
+  "route": "/security/events",
+  "feature": "安全事件列表轻量展示审批导出字段账本计数",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

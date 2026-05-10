@@ -144,6 +144,12 @@ test('events page owns security event tracing data flow and Chinese page respons
   assert.match(source, /安全事件/);
   assert.match(source, /事件列表/);
   assert.match(source, /Trace/);
+  assert.match(source, /字段账本/);
+  assert.match(source, /导出字段/);
+  assert.match(source, /归档筛选字段/);
+  assert.match(source, /has_export_field_ledger/);
+  assert.match(source, /exported_field_count/);
+  assert.match(source, /notification_archive_filter_field_count/);
   assert.match(source, /listSecurityCenterEvents/);
   assert.match(source, /\/security\/events\/\$\{encodeURIComponent\(event\.id\)\}/);
   assert.doesNotMatch(source, /\bselectedEventId\b/);
@@ -153,6 +159,8 @@ test('events page owns security event tracing data flow and Chinese page respons
   assert.doesNotMatch(source, /事件详情/);
   assert.doesNotMatch(source, /listSecurityPolicies/);
   assert.doesNotMatch(source, /listSecurityApprovalWorkbenchItems/);
+  assert.doesNotMatch(source, /exported_fields/);
+  assert.doesNotMatch(source, /notification_archive_filter_fields/);
 });
 
 test('security event detail page owns detail lookup without list filters', () => {

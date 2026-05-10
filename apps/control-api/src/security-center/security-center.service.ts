@@ -5506,6 +5506,7 @@ function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCe
   const exportedCount = typeof payload?.exported_count === 'number' ? payload.exported_count : 0;
   const exportedFields = stringArrayValue(payload?.exported_fields);
   const notificationArchiveFilterFields = stringArrayValue(payload?.notification_archive_filter_fields);
+  const hasExportFieldLedger = exportedFields.length > 0 || notificationArchiveFilterFields.length > 0;
 
   return {
     id: `platform:${item.id}`,
@@ -5541,11 +5542,17 @@ function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCe
       ? {
           filter,
           exported_count: exportedCount,
+          has_export_field_ledger: hasExportFieldLedger,
+          exported_field_count: exportedFields.length,
+          notification_archive_filter_field_count: notificationArchiveFilterFields.length,
           exported_fields: exportedFields,
           notification_archive_filter_fields: notificationArchiveFilterFields,
         }
       : {
           exported_count: exportedCount,
+          has_export_field_ledger: hasExportFieldLedger,
+          exported_field_count: exportedFields.length,
+          notification_archive_filter_field_count: notificationArchiveFilterFields.length,
           exported_fields: exportedFields,
           notification_archive_filter_fields: notificationArchiveFilterFields,
         },
@@ -5565,6 +5572,7 @@ function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCe
 }
 
 function stripEventDetail(event: SecurityCenterEventDetail): SecurityCenterEventListItem {
+  const exportFieldLedger = exportFieldLedgerSummary(event.context);
   return {
     id: event.id,
     source: event.source,
@@ -5584,7 +5592,27 @@ function stripEventDetail(event: SecurityCenterEventDetail): SecurityCenterEvent
     has_trace: event.has_trace,
     source_record_type: event.source_record_type,
     source_record_id: event.source_record_id,
+    ...(exportFieldLedger.has_export_field_ledger ? exportFieldLedger : {}),
   };
+}
+
+function exportFieldLedgerSummary(context: Record<string, unknown> | null | undefined) {
+  const exportedFieldCount = numericContextValue(context?.exported_field_count) ?? stringArrayValue(context?.exported_fields).length;
+  const notificationArchiveFilterFieldCount =
+    numericContextValue(context?.notification_archive_filter_field_count) ??
+    stringArrayValue(context?.notification_archive_filter_fields).length;
+  const hasExportFieldLedger =
+    context?.has_export_field_ledger === true || exportedFieldCount > 0 || notificationArchiveFilterFieldCount > 0;
+
+  return {
+    has_export_field_ledger: hasExportFieldLedger,
+    exported_field_count: exportedFieldCount,
+    notification_archive_filter_field_count: notificationArchiveFilterFieldCount,
+  };
+}
+
+function numericContextValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function stripSecurityCenterDenial(event: SecurityCenterEventDetail): SecurityCenterDenialItem {

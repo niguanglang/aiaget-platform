@@ -183,6 +183,63 @@ test('getEvent resolves approval workbench export context fields from platform e
   ]);
 });
 
+test('listEvents exposes approval workbench export field ledger counts without full field arrays', async () => {
+  const occurredAt = new Date('2026-05-08T08:00:00.000Z');
+  const prisma = {
+    securityEvent: {
+      findMany: async () => [],
+    },
+    operationLog: {
+      findMany: async () => [],
+    },
+    securityPolicyEvaluation: {
+      findMany: async () => [],
+    },
+    platformEvent: {
+      findMany: async () => [
+        {
+          id: 'export-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          resourceType: 'SECURITY_APPROVAL_WORKBENCH',
+          resourceId: 'approval-workbench',
+          requestId: 'request-export',
+          traceId: 'trace-export',
+          eventSource: 'security_center',
+          eventType: 'platform.security.approval_workbench.exported',
+          status: 'SUCCESS',
+          severity: 'INFO',
+          summary: '统一安全审批工作台导出完成',
+          payloadJson: {
+            exported_count: 1,
+            filter: { status: 'PENDING' },
+            exported_fields: ['审批ID', '审批类型', '通知筛选来源'],
+            notification_archive_filter_fields: ['通知筛选来源', '通知筛选状态'],
+          },
+          occurredAt,
+          createdAt: occurredAt,
+          user: {
+            id: 'user-1',
+            name: '管理员',
+            email: 'admin@example.test',
+          },
+        },
+      ],
+    },
+    $transaction: async (queries: Array<Promise<unknown>>) => Promise.all(queries),
+  };
+  const service = new SecurityCenterService(prisma as never, null as never);
+
+  const result = await service.listEvents(buildUser(), { page: 1, page_size: 20, window: '24h' });
+
+  assert.equal(result.total, 1);
+  assert.equal(result.items[0]?.has_export_field_ledger, true);
+  assert.equal(result.items[0]?.exported_field_count, 3);
+  assert.equal(result.items[0]?.notification_archive_filter_field_count, 2);
+  assert.equal('exported_fields' in (result.items[0] as unknown as Record<string, unknown>), false);
+  assert.equal('notification_archive_filter_fields' in (result.items[0] as unknown as Record<string, unknown>), false);
+});
+
 function buildUser() {
   return {
     id: 'user-1',

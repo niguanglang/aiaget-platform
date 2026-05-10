@@ -11,6 +11,73 @@ type AggregateWhere = {
   resourceId?: string | null;
 };
 
+test('billing overview maps customer success opportunity adjustment source to a detail link', async () => {
+  const { BillingService } = await import('./billing.service');
+  const adjustment = buildAdjustment({
+    sourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    sourceId: 'opportunity-1',
+    reason: '续约机会成交入账：华中设计院二期续约扩展机会',
+  });
+  const prisma = {
+    $transaction: async (queries: unknown[]) => Promise.all(queries),
+    modelCallLog: {
+      findMany: async () => [],
+    },
+    apiKey: {
+      findMany: async () => [],
+    },
+    conversationRun: {
+      findMany: async () => [],
+    },
+    billingPlan: {
+      findMany: async () => [],
+    },
+    tenantSubscription: {
+      findFirst: async () => null,
+    },
+    billingInvoice: {
+      findMany: async () => [],
+    },
+    billingQuotaPolicy: {
+      findMany: async () => [],
+    },
+    platformUsageEvent: {
+      findMany: async () => [],
+    },
+    billingAdjustment: {
+      findMany: async () => [adjustment],
+    },
+    customerSuccessOpportunity: {
+      findMany: async (args: { where: { tenantId: string; id: { in: string[] }; deletedAt: null }; select: Record<string, boolean> }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.deepEqual(args.where.id.in, ['opportunity-1']);
+        assert.equal(args.where.deletedAt, null);
+        assert.equal(args.select.id, true);
+        assert.equal(args.select.name, true);
+        return [
+          {
+            id: 'opportunity-1',
+            name: '华中设计院二期续约扩展机会',
+          },
+        ];
+      },
+    },
+  };
+  const service = new BillingService(
+    prisma as never,
+    { recordEvent: async () => ({ id: 'event-1' }) } as never,
+  );
+  (service as unknown as { ensureCommercialDefaults: () => Promise<void> }).ensureCommercialDefaults = async () => {};
+  (service as unknown as { syncCurrentBillingInvoice: () => Promise<null> }).syncCurrentBillingInvoice = async () => null;
+
+  const overview = await service.getOverview(buildUser(), '24h');
+
+  assert.equal(overview.adjustments.length, 1);
+  assert.equal(overview.adjustments[0]?.source_type, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+  assert.equal(overview.adjustments[0]?.source_label, '续约机会：华中设计院二期续约扩展机会');
+  assert.equal(overview.adjustments[0]?.source_href, '/customer-success-opportunities/opportunity-1');
+});
+
 test('enforceQuota aggregates concrete cost metrics and records a blocked event', async () => {
   const { BillingService } = await import('./billing.service');
   const events: Array<Record<string, unknown>> = [];
@@ -217,6 +284,34 @@ function buildUser() {
     permissions: ['billing:center:view'],
     requestId: 'request-1',
     traceId: 'trace-1',
+  };
+}
+
+function buildAdjustment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'adjustment-1',
+    tenantId: 'tenant-1',
+    invoiceId: null,
+    invoice: null,
+    adjustmentNo: 'ADJ-20260510-0001',
+    type: 'DEBIT',
+    status: 'APPLIED',
+    currency: 'USD',
+    amount: 680000,
+    reason: '续约机会成交入账',
+    description: '客户已确认二期续约扩展合同，进入商务入账。',
+    effectiveAt: new Date('2026-05-10T10:00:00.000Z'),
+    approvedAt: new Date('2026-05-10T10:00:00.000Z'),
+    approvedBy: 'user-1',
+    sourceType: 'MANUAL',
+    sourceId: 'user-1',
+    metadata: null,
+    createdAt: new Date('2026-05-10T10:00:00.000Z'),
+    updatedAt: new Date('2026-05-10T10:00:00.000Z'),
+    deletedAt: null,
+    createdBy: 'user-1',
+    updatedBy: 'user-1',
+    ...overrides,
   };
 }
 

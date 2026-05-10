@@ -7709,6 +7709,8 @@ export interface BillingAdjustmentItem {
   approved_by: string | null;
   source_type: string | null;
   source_id: string | null;
+  source_label?: string | null;
+  source_href?: string | null;
   created_at: string;
   updated_at: string;
 }

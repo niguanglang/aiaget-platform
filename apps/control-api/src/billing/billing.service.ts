@@ -196,6 +196,7 @@ export class BillingService {
       .filter((item) => item.status === 'APPROVED' || item.status === 'APPLIED')
       .map((item) => signedAdjustmentAmount(item.type, Number(item.amount)))));
     const nextInvoiceAmount = Math.max(0, (mappedSubscription?.base_price ?? 0) + overageCost + adjustmentTotal);
+    const mappedAdjustments = await this.mapAdjustments(currentUser, adjustments);
 
     return {
       generated_at: new Date().toISOString(),
@@ -229,7 +230,7 @@ export class BillingService {
       subscription: mappedSubscription,
       invoices: invoices.map(mapInvoice),
       quota_policies: mappedQuotaPolicies,
-      adjustments: adjustments.map(mapAdjustment),
+      adjustments: mappedAdjustments,
       cost_trend: buildCostTrend(modelLogs, conversationRuns, normalizedWindow),
       provider_costs: buildProviderCosts(modelLogs),
       model_costs: buildModelCosts(modelLogs),
@@ -498,7 +499,7 @@ export class BillingService {
 
     return {
       invoice: mapInvoice(invoice),
-      adjustments: invoice.adjustments.map(mapAdjustment),
+      adjustments: await this.mapAdjustments(currentUser, invoice.adjustments),
     };
   }
 
@@ -722,6 +723,48 @@ export class BillingService {
     });
     if (!adjustment) throw new NotFoundException('Billing adjustment not found');
     return adjustment;
+  }
+
+  private async mapAdjustments(
+    currentUser: AuthenticatedUser,
+    adjustments: BillingAdjustmentRecord[],
+  ): Promise<BillingAdjustmentItem[]> {
+    const sourceMap = await this.resolveAdjustmentSources(currentUser, adjustments);
+    return adjustments.map((adjustment) => mapAdjustment(adjustment, sourceMap.get(adjustmentSourceKey(adjustment.sourceType, adjustment.sourceId))));
+  }
+
+  private async resolveAdjustmentSources(
+    currentUser: AuthenticatedUser,
+    adjustments: BillingAdjustmentRecord[],
+  ): Promise<Map<string, BillingAdjustmentSourceInfo>> {
+    const opportunityIds = uniqueStrings(adjustments
+      .filter((adjustment) => adjustment.sourceType === 'CUSTOMER_SUCCESS_OPPORTUNITY')
+      .map((adjustment) => adjustment.sourceId));
+    const sourceMap = new Map<string, BillingAdjustmentSourceInfo>();
+
+    if (opportunityIds.length > 0) {
+      const opportunities = await this.prisma.customerSuccessOpportunity.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          id: {
+            in: opportunityIds,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+      for (const opportunity of opportunities) {
+        sourceMap.set(adjustmentSourceKey('CUSTOMER_SUCCESS_OPPORTUNITY', opportunity.id), {
+          label: `续约机会：${opportunity.name}`,
+          href: `/customer-success-opportunities/${opportunity.id}`,
+        });
+      }
+    }
+
+    return sourceMap;
   }
 
   private async findInvoice(currentUser: AuthenticatedUser, id: string): Promise<BillingInvoiceRecord> {
@@ -1449,6 +1492,10 @@ type BillingInvoiceWithDetailsRecord = Prisma.BillingInvoiceGetPayload<{
 type BillingAdjustmentBaseRecord = Prisma.BillingAdjustmentGetPayload<object>;
 type BillingAdjustmentRecord = Prisma.BillingAdjustmentGetPayload<{ include: { invoice: true } }>;
 type BillingQuotaPolicyRecord = Prisma.BillingQuotaPolicyGetPayload<object>;
+type BillingAdjustmentSourceInfo = {
+  label: string;
+  href: string;
+};
 
 const DEFAULT_BILLING_PLANS = [
   {
@@ -1767,7 +1814,7 @@ function mapInvoice(invoice: BillingInvoiceRecord): BillingInvoiceItem {
   };
 }
 
-function mapAdjustment(adjustment: BillingAdjustmentRecord): BillingAdjustmentItem {
+function mapAdjustment(adjustment: BillingAdjustmentRecord, sourceInfo?: BillingAdjustmentSourceInfo): BillingAdjustmentItem {
   const amount = Number(adjustment.amount);
 
   return {
@@ -1787,9 +1834,25 @@ function mapAdjustment(adjustment: BillingAdjustmentRecord): BillingAdjustmentIt
     approved_by: adjustment.approvedBy,
     source_type: adjustment.sourceType,
     source_id: adjustment.sourceId,
+    source_label: sourceInfo?.label ?? fallbackAdjustmentSourceLabel(adjustment.sourceType),
+    source_href: sourceInfo?.href ?? null,
     created_at: adjustment.createdAt.toISOString(),
     updated_at: adjustment.updatedAt.toISOString(),
   };
+}
+
+function adjustmentSourceKey(sourceType: string | null, sourceId: string | null) {
+  return `${sourceType ?? ''}:${sourceId ?? ''}`;
+}
+
+function uniqueStrings(values: Array<string | null>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function fallbackAdjustmentSourceLabel(sourceType: string | null) {
+  if (!sourceType || sourceType === 'MANUAL') return '手工调账';
+  if (sourceType === 'CUSTOMER_SUCCESS_OPPORTUNITY') return '续约机会';
+  return sourceType;
 }
 
 function mapQuotaPolicy(

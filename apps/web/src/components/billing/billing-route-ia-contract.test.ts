@@ -202,3 +202,18 @@ test('invoice write actions are gated by billing adjustment manage permission on
   assert.match(invoiceDetailSource, /确认账单操作/);
   assert.match(invoiceDetailSource, /disabled=\{!canManage \|\| pendingActionId === invoice\.id\}/);
 });
+
+test('billing adjustments list shows source trace link without owning renewal opportunity mutations', () => {
+  const adjustmentsSource = readSource(join(componentsRoot, 'billing-adjustments-content.tsx'));
+
+  assert.match(adjustmentsSource, /AdjustmentSourceCell/);
+  assert.match(adjustmentsSource, /source_label/);
+  assert.match(adjustmentsSource, /source_href/);
+  assert.match(adjustmentsSource, /href=\{item\.source_href\}/);
+  assert.match(adjustmentsSource, /续约机会/);
+  assert.match(adjustmentsSource, /手工调账/);
+
+  assert.doesNotMatch(adjustmentsSource, /closeWonCustomerSuccessOpportunity/);
+  assert.doesNotMatch(adjustmentsSource, /customerSuccessOpportunityMutation/);
+  assert.doesNotMatch(adjustmentsSource, /成交入账闭环/);
+});

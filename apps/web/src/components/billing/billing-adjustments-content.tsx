@@ -3,6 +3,7 @@
 import { hasPermission, type BillingAdjustmentStatus, type BillingAdjustmentType, type BillingInvoiceItem, type BillingWindow } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardCheck, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
@@ -268,10 +269,10 @@ function AdjustmentTable({
         <EmptyState description="暂无退款、折扣、补收或纠错记录。" title="暂无调账单" />
       ) : (
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[920px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                {['调账单', '类型', '状态', '金额', '关联账单', '原因', '创建时间', '操作'].map((column) => (
+                {['调账单', '类型', '状态', '金额', '关联账单', '来源', '原因', '创建时间', '操作'].map((column) => (
                   <th className="px-3 py-2 font-medium text-muted-foreground" key={column}>{column}</th>
                 ))}
               </tr>
@@ -284,6 +285,7 @@ function AdjustmentTable({
                   <td className="px-3 py-2"><StatusBadge tone={adjustmentStatusTone(item.status)}>{adjustmentStatusLabels[item.status]}</StatusBadge></td>
                   <td className="px-3 py-2 font-medium">{formatSignedMoney(item.signed_amount)}</td>
                   <td className="px-3 py-2 text-muted-foreground">{item.invoice_no ?? '-'}</td>
+                  <td className="max-w-[220px] px-3 py-2"><AdjustmentSourceCell item={item} /></td>
                   <td className="max-w-[220px] truncate px-3 py-2 text-muted-foreground">{item.reason}</td>
                   <td className="px-3 py-2 text-muted-foreground">{formatDateShort(item.created_at)}</td>
                   <td className="px-3 py-2">
@@ -321,6 +323,23 @@ function AdjustmentTable({
   );
 }
 
+function AdjustmentSourceCell({
+  item,
+}: {
+  item: NonNullable<Awaited<ReturnType<typeof getBillingOverview>>>['adjustments'][number];
+}) {
+  const label = item.source_label || sourceTypeFallback(item.source_type);
+  if (item.source_href) {
+    return (
+      <Link className="block truncate font-medium text-primary transition-colors hover:text-primary/80" href={item.source_href} title={label}>
+        {label}
+      </Link>
+    );
+  }
+
+  return <span className="block truncate text-muted-foreground" title={label}>{label}</span>;
+}
+
 function countByStatus(items: Array<{ status: BillingAdjustmentStatus }>, status: BillingAdjustmentStatus) {
   return items.filter((item) => item.status === status).length;
 }
@@ -329,4 +348,10 @@ function runAdjustmentAction(id: string, action: AdjustmentAction, reason?: stri
   if (action === 'approve') return approveBillingAdjustment(id, { reason });
   if (action === 'apply') return applyBillingAdjustment(id, { reason });
   return voidBillingAdjustment(id, { reason: reason || '运营作废' });
+}
+
+function sourceTypeFallback(sourceType: string | null) {
+  if (!sourceType || sourceType === 'MANUAL') return '手工调账';
+  if (sourceType === 'CUSTOMER_SUCCESS_OPPORTUNITY') return '续约机会';
+  return sourceType;
 }

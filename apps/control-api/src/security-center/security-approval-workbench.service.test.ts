@@ -73,10 +73,16 @@ test('approval workbench preserves operation alert notification archive filter c
   assert.equal(detail.metadata.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
   assert.equal(detail.metadata.alert_category_label, '客户成功复盘归档删除');
   assert.equal(detail.metadata.keyword, 'trace-customer');
+  assert.equal(detail.metadata.has_export_field_ledger, true);
+  assert.equal(detail.metadata.exported_field_count, 3);
+  assert.equal(detail.metadata.notification_archive_filter_field_count, 3);
   assert.equal(detail.timeline[0]?.status_filter, 'SENT');
   assert.equal(detail.timeline[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
   assert.equal(detail.timeline[0]?.alert_category_label, '客户成功复盘归档删除');
   assert.equal(detail.timeline[0]?.keyword, 'trace-customer');
+  assert.equal(detail.timeline[0]?.has_export_field_ledger, true);
+  assert.equal(detail.timeline[0]?.exported_field_count, 3);
+  assert.equal(detail.timeline[0]?.notification_archive_filter_field_count, 3);
 });
 
 test('approval workbench includes recovery audit archive delete approvals and forwards decisions', async () => {
@@ -391,6 +397,9 @@ function buildPrisma() {
                 alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
                 alert_category_label: '客户成功复盘归档删除',
                 keyword: 'trace-customer',
+                has_export_field_ledger: true,
+                exported_field_count: 3,
+                notification_archive_filter_field_count: 3,
               },
             ),
           ];

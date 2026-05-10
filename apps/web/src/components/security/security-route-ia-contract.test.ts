@@ -209,6 +209,12 @@ test('alerts page completes unified approval detail and review workflow', () => 
   assert.match(source, /approvalRiskDomain/);
   assert.match(source, /来源扩展信息/);
   assert.match(source, /审批时间线/);
+  assert.match(source, /WorkbenchFieldLedgerSummary/);
+  assert.match(source, /workbenchFieldLedgerSummary/);
+  assert.match(source, /通知归档字段账本/);
+  assert.match(source, /has_export_field_ledger/);
+  assert.match(source, /exported_field_count/);
+  assert.match(source, /notification_archive_filter_field_count/);
   assert.match(source, /通过审批/);
   assert.match(source, /拒绝审批/);
   assert.match(source, /确认通过审批/);

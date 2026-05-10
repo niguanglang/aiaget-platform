@@ -917,6 +917,8 @@ function ApprovalDetailPanel({
             </section>
           ) : null}
 
+          <WorkbenchFieldLedgerSummary value={detail.metadata} />
+
           <section className="grid gap-3">
             <h3 className="text-sm font-semibold">来源扩展信息</h3>
             <JsonBlock value={detail.metadata} />
@@ -938,6 +940,7 @@ function ApprovalDetailPanel({
                       {formatDateTime(event.occurred_at)} · {event.actor?.name ?? '系统'} · Request {shortId(event.request_id)} · Trace {shortId(event.trace_id)}
                     </p>
                     {event.note ? <p className="mt-2 text-sm text-muted-foreground">{event.note}</p> : null}
+                    <WorkbenchFieldLedgerSummary compact value={event} />
                   </div>
                 ))
               )}
@@ -985,6 +988,56 @@ function ApprovalDetailPanel({
       )}
     </Card>
   );
+}
+
+function WorkbenchFieldLedgerSummary({ compact = false, value }: { compact?: boolean; value: unknown }) {
+  const items = workbenchFieldLedgerSummary(value);
+  if (items.length === 0) return null;
+
+  if (compact) {
+    return (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs text-primary" key={item.label}>
+            {item.label}：{item.value}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <section className="grid gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-primary md:grid-cols-3">
+      {items.map((item) => (
+        <span key={item.label}>{item.label}：{item.value}</span>
+      ))}
+    </section>
+  );
+}
+
+function workbenchFieldLedgerSummary(value: unknown) {
+  const source = objectRecord(value);
+  if (source.has_export_field_ledger !== true) return [];
+
+  const exportedFieldCount = numericWorkbenchField(source.exported_field_count);
+  const notificationArchiveFilterFieldCount = numericWorkbenchField(source.notification_archive_filter_field_count);
+
+  return [
+    { label: '通知归档字段账本', value: '已保留' },
+    exportedFieldCount > 0 ? { label: '导出字段', value: `${formatNumber(exportedFieldCount)} 项` } : null,
+    notificationArchiveFilterFieldCount > 0
+      ? { label: '归档筛选字段', value: `${formatNumber(notificationArchiveFilterFieldCount)} 项` }
+      : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+function numericWorkbenchField(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function approvalRiskDomainLabel(domain: SecurityApprovalWorkbenchRiskDomain) {

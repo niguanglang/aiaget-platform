@@ -719,6 +719,7 @@ function archiveTimelineMetadata(metadata: Record<string, unknown>) {
     opportunity_id: typeof metadata.opportunity_id === 'string' ? metadata.opportunity_id : inferred.opportunityId,
     opportunity_code: typeof metadata.opportunity_code === 'string' ? metadata.opportunity_code : null,
     ...archiveNotificationFilterContext(metadata),
+    ...archiveFieldLedgerContext(metadata),
   };
 }
 
@@ -742,6 +743,9 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     alert_category?: string | null;
     alert_category_label?: string | null;
     keyword?: string | null;
+    has_export_field_ledger?: boolean | null;
+    exported_field_count?: number | null;
+    notification_archive_filter_field_count?: number | null;
   };
   const archiveKey = raw.archive_key ?? '';
   const inferred = inferArchiveContext(archiveKey || null);
@@ -764,6 +768,9 @@ function archiveMetadata(event: SecurityApprovalWorkbenchTimelineItem) {
     alert_category: nullableString(raw.alert_category),
     alert_category_label: nullableString(raw.alert_category_label),
     keyword: nullableString(raw.keyword),
+    has_export_field_ledger: raw.has_export_field_ledger === true,
+    exported_field_count: numericArchiveMetadata(raw.exported_field_count),
+    notification_archive_filter_field_count: numericArchiveMetadata(raw.notification_archive_filter_field_count),
   };
 }
 
@@ -774,6 +781,23 @@ function archiveNotificationFilterContext(metadata: Record<string, unknown>) {
     alert_category_label: nullableString(metadata.alert_category_label),
     keyword: nullableString(metadata.keyword),
   };
+}
+
+function archiveFieldLedgerContext(metadata: Record<string, unknown>) {
+  return {
+    has_export_field_ledger: metadata.has_export_field_ledger === true,
+    exported_field_count: numericArchiveMetadata(metadata.exported_field_count),
+    notification_archive_filter_field_count: numericArchiveMetadata(metadata.notification_archive_filter_field_count),
+  };
+}
+
+function numericArchiveMetadata(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 function normalizeNotificationArchiveStatusFilter(value: unknown) {

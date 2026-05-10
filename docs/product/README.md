@@ -178,6 +178,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M149 通知审计归档字段账本上下文](./m149-notification-audit-archive-field-ledger-context.md)
 - [M150 通知归档字段账本前端闭环](./m150-notification-archive-field-ledger-frontend.md)
 - [M151 归档删除审批字段账本上下文](./m151-archive-deletion-approval-field-ledger.md)
+- [M152 审批工作台详情字段账本](./m152-approval-workbench-detail-field-ledger.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

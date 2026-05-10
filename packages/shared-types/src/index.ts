@@ -2337,6 +2337,9 @@ export interface SecurityApprovalWorkbenchTimelineItem {
   alert_category?: string | null;
   alert_category_label?: string | null;
   keyword?: string | null;
+  has_export_field_ledger?: boolean;
+  exported_field_count?: number;
+  notification_archive_filter_field_count?: number;
 }
 
 export interface SecurityApprovalWorkbenchItem {

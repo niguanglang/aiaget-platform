@@ -1,10 +1,11 @@
 'use client';
 
 import type { BillingAdjustmentItem } from '@aiaget/shared-types';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ClipboardList, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ArrowLeft, ClipboardList, Download, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 
 import {
   adjustmentStatusLabels,
@@ -30,12 +31,25 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getCustomerSuccessOpportunityCloseWonReport } from '@/lib/api-client';
+import {
+  exportCustomerSuccessOpportunityCloseWonReport,
+  getCustomerSuccessOpportunityCloseWonReport,
+  type ApiClientError,
+} from '@/lib/api-client';
 
 export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId }: { opportunityId: string }) {
+  const [exportError, setExportError] = useState<string | null>(null);
   const reportQuery = useQuery({
     queryKey: ['customer-success-opportunity-close-won-report', opportunityId],
     queryFn: () => getCustomerSuccessOpportunityCloseWonReport(opportunityId),
+  });
+  const exportMutation = useMutation({
+    mutationFn: () => exportCustomerSuccessOpportunityCloseWonReport(opportunityId),
+    onSuccess: (blob) => {
+      setExportError(null);
+      downloadBlob(blob, closeWonReportFileName(reportQuery.data?.opportunity.code ?? opportunityId));
+    },
+    onError: (error: ApiClientError) => setExportError(error.message),
   });
 
   if (reportQuery.isLoading) {
@@ -107,8 +121,18 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
               审计追踪
             </Link>
           </Button>
+          <Button disabled={exportMutation.isPending} onClick={() => exportMutation.mutate()} variant="outline">
+            <Download className="size-4" />
+            {exportMutation.isPending ? '导出中...' : '导出报告'}
+          </Button>
         </div>
       </section>
+
+      {exportError ? (
+        <Card className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          导出报告失败：{exportError}
+        </Card>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard helper="机会原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
@@ -276,4 +300,20 @@ function InsightList({ icon, items, title }: { icon: ReactNode; items: string[];
 
 function resourceHref(module: string, id?: string | null) {
   return id ? `/${module}/${id}` : null;
+}
+
+function closeWonReportFileName(code: string) {
+  const safeCode = code.replace(/[^a-zA-Z0-9_-]/g, '-');
+  return `成交复盘报告-${safeCode}-${new Date().toISOString().slice(0, 10)}.md`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }

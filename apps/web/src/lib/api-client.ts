@@ -2335,6 +2335,33 @@ export function getCustomerSuccessOpportunityCloseWonReport(opportunityId: strin
   return request<CustomerSuccessOpportunityCloseWonReport>(`/customer-success-opportunities/${opportunityId}/close-won-report`);
 }
 
+export async function exportCustomerSuccessOpportunityCloseWonReport(opportunityId: string) {
+  const requestId = createRequestId();
+  const traceContext = createTraceContext();
+  const session = getStoredSession();
+  const headers = new Headers();
+
+  headers.set('accept', 'text/markdown');
+  headers.set('x-request-id', requestId);
+  headers.set('x-trace-id', traceContext.traceId);
+  headers.set('traceparent', traceContext.traceparent);
+
+  if (session?.accessToken) {
+    headers.set('authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(`${CONTROL_API_BASE_URL}/customer-success-opportunities/${opportunityId}/close-won-report/export`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    const message = (await response.text()) || `Request failed with HTTP ${response.status}`;
+    throw new ApiClientError(message, response.status, requestId);
+  }
+
+  return response.blob();
+}
+
 export function createCustomerSuccessOpportunityFollowUpAction(
   opportunityId: string,
   input: CreateCustomerSuccessOpportunityFollowUpActionInput,

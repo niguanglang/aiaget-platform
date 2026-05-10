@@ -257,6 +257,12 @@ export class CustomerSuccessOpportunitiesService {
     };
   }
 
+  async exportCloseWonReportMarkdown(currentUser: AuthenticatedUser, id: string): Promise<string> {
+    const report = await this.getCloseWonReport(currentUser, id);
+
+    return buildCloseWonReportMarkdown(report);
+  }
+
   async update(
     currentUser: AuthenticatedUser,
     id: string,
@@ -1183,6 +1189,76 @@ function buildCloseWonNextActions(
     '方法沉淀：把本次成交中的客户画像、决策路径和可复用资产整理进后续方案包或 Skill Hub。',
     '审计追踪：保留调账单号和审计链路，确保后续客户复盘、财务核算和内部审计可反查。',
   ];
+}
+
+function buildCloseWonReportMarkdown(report: CustomerSuccessOpportunityCloseWonReport) {
+  const lines = [
+    `# 成交复盘报告：${report.summary.opportunity_name}`,
+    '',
+    `- 客户：${report.summary.customer_name}`,
+    `- 生成时间：${formatReportDate(report.generated_at)}`,
+    `- 关闭时间：${formatReportDate(report.summary.closed_at)}`,
+    `- 预计金额：${formatReportMoney(report.summary.estimated_amount)}`,
+    `- 加权金额：${formatReportMoney(report.summary.weighted_amount)}`,
+    `- 成交金额：${formatReportMoney(report.summary.close_amount)}`,
+    `- 调账单数：${report.summary.adjustment_count}`,
+    '',
+    '## 客户价值复盘',
+    '',
+    `- 客户价值：${markdownLine(report.value_review.customer_value)}`,
+    `- 商务策略：${markdownLine(report.value_review.commercial_strategy)}`,
+    `- 决策路径：${markdownLine(report.value_review.decision_path)}`,
+    `- 风险摘要：${markdownLine(report.value_review.risk_summary)}`,
+    '',
+    '## 来源链路',
+    '',
+    `- 客户成功计划：${report.source_chain.customer_success_plan?.name ?? '未绑定'}`,
+    `- 成功行动：${report.source_chain.customer_success_action?.name ?? '未绑定'}`,
+    `- 交付复盘：${report.source_chain.delivery_review?.name ?? '未绑定'}`,
+    `- 成果资产：${report.source_chain.delivery_asset?.name ?? '未绑定'}`,
+    `- 方案包：${report.source_chain.solution_package?.name ?? '未绑定'}`,
+    '',
+    '## 入账追踪',
+    '',
+    ...markdownBillingTrace(report.billing_trace),
+    '',
+    '## 复盘要点',
+    '',
+    ...markdownList(report.replay_points),
+    '',
+    '## 下一步动作',
+    '',
+    ...markdownList(report.next_actions),
+    '',
+  ];
+
+  return lines.join('\n');
+}
+
+function markdownBillingTrace(adjustments: BillingAdjustmentItem[]) {
+  if (adjustments.length === 0) return ['暂无入账追踪记录。'];
+
+  return adjustments.flatMap((adjustment) => [
+    `- ${adjustment.adjustment_no}：${formatReportMoney(adjustment.signed_amount)}，状态 ${adjustment.status}，生效时间 ${formatReportDate(adjustment.effective_at)}。`,
+    `  - 原因：${markdownLine(adjustment.reason)}`,
+  ]);
+}
+
+function markdownList(items: string[]) {
+  if (items.length === 0) return ['暂无记录。'];
+
+  return items.map((item) => `- ${markdownLine(item)}`);
+}
+
+function markdownLine(value: string) {
+  return value.replace(/\s+/g, ' ').trim() || '暂无记录';
+}
+
+function formatReportDate(value: string | null | undefined) {
+  if (!value) return '-';
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
 function formatReportMoney(value: number) {

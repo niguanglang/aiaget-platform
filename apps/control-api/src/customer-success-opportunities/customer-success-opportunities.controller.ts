@@ -8,9 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import type {
   CustomerSuccessOpportunityAnalytics,
@@ -104,6 +106,27 @@ export class CustomerSuccessOpportunitiesController {
     @Param('id') id: string,
   ): Promise<CustomerSuccessOpportunityCloseWonReport> {
     return this.customerSuccessOpportunitiesService.getCloseWonReport(currentUser, id);
+  }
+
+  @Get(':id/close-won-report/export')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'Export close-won customer success opportunity review report as Markdown' })
+  async exportCloseWonReport(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Res() response: Response,
+  ) {
+    const markdown = await this.customerSuccessOpportunitiesService.exportCloseWonReportMarkdown(currentUser, id);
+    const fileName = `customer-success-close-won-report-${id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.md`;
+
+    response.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    response.send(`\uFEFF${markdown}`);
   }
 
   @Post(':id/follow-up-actions')

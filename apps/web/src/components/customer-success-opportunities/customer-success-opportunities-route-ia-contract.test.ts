@@ -135,7 +135,9 @@ test('customer success opportunity close won report owns read-only post-sale rev
 
   assert.match(detailSource, /close-won-report/);
   assert.match(reportSource, /getCustomerSuccessOpportunityCloseWonReport/);
+  assert.match(reportSource, /exportCustomerSuccessOpportunityCloseWonReport/);
   assert.match(reportSource, /成交复盘报告/);
+  assert.match(reportSource, /导出报告/);
   assert.match(reportSource, /客户价值复盘/);
   assert.match(reportSource, /来源链路/);
   assert.match(reportSource, /入账追踪/);
@@ -143,9 +145,12 @@ test('customer success opportunity close won report owns read-only post-sale rev
   assert.match(reportSource, /下一步动作/);
   assert.match(reportSource, /\/billing\/adjustments/);
   assert.match(reportSource, /\/audit\?keyword=/);
+  assert.match(reportSource, /\.md/);
   assert.doesNotMatch(reportSource, /closeWonCustomerSuccessOpportunity/);
   assert.doesNotMatch(reportSource, /createCustomerSuccessOpportunityFollowUpAction/);
   assert.doesNotMatch(reportSource, /updateCustomerSuccessOpportunity/);
   assert.doesNotMatch(listSource, /getCustomerSuccessOpportunityCloseWonReport/);
+  assert.doesNotMatch(listSource, /exportCustomerSuccessOpportunityCloseWonReport/);
   assert.doesNotMatch(analyticsSource, /getCustomerSuccessOpportunityCloseWonReport/);
+  assert.doesNotMatch(analyticsSource, /exportCustomerSuccessOpportunityCloseWonReport/);
 });

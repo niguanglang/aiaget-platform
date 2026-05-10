@@ -621,6 +621,40 @@ test('customer success opportunity close won report summarizes delivery value an
   assert.ok(report.next_actions.some((action) => action.includes('客户成功')));
 });
 
+test('customer success opportunity close won report exports markdown for offline review', async () => {
+  const billingAdjustment = billingAdjustmentRecord({
+    adjustmentNo: 'ADJ-20260718-0002',
+    amount: '680000.00',
+    reason: '续约机会成交入账：华中设计院二期续约扩展机会',
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () => opportunityRecord({
+        stage: 'WON',
+        status: 'WON',
+        probability: 100,
+        closedAt: new Date('2026-07-18T10:00:00.000Z'),
+      }),
+    },
+    billingAdjustment: {
+      findMany: async () => [billingAdjustment],
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+
+  const markdown = await service.exportCloseWonReportMarkdown(currentUser, 'opportunity-1');
+
+  assert.match(markdown, /^# 成交复盘报告：华中设计院二期续约扩展机会/m);
+  assert.match(markdown, /## 客户价值复盘/);
+  assert.match(markdown, /## 来源链路/);
+  assert.match(markdown, /## 入账追踪/);
+  assert.match(markdown, /ADJ-20260718-0002/);
+  assert.match(markdown, /680,000\.00/);
+  assert.match(markdown, /## 复盘要点/);
+  assert.match(markdown, /市场 > 业务理解/);
+  assert.match(markdown, /## 下一步动作/);
+});
+
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {
   const prisma = {
     customerSuccessOpportunity: {

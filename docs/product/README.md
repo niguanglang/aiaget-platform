@@ -157,6 +157,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M128 续约机会跟进行动闭环](./m128-customer-success-opportunity-follow-up-action.md)
 - [M129 续约机会成交入账闭环](./m129-customer-success-opportunity-close-won-adjustment.md)
 - [M130 调账来源追踪与续约机会回链](./m130-billing-adjustment-source-trace.md)
+- [M131 续约机会调账反向追踪](./m131-customer-success-opportunity-billing-reverse-trace.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

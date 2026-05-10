@@ -6111,6 +6111,7 @@ export interface CustomerSuccessOpportunityDetail extends CustomerSuccessOpportu
   next_action: string;
   loss_reason: string | null;
   notes: string | null;
+  billing_adjustments: BillingAdjustmentItem[];
 }
 
 export interface CustomerSuccessOpportunityAnalyticsSummary {

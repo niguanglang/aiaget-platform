@@ -56,6 +56,10 @@ test('customer success opportunity detail owns value, strategy, decision path, r
   assert.match(detailSource, /closeWonCustomerSuccessOpportunity/);
   assert.match(detailSource, /billing:adjustment:manage/);
   assert.match(detailSource, /确认成交入账/);
+  assert.match(detailSource, /billing_adjustments/);
+  assert.match(detailSource, /OpportunityAdjustmentTraceRow/);
+  assert.match(detailSource, /已关联调账/);
+  assert.match(detailSource, /审计追踪/);
 });
 
 test('customer success opportunity create and edit pages use the shared form panel', () => {
@@ -111,9 +115,13 @@ test('customer success opportunity close won billing workflow stays on detail pa
   assert.match(detailSource, /成交入账闭环/);
   assert.match(detailSource, /确认成交入账/);
   assert.match(detailSource, /\/billing\/adjustments/);
+  assert.match(detailSource, /\/audit\?keyword=/);
   assert.match(detailSource, /closeWonCustomerSuccessOpportunity/);
+  assert.match(detailSource, /billing_adjustments/);
   assert.doesNotMatch(listSource, /closeWonCustomerSuccessOpportunity/);
   assert.doesNotMatch(listSource, /确认成交入账/);
+  assert.doesNotMatch(listSource, /billing_adjustments/);
   assert.doesNotMatch(analyticsSource, /closeWonCustomerSuccessOpportunity/);
   assert.doesNotMatch(analyticsSource, /确认成交入账/);
+  assert.doesNotMatch(analyticsSource, /billing_adjustments/);
 });

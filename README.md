@@ -329,6 +329,7 @@ images/frontend-reference-design/续约机会分析/
 images/frontend-reference-design/续约机会跟进行动/
 images/frontend-reference-design/续约机会成交入账/
 images/frontend-reference-design/调账来源追踪/
+images/frontend-reference-design/续约机会调账反向追踪/
 ```
 
 Future frontend milestones should update this workspace or create a new one before implementing concrete pages.

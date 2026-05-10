@@ -217,8 +217,9 @@ export class CustomerSuccessOpportunitiesService {
 
   async get(currentUser: AuthenticatedUser, id: string): Promise<CustomerSuccessOpportunityDetail> {
     const opportunity = await this.findOpportunity(currentUser.tenantId, id);
+    const billingAdjustments = await this.findOpportunityBillingAdjustments(currentUser.tenantId, opportunity.id);
 
-    return this.mapDetail(opportunity);
+    return this.mapDetail(opportunity, billingAdjustments);
   }
 
   async update(
@@ -386,7 +387,7 @@ export class CustomerSuccessOpportunitiesService {
 
     return {
       action: this.mapActionDetail(action),
-      opportunity: this.mapDetail(updatedOpportunity),
+      opportunity: this.mapDetail(updatedOpportunity, []),
     };
   }
 
@@ -472,7 +473,7 @@ export class CustomerSuccessOpportunitiesService {
 
     return {
       adjustment: mapBillingAdjustment(adjustment),
-      opportunity: this.mapDetail(updatedOpportunity),
+      opportunity: this.mapDetail(updatedOpportunity, [adjustment]),
     };
   }
 
@@ -575,6 +576,23 @@ export class CustomerSuccessOpportunitiesService {
     }
 
     return opportunity;
+  }
+
+  private async findOpportunityBillingAdjustments(tenantId: string, opportunityId: string): Promise<BillingAdjustmentRecord[]> {
+    return this.prisma.billingAdjustment.findMany({
+      where: {
+        tenantId,
+        sourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+        sourceId: opportunityId,
+        deletedAt: null,
+      },
+      include: {
+        invoice: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
   private async validateReferences(
@@ -788,7 +806,10 @@ export class CustomerSuccessOpportunitiesService {
     };
   }
 
-  private mapDetail(opportunity: CustomerSuccessOpportunityRecord): CustomerSuccessOpportunityDetail {
+  private mapDetail(
+    opportunity: CustomerSuccessOpportunityRecord,
+    billingAdjustments: BillingAdjustmentRecord[] = [],
+  ): CustomerSuccessOpportunityDetail {
     return {
       ...this.mapListItem(opportunity),
       opportunity_summary: opportunity.opportunitySummary,
@@ -799,6 +820,7 @@ export class CustomerSuccessOpportunitiesService {
       next_action: opportunity.nextAction,
       loss_reason: opportunity.lossReason,
       notes: opportunity.notes,
+      billing_adjustments: billingAdjustments.map(mapBillingAdjustment),
     };
   }
 

@@ -258,6 +258,9 @@ test('customer success opportunities derive score and keep list summaries compac
     deliveryReview: { findFirst: async () => ({ id: 'review-1', solutionPackageId: 'package-1' }) },
     deliveryAsset: { findFirst: async () => ({ id: 'asset-1', solutionPackageId: 'package-1', deliveryReviewId: 'review-1' }) },
     solutionPackage: { findFirst: async () => ({ id: 'package-1' }) },
+    billingAdjustment: {
+      findMany: async () => [],
+    },
     $transaction: async (operations: Array<Promise<unknown>>) => Promise.all(operations),
   };
   const service = new CustomerSuccessOpportunitiesService(prisma as never);
@@ -513,6 +516,41 @@ test('customer success opportunity can close won and create a billing adjustment
   assert.equal(result.opportunity.stage, 'WON');
   assert.equal(result.adjustment.id, 'billing-adjustment-1');
   assert.equal(result.adjustment.source_type, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+});
+
+test('customer success opportunity detail includes source billing adjustments for reverse trace', async () => {
+  const billingAdjustment = billingAdjustmentRecord({
+    adjustmentNo: 'ADJ-20260718-0002',
+    reason: '续约机会成交入账：华中设计院二期续约扩展机会',
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async () => opportunityRecord({
+        stage: 'WON',
+        status: 'WON',
+        closedAt: new Date('2026-07-18T10:00:00.000Z'),
+      }),
+    },
+    billingAdjustment: {
+      findMany: async (args: { where: Record<string, unknown>; include: Record<string, boolean>; orderBy: Record<string, string> }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.equal(args.where.sourceType, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+        assert.equal(args.where.sourceId, 'opportunity-1');
+        assert.equal(args.where.deletedAt, null);
+        assert.equal(args.include.invoice, true);
+        assert.deepEqual(args.orderBy, { createdAt: 'desc' });
+        return [billingAdjustment];
+      },
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+
+  const detail = await service.get(currentUser, 'opportunity-1');
+
+  assert.equal(detail.billing_adjustments.length, 1);
+  assert.equal(detail.billing_adjustments[0]?.adjustment_no, 'ADJ-20260718-0002');
+  assert.equal(detail.billing_adjustments[0]?.source_type, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+  assert.equal(detail.billing_adjustments[0]?.source_id, 'opportunity-1');
 });
 
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { hasPermission } from '@aiaget/shared-types';
+import { hasPermission, type BillingAdjustmentItem } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit, ListChecks, ReceiptText } from 'lucide-react';
 import Link from 'next/link';
@@ -243,6 +243,7 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
         onAmountChange={setCloseWonAmount}
         onCreate={() => setConfirmCloseWon(true)}
         onReasonChange={setCloseWonReason}
+        opportunityAdjustments={item.billing_adjustments}
         opportunityAmount={item.estimated_amount}
         reason={closeWonReason}
         weightedAmount={item.weighted_amount}
@@ -423,6 +424,7 @@ function CloseWonAdjustmentCard({
   onAmountChange,
   onCreate,
   onReasonChange,
+  opportunityAdjustments,
   opportunityAmount,
   reason,
   weightedAmount,
@@ -436,11 +438,13 @@ function CloseWonAdjustmentCard({
   onAmountChange: (value: string) => void;
   onCreate: () => void;
   onReasonChange: (value: string) => void;
+  opportunityAdjustments: BillingAdjustmentItem[];
   opportunityAmount: number;
   reason: string;
   weightedAmount: number;
 }) {
   const canSubmit = canClose && !isClosed && !isPending;
+  const hasAdjustments = opportunityAdjustments.length > 0;
 
   return (
     <Card className="grid gap-4 p-5">
@@ -471,7 +475,9 @@ function CloseWonAdjustmentCard({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="font-medium">机会已赢单</div>
-              <div className="mt-1 text-xs text-muted-foreground">若需要查看调账单号、审批和账单影响，请进入调账记录按来源筛选。</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {hasAdjustments ? '已关联成交入账调账记录，可从这里进入账单和审计追踪。' : '暂未查询到关联调账记录，请进入调账记录按来源筛选。'}
+              </div>
             </div>
             <div className="flex flex-wrap gap-1">
               <StatusBadge tone="healthy">赢单</StatusBadge>
@@ -513,6 +519,17 @@ function CloseWonAdjustmentCard({
         </div>
       )}
 
+      {hasAdjustments ? (
+        <div className="grid gap-3">
+          <div className="text-sm font-medium">已关联调账</div>
+          <div className="grid gap-2">
+            {opportunityAdjustments.map((adjustment) => (
+              <OpportunityAdjustmentTraceRow adjustment={adjustment} key={adjustment.id} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {!canClose && !isClosed ? (
         <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
           当前账号缺少续约机会管理或计费调账管理权限，不能执行成交入账。
@@ -526,6 +543,39 @@ function CloseWonAdjustmentCard({
       {notice ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</div> : null}
       {error ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</div> : null}
     </Card>
+  );
+}
+
+function OpportunityAdjustmentTraceRow({ adjustment }: { adjustment: BillingAdjustmentItem }) {
+  const auditHref = `/audit?keyword=${encodeURIComponent(adjustment.adjustment_no)}`;
+  const billingHref = `/billing/adjustments?keyword=${encodeURIComponent(adjustment.adjustment_no)}`;
+
+  return (
+    <div className="rounded-md border bg-background/80 p-3">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-semibold">{adjustment.adjustment_no}</span>
+            <StatusBadge tone="ready">{adjustmentTypeLabels[adjustment.type]}</StatusBadge>
+            <StatusBadge tone={adjustmentStatusTone(adjustment.status)}>{adjustmentStatusLabels[adjustment.status]}</StatusBadge>
+          </div>
+          <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+            <span>金额：{formatBillingMoney(adjustment.signed_amount)}</span>
+            <span>关联账单：{adjustment.invoice_no ?? '未绑定账单'}</span>
+            <span>入账时间：{formatDateTime(adjustment.effective_at)}</span>
+            <span className="truncate">原因：{adjustment.reason}</span>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={billingHref}>调账记录</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={auditHref}>审计追踪</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

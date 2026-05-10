@@ -406,9 +406,11 @@ export class SecurityCenterService {
     currentUser: AuthenticatedUser,
     query: ListSecurityOperationAlertNotificationsDto,
   ): Promise<CreateSecurityOperationAlertNotificationArchiveResult> {
+    const items = await this.loadFilteredOperationAlertNotificationItems(currentUser.tenantId, query, 1000);
     const csv = await this.exportOperationAlertNotifications(currentUser, query);
     const createdAt = new Date();
     const archiveKey = `${OPERATION_ALERT_NOTIFICATION_ARCHIVE_PREFIX}/${createdAt.toISOString().replace(/[:.]/g, '-')}.csv`;
+    const fieldLedger = operationAlertNotificationFieldLedgerSummary(items);
     const item = await this.storageService.putTenantObject({
       tenantId: currentUser.tenantId,
       key: archiveKey,
@@ -420,6 +422,9 @@ export class SecurityCenterService {
         status: query.status ?? '',
         alert_category: query.alert_category ?? '',
         keyword: query.keyword ?? '',
+        has_export_field_ledger: fieldLedger.hasExportFieldLedger ? 'true' : 'false',
+        exported_field_count: String(fieldLedger.exportedFieldCount),
+        notification_archive_filter_field_count: String(fieldLedger.notificationArchiveFilterFieldCount),
       },
     });
 
@@ -3711,11 +3716,23 @@ function operationAlertNotificationArchiveFilterPayload(
   item:
     | Pick<
         SecurityOperationAlertNotificationArchiveItem,
-        'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+        | 'status_filter'
+        | 'alert_category'
+        | 'alert_category_label'
+        | 'keyword'
+        | 'has_export_field_ledger'
+        | 'exported_field_count'
+        | 'notification_archive_filter_field_count'
       >
     | Pick<
         SecurityOperationAlertNotificationArchiveApprovalItem,
-        'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
+        | 'status_filter'
+        | 'alert_category'
+        | 'alert_category_label'
+        | 'keyword'
+        | 'has_export_field_ledger'
+        | 'exported_field_count'
+        | 'notification_archive_filter_field_count'
       >,
 ) {
   return {
@@ -3723,6 +3740,9 @@ function operationAlertNotificationArchiveFilterPayload(
     alert_category: item.alert_category,
     alert_category_label: item.alert_category_label,
     keyword: item.keyword,
+    has_export_field_ledger: item.has_export_field_ledger,
+    exported_field_count: item.exported_field_count,
+    notification_archive_filter_field_count: item.notification_archive_filter_field_count,
   };
 }
 
@@ -3735,6 +3755,9 @@ function operationAlertNotificationArchiveFilterContext(metadata?: Record<string
     alert_category: alertCategory,
     alert_category_label: securityOperationAlertCategoryLabel(alertCategory),
     keyword: nullableMetadataText(metadata?.keyword),
+    has_export_field_ledger: metadata?.has_export_field_ledger === 'true',
+    exported_field_count: numericMetadataValue(metadata?.exported_field_count),
+    notification_archive_filter_field_count: numericMetadataValue(metadata?.notification_archive_filter_field_count),
   };
 }
 
@@ -3747,6 +3770,9 @@ function operationAlertNotificationArchiveFilterContextFromPayload(payload: Reco
     alert_category_label:
       nullablePayloadText(payload?.alert_category_label) ?? securityOperationAlertCategoryLabel(alertCategory),
     keyword: nullablePayloadText(payload?.keyword),
+    has_export_field_ledger: payload?.has_export_field_ledger === true,
+    exported_field_count: numericPayloadField(payload?.exported_field_count),
+    notification_archive_filter_field_count: numericPayloadField(payload?.notification_archive_filter_field_count),
   };
 }
 
@@ -3765,6 +3791,12 @@ function nullablePayloadText(value: unknown) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function numericMetadataValue(value: unknown) {
+  if (typeof value !== 'string') return 0;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
 function operationAlertNotificationArchiveKeyFromId(archiveId: string) {
@@ -3809,6 +3841,9 @@ function buildOperationAlertNotificationArchiveDeleteApprovals(
         alert_category: request.alert_category,
         alert_category_label: request.alert_category_label,
         keyword: request.keyword,
+        has_export_field_ledger: request.has_export_field_ledger,
+        exported_field_count: request.exported_field_count,
+        notification_archive_filter_field_count: request.notification_archive_filter_field_count,
         status: operationAlertNotificationArchiveApprovalStatus({ applied, approved, rejected }),
         reason: request.note,
         requested_by: request.actor,
@@ -5211,6 +5246,26 @@ function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAler
   ];
 
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function operationAlertNotificationFieldLedgerSummary(items: SecurityOperationAlertNotificationItem[]) {
+  const exportedFields = new Set<string>();
+  const notificationArchiveFilterFields = new Set<string>();
+
+  for (const item of items) {
+    for (const field of item.exported_fields) {
+      exportedFields.add(field);
+    }
+    for (const field of item.notification_archive_filter_fields) {
+      notificationArchiveFilterFields.add(field);
+    }
+  }
+
+  return {
+    hasExportFieldLedger: exportedFields.size > 0 || notificationArchiveFilterFields.size > 0,
+    exportedFieldCount: exportedFields.size,
+    notificationArchiveFilterFieldCount: notificationArchiveFilterFields.size,
+  };
 }
 
 function securityOperationAlertCategoryLabel(category: string | null) {

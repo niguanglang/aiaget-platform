@@ -298,6 +298,51 @@ test('operation alert notification archives preserve notification audit filter c
   assert.equal(detail.audit_timeline[0]?.keyword, 'trace-customer');
 });
 
+test('operation alert notification archives preserve export field ledger context', async () => {
+  const prisma = buildPrisma({
+    operationAlertNotificationEvents: [
+      buildOperationAlertNotificationEvent('approval-export-notification', {
+        alert_id: 'approval-workbench-export-volume-risk',
+        alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+        status: 'SENT',
+        message: '审批工作台导出量偏高通知已发送。',
+        exported_fields: ['审批ID', '审批类型', '通知筛选来源'],
+        notification_archive_filter_fields: ['通知筛选来源', '通知筛选状态', '通知筛选关键词'],
+      }),
+    ],
+  });
+  const storage = buildStorage();
+  const service = new SecurityCenterService(prisma as never, storage as never);
+  stubOverviewDependencies(service);
+
+  const created = await service.createOperationAlertNotificationArchive(buildUser(), {
+    alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+  });
+
+  assert.equal(created.item.has_export_field_ledger, true);
+  assert.equal(created.item.exported_field_count, 3);
+  assert.equal(created.item.notification_archive_filter_field_count, 3);
+
+  const deletion = await service.deleteOperationAlertNotificationArchive(buildUser(), created.item.id);
+
+  assert.equal(deletion.approval_id, 'platform-create-1');
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.has_export_field_ledger, true);
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.exported_field_count, 3);
+  assert.equal(prisma.createdEvents[0]?.data.payloadJson.notification_archive_filter_field_count, 3);
+
+  const approvals = await service.listOperationAlertNotificationArchiveApprovals(buildUser());
+
+  assert.equal(approvals[0]?.has_export_field_ledger, true);
+  assert.equal(approvals[0]?.exported_field_count, 3);
+  assert.equal(approvals[0]?.notification_archive_filter_field_count, 3);
+
+  const detail = await service.getOperationAlertNotificationArchiveApproval(buildUser(), approvals[0]!.id);
+
+  assert.equal(detail.audit_timeline[0]?.has_export_field_ledger, true);
+  assert.equal(detail.audit_timeline[0]?.exported_field_count, 3);
+  assert.equal(detail.audit_timeline[0]?.notification_archive_filter_field_count, 3);
+});
+
 function stubOverviewDependencies(service: SecurityCenterService) {
   const target = service as unknown as {
     loadPolicyStats: () => Promise<unknown>;

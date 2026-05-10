@@ -2621,6 +2621,9 @@ export interface SecurityOperationAlertNotificationArchiveItem {
   alert_category: string | null;
   alert_category_label: string;
   keyword: string | null;
+  has_export_field_ledger: boolean;
+  exported_field_count: number;
+  notification_archive_filter_field_count: number;
 }
 
 export interface SecurityOperationAlertNotificationArchiveListResult {
@@ -2654,6 +2657,9 @@ export interface SecurityOperationAlertNotificationArchiveApprovalItem {
   alert_category: string | null;
   alert_category_label: string;
   keyword: string | null;
+  has_export_field_ledger: boolean;
+  exported_field_count: number;
+  notification_archive_filter_field_count: number;
   status: SecurityOperationAlertNotificationArchiveApprovalStatus;
   reason: string | null;
   requested_by: SecurityOperationAlertNotificationArchiveApprovalActor | null;
@@ -2680,6 +2686,9 @@ export interface SecurityOperationAlertNotificationArchiveApprovalTimelineItem {
   alert_category: string | null;
   alert_category_label: string;
   keyword: string | null;
+  has_export_field_ledger: boolean;
+  exported_field_count: number;
+  notification_archive_filter_field_count: number;
 }
 
 export interface SecurityOperationAlertNotificationArchiveApprovalDetail

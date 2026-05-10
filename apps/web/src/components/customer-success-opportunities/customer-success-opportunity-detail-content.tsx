@@ -245,6 +245,7 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
         onReasonChange={setCloseWonReason}
         opportunityAdjustments={item.billing_adjustments}
         opportunityAmount={item.estimated_amount}
+        opportunityId={item.id}
         reason={closeWonReason}
         weightedAmount={item.weighted_amount}
       />
@@ -426,6 +427,7 @@ function CloseWonAdjustmentCard({
   onReasonChange,
   opportunityAdjustments,
   opportunityAmount,
+  opportunityId,
   reason,
   weightedAmount,
 }: {
@@ -440,6 +442,7 @@ function CloseWonAdjustmentCard({
   onReasonChange: (value: string) => void;
   opportunityAdjustments: BillingAdjustmentItem[];
   opportunityAmount: number;
+  opportunityId: string;
   reason: string;
   weightedAmount: number;
 }) {
@@ -458,9 +461,16 @@ function CloseWonAdjustmentCard({
             将当前续约机会标记为赢单，并生成来源为续约机会的计费调账记录，后续在成本与额度中心继续核算。
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/billing/adjustments">查看调账记录</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isClosed ? (
+            <Button asChild variant="outline">
+              <Link href={`/customer-success-opportunities/${opportunityId}/close-won-report`}>成交复盘报告</Link>
+            </Button>
+          ) : null}
+          <Button asChild variant="outline">
+            <Link href="/billing/adjustments">查看调账记录</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">

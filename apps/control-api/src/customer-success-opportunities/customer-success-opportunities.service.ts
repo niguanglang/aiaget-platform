@@ -12,6 +12,7 @@ import type {
   CustomerSuccessOpportunityAnalyticsBucket,
   CustomerSuccessOpportunityActionSummary,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
+  CustomerSuccessOpportunityCloseWonReport,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityLinkedResources,
@@ -223,6 +224,37 @@ export class CustomerSuccessOpportunitiesService {
     const billingAdjustments = await this.findOpportunityBillingAdjustments(currentUser.tenantId, opportunity.id);
 
     return this.mapDetail(opportunity, billingAdjustments);
+  }
+
+  async getCloseWonReport(currentUser: AuthenticatedUser, id: string): Promise<CustomerSuccessOpportunityCloseWonReport> {
+    const opportunity = await this.findOpportunity(currentUser.tenantId, id);
+    const billingAdjustments = await this.findOpportunityBillingAdjustments(currentUser.tenantId, opportunity.id);
+    const detail = this.mapDetail(opportunity, billingAdjustments);
+    const closeAmount = sum(billingAdjustments.map((adjustment) => signedAdjustmentAmount(adjustment.type, decimalToNumber(adjustment.amount))));
+
+    return {
+      generated_at: new Date().toISOString(),
+      opportunity: detail,
+      summary: {
+        customer_name: opportunity.customerName,
+        opportunity_name: opportunity.name,
+        estimated_amount: detail.estimated_amount,
+        weighted_amount: detail.weighted_amount,
+        close_amount: closeAmount || detail.estimated_amount,
+        closed_at: detail.closed_at,
+        adjustment_count: billingAdjustments.length,
+      },
+      value_review: {
+        customer_value: opportunity.customerValue,
+        commercial_strategy: opportunity.commercialStrategy,
+        decision_path: opportunity.decisionPath,
+        risk_summary: opportunity.riskSummary,
+      },
+      source_chain: detail.linked_resources,
+      billing_trace: detail.billing_adjustments,
+      replay_points: buildCloseWonReplayPoints(opportunity, billingAdjustments),
+      next_actions: buildCloseWonNextActions(opportunity, billingAdjustments),
+    };
   }
 
   async update(
@@ -1123,6 +1155,38 @@ function mapBillingAdjustment(adjustment: BillingAdjustmentRecord): BillingAdjus
     created_at: adjustment.createdAt.toISOString(),
     updated_at: adjustment.updatedAt.toISOString(),
   };
+}
+
+function buildCloseWonReplayPoints(
+  opportunity: CustomerSuccessOpportunityRecord,
+  adjustments: BillingAdjustmentRecord[],
+) {
+  const closeAmount = sum(adjustments.map((adjustment) => signedAdjustmentAmount(adjustment.type, decimalToNumber(adjustment.amount))));
+
+  return [
+    `市场 > 业务理解：成交来自「${opportunity.customerValue}」这类可落到经营结果的客户价值，而不是单纯展示 AI 能力。`,
+    `业务闭环：从「${opportunity.customerSuccessPlan?.name ?? '客户成功计划'}」到「${opportunity.customerSuccessAction?.name ?? '客户成功行动'}」形成持续跟进，再沉淀为续约机会。`,
+    `交付复用：来源复盘「${opportunity.deliveryReview?.name ?? '未绑定复盘'}」和成果资产「${opportunity.deliveryAsset?.name ?? '未绑定资产'}」支撑了客户对二期扩展的信任。`,
+    `商务结果：机会以 ${opportunity.probability}% 概率推进至赢单，已形成 ${formatReportMoney(closeAmount || decimalToNumber(opportunity.estimatedAmount))} 的入账追踪。`,
+  ];
+}
+
+function buildCloseWonNextActions(
+  opportunity: CustomerSuccessOpportunityRecord,
+  adjustments: BillingAdjustmentRecord[],
+) {
+  const hasAppliedAdjustment = adjustments.some((adjustment) => adjustment.status === 'APPLIED');
+
+  return [
+    `客户成功：围绕「${opportunity.nextAction}」继续推进客户组织内扩展和使用反馈收集。`,
+    `财务运营：${hasAppliedAdjustment ? '复核已应用调账记录与账单口径，确保成交入账和成本中心一致。' : '尽快补齐调账审批或应用动作，避免赢单机会与账单口径脱节。'}`,
+    '方法沉淀：把本次成交中的客户画像、决策路径和可复用资产整理进后续方案包或 Skill Hub。',
+    '审计追踪：保留调账单号和审计链路，确保后续客户复盘、财务核算和内部审计可反查。',
+  ];
+}
+
+function formatReportMoney(value: number) {
+  return roundMoney(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function signedAdjustmentAmount(type: string, amount: number) {

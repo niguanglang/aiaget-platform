@@ -1,0 +1,279 @@
+'use client';
+
+import type { BillingAdjustmentItem } from '@aiaget/shared-types';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, ClipboardList, FileText, Link2, ReceiptText, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+
+import {
+  adjustmentStatusLabels,
+  adjustmentStatusTone,
+  adjustmentTypeLabels,
+  adjustmentTypeTone,
+  formatMoney as formatBillingMoney,
+} from '@/components/billing/billing-shared';
+import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
+import {
+  customerSuccessOpportunityConfidenceLabel,
+  customerSuccessOpportunityConfidenceTone,
+  customerSuccessOpportunityRiskLabel,
+  customerSuccessOpportunityRiskTone,
+  customerSuccessOpportunityStageLabel,
+  customerSuccessOpportunityStageTone,
+  customerSuccessOpportunityStatusLabel,
+  customerSuccessOpportunityStatusTone,
+  customerSuccessOpportunityTypeLabel,
+  formatDateTime,
+  formatMoney,
+} from '@/components/customer-success-opportunities/customer-success-opportunity-status';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { getCustomerSuccessOpportunityCloseWonReport } from '@/lib/api-client';
+
+export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId }: { opportunityId: string }) {
+  const reportQuery = useQuery({
+    queryKey: ['customer-success-opportunity-close-won-report', opportunityId],
+    queryFn: () => getCustomerSuccessOpportunityCloseWonReport(opportunityId),
+  });
+
+  if (reportQuery.isLoading) {
+    return (
+      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+        <CustomerSuccessOpportunityBackground />
+        <Card className="p-6 text-sm text-muted-foreground">正在生成成交复盘报告...</Card>
+      </main>
+    );
+  }
+
+  if (reportQuery.isError || !reportQuery.data) {
+    return (
+      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+        <CustomerSuccessOpportunityBackground />
+        <Card className="p-6 text-sm text-destructive">成交复盘报告加载失败。</Card>
+      </main>
+    );
+  }
+
+  const report = reportQuery.data;
+  const opportunity = report.opportunity;
+  const firstAdjustmentNo = report.billing_trace[0]?.adjustment_no ?? opportunity.code;
+  const auditHref = `/audit?keyword=${encodeURIComponent(firstAdjustmentNo)}`;
+  const billingHref = `/billing/adjustments?keyword=${encodeURIComponent(firstAdjustmentNo)}`;
+
+  return (
+    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+      <CustomerSuccessOpportunityBackground />
+
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <StatusBadge tone={customerSuccessOpportunityStageTone(opportunity.stage)}>
+              {customerSuccessOpportunityStageLabel(opportunity.stage)}
+            </StatusBadge>
+            <StatusBadge tone={customerSuccessOpportunityStatusTone(opportunity.status)}>
+              {customerSuccessOpportunityStatusLabel(opportunity.status)}
+            </StatusBadge>
+            <StatusBadge tone={customerSuccessOpportunityConfidenceTone(opportunity.confidence_level)}>
+              {customerSuccessOpportunityConfidenceLabel(opportunity.confidence_level)}
+            </StatusBadge>
+            <StatusBadge tone={customerSuccessOpportunityRiskTone(opportunity.risk_level)}>
+              {customerSuccessOpportunityRiskLabel(opportunity.risk_level)}
+            </StatusBadge>
+          </div>
+          <h1 className="text-2xl font-semibold">成交复盘报告</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {report.summary.customer_name} / {report.summary.opportunity_name} / {customerSuccessOpportunityTypeLabel(opportunity.opportunity_type)}
+            ，聚焦客户价值、来源链路、入账追踪和后续运营动作。
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild variant="outline">
+            <Link href={`/customer-success-opportunities/${opportunity.id}`}>
+              <ArrowLeft className="size-4" />
+              返回详情
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={billingHref}>
+              <ReceiptText className="size-4" />
+              调账记录
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={auditHref}>
+              <ShieldCheck className="size-4" />
+              审计追踪
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricCard helper="机会原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
+        <MetricCard helper="金额 x 概率" label="加权金额" value={formatMoney(report.summary.weighted_amount)} />
+        <MetricCard helper="已生效调账汇总" label="成交金额" value={formatMoney(report.summary.close_amount)} />
+        <MetricCard helper="关联入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
+        <MetricCard helper={`生成 ${formatDateTime(report.generated_at)}`} label="关闭时间" value={formatDateTime(report.summary.closed_at)} />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="size-4 text-primary" />
+            客户价值复盘
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <ReviewBlock title="客户价值" value={report.value_review.customer_value} />
+            <ReviewBlock title="商务策略" value={report.value_review.commercial_strategy} />
+            <ReviewBlock title="决策路径" value={report.value_review.decision_path} />
+            <ReviewBlock title="风险摘要" value={report.value_review.risk_summary} />
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Link2 className="size-4 text-primary" />
+            来源链路
+          </div>
+          <div className="mt-4 grid gap-3">
+            <SourceChainItem href={resourceHref('customer-success-plans', report.source_chain.customer_success_plan?.id)} label="客户成功计划" value={report.source_chain.customer_success_plan?.name} />
+            <SourceChainItem href={resourceHref('customer-success-actions', report.source_chain.customer_success_action?.id)} label="成功行动" value={report.source_chain.customer_success_action?.name} />
+            <SourceChainItem href={resourceHref('delivery-reviews', report.source_chain.delivery_review?.id)} label="交付复盘" value={report.source_chain.delivery_review?.name} />
+            <SourceChainItem href={resourceHref('delivery-assets', report.source_chain.delivery_asset?.id)} label="成果资产" value={report.source_chain.delivery_asset?.name} />
+            <SourceChainItem href={resourceHref('solution-packages', report.source_chain.solution_package?.id)} label="方案包" value={report.source_chain.solution_package?.name} />
+          </div>
+        </Card>
+      </section>
+
+      <Card className="p-5">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <ReceiptText className="size-4 text-primary" />
+              入账追踪
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              从续约机会回链到计费调账和审计记录，便于财务运营确认收入来源和后续核算口径。
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link href={billingHref}>查看全部调账</Link>
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {report.billing_trace.length > 0 ? (
+            report.billing_trace.map((adjustment) => <BillingTraceRow adjustment={adjustment} key={adjustment.id} />)
+          ) : (
+            <div className="rounded-md border bg-muted/15 px-3 py-4 text-sm text-muted-foreground">
+              暂无入账追踪记录，可从调账记录按机会编号继续核查。
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <InsightList icon={<ClipboardList className="size-4 text-primary" />} items={report.replay_points} title="复盘要点" />
+        <InsightList icon={<ShieldCheck className="size-4 text-primary" />} items={report.next_actions} title="下一步动作" />
+      </section>
+    </main>
+  );
+}
+
+function MetricCard({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <Card className="p-5">
+      <h2 className="text-sm font-semibold">{label}</h2>
+      <p className="mt-3 truncate text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+    </Card>
+  );
+}
+
+function ReviewBlock({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-background/80 p-4">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{value || '暂无记录'}</p>
+    </div>
+  );
+}
+
+function SourceChainItem({ href, label, value }: { href: string | null; label: string; value?: string | null }) {
+  const content = (
+    <div className="flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate font-medium">{value ?? '未绑定'}</span>
+    </div>
+  );
+
+  if (!href || !value) return content;
+  return (
+    <Link className="block transition-colors hover:text-primary" href={href}>
+      {content}
+    </Link>
+  );
+}
+
+function BillingTraceRow({ adjustment }: { adjustment: BillingAdjustmentItem }) {
+  const auditHref = `/audit?keyword=${encodeURIComponent(adjustment.adjustment_no)}`;
+  const billingHref = `/billing/adjustments?keyword=${encodeURIComponent(adjustment.adjustment_no)}`;
+
+  return (
+    <div className="rounded-lg border bg-background/80 p-4">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-semibold">{adjustment.adjustment_no}</span>
+            <StatusBadge tone={adjustmentTypeTone(adjustment.type)}>{adjustmentTypeLabels[adjustment.type]}</StatusBadge>
+            <StatusBadge tone={adjustmentStatusTone(adjustment.status)}>{adjustmentStatusLabels[adjustment.status]}</StatusBadge>
+          </div>
+          <div className="mt-3 grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+            <span>影响金额：{formatBillingMoney(adjustment.signed_amount)}</span>
+            <span>关联账单：{adjustment.invoice_no ?? '未绑定账单'}</span>
+            <span>生效时间：{formatDateTime(adjustment.effective_at)}</span>
+            <span className="truncate">入账说明：{adjustment.reason}</span>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={billingHref}>调账记录</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={auditHref}>审计追踪</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightList({ icon, items, title }: { icon: ReactNode; items: string[]; title: string }) {
+  return (
+    <Card className="p-5">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        {icon}
+        {title}
+      </div>
+      <div className="mt-4 grid gap-3">
+        {items.length > 0 ? (
+          items.map((item, index) => (
+            <div className="flex gap-3 rounded-md border bg-background/80 px-3 py-2 text-sm leading-6" key={`${title}-${item}`}>
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+                {index + 1}
+              </span>
+              <span className="text-muted-foreground">{item}</span>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-md border bg-muted/15 px-3 py-4 text-sm text-muted-foreground">暂无{title}</div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function resourceHref(module: string, id?: string | null) {
+  return id ? `/${module}/${id}` : null;
+}

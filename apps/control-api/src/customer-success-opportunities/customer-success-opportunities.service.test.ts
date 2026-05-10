@@ -570,6 +570,57 @@ test('customer success opportunity detail includes source billing adjustments fo
   assert.equal(detail.billing_adjustments[0]?.source_id, 'opportunity-1');
 });
 
+test('customer success opportunity close won report summarizes delivery value and billing trace', async () => {
+  const billingAdjustment = billingAdjustmentRecord({
+    adjustmentNo: 'ADJ-20260718-0002',
+    amount: '680000.00',
+    reason: '续约机会成交入账：华中设计院二期续约扩展机会',
+  });
+  const prisma = {
+    customerSuccessOpportunity: {
+      findFirst: async (args: { where: Record<string, unknown> }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.equal(args.where.id, 'opportunity-1');
+        return opportunityRecord({
+          stage: 'WON',
+          status: 'WON',
+          probability: 100,
+          closedAt: new Date('2026-07-18T10:00:00.000Z'),
+        });
+      },
+    },
+    billingAdjustment: {
+      findMany: async (args: { where: Record<string, unknown>; include: Record<string, boolean>; orderBy: Record<string, string> }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.equal(args.where.sourceType, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+        assert.equal(args.where.sourceId, 'opportunity-1');
+        assert.equal(args.where.deletedAt, null);
+        assert.equal(args.include.invoice, true);
+        assert.deepEqual(args.orderBy, { createdAt: 'desc' });
+        return [billingAdjustment];
+      },
+    },
+  };
+  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+
+  const report = await service.getCloseWonReport(currentUser, 'opportunity-1');
+
+  assert.equal(report.opportunity.id, 'opportunity-1');
+  assert.equal(report.summary.customer_name, '华中设计院');
+  assert.equal(report.summary.close_amount, 680000);
+  assert.equal(report.summary.adjustment_count, 1);
+  assert.equal(report.billing_trace[0]?.adjustment_no, 'ADJ-20260718-0002');
+  assert.match(report.value_review.customer_value, /复用已验收资产/);
+  assert.match(report.value_review.commercial_strategy, /续约为主线/);
+  assert.match(report.source_chain.customer_success_plan?.name ?? '', /客户成功扩展计划/);
+  assert.match(report.source_chain.customer_success_action?.name ?? '', /扩展评审会/);
+  assert.match(report.source_chain.delivery_review?.name ?? '', /试点验收复盘/);
+  assert.match(report.source_chain.delivery_asset?.name ?? '', /售前方案验收资产包/);
+  assert.match(report.source_chain.solution_package?.name ?? '', /AI 落地试点方案包/);
+  assert.ok(report.replay_points.some((point) => point.includes('市场 > 业务理解')));
+  assert.ok(report.next_actions.some((action) => action.includes('客户成功')));
+});
+
 test('customer success opportunity rejects duplicate close won billing adjustment creation', async () => {
   const prisma = {
     customerSuccessOpportunity: {

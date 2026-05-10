@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type {
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
+  CustomerSuccessOpportunityCloseWonReport,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
@@ -88,6 +89,21 @@ export class CustomerSuccessOpportunitiesController {
     @Param('id') id: string,
   ): Promise<CustomerSuccessOpportunityDetail> {
     return this.customerSuccessOpportunitiesService.get(currentUser, id);
+  }
+
+  @Get(':id/close-won-report')
+  @Permissions('customer:success_opportunity:view')
+  @RequireDataScope({ resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY' })
+  @RequireResourceAcl({
+    resourceType: 'CUSTOMER_SUCCESS_OPPORTUNITY',
+    permissionCode: 'customer:success_opportunity:view',
+  })
+  @ApiOkResponse({ description: 'Get close-won customer success opportunity review report' })
+  async getCloseWonReport(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<CustomerSuccessOpportunityCloseWonReport> {
+    return this.customerSuccessOpportunitiesService.getCloseWonReport(currentUser, id);
   }
 
   @Post(':id/follow-up-actions')

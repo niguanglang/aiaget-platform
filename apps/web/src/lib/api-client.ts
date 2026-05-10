@@ -203,6 +203,7 @@ import type {
   CustomerSuccessActionListItem,
   CustomerSuccessOpportunityAnalytics,
   CustomerSuccessOpportunityCloseWonAdjustmentResult,
+  CustomerSuccessOpportunityCloseWonReport,
   CustomerSuccessOpportunityDetail,
   CustomerSuccessOpportunityFollowUpActionResult,
   CustomerSuccessOpportunityListItem,
@@ -2328,6 +2329,10 @@ export function createCustomerSuccessOpportunity(input: CreateCustomerSuccessOpp
 
 export function getCustomerSuccessOpportunity(opportunityId: string) {
   return request<CustomerSuccessOpportunityDetail>(`/customer-success-opportunities/${opportunityId}`);
+}
+
+export function getCustomerSuccessOpportunityCloseWonReport(opportunityId: string) {
+  return request<CustomerSuccessOpportunityCloseWonReport>(`/customer-success-opportunities/${opportunityId}/close-won-report`);
 }
 
 export function createCustomerSuccessOpportunityFollowUpAction(

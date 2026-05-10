@@ -16,6 +16,7 @@ test('customer success opportunity center has separate list, create, detail, and
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/create/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/[id]/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/[id]/edit/page.tsx')));
+  assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/[id]/close-won-report/page.tsx')));
 });
 
 test('customer success opportunity list stays compact and does not embed full commercial details', () => {
@@ -124,4 +125,27 @@ test('customer success opportunity close won billing workflow stays on detail pa
   assert.doesNotMatch(analyticsSource, /closeWonCustomerSuccessOpportunity/);
   assert.doesNotMatch(analyticsSource, /确认成交入账/);
   assert.doesNotMatch(analyticsSource, /billing_adjustments/);
+});
+
+test('customer success opportunity close won report owns read-only post-sale review route', () => {
+  const detailSource = source('customer-success-opportunity-detail-content.tsx');
+  const reportSource = source('customer-success-opportunity-close-won-report-content.tsx');
+  const listSource = source('customer-success-opportunities-content.tsx');
+  const analyticsSource = source('customer-success-opportunity-analytics-content.tsx');
+
+  assert.match(detailSource, /close-won-report/);
+  assert.match(reportSource, /getCustomerSuccessOpportunityCloseWonReport/);
+  assert.match(reportSource, /成交复盘报告/);
+  assert.match(reportSource, /客户价值复盘/);
+  assert.match(reportSource, /来源链路/);
+  assert.match(reportSource, /入账追踪/);
+  assert.match(reportSource, /复盘要点/);
+  assert.match(reportSource, /下一步动作/);
+  assert.match(reportSource, /\/billing\/adjustments/);
+  assert.match(reportSource, /\/audit\?keyword=/);
+  assert.doesNotMatch(reportSource, /closeWonCustomerSuccessOpportunity/);
+  assert.doesNotMatch(reportSource, /createCustomerSuccessOpportunityFollowUpAction/);
+  assert.doesNotMatch(reportSource, /updateCustomerSuccessOpportunity/);
+  assert.doesNotMatch(listSource, /getCustomerSuccessOpportunityCloseWonReport/);
+  assert.doesNotMatch(analyticsSource, /getCustomerSuccessOpportunityCloseWonReport/);
 });

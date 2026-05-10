@@ -159,6 +159,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M130 调账来源追踪与续约机会回链](./m130-billing-adjustment-source-trace.md)
 - [M131 续约机会调账反向追踪](./m131-customer-success-opportunity-billing-reverse-trace.md)
 - [M132 成交入账审计追踪增强](./m132-close-won-billing-audit-trace.md)
+- [M133 续约机会成交复盘报告](./m133-customer-success-opportunity-close-won-report.md)
 - [P0-1 生产部署与测试体系闭环](./p0-1-production-deployment-test-closure.md)
 - [P0-2 Runtime 多模型适配与真实流式输出](./p0-2-runtime-model-streaming.md)
 - [P0-3 项目状态与验收矩阵收口](./p0-3-production-readiness-matrix.md)

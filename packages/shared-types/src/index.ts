@@ -6236,6 +6236,34 @@ export interface CustomerSuccessOpportunityCloseWonAdjustmentResult {
   opportunity: CustomerSuccessOpportunityDetail;
 }
 
+export interface CustomerSuccessOpportunityCloseWonReportSummary {
+  customer_name: string;
+  opportunity_name: string;
+  estimated_amount: number;
+  weighted_amount: number;
+  close_amount: number;
+  closed_at: string | null;
+  adjustment_count: number;
+}
+
+export interface CustomerSuccessOpportunityCloseWonReportValueReview {
+  customer_value: string;
+  commercial_strategy: string;
+  decision_path: string;
+  risk_summary: string;
+}
+
+export interface CustomerSuccessOpportunityCloseWonReport {
+  generated_at: string;
+  opportunity: CustomerSuccessOpportunityDetail;
+  summary: CustomerSuccessOpportunityCloseWonReportSummary;
+  value_review: CustomerSuccessOpportunityCloseWonReportValueReview;
+  source_chain: CustomerSuccessOpportunityLinkedResources;
+  billing_trace: BillingAdjustmentItem[];
+  replay_points: string[];
+  next_actions: string[];
+}
+
 export interface CreatePromptTemplateInput {
   name: string;
   code: string;

@@ -282,6 +282,22 @@ test('alerts page keeps notification audit export field ledger lightweight', () 
   assert.doesNotMatch(source, /完整字段清单在列表中展开/);
 });
 
+test('archives page keeps notification archive field ledger context lightweight', () => {
+  const source = readSource(childComponents.archives);
+
+  assert.match(source, /通知归档字段账本/);
+  assert.match(source, /archiveFieldLedgerSummary/);
+  assert.match(source, /has_export_field_ledger/);
+  assert.match(source, /exported_field_count/);
+  assert.match(source, /notification_archive_filter_field_count/);
+  assert.match(source, /导出字段/);
+  assert.match(source, /归档筛选字段/);
+  assert.doesNotMatch(source, /exported_fields/);
+  assert.doesNotMatch(source, /notification_archive_filter_fields/);
+  assert.doesNotMatch(source, /JsonBlock value=\{archive/);
+  assert.doesNotMatch(source, /JsonBlock value=\{approval/);
+});
+
 test('alerts page exposes approval workbench export operations metrics and alert lifecycle actions', () => {
   const source = readSource(childComponents.alerts);
 

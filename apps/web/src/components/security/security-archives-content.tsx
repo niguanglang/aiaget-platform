@@ -82,6 +82,16 @@ type NotificationArchiveApprovalFilterContext = Pick<
   'status_filter' | 'alert_category' | 'alert_category_label' | 'keyword'
 >;
 
+type NotificationArchiveFieldLedgerContext = Pick<
+  SecurityOperationAlertNotificationArchiveItem,
+  'has_export_field_ledger' | 'exported_field_count' | 'notification_archive_filter_field_count'
+>;
+
+type NotificationArchiveApprovalFieldLedgerContext = Pick<
+  SecurityOperationAlertNotificationArchiveApprovalItem,
+  'has_export_field_ledger' | 'exported_field_count' | 'notification_archive_filter_field_count'
+>;
+
 type ArchiveDeleteTarget = {
   archiveId: string;
   fileName: string;
@@ -482,6 +492,7 @@ function ArchiveRow({
   onDownload: () => void;
 }) {
   const filterSummary = archiveFilterSummary(archive);
+  const fieldLedgerSummary = archiveFieldLedgerSummary(archive);
 
   return (
     <tr className="border-b last:border-0">
@@ -493,6 +504,15 @@ function ArchiveRow({
           <div className="mt-2 flex flex-wrap gap-1.5">
             {filterSummary.map((item) => (
               <span className="rounded-md border bg-muted/30 px-2 py-1 text-xs text-muted-foreground" key={item.label}>
+                {item.label}：{item.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {fieldLedgerSummary.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {fieldLedgerSummary.map((item) => (
+              <span className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs text-primary" key={item.label}>
                 {item.label}：{item.value}
               </span>
             ))}
@@ -526,6 +546,7 @@ function ApprovalRow({
   canHandle: boolean;
 }) {
   const filterSummary = archiveFilterSummary(approval);
+  const fieldLedgerSummary = archiveFieldLedgerSummary(approval);
 
   return (
     <div className="grid gap-3 p-4">
@@ -553,9 +574,28 @@ function ApprovalRow({
           ))}
         </div>
       ) : null}
+      {fieldLedgerSummary.length > 0 ? (
+        <div className="grid gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary md:grid-cols-3">
+          {fieldLedgerSummary.map((item) => (
+            <span key={item.label}>{item.label}：{item.value}</span>
+          ))}
+        </div>
+      ) : null}
       {approval.reason ? <p className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{approval.reason}</p> : null}
     </div>
   );
+}
+
+function archiveFieldLedgerSummary(item: ArchiveItem | ArchiveApprovalItem) {
+  if (!hasNotificationArchiveFieldLedgerContext(item) || !item.has_export_field_ledger) return [];
+
+  return [
+    { label: '通知归档字段账本', value: '已保留' },
+    item.exported_field_count > 0 ? { label: '导出字段', value: `${formatNumber(item.exported_field_count)} 项` } : null,
+    item.notification_archive_filter_field_count > 0
+      ? { label: '归档筛选字段', value: `${formatNumber(item.notification_archive_filter_field_count)} 项` }
+      : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
 }
 
 function archiveFilterSummary(item: ArchiveItem | ArchiveApprovalItem) {
@@ -575,6 +615,14 @@ function hasNotificationArchiveFilterContext(
   item: ArchiveItem | ArchiveApprovalItem,
 ): item is (ArchiveItem & NotificationArchiveFilterContext) | (ArchiveApprovalItem & NotificationArchiveApprovalFilterContext) {
   return 'status_filter' in item || 'alert_category_label' in item || 'keyword' in item;
+}
+
+function hasNotificationArchiveFieldLedgerContext(
+  item: ArchiveItem | ArchiveApprovalItem,
+): item is
+  | (ArchiveItem & NotificationArchiveFieldLedgerContext)
+  | (ArchiveApprovalItem & NotificationArchiveApprovalFieldLedgerContext) {
+  return 'has_export_field_ledger' in item;
 }
 
 function notificationArchiveCategoryLabel(value: string | null) {

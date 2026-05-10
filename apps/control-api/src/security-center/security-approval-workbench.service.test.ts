@@ -194,6 +194,35 @@ test('approval workbench export limits filtered csv and records an audit event w
   assert.equal(recordedEvents[0]?.eventType, 'platform.security.approval_workbench.exported');
   assert.equal(recordedEvents[0]?.resourceType, 'SECURITY_APPROVAL_WORKBENCH');
   assert.equal(recordedEvents[0]?.payloadJson.exported_count, 1);
+  assert.deepEqual(recordedEvents[0]?.payloadJson.exported_fields, [
+    '审批ID',
+    '来源ID',
+    '审批类型',
+    '来源模块',
+    '标题',
+    '状态',
+    '风险域',
+    '风险等级',
+    '审批对象ID',
+    '审批对象',
+    '审批原因',
+    '申请人',
+    '申请人邮箱',
+    '审批人',
+    '审批人邮箱',
+    '申请时间',
+    '审批时间',
+    '请求ID',
+    'Trace ID',
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
+  assert.deepEqual(recordedEvents[0]?.payloadJson.notification_archive_filter_fields, [
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
   assert.deepEqual(recordedEvents[0]?.payloadJson.filter, {
     keyword: 'recovery',
     type: null,
@@ -308,7 +337,9 @@ type PlatformEventInput = {
   resourceType: string;
   payloadJson: {
     exported_count?: number;
+    exported_fields?: string[];
     filter?: Record<string, unknown>;
+    notification_archive_filter_fields?: string[];
   };
 } & Record<string, unknown>;
 

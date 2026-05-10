@@ -108,6 +108,35 @@ const NOTIFICATION_ARCHIVE_STATUS_LABELS = {
   SKIPPED: '已跳过',
   FAILED: '失败',
 } as const;
+const APPROVAL_WORKBENCH_EXPORT_FIELDS = [
+  '审批ID',
+  '来源ID',
+  '审批类型',
+  '来源模块',
+  '标题',
+  '状态',
+  '风险域',
+  '风险等级',
+  '审批对象ID',
+  '审批对象',
+  '审批原因',
+  '申请人',
+  '申请人邮箱',
+  '审批人',
+  '审批人邮箱',
+  '申请时间',
+  '审批时间',
+  '请求ID',
+  'Trace ID',
+  '通知筛选来源',
+  '通知筛选状态',
+  '通知筛选关键词',
+] as const;
+const NOTIFICATION_ARCHIVE_FILTER_EXPORT_FIELDS = [
+  '通知筛选来源',
+  '通知筛选状态',
+  '通知筛选关键词',
+] as const;
 
 @Injectable()
 export class SecurityApprovalWorkbenchService {
@@ -179,6 +208,8 @@ export class SecurityApprovalWorkbenchService {
       summary: `统一安全审批工作台已导出 ${items.length} 条记录。`,
       payloadJson: toJsonInput({
         exported_count: items.length,
+        exported_fields: APPROVAL_WORKBENCH_EXPORT_FIELDS,
+        notification_archive_filter_fields: NOTIFICATION_ARCHIVE_FILTER_EXPORT_FIELDS,
         filter: approvalWorkbenchExportFilter(query),
       }),
       sourceSystem: 'security_center',
@@ -856,30 +887,7 @@ function approvalWorkbenchExportFilter(query: ListSecurityApprovalWorkbenchDto) 
 
 function buildApprovalWorkbenchCsv(items: WorkbenchSourceRecord[]) {
   const rows = [
-    [
-      '审批ID',
-      '来源ID',
-      '审批类型',
-      '来源模块',
-      '标题',
-      '状态',
-      '风险域',
-      '风险等级',
-      '审批对象ID',
-      '审批对象',
-      '审批原因',
-      '申请人',
-      '申请人邮箱',
-      '审批人',
-      '审批人邮箱',
-      '申请时间',
-      '审批时间',
-      '请求ID',
-      'Trace ID',
-      '通知筛选来源',
-      '通知筛选状态',
-      '通知筛选关键词',
-    ],
+    [...APPROVAL_WORKBENCH_EXPORT_FIELDS],
     ...items.map((item) => [
       item.id,
       item.source_id,

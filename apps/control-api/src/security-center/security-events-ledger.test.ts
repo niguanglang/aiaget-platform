@@ -124,6 +124,65 @@ test('getEvent resolves dedicated security_event detail by stable event id', asy
   assert.equal(detail.has_trace, false);
 });
 
+test('getEvent resolves approval workbench export context fields from platform event payload', async () => {
+  const occurredAt = new Date('2026-05-08T08:00:00.000Z');
+  const prisma = {
+    securityEvent: {
+      findFirst: async () => null,
+    },
+    platformEvent: {
+      findFirst: async (args: { where: { tenantId: string; id: string; eventType: string } }) => {
+        assert.equal(args.where.tenantId, 'tenant-1');
+        assert.equal(args.where.id, 'export-1');
+        assert.equal(args.where.eventType, 'platform.security.approval_workbench.exported');
+        return {
+          id: 'export-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          resourceType: 'SECURITY_APPROVAL_WORKBENCH',
+          resourceId: 'approval-workbench',
+          requestId: 'request-export',
+          traceId: 'trace-export',
+          eventSource: 'security_center',
+          eventType: 'platform.security.approval_workbench.exported',
+          status: 'SUCCESS',
+          severity: 'INFO',
+          summary: '统一安全审批工作台导出完成',
+          payloadJson: {
+            exported_count: 1,
+            filter: { type: 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE' },
+            exported_fields: ['审批ID', '通知筛选来源', '通知筛选状态', '通知筛选关键词'],
+            notification_archive_filter_fields: ['通知筛选来源', '通知筛选状态', '通知筛选关键词'],
+          },
+          occurredAt,
+          createdAt: occurredAt,
+          user: {
+            id: 'user-1',
+            name: '管理员',
+            email: 'admin@example.test',
+          },
+        };
+      },
+    },
+  };
+  const service = new SecurityCenterService(prisma as never, null as never);
+
+  const detail = await service.getEvent(buildUser(), 'platform:export-1');
+
+  assert.equal(detail.source, 'APPROVAL_WORKBENCH');
+  assert.deepEqual(detail.context?.exported_fields, ['审批ID', '通知筛选来源', '通知筛选状态', '通知筛选关键词']);
+  assert.deepEqual(detail.context?.notification_archive_filter_fields, [
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
+  assert.deepEqual(detail.request_summary?.notification_archive_filter_fields, [
+    '通知筛选来源',
+    '通知筛选状态',
+    '通知筛选关键词',
+  ]);
+});
+
 function buildUser() {
   return {
     id: 'user-1',

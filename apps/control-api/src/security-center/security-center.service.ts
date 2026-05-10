@@ -5403,6 +5403,8 @@ function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCe
   const payload = normalizeJsonObjectOutput(item.payloadJson);
   const filter = normalizeJsonObjectOutput(payload?.filter);
   const exportedCount = typeof payload?.exported_count === 'number' ? payload.exported_count : 0;
+  const exportedFields = stringArrayValue(payload?.exported_fields);
+  const notificationArchiveFilterFields = stringArrayValue(payload?.notification_archive_filter_fields);
 
   return {
     id: `platform:${item.id}`,
@@ -5438,9 +5440,13 @@ function mapPlatformSecurityEvent(item: PlatformSecurityEventRecord): SecurityCe
       ? {
           filter,
           exported_count: exportedCount,
+          exported_fields: exportedFields,
+          notification_archive_filter_fields: notificationArchiveFilterFields,
         }
       : {
           exported_count: exportedCount,
+          exported_fields: exportedFields,
+          notification_archive_filter_fields: notificationArchiveFilterFields,
         },
     request_summary: payload,
     matched_policy: null,
@@ -5509,6 +5515,11 @@ function denialSourceLabel(value: unknown) {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function stringArrayValue(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
 function normalizeEventSource(value: string | undefined): SecurityCenterEventSource | null {

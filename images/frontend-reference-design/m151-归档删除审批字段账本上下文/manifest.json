@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-10T14:51:44.212803+00:00",
+  "page": "M151 归档删除审批字段账本上下文",
+  "route": "/approvals/archive-deletions",
+  "feature": "在归档删除审批聚合页轻量展示通知归档字段账本上下文",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

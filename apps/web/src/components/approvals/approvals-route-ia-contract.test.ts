@@ -104,6 +104,24 @@ test('archive deletion approvals child page owns archive deletion approval APIs 
   assert.doesNotMatch(source, /listToolApprovals/);
 });
 
+test('archive deletion approvals keep notification archive field ledger context lightweight', () => {
+  const source = readFileSync(archiveDeletionApprovalsPath, 'utf8');
+
+  assert.match(source, /ArchiveFieldLedgerSummary/);
+  assert.match(source, /hasExportFieldLedger/);
+  assert.match(source, /exportedFieldCount/);
+  assert.match(source, /notificationArchiveFilterFieldCount/);
+  assert.match(source, /通知归档字段账本/);
+  assert.match(source, /导出字段/);
+  assert.match(source, /归档筛选字段/);
+  assert.match(source, /has_export_field_ledger/);
+  assert.match(source, /exported_field_count/);
+  assert.match(source, /notification_archive_filter_field_count/);
+  assert.doesNotMatch(source, /exported_fields/);
+  assert.doesNotMatch(source, /notification_archive_filter_fields/);
+  assert.doesNotMatch(source, /PreviewCard title="字段账本/);
+});
+
 test('approval decision actions require explicit confirmation before approve or reject mutation', () => {
   const sharedSource = readFileSync(sharedPath, 'utf8');
 

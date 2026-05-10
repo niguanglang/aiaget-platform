@@ -65,6 +65,11 @@ type NotificationArchiveFilterFields = {
   alert_category_label?: string | null;
   keyword?: string | null;
 };
+type NotificationArchiveFieldLedgerFields = {
+  has_export_field_ledger?: boolean;
+  exported_field_count?: number;
+  notification_archive_filter_field_count?: number;
+};
 type ArchiveApprovalItem = {
   id: string;
   source: ArchiveSource;
@@ -79,6 +84,9 @@ type ArchiveApprovalItem = {
   alertCategory: string | null;
   alertCategoryLabel: string | null;
   keyword: string | null;
+  hasExportFieldLedger: boolean;
+  exportedFieldCount: number;
+  notificationArchiveFilterFieldCount: number;
   requestedBy: { name: string; email: string } | null;
   reviewedBy: { name: string; email: string } | null;
   requestedAt: string;
@@ -337,6 +345,7 @@ function ArchiveDeletionApprovalTable({
                 <div className="font-medium">{approval.archiveFileName}</div>
                 <div className="text-xs text-muted-foreground">{formatBytes(approval.archiveSizeBytes)}</div>
                 <ArchiveFilterSummary approval={approval} compact />
+                <ArchiveFieldLedgerSummary approval={approval} compact />
               </td>
               <td className="px-4 py-3">
                 <StatusBadge tone={archiveApprovalTone(approval.status)}>{archiveApprovalLabel(approval.status)}</StatusBadge>
@@ -410,6 +419,7 @@ function ArchiveDeletionApprovalDetailPanel({
           ) : null}
 
           <ArchiveFilterSummary approval={activeApproval} />
+          <ArchiveFieldLedgerSummary approval={activeApproval} />
 
           <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/15 p-3">
             <div className="text-sm font-medium">上下文入口</div>
@@ -500,11 +510,37 @@ function toArchiveApprovalItem(
     status: item.status,
     reason: item.reason,
     ...archiveApprovalFilterContext(item),
+    ...archiveApprovalFieldLedgerContext(item),
     requestedBy: item.requested_by,
     reviewedBy: item.reviewed_by,
     requestedAt: item.requested_at,
     reviewedAt: item.reviewed_at,
   };
+}
+
+function ArchiveFieldLedgerSummary({ approval, compact = false }: { approval: ArchiveApprovalItem; compact?: boolean }) {
+  const items = archiveFieldLedgerSummary(approval);
+  if (items.length === 0) return null;
+
+  if (compact) {
+    return (
+      <div className="mt-2 flex max-w-[320px] flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs text-primary" key={item.label}>
+            {item.label}：{item.value}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary md:grid-cols-3">
+      {items.map((item) => (
+        <span key={item.label}>{item.label}：{item.value}</span>
+      ))}
+    </div>
+  );
 }
 
 function ArchiveFilterSummary({ approval, compact = false }: { approval: ArchiveApprovalItem; compact?: boolean }) {
@@ -530,6 +566,18 @@ function ArchiveFilterSummary({ approval, compact = false }: { approval: Archive
       ))}
     </div>
   );
+}
+
+function archiveFieldLedgerSummary(approval: ArchiveApprovalItem) {
+  if (!approval.hasExportFieldLedger) return [];
+
+  return [
+    { label: '通知归档字段账本', value: '已保留' },
+    approval.exportedFieldCount > 0 ? { label: '导出字段', value: `${approval.exportedFieldCount} 项` } : null,
+    approval.notificationArchiveFilterFieldCount > 0
+      ? { label: '归档筛选字段', value: `${approval.notificationArchiveFilterFieldCount} 项` }
+      : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
 }
 
 function archiveFilterSummary(approval: ArchiveApprovalItem) {
@@ -562,6 +610,26 @@ function archiveApprovalFilterContext(
     alertCategory: filter.alert_category ?? null,
     alertCategoryLabel: filter.alert_category_label ?? null,
     keyword: filter.keyword ?? null,
+  };
+}
+
+function archiveApprovalFieldLedgerContext(
+  item:
+    | ApprovalAuditArchiveApprovalItem
+    | SecurityOperationAlertNotificationArchiveApprovalItem
+    | SecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalItem
+    | SecurityOperationAlertSlaDeadLetterAuditArchiveApprovalItem
+    | AgentTeamRunReportArchiveApprovalItem
+    | CustomerSuccessOpportunityCloseWonReportArchiveApprovalItem,
+) {
+  const ledger = item as NotificationArchiveFieldLedgerFields;
+  return {
+    hasExportFieldLedger: Boolean(ledger.has_export_field_ledger),
+    exportedFieldCount: typeof ledger.exported_field_count === 'number' ? ledger.exported_field_count : 0,
+    notificationArchiveFilterFieldCount:
+      typeof ledger.notification_archive_filter_field_count === 'number'
+        ? ledger.notification_archive_filter_field_count
+        : 0,
   };
 }
 

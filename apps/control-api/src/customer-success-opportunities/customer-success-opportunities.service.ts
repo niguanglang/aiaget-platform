@@ -26,6 +26,7 @@ import type {
 
 import { DataScopeQueryService, mergeDataScopeWhere } from '../common/services/data-scope-query.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CloseWonCustomerSuccessOpportunityDto } from './dto/close-won-customer-success-opportunity.dto';
 import type { CreateCustomerSuccessOpportunityDto } from './dto/create-customer-success-opportunity.dto';
@@ -82,12 +83,14 @@ type CustomerSuccessActionReference = {
 type DeliveryReviewReference = { id: string; solutionPackageId: string };
 type DeliveryAssetReference = { id: string; solutionPackageId: string | null; deliveryReviewId: string };
 type DataScopeQueryLike = Pick<DataScopeQueryService, 'buildWhere'>;
+type PlatformEventsLike = Pick<PlatformEventsService, 'recordEvent'>;
 
 @Injectable()
 export class CustomerSuccessOpportunitiesService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery?: DataScopeQueryLike,
+    @Inject(PlatformEventsService) private readonly platformEvents?: PlatformEventsLike,
   ) {}
 
   async list(
@@ -470,11 +473,55 @@ export class CustomerSuccessOpportunitiesService {
       },
       include: customerSuccessOpportunityInclude,
     });
+    await this.recordCloseWonBillingEvent(currentUser, adjustment, opportunity);
 
     return {
       adjustment: mapBillingAdjustment(adjustment),
       opportunity: this.mapDetail(updatedOpportunity, [adjustment]),
     };
+  }
+
+  private async recordCloseWonBillingEvent(
+    currentUser: AuthenticatedUser,
+    adjustment: BillingAdjustmentRecord,
+    opportunity: CustomerSuccessOpportunityRecord,
+  ) {
+    if (!this.platformEvents) return;
+
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      actorType: 'USER',
+      resourceType: 'BILLING_ADJUSTMENT',
+      resourceId: adjustment.id,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? null,
+      parentTraceId: currentUser.parentSpanId ?? null,
+      eventSource: 'billing',
+      eventType: 'billing.adjustment.close_won_created',
+      status: 'SUCCESS',
+      severity: 'INFO',
+      securityLevel: 'INTERNAL',
+      billable: false,
+      summary: `续约机会成交入账生成调账单 ${adjustment.adjustmentNo}`,
+      payloadJson: {
+        adjustment_id: adjustment.id,
+        adjustment_no: adjustment.adjustmentNo,
+        opportunity_id: opportunity.id,
+        opportunity_code: opportunity.code,
+        opportunity_name: opportunity.name,
+        customer_name: opportunity.customerName,
+        amount: Number(adjustment.amount),
+        signed_amount: signedAdjustmentAmount(adjustment.type, Number(adjustment.amount)),
+        type: adjustment.type,
+        status: adjustment.status,
+        reason: adjustment.reason,
+      },
+      sourceSystem: 'billing',
+      sourceId: adjustment.id,
+      dedupeKey: `billing:close-won-adjustment:${adjustment.id}`,
+    });
   }
 
   async analytics(currentUser: AuthenticatedUser): Promise<CustomerSuccessOpportunityAnalytics> {

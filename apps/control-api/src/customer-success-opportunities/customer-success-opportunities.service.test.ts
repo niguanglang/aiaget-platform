@@ -465,6 +465,7 @@ test('customer success opportunity rejects duplicate follow-up action creation w
 
 test('customer success opportunity can close won and create a billing adjustment source record', async () => {
   const writes: Array<{ type: string; data: Record<string, unknown> }> = [];
+  const events: Array<Record<string, unknown>> = [];
   const billingAdjustment = billingAdjustmentRecord();
   const updatedOpportunity = opportunityRecord({
     stage: 'WON',
@@ -493,7 +494,16 @@ test('customer success opportunity can close won and create a billing adjustment
       },
     },
   };
-  const service = new CustomerSuccessOpportunitiesService(prisma as never);
+  const service = new CustomerSuccessOpportunitiesService(
+    prisma as never,
+    undefined,
+    {
+      recordEvent: async (event: Record<string, unknown>) => {
+        events.push(event);
+        return { id: 'platform-event-1' };
+      },
+    } as never,
+  );
 
   const result = await service.closeWonAdjustment(currentUser, 'opportunity-1', {
     amount: 680000,
@@ -516,6 +526,13 @@ test('customer success opportunity can close won and create a billing adjustment
   assert.equal(result.opportunity.stage, 'WON');
   assert.equal(result.adjustment.id, 'billing-adjustment-1');
   assert.equal(result.adjustment.source_type, 'CUSTOMER_SUCCESS_OPPORTUNITY');
+  assert.equal(events.length, 1);
+  assert.equal(events[0]?.eventSource, 'billing');
+  assert.equal(events[0]?.eventType, 'billing.adjustment.close_won_created');
+  assert.equal(events[0]?.resourceType, 'BILLING_ADJUSTMENT');
+  assert.equal(events[0]?.resourceId, 'billing-adjustment-1');
+  assert.match(String(events[0]?.summary), /ADJ-20260718-0001/);
+  assert.match(JSON.stringify(events[0]?.payloadJson), /华中设计院二期续约扩展机会/);
 });
 
 test('customer success opportunity detail includes source billing adjustments for reverse trace', async () => {

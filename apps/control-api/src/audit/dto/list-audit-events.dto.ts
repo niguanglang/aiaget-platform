@@ -3,7 +3,7 @@ import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 import { AUDIT_WINDOWS } from './get-audit-overview.dto';
 
-export const AUDIT_EVENT_SOURCE_TYPES = ['login', 'operation', 'approval_audit'] as const;
+export const AUDIT_EVENT_SOURCE_TYPES = ['login', 'operation', 'approval_audit', 'billing'] as const;
 export const AUDIT_EVENT_STATUSES = ['SUCCESS', 'FAILED', 'DEGRADED'] as const;
 
 export class ListAuditEventsDto {

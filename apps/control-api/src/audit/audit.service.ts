@@ -34,6 +34,7 @@ export class AuditService {
         login_total: events.filter((event) => event.source_type === 'login').length,
         operation_total: events.filter((event) => event.source_type === 'operation').length,
         approval_audit_total: events.filter((event) => event.source_type === 'approval_audit').length,
+        billing_event_total: events.filter((event) => event.source_type === 'billing').length,
         security_event_total: events.filter((event) => event.status !== 'SUCCESS').length,
         config_change_total: events.filter((event) => isConfigChange(event)).length,
         success_rate: ratioPercent(events.filter((event) => event.status === 'SUCCESS').length, events.length),
@@ -59,12 +60,7 @@ export class AuditService {
       if (query.status && event.status !== query.status) return false;
       if (!keyword) return true;
 
-      return (
-        event.user_email.toLowerCase().includes(keyword)
-        || event.title.toLowerCase().includes(keyword)
-        || event.summary.toLowerCase().includes(keyword)
-        || (event.request_id?.toLowerCase().includes(keyword) ?? false)
-      );
+      return auditEventMatchesKeyword(event, keyword);
     });
 
     const paged = events.slice((page - 1) * pageSize, page * pageSize).map(stripAuditDetail);
@@ -88,7 +84,7 @@ export class AuditService {
   }
 
   private async loadEvents(tenantId: string, since: Date): Promise<AuditEventRecord[]> {
-    const [loginLogs, operationLogs, approvalAuditEvents] = await this.prisma.$transaction([
+    const [loginLogs, operationLogs, approvalAuditEvents, billingEvents] = await this.prisma.$transaction([
       this.prisma.loginLog.findMany({
         where: {
           tenantId,
@@ -134,12 +130,36 @@ export class AuditService {
         },
         take: 300,
       }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId,
+          occurredAt: {
+            gte: since,
+          },
+          OR: [
+            {
+              eventSource: 'billing',
+            },
+            {
+              sourceSystem: 'billing',
+            },
+          ],
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 300,
+      }),
     ]);
 
     return [
       ...loginLogs.map((log) => mapLoginLog(log)),
       ...operationLogs.map((log) => mapOperationLog(log)),
       ...approvalAuditEvents.map((event) => mapApprovalAuditEvent(event)),
+      ...billingEvents.map((event) => mapBillingPlatformEvent(event)),
     ].sort((left, right) => Date.parse(right.occurred_at) - Date.parse(left.occurred_at));
   }
 }
@@ -171,6 +191,30 @@ function stripAuditDetail(event: AuditEventRecord): AuditEventListItem {
     request_id: event.request_id,
     occurred_at: event.occurred_at,
   };
+}
+
+function auditEventMatchesKeyword(event: AuditEventRecord, keyword: string) {
+  return [
+    event.user_email,
+    event.module,
+    event.action,
+    event.title,
+    event.summary,
+    event.request_id,
+    event.path,
+    stringifySearchValue(event.request_summary),
+    event.error_message,
+  ].some((value) => value?.toLowerCase().includes(keyword));
+}
+
+function stringifySearchValue(value: unknown) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function mapLoginLog(
@@ -266,6 +310,77 @@ function mapApprovalAuditEvent(
     },
     error_message: event.eventStatus === 'FAILED' ? event.note ?? event.title : null,
   };
+}
+
+function mapBillingPlatformEvent(
+  event: Prisma.PlatformEventGetPayload<{
+    include: {
+      user: true;
+    };
+  }>,
+): AuditEventRecord {
+  return {
+    event_id: `platform_event:${event.id}`,
+    source_type: 'billing',
+    status: platformEventAuditStatus(event.status),
+    user_email: event.user?.email ?? '系统',
+    module: 'billing',
+    action: event.eventType,
+    title: event.summary ?? event.eventType,
+    summary: buildBillingEventSummary(event),
+    request_id: event.traceId ?? event.requestId,
+    occurred_at: event.occurredAt.toISOString(),
+    ip: null,
+    user_agent: null,
+    path: `/monitor/platform-usage/events/${event.id}`,
+    method: 'GET',
+    status_code: event.status === 'FAILED' ? 500 : 200,
+    request_summary: {
+      event_source: event.eventSource,
+      event_type: event.eventType,
+      status: event.status,
+      severity: event.severity,
+      resource_type: event.resourceType,
+      resource_id: event.resourceId,
+      source_system: event.sourceSystem,
+      source_id: event.sourceId,
+      request_id: event.requestId,
+      trace_id: event.traceId,
+      payload: event.payloadJson,
+    },
+    error_message: event.status === 'FAILED' ? event.summary ?? event.eventType : null,
+  };
+}
+
+function platformEventAuditStatus(status: string): AuditEventStatus {
+  if (status === 'FAILED' || status === 'ERROR') return 'FAILED';
+  if (status === 'DEGRADED' || status === 'WARNING' || status === 'WARN' || status === 'PARTIAL') return 'DEGRADED';
+  return 'SUCCESS';
+}
+
+function buildBillingEventSummary(
+  event: Prisma.PlatformEventGetPayload<{
+    include: {
+      user: true;
+    };
+  }>,
+) {
+  const payload = isRecord(event.payloadJson) ? event.payloadJson : {};
+  const adjustmentNo = stringValue(payload.adjustment_no);
+  const opportunityName = stringValue(payload.opportunity_name);
+  const customerName = stringValue(payload.customer_name);
+  const parts = [event.summary ?? event.eventType, adjustmentNo, opportunityName, customerName].filter(Boolean);
+
+  if (parts.length > 0) return parts.join(' / ');
+  return `${event.resourceType} / ${event.resourceId ?? event.sourceId ?? event.id}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function operationStatus(statusCode: number): AuditEventStatus {

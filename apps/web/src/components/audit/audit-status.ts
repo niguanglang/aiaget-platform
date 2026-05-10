@@ -4,6 +4,7 @@ const sourceLabels: Record<AuditEventSourceType, string> = {
   login: '登录',
   operation: '操作',
   approval_audit: '审批审计',
+  billing: '计费',
 };
 
 const statusLabels: Record<AuditEventStatus, string> = {

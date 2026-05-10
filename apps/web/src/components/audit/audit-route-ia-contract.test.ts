@@ -20,6 +20,13 @@ test('audit list page keeps event detail query and panel out of the list surface
   assert.match(auditListSource, /\/audit\/events\/\$\{event\.event_id\}/);
 });
 
+test('audit list page exposes billing audit source and close-won search vocabulary', () => {
+  assert.match(auditListSource, /billing/);
+  assert.match(auditListSource, /调账单号/);
+  assert.match(auditListSource, /机会名/);
+  assert.match(auditListSource, /客户名/);
+});
+
 test('audit event detail page owns getAuditEvent query', () => {
   assert.match(auditDetailSource, /getAuditEvent/);
   assert.match(auditDetailSource, /request_summary/);

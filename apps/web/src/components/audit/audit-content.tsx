@@ -24,7 +24,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { getApprovalAuditOverview, getAuditOverview, listAuditEvents } from '@/lib/api-client';
 
 const windows: AuditWindow[] = ['24h', '7d'];
-const sourceTypes: AuditEventSourceType[] = ['login', 'operation', 'approval_audit'];
+const sourceTypes: AuditEventSourceType[] = ['login', 'operation', 'approval_audit', 'billing'];
 const statuses: AuditEventStatus[] = ['SUCCESS', 'DEGRADED', 'FAILED'];
 
 export function AuditContent() {
@@ -69,6 +69,7 @@ export function AuditContent() {
     return [
       { label: '登录日志', value: `${summary.login_total}`, helper: `${windowValue} 窗口` },
       { label: '操作日志', value: `${summary.operation_total}`, helper: '写操作拦截' },
+      { label: '计费事件', value: `${summary.billing_event_total}`, helper: '调账与入账追踪' },
       { label: '安全事件', value: `${summary.security_event_total}`, helper: '失败登录与异常操作' },
       { label: '配置变更', value: `${summary.config_change_total}`, helper: '配置类写操作' },
       { label: '成功率', value: formatPercent(summary.success_rate), helper: '统一审计事件流' },
@@ -89,11 +90,11 @@ export function AuditContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M10</StatusBadge>
             <StatusBadge tone="healthy">真实审计</StatusBadge>
-            <StatusBadge tone="planned">统一事件流</StatusBadge>
+            <StatusBadge tone="planned">计费追踪</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审计中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合登录日志和写操作日志，快速查看安全事件、配置变更和最近失败记录。
+            聚合登录、写操作、审批审计和计费事件，支持按调账单号、机会名、客户名和链路 ID 追踪成交入账上下文。
           </p>
         </div>
         <Button
@@ -109,7 +110,7 @@ export function AuditContent() {
         </Button>
       </motion.section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {metrics.map((metric) => (
           <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
@@ -154,7 +155,7 @@ export function AuditContent() {
                 <div>
                   <h2 className="text-sm font-semibold">统一审计事件流</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    统一查看登录尝试和写操作记录，筛选用户、状态和窗口后进入事件详情页查看上下文。
+                    统一查看登录尝试、写操作、审批审计和计费调账事件，筛选来源、状态和窗口后进入事件详情页查看上下文。
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -168,7 +169,7 @@ export function AuditContent() {
                   <input
                     className="min-w-0 flex-1 bg-transparent outline-none"
                     onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="搜索用户、模块、链路 ID"
+                    placeholder="搜索用户、模块、调账单号、机会名、客户名、链路 ID"
                     value={keyword}
                   />
                 </label>

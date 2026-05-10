@@ -7801,13 +7801,14 @@ export interface BillingOverview {
 }
 
 export type AuditWindow = '24h' | '7d';
-export type AuditEventSourceType = 'login' | 'operation' | 'approval_audit';
+export type AuditEventSourceType = 'login' | 'operation' | 'approval_audit' | 'billing';
 export type AuditEventStatus = 'SUCCESS' | 'FAILED' | 'DEGRADED';
 
 export interface AuditSummary {
   login_total: number;
   operation_total: number;
   approval_audit_total: number;
+  billing_event_total: number;
   security_event_total: number;
   config_change_total: number;
   success_rate: number;

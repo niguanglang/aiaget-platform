@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-10T05:48:47.527960+00:00",
+  "page": "成交入账审计追踪",
+  "route": "/audit",
+  "feature": "审计中心接入计费调账事件检索",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

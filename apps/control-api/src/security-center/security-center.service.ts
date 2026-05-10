@@ -5012,6 +5012,9 @@ function mapSecurityOperationAlertNotificationEvent(
     alert_id: typeof payload?.alert_id === 'string' ? payload.alert_id : event.resourceId ?? '',
     notification_event_id: event.id,
     alert_category: typeof payload?.alert_category === 'string' ? payload.alert_category : null,
+    alert_category_label: securityOperationAlertCategoryLabel(
+      typeof payload?.alert_category === 'string' ? payload.alert_category : null,
+    ),
     status,
     channels,
     targets,
@@ -5061,7 +5064,7 @@ function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAler
     ...items.map((item) => [
       item.notification_event_id,
       item.alert_id,
-      item.alert_category ?? '',
+      item.alert_category_label,
       item.status,
       item.channels.join('、'),
       item.targets.join('、'),
@@ -5078,6 +5081,21 @@ function buildSecurityOperationAlertNotificationCsv(items: SecurityOperationAler
   ];
 
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function securityOperationAlertCategoryLabel(category: string | null) {
+  if (category === 'APPROVAL_WORKBENCH_EXPORT') return '审批工作台导出';
+  if (category === 'SLA_DEAD_LETTER_ARCHIVE_DELETE') return 'SLA 死信归档删除';
+  if (category === 'AGENT_TEAM_REPORT_ARCHIVE_DELETE') return '团队报告归档删除';
+  if (category === 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE') return '客户成功复盘归档删除';
+  if (category === 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE') return '自愈审计归档删除';
+  if (category === 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE') return '多来源通知任务失败';
+  if (category === 'NOTIFICATION_TASK') return '通知任务';
+  if (category === 'ARCHIVE_OPERATION') return '归档运营';
+  if (category === 'NOTIFICATION_POLICY') return '通知策略';
+  if (category === 'RUNTIME_APPROVAL') return '运行时审批';
+  if (category === 'SECURITY_OPERATION') return '安全运营';
+  return '未分类';
 }
 
 function isSystemActor(currentUser: AuthenticatedUser) {

@@ -153,6 +153,42 @@ test('notification task recovery summaries preserve customer success archive del
   assert.match(suggestion.evidence, /客户成功复盘归档删除覆盖 2 条/);
 });
 
+test('operation alert notification audit filters and exports customer success source with Chinese labels', async () => {
+  const prisma = buildPrisma({
+    operationAlertNotificationEvents: [
+      buildOperationAlertNotificationEvent('customer-success-notification', {
+        alert_id: 'customer-success-close-won-report-archive-delete-pending',
+        alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+        status: 'SENT',
+        message: '客户成功复盘归档删除等待审批通知已发送。',
+      }),
+      buildOperationAlertNotificationEvent('agent-team-notification', {
+        alert_id: 'agent-team-report-archive-delete-pending',
+        alert_category: 'AGENT_TEAM_REPORT_ARCHIVE_DELETE',
+        status: 'SENT',
+        message: '团队报告归档删除等待审批通知已发送。',
+      }),
+    ],
+  });
+  const service = new SecurityCenterService(prisma as never, buildStorage() as never);
+  stubOverviewDependencies(service);
+
+  const overview = await service.listOperationAlertNotifications(buildUser(), {
+    alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+  });
+
+  assert.equal(overview.summary.total_count, 1);
+  assert.equal(overview.items[0]?.alert_category, 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE');
+  assert.equal(overview.items[0]?.alert_category_label, '客户成功复盘归档删除');
+
+  const csv = await service.exportOperationAlertNotifications(buildUser(), {
+    alert_category: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
+  });
+
+  assert.match(csv, /客户成功复盘归档删除/);
+  assert.doesNotMatch(csv, /团队报告归档删除等待审批通知已发送/);
+});
+
 function stubOverviewDependencies(service: SecurityCenterService) {
   const target = service as unknown as {
     loadPolicyStats: () => Promise<unknown>;
@@ -229,7 +265,10 @@ function stubOverviewDependencies(service: SecurityCenterService) {
   target.loadRecentMonitorErrors = async () => [];
 }
 
-function buildPrisma(input: { notificationTaskEvents?: ReturnType<typeof buildNotificationTaskEvent>[] } = {}) {
+function buildPrisma(input: {
+  notificationTaskEvents?: ReturnType<typeof buildNotificationTaskEvent>[];
+  operationAlertNotificationEvents?: ReturnType<typeof buildOperationAlertNotificationEvent>[];
+} = {}) {
   const exportedAt = new Date('2026-05-08T08:00:00.000Z');
   const createdEvents: Array<{ data: PlatformEventData }> = [];
   const exportEvents = Array.from({ length: 12 }, (_, index) => ({
@@ -308,6 +347,9 @@ function buildPrisma(input: { notificationTaskEvents?: ReturnType<typeof buildNo
         if (eventType === 'platform.security.approval_workbench.exported') {
           return args.include ? exportEvents : exportEvents.map(({ user, ...event }) => event);
         }
+        if (eventType === 'platform.security.approval_operation_alert.notification_sent') {
+          return input.operationAlertNotificationEvents ?? [];
+        }
         if (
           typeof eventType === 'object' &&
           eventType.in?.includes('platform.security.approval_operation_alert_notification_task.auto_notify_finished')
@@ -359,6 +401,32 @@ function buildPrisma(input: { notificationTaskEvents?: ReturnType<typeof buildNo
   };
 
   return prisma;
+}
+
+function buildOperationAlertNotificationEvent(id: string, payload: Record<string, unknown>) {
+  return {
+    id,
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    resourceType: 'security_operation_alert',
+    resourceId: typeof payload.alert_id === 'string' ? payload.alert_id : id,
+    requestId: `request-${id}`,
+    traceId: `trace-${id}`,
+    eventSource: 'security_center',
+    eventType: 'platform.security.approval_operation_alert.notification_sent',
+    status: payload.status === 'FAILED' ? 'FAILED' : 'SUCCESS',
+    severity: payload.status === 'FAILED' ? 'WARN' : 'INFO',
+    summary: typeof payload.message === 'string' ? payload.message : '审批与归档告警通知已发送',
+    payloadJson: {
+      channels: ['IN_APP'],
+      targets: ['安全管理员'],
+      delivered_at: '2026-05-08T08:01:00.000Z',
+      retry_count: 0,
+      ...payload,
+    },
+    occurredAt: new Date('2026-05-08T08:01:00.000Z'),
+    createdAt: new Date('2026-05-08T08:01:00.000Z'),
+  };
 }
 
 function buildNotificationTaskEvent(id: string, payload: Record<string, unknown>) {

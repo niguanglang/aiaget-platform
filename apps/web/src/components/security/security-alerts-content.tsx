@@ -12,7 +12,7 @@ import {
   type SecurityOperationAlertNotificationStatus,
 } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, Download, Search, Send, XCircle } from 'lucide-react';
+import { AlertTriangle, Archive, ArrowRight, CheckCircle2, ClipboardCheck, Download, Search, Send, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -50,7 +50,9 @@ import {
   getSecurityApprovalWorkbenchOverview,
   getSecurityCenterOverview,
   getSecurityOperationAlertSlaOverview,
+  createSecurityOperationAlertNotificationArchive,
   exportSecurityApprovalWorkbenchItems,
+  exportSecurityOperationAlertNotifications,
   listSecurityApprovalWorkbenchItems,
   listSecurityOperationAlertNotifications,
   notifySecurityOperationAlert,
@@ -87,6 +89,19 @@ const notificationStatuses: Array<{ label: string; value: SecurityOperationAlert
   { label: '已跳过', value: 'SKIPPED' },
   { label: '失败', value: 'FAILED' },
 ];
+const notificationCategories: Array<{ label: string; value: string }> = [
+  { label: '通知任务', value: 'NOTIFICATION_TASK' },
+  { label: '审批工作台导出', value: 'APPROVAL_WORKBENCH_EXPORT' },
+  { label: 'SLA 死信归档删除通知', value: 'SLA_DEAD_LETTER_ARCHIVE_DELETE' },
+  { label: '团队报告归档删除通知', value: 'AGENT_TEAM_REPORT_ARCHIVE_DELETE' },
+  { label: '客户成功复盘归档删除通知', value: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE' },
+  { label: '自愈审计归档删除通知', value: 'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE' },
+  { label: '多来源通知任务失败', value: 'NOTIFICATION_TASK_MIXED_FAILURE_SOURCE' },
+  { label: '归档运营', value: 'ARCHIVE_OPERATION' },
+  { label: '通知策略', value: 'NOTIFICATION_POLICY' },
+  { label: '运行时审批', value: 'RUNTIME_APPROVAL' },
+  { label: '安全运营', value: 'SECURITY_OPERATION' },
+];
 
 type ApprovalReviewTarget = {
   approvalId: string;
@@ -120,7 +135,10 @@ export function SecurityAlertsContent() {
   const [approvalNotice, setApprovalNotice] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<SecurityOperationAlertNotificationStatus | ''>('');
+  const [notificationCategory, setNotificationCategory] = useState('');
   const [notificationKeyword, setNotificationKeyword] = useState('');
+  const [notificationAuditNotice, setNotificationAuditNotice] = useState<string | null>(null);
+  const [notificationAuditError, setNotificationAuditError] = useState<string | null>(null);
   const [operationAlertActionTarget, setOperationAlertActionTarget] = useState<OperationAlertActionTarget | null>(null);
   const [operationAlertNotice, setOperationAlertNotice] = useState<string | null>(null);
   const [operationAlertError, setOperationAlertError] = useState<string | null>(null);
@@ -166,10 +184,11 @@ export function SecurityAlertsContent() {
     queryFn: () => getSecurityApprovalWorkbenchItem(selectedApprovalId ?? ''),
   });
   const notificationQuery = useQuery({
-    queryKey: ['security-alerts-page-notifications', notificationStatus, notificationKeyword],
+    queryKey: ['security-alerts-page-notifications', notificationStatus, notificationCategory, notificationKeyword],
     queryFn: () =>
       listSecurityOperationAlertNotifications({
         status: notificationStatus,
+        alert_category: notificationCategory,
         keyword: notificationKeyword,
       }),
   });
@@ -184,6 +203,7 @@ export function SecurityAlertsContent() {
   const approvalTotal = approvalItemsQuery.data?.total ?? 0;
   const selectedApproval = approvalDetailQuery.data;
   const notifications = notificationQuery.data?.items ?? [];
+  const notificationTotal = notificationQuery.data?.summary.total_count ?? 0;
   const alerts = securityOverview?.approval_operations.operational_alerts ?? [];
   const slaItems = slaQuery.data?.items ?? [];
   const approvalOperations = securityOverview?.approval_operations;
@@ -248,6 +268,42 @@ export function SecurityAlertsContent() {
     onError: (error: ApiClientError) => {
       setApprovalNotice(null);
       setApprovalError(`审批工作台导出失败：${error.message}`);
+    },
+  });
+
+  const notificationExportMutation = useMutation({
+    mutationFn: () =>
+      exportSecurityOperationAlertNotifications({
+        status: notificationStatus,
+        alert_category: notificationCategory,
+        keyword: notificationKeyword,
+      }),
+    onSuccess: (blob) => {
+      downloadBlob(blob, `安全运营通知审计-${new Date().toISOString().slice(0, 10)}.csv`);
+      setNotificationAuditError(null);
+      setNotificationAuditNotice(`通知审计导出完成，当前筛选命中 ${formatNumber(notificationTotal)} 条。`);
+    },
+    onError: (error: ApiClientError) => {
+      setNotificationAuditNotice(null);
+      setNotificationAuditError(`通知审计导出失败：${error.message}`);
+    },
+  });
+
+  const notificationArchiveMutation = useMutation({
+    mutationFn: () =>
+      createSecurityOperationAlertNotificationArchive({
+        status: notificationStatus,
+        alert_category: notificationCategory,
+        keyword: notificationKeyword,
+      }),
+    onSuccess: async (result) => {
+      setNotificationAuditError(null);
+      setNotificationAuditNotice(`通知审计归档已创建：${result.item.file_name}。`);
+      await queryClient.invalidateQueries({ queryKey: ['security-archive-governance-notification-archives'] });
+    },
+    onError: (error: ApiClientError) => {
+      setNotificationAuditNotice(null);
+      setNotificationAuditError(`通知审计归档失败：${error.message}`);
     },
   });
 
@@ -567,18 +623,51 @@ export function SecurityAlertsContent() {
         <Card className="overflow-hidden">
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">通知审计</h2>
-            <p className="mt-1 text-sm text-muted-foreground">按状态检索运营告警通知审计，导出和归档删除审批由后端既有接口负责。</p>
-            <div className="mt-4 grid gap-2 md:grid-cols-[180px_1fr]">
+            <p className="mt-1 text-sm text-muted-foreground">按状态、来源和关键词检索运营告警通知审计，当前筛选可导出 CSV 或创建对象存储归档。</p>
+            <div className="mt-4 grid gap-2 md:grid-cols-[170px_230px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setNotificationStatus(event.target.value as SecurityOperationAlertNotificationStatus | '')} value={notificationStatus}>
                 <option value="">全部状态</option>
                 {notificationStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+              <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setNotificationCategory(event.target.value)} value={notificationCategory}>
+                <option value="">全部来源</option>
+                {notificationCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
                 <input className="min-w-0 flex-1 bg-transparent outline-none" onChange={(event) => setNotificationKeyword(event.target.value)} placeholder="搜索告警、消息、trace_id" value={notificationKeyword} />
               </label>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                当前筛选命中 {formatNumber(notificationTotal)} 条{notificationTotal === 0 ? '，暂无可导出或归档的通知审计。' : '，导出与归档会沿用状态、来源和关键词条件。'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={notificationTotal === 0 || notificationQuery.isFetching || notificationExportMutation.isPending}
+                  onClick={() => notificationExportMutation.mutate()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Download className="size-4" />
+                  {notificationExportMutation.isPending ? '正在导出' : '导出通知审计'}
+                </Button>
+                <Button
+                  disabled={notificationTotal === 0 || notificationQuery.isFetching || notificationArchiveMutation.isPending}
+                  onClick={() => notificationArchiveMutation.mutate()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Archive className="size-4" />
+                  {notificationArchiveMutation.isPending ? '正在归档' : '创建审计归档'}
+                </Button>
+              </div>
+            </div>
           </div>
+          {notificationAuditNotice ? <div className="mx-4 mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notificationAuditNotice}</div> : null}
+          {notificationAuditError ? <div className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{notificationAuditError}</div> : null}
           {notificationQuery.isError ? (
             <div className="p-4"><PageError>通知审计加载失败。</PageError></div>
           ) : notificationQuery.isLoading ? (
@@ -592,7 +681,7 @@ export function SecurityAlertsContent() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
-                      {item.alert_category ? <StatusBadge tone="planned">{item.alert_category}</StatusBadge> : null}
+                      <StatusBadge tone="planned">{item.alert_category_label}</StatusBadge>
                       <span className="font-medium">{shortId(item.alert_id)}</span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.message}</p>

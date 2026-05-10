@@ -2577,6 +2577,7 @@ export interface SecurityOperationAlertNotificationResult {
 export interface SecurityOperationAlertNotificationItem extends SecurityOperationAlertNotificationResult {
   notification_event_id: string;
   alert_category: string | null;
+  alert_category_label: string;
   webhook_error: string | null;
   retry_count: number;
   retried_from_event_id: string | null;

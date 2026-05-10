@@ -173,6 +173,11 @@ test('alerts page owns approval and alert operation data flow and Chinese page r
   assert.match(source, /getSecurityApprovalWorkbenchOverview/);
   assert.match(source, /listSecurityApprovalWorkbenchItems/);
   assert.match(source, /listSecurityOperationAlertNotifications/);
+  assert.match(source, /exportSecurityOperationAlertNotifications/);
+  assert.match(source, /createSecurityOperationAlertNotificationArchive/);
+  assert.match(source, /notificationCategory/);
+  assert.match(source, /notificationCategories/);
+  assert.match(source, /客户成功复盘归档删除通知/);
   assert.match(source, /getSecurityOperationAlertSlaOverview/);
   assert.match(source, /客户成功复盘归档删除/);
   assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);

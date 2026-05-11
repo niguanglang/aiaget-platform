@@ -2302,6 +2302,7 @@ export interface NotificationPolicyApprovalOverview {
 export type SecurityApprovalWorkbenchType =
   | 'TOOL_CALL'
   | 'NOTIFICATION_POLICY'
+  | 'CHANNEL_PUBLISH_APPROVAL'
   | 'APPROVAL_AUDIT_ARCHIVE_DELETE'
   | 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE'
   | 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE'
@@ -2311,7 +2312,7 @@ export type SecurityApprovalWorkbenchType =
 
 export type SecurityApprovalWorkbenchStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED';
 
-export type SecurityApprovalWorkbenchRiskDomain = 'TOOL' | 'POLICY' | 'AUDIT_ARCHIVE' | 'OPERATION_ALERT';
+export type SecurityApprovalWorkbenchRiskDomain = 'TOOL' | 'POLICY' | 'CHANNEL' | 'AUDIT_ARCHIVE' | 'OPERATION_ALERT';
 
 export type SecurityApprovalWorkbenchRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 

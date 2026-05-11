@@ -12,12 +12,13 @@ test('approval workbench aggregates tool, policy, audit archive, and security ar
 
   const result = await service.list(buildUser(), { page: 1, page_size: 20 });
 
-  assert.equal(result.total, 8);
+  assert.equal(result.total, 9);
   assert.deepEqual(
     result.items.map((item) => item.type).sort(),
     [
       'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE',
       'APPROVAL_AUDIT_ARCHIVE_DELETE',
+      'CHANNEL_PUBLISH_APPROVAL',
       'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE',
       'NOTIFICATION_POLICY',
       'NOTIFICATION_TASK_RECOVERY_AUDIT_ARCHIVE_DELETE',
@@ -30,6 +31,7 @@ test('approval workbench aggregates tool, policy, audit archive, and security ar
   assert.equal(result.items.find((item) => item.type === 'NOTIFICATION_POLICY')?.risk_domain, 'POLICY');
   assert.equal(result.items.find((item) => item.type === 'APPROVAL_AUDIT_ARCHIVE_DELETE')?.risk_domain, 'AUDIT_ARCHIVE');
   assert.equal(result.items.find((item) => item.type === 'OPERATION_ALERT_NOTIFICATION_ARCHIVE_DELETE')?.risk_domain, 'OPERATION_ALERT');
+  assert.equal(result.items.find((item) => item.type === 'CHANNEL_PUBLISH_APPROVAL')?.risk_domain, 'CHANNEL');
 });
 
 test('approval workbench filters, returns detail timeline, and forwards review decisions', async () => {
@@ -182,6 +184,42 @@ test('approval workbench includes customer success report archive delete approva
   ]);
 });
 
+test('approval workbench includes channel publish approvals and forwards decisions', async () => {
+  const calls: Array<{ service: string; id: string; note: string | null }> = [];
+  const service = createService({ calls });
+
+  const filtered = await service.list(buildUser(), {
+    page: 1,
+    page_size: 20,
+    type: 'CHANNEL_PUBLISH_APPROVAL',
+  });
+  assert.equal(filtered.total, 1);
+  assert.equal(filtered.items[0]?.risk_domain, 'CHANNEL');
+  assert.equal(filtered.items[0]?.risk_level, 'HIGH');
+  assert.equal(filtered.items[0]?.target_id, 'channel-1');
+  assert.equal(filtered.items[0]?.target_label, '企业微信客服渠道');
+
+  const detail = await service.get(buildUser(), 'CHANNEL_PUBLISH_APPROVAL:channel-1');
+  assert.equal(detail.type, 'CHANNEL_PUBLISH_APPROVAL');
+  assert.equal(detail.metadata.channel_type, 'WECHAT_WORK');
+  assert.equal(detail.metadata.agent_name, '客服助手');
+  assert.equal(detail.metadata.rollout_percentage, 20);
+  assert.equal(detail.timeline.length, 1);
+
+  await service.review(buildUser(), 'CHANNEL_PUBLISH_APPROVAL:channel-1', {
+    decision: 'APPROVE',
+    decision_note: '允许渠道灰度发布',
+  });
+
+  assert.deepEqual(calls, [
+    {
+      service: 'channel.approve',
+      id: 'channel-1',
+      note: '允许渠道灰度发布',
+    },
+  ]);
+});
+
 test('approval workbench export limits filtered csv and records an audit event with filters', async () => {
   const recordedEvents: PlatformEventInput[] = [];
   const service = createService({ recordedEvents });
@@ -329,6 +367,14 @@ function createService(
       },
     } as never,
     {
+      approvePublish: async (_user: unknown, id: string, payload: { note?: string | null }) => {
+        calls.push({ service: 'channel.approve', id, note: payload.note ?? null });
+      },
+      rejectPublish: async (_user: unknown, id: string, payload: { note?: string | null }) => {
+        calls.push({ service: 'channel.reject', id, note: payload.note ?? null });
+      },
+    } as never,
+    {
       recordEvent: async (event: PlatformEventInput) => {
         recordedEvents.push(event);
         return { id: `event-${recordedEvents.length}` };
@@ -423,6 +469,61 @@ function buildPrisma() {
         }
         return [];
       },
+    },
+    agentPublishChannel: {
+      findMany: async () => [buildChannelPublishApproval()],
+    },
+  };
+}
+
+function buildChannelPublishApproval() {
+  return {
+    id: 'channel-1',
+    tenantId: 'tenant-1',
+    agentId: 'agent-1',
+    channel: 'WECHAT_WORK',
+    name: '企业微信客服渠道',
+    description: '企业微信客服发布入口',
+    status: 'DRAFT',
+    endpointUrl: 'https://channels.example.test/wechat',
+    callbackUrl: 'https://control.example.test/callback',
+    secretEncrypted: null,
+    secretMasked: null,
+    config: {
+      publish_control: {
+        approval_required: true,
+        approval_status: 'PENDING',
+        approval_note: '上线前需要安全复核。',
+        requested_by: 'user-1',
+        requested_at: '2026-05-08T08:04:00.000Z',
+        reviewed_by: null,
+        reviewed_at: null,
+        decision_note: null,
+        rollout_enabled: true,
+        rollout_percentage: 20,
+        rollout_status: 'GRAY',
+        rollback_available: true,
+        last_stable_status: 'DISABLED',
+        last_stable_config: null,
+        last_rollback_at: null,
+        last_rollback_by: null,
+      },
+    },
+    lastPublishedAt: null,
+    lastCheckedAt: null,
+    healthStatus: 'UNKNOWN',
+    healthMessage: '待审批',
+    createdAt: new Date('2026-05-08T08:00:00.000Z'),
+    updatedAt: new Date('2026-05-08T08:04:00.000Z'),
+    deletedAt: null,
+    createdBy: 'user-1',
+    updatedBy: 'user-1',
+    agent: {
+      id: 'agent-1',
+      name: '客服助手',
+      code: 'customer_service',
+      status: 'PUBLISHED',
+      version: 3,
     },
   };
 }

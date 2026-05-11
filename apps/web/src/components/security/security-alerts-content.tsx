@@ -64,6 +64,7 @@ import {
 const approvalTypes: Array<{ label: string; value: SecurityApprovalWorkbenchType }> = [
   { label: '工具调用审批', value: 'TOOL_CALL' },
   { label: '通知策略审批', value: 'NOTIFICATION_POLICY' },
+  { label: '渠道发布审批', value: 'CHANNEL_PUBLISH_APPROVAL' },
   { label: '审批审计归档删除', value: 'APPROVAL_AUDIT_ARCHIVE_DELETE' },
   { label: '团队报告归档删除', value: 'AGENT_TEAM_RUN_REPORT_ARCHIVE_DELETE' },
   { label: '客户成功复盘归档删除', value: 'CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE' },
@@ -80,6 +81,7 @@ const approvalStatuses: Array<{ label: string; value: SecurityApprovalWorkbenchS
 const approvalRiskDomains: Array<{ label: string; value: SecurityApprovalWorkbenchRiskDomain }> = [
   { label: '工具风险', value: 'TOOL' },
   { label: '策略风险', value: 'POLICY' },
+  { label: '渠道发布', value: 'CHANNEL' },
   { label: '审计归档', value: 'AUDIT_ARCHIVE' },
   { label: '运营告警', value: 'OPERATION_ALERT' },
 ];

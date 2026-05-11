@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AgentTeamsModule } from '../agent-teams/agent-teams.module';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { AuthModule } from '../auth/auth.module';
+import { ChannelsModule } from '../channels/channels.module';
 import { CustomerSuccessOpportunitiesModule } from '../customer-success-opportunities/customer-success-opportunities.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PlatformEventsModule } from '../platform-events/platform-events.module';
@@ -23,6 +24,7 @@ import { SecurityCenterService } from './security-center.service';
     ApprovalsModule,
     SystemSettingsModule,
     AgentTeamsModule,
+    ChannelsModule,
     CustomerSuccessOpportunitiesModule,
   ],
   controllers: [SecurityCenterController],

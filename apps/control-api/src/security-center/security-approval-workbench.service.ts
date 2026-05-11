@@ -16,6 +16,7 @@ import type {
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { ApprovalsService } from '../approvals/approvals.service';
+import { ChannelsService } from '../channels/channels.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CustomerSuccessOpportunitiesService } from '../customer-success-opportunities/customer-success-opportunities.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
@@ -65,8 +66,21 @@ const platformEventInclude = {
   },
 } satisfies Prisma.PlatformEventInclude;
 
+const channelApprovalInclude = {
+  agent: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      status: true,
+      version: true,
+    },
+  },
+} satisfies Prisma.AgentPublishChannelInclude;
+
 type ToolApprovalRecord = Prisma.ToolApprovalRequestGetPayload<{ include: typeof approvalInclude }>;
 type SystemSettingSnapshotRecord = Prisma.SystemSettingSnapshotGetPayload<{ include: typeof snapshotInclude }>;
+type ChannelPublishApprovalRecord = Prisma.AgentPublishChannelGetPayload<{ include: typeof channelApprovalInclude }>;
 type ApprovalAuditEventRecord = Prisma.ApprovalAuditEventGetPayload<{ include: typeof approvalAuditInclude }>;
 type PlatformEventRecord = Prisma.PlatformEventGetPayload<{ include: typeof platformEventInclude }>;
 
@@ -152,6 +166,7 @@ export class SecurityApprovalWorkbenchService {
     @Inject(SecurityOperationAlertSlaService) private readonly operationAlertSlaService: SecurityOperationAlertSlaService,
     @Inject(CustomerSuccessOpportunitiesService)
     private readonly customerSuccessOpportunitiesService: CustomerSuccessOpportunitiesService,
+    @Inject(ChannelsService) private readonly channelsService: ChannelsService,
     @Inject(PlatformEventsService) private readonly platformEventsService: PlatformEventsService,
   ) {}
 
@@ -256,6 +271,10 @@ export class SecurityApprovalWorkbenchService {
       } else {
         await this.systemSettingsService.rejectNotificationPolicyApproval(currentUser, item.source_id, payload);
       }
+    } else if (item.type === 'CHANNEL_PUBLISH_APPROVAL') {
+      const channelPayload = { note: input.decision_note ?? null };
+      if (input.decision === 'APPROVE') await this.channelsService.approvePublish(currentUser, item.source_id, channelPayload);
+      else await this.channelsService.rejectPublish(currentUser, item.source_id, channelPayload);
     } else if (item.type === 'APPROVAL_AUDIT_ARCHIVE_DELETE') {
       if (input.decision === 'APPROVE') await this.approvalsService.approveArchiveDeleteApproval(currentUser, item.source_id, payload);
       else await this.approvalsService.rejectArchiveDeleteApproval(currentUser, item.source_id, payload);
@@ -298,6 +317,7 @@ export class SecurityApprovalWorkbenchService {
     const [
       toolApprovals,
       notificationApprovals,
+      channelPublishApprovals,
       approvalAuditEvents,
       agentTeamReportArchiveEvents,
       customerSuccessReportArchiveEvents,
@@ -308,6 +328,7 @@ export class SecurityApprovalWorkbenchService {
       await Promise.all([
         this.loadToolApprovals(tenantId),
         this.loadNotificationApprovals(tenantId),
+        this.loadChannelPublishApprovals(tenantId),
         this.loadApprovalAuditArchiveEvents(tenantId),
         this.loadAgentTeamRunReportArchiveEvents(tenantId),
         this.loadCustomerSuccessCloseWonReportArchiveEvents(tenantId),
@@ -334,6 +355,7 @@ export class SecurityApprovalWorkbenchService {
     return [
       ...toolApprovals.map(mapToolApproval),
       ...notificationApprovals.map(mapNotificationApproval),
+      ...channelPublishApprovals.map(mapChannelPublishApproval),
       ...buildApprovalAuditArchiveDeleteItems(approvalAuditEvents),
       ...buildAgentTeamRunReportArchiveDeleteItems(agentTeamReportArchiveEvents),
       ...buildCustomerSuccessCloseWonReportArchiveDeleteItems(customerSuccessReportArchiveEvents),
@@ -381,6 +403,30 @@ export class SecurityApprovalWorkbenchService {
       orderBy: { createdAt: 'desc' },
       take: 300,
     });
+  }
+
+  private async loadChannelPublishApprovals(tenantId: string): Promise<ChannelPublishApprovalRecord[]> {
+    const channels = await this.prisma.agentPublishChannel.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+      },
+      include: channelApprovalInclude,
+      orderBy: { updatedAt: 'desc' },
+      take: 500,
+    });
+
+    return channels
+      .filter((channel) => {
+        const control = readChannelPublishControl(channel.config, channel.updatedAt);
+        return (
+          control.approval_required &&
+          (control.approval_status === 'PENDING' ||
+            control.approval_status === 'APPROVED' ||
+            control.approval_status === 'REJECTED')
+        );
+      })
+      .slice(0, 300);
   }
 
   private loadApprovalAuditArchiveEvents(tenantId: string) {
@@ -517,6 +563,72 @@ function mapNotificationApproval(snapshot: SystemSettingSnapshotRecord): Workben
       reviewedAt: snapshot.approvalStatus === 'PENDING' ? null : snapshot.createdAt,
       requester: snapshot.creator,
       reviewer: null,
+    }),
+  };
+}
+
+function mapChannelPublishApproval(channel: ChannelPublishApprovalRecord): WorkbenchSourceRecord {
+  const control = readChannelPublishControl(channel.config, channel.updatedAt);
+  const requester = control.requested_by
+    ? {
+        id: control.requested_by,
+        name: '发布申请人',
+        email: '',
+      }
+    : null;
+  const reviewer = control.reviewed_by
+    ? {
+        id: control.reviewed_by,
+        name: '发布审批人',
+        email: '',
+      }
+    : null;
+  const requestedAt = parseDate(control.requested_at) ?? channel.updatedAt;
+  const reviewedAt = parseDate(control.reviewed_at);
+  const targetLabel = channel.name ?? channel.channel;
+
+  return {
+    id: `CHANNEL_PUBLISH_APPROVAL:${channel.id}`,
+    source_id: channel.id,
+    type: 'CHANNEL_PUBLISH_APPROVAL',
+    source_module: '渠道发布审批',
+    title: `渠道发布审批：${targetLabel}`,
+    description: control.approval_note ?? `${channel.channel} 发布审批`,
+    status: normalizeApprovalStatus(control.approval_status),
+    risk_domain: 'CHANNEL',
+    risk_level: control.rollout_enabled && control.rollout_percentage < 100 ? 'HIGH' : 'CRITICAL',
+    target_id: channel.id,
+    target_label: targetLabel,
+    reason: control.approval_note,
+    requester,
+    reviewer,
+    requested_at: requestedAt.toISOString(),
+    reviewed_at: reviewedAt?.toISOString() ?? null,
+    request_id: null,
+    trace_id: null,
+    metadata: {
+      channel_type: channel.channel,
+      agent_id: channel.agentId,
+      agent_name: channel.agent?.name ?? null,
+      approval_required: control.approval_required,
+      approval_status: control.approval_status,
+      rollout_enabled: control.rollout_enabled,
+      rollout_percentage: control.rollout_percentage,
+      rollout_status: control.rollout_status,
+      rollback_available: control.rollback_available,
+      channel_status: channel.status,
+      health_status: channel.healthStatus,
+      endpoint_url: channel.endpointUrl,
+      callback_url: channel.callbackUrl,
+    },
+    timeline: buildSimpleTimeline({
+      id: channel.id,
+      status: control.approval_status,
+      note: control.decision_note ?? control.approval_note,
+      createdAt: requestedAt,
+      reviewedAt,
+      requester,
+      reviewer,
     }),
   };
 }
@@ -806,6 +918,54 @@ function numericArchiveMetadata(value: unknown) {
 function normalizeNotificationArchiveStatusFilter(value: unknown) {
   if (value === 'SENT' || value === 'PARTIAL' || value === 'SKIPPED' || value === 'FAILED') return value;
   return null;
+}
+
+function readChannelPublishControl(config: Prisma.JsonValue | null, updatedAt: Date | null) {
+  const configObject = jsonObject(config);
+  const control = jsonObject(configObject.publish_control);
+  const approvalRequired = typeof control.approval_required === 'boolean' ? control.approval_required : false;
+  const rolloutEnabled = typeof control.rollout_enabled === 'boolean' ? control.rollout_enabled : false;
+  const rolloutPercentage = numericPercentage(control.rollout_percentage);
+
+  return {
+    approval_required: approvalRequired,
+    approval_status: normalizeChannelApprovalStatus(control.approval_status, approvalRequired),
+    approval_note: nullableString(control.approval_note),
+    requested_by: nullableString(control.requested_by),
+    requested_at: nullableString(control.requested_at),
+    reviewed_by: nullableString(control.reviewed_by),
+    reviewed_at: nullableString(control.reviewed_at),
+    decision_note: nullableString(control.decision_note),
+    rollout_enabled: rolloutEnabled,
+    rollout_percentage: rolloutPercentage,
+    rollout_status: normalizeChannelRolloutStatus(control.rollout_status, rolloutEnabled, rolloutPercentage),
+    rollback_available: control.rollback_available === true,
+    updated_at: updatedAt?.toISOString() ?? null,
+  };
+}
+
+function normalizeChannelApprovalStatus(value: unknown, approvalRequired: boolean) {
+  if (!approvalRequired) return 'NOT_REQUIRED';
+  if (value === 'PENDING' || value === 'APPROVED' || value === 'REJECTED') return value;
+  return 'PENDING';
+}
+
+function normalizeChannelRolloutStatus(value: unknown, rolloutEnabled: boolean, rolloutPercentage: number) {
+  if (!rolloutEnabled) return 'CLOSED';
+  if (value === 'GRAY' || value === 'FULL') return value;
+  return rolloutPercentage >= 100 ? 'FULL' : 'GRAY';
+}
+
+function numericPercentage(value: unknown) {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, Math.round(parsed)));
+}
+
+function parseDate(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function nullableString(value: unknown) {

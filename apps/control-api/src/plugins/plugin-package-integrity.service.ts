@@ -83,7 +83,8 @@ export class PluginPackageIntegrityService {
           verificationUrl: input.signatureVerificationUrl ?? null,
         })
         : null;
-      const signaturePassed = signature ? signature.status !== 'FAILED' : true;
+      const signatureRequired = isSignatureVerificationRequired(input);
+      const signaturePassed = isSignatureVerificationPassed(signatureRequired, signature);
 
       return {
         status: passed && signaturePassed ? 'PASSED' : 'FAILED',
@@ -95,8 +96,8 @@ export class PluginPackageIntegrityService {
         package_size_bytes: downloaded.contentLength ?? downloaded.bytes.length,
         content_type: downloaded.contentType,
         signature,
-        error_code: buildIntegrityErrorCode(passed, signature),
-        error_message: buildIntegrityErrorMessage(passed, signature),
+        error_code: buildIntegrityErrorCode(passed, signatureRequired, signature),
+        error_message: buildIntegrityErrorMessage(passed, signatureRequired, signature),
       };
     } catch (error) {
       return {
@@ -306,15 +307,38 @@ function parsePositiveInteger(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function buildIntegrityErrorCode(passed: boolean, signature: PluginPackageSignatureResult | null) {
+function isSignatureVerificationRequired(input: VerifyPluginPackageInput) {
+  return Boolean(input.signature || input.signatureType || input.signatureVerificationUrl);
+}
+
+function isSignatureVerificationPassed(signatureRequired: boolean, signature: PluginPackageSignatureResult | null) {
+  if (!signatureRequired) return true;
+  return signature?.status === 'PASSED' && signature.verified === true;
+}
+
+function buildIntegrityErrorCode(
+  passed: boolean,
+  signatureRequired: boolean,
+  signature: PluginPackageSignatureResult | null,
+) {
   if (!passed) return 'PACKAGE_SHA256_MISMATCH';
   if (signature?.status === 'FAILED') return signature.error_code ?? 'PACKAGE_SIGNATURE_FAILED';
+  if (signatureRequired && !isSignatureVerificationPassed(signatureRequired, signature)) {
+    return signature?.error_code ?? 'PACKAGE_SIGNATURE_VERIFICATION_REQUIRED';
+  }
   return null;
 }
 
-function buildIntegrityErrorMessage(passed: boolean, signature: PluginPackageSignatureResult | null) {
+function buildIntegrityErrorMessage(
+  passed: boolean,
+  signatureRequired: boolean,
+  signature: PluginPackageSignatureResult | null,
+) {
   if (!passed) return '插件包 sha256 与 Manifest 声明不一致。';
   if (signature?.status === 'FAILED') return signature.error_message ?? '插件包签名校验失败。';
+  if (signatureRequired && !isSignatureVerificationPassed(signatureRequired, signature)) {
+    return signature?.error_message ?? '插件包签名未完成可信验签，无法通过完整性校验。';
+  }
   return null;
 }
 

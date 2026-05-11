@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { BadRequestException } from '@nestjs/common';
 
+import { PluginPackageIntegrityService } from './plugin-package-integrity.service';
 import { PluginsService } from './plugins.service';
 
 const currentUser = {
@@ -214,6 +215,78 @@ test('install blocks custom plugin when signature verification fails', async () 
   assert.equal(recordedEvents.length, 1);
   assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
   assert.equal((recordedEvents[0] as { payloadJson?: { package_integrity?: { signature?: { error_code?: string } } } }).payloadJson?.package_integrity?.signature?.error_code, 'PACKAGE_SIGNATURE_REJECTED');
+});
+
+test('install blocks custom plugin when signed package has no configured signature verifier', async () => {
+  const packageBytes = Buffer.from('signed-package-without-verifier');
+  const expectedSha256 = createHash('sha256').update(packageBytes).digest('hex');
+  const previousVerifierUrl = process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+  delete process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+
+  let pluginUpsertCalled = false;
+  const recordedEvents: unknown[] = [];
+  const service = new PluginsService(
+    {
+      plugin: {
+        upsert: () => {
+          pluginUpsertCalled = true;
+          throw new Error('plugin upsert should not be called without a configured signature verifier');
+        },
+      },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    new PluginPackageIntegrityService({
+      download: async (url) => ({
+        bytes: packageBytes,
+        finalUrl: url,
+        contentLength: packageBytes.length,
+        contentType: 'application/gzip',
+      }),
+    }),
+  );
+
+  try {
+    await assert.rejects(
+      () => service.install(currentUser, {
+        code: 'ticket-suite',
+        source_type: 'CUSTOM',
+        manifest_json: {
+          schema_version: '1.0',
+          code: 'ticket-suite',
+          version: '1.2.0',
+          package: {
+            source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+            sha256: expectedSha256,
+            signature: 'sigstore-bundle-placeholder',
+            signature_type: 'SIGSTORE',
+          },
+          tools: [
+            {
+              code: 'create-ticket',
+              name: '创建工单',
+              method: 'POST',
+              url: 'https://plugins.example.com/tools/create-ticket',
+            },
+          ],
+        },
+      }),
+      BadRequestException,
+    );
+  } finally {
+    restoreEnv('PLUGIN_SIGNATURE_VERIFIER_URL', previousVerifierUrl);
+  }
+
+  assert.equal(pluginUpsertCalled, false);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
+  assert.equal((recordedEvents[0] as { payloadJson?: { package_integrity?: { error_code?: string; signature?: { error_code?: string } } } }).payloadJson?.package_integrity?.error_code, 'PACKAGE_SIGNATURE_VERIFIER_NOT_CONFIGURED');
+  assert.equal((recordedEvents[0] as { payloadJson?: { package_integrity?: { signature?: { error_code?: string } } } }).payloadJson?.package_integrity?.signature?.error_code, 'PACKAGE_SIGNATURE_VERIFIER_NOT_CONFIGURED');
 });
 
 test('validateManifest includes real package integrity result for custom plugin packages', async () => {
@@ -1249,3 +1322,12 @@ test('rollback manifest sync prunes removed plugin hooks menus and tools while w
     service.getInstallation = getInstallation;
   }
 });
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}

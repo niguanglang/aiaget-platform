@@ -295,7 +295,7 @@ test('fails package integrity when configured external verifier returns an HTTP 
   }
 });
 
-test('keeps metadata-only signature result when no external verifier is configured', async () => {
+test('fails package integrity when signed package has no configured signature verifier', async () => {
   const packageBytes = Buffer.from('metadata-only-signature-package-content');
   const expectedSha256 = createHash('sha256').update(packageBytes).digest('hex');
   const previousVerifierUrl = process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
@@ -318,8 +318,9 @@ test('keeps metadata-only signature result when no external verifier is configur
       signatureType: 'CUSTOM',
     });
 
-    assert.equal(result.status, 'PASSED');
-    assert.equal(result.verified, true);
+    assert.equal(result.status, 'FAILED');
+    assert.equal(result.verified, false);
+    assert.equal(result.error_code, 'PACKAGE_SIGNATURE_VERIFIER_NOT_CONFIGURED');
     assert.equal(result.signature?.status, 'SKIPPED');
     assert.equal(result.signature?.error_code, 'PACKAGE_SIGNATURE_VERIFIER_NOT_CONFIGURED');
   } finally {

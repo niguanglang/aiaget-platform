@@ -163,6 +163,8 @@ export class AgentTeamsController {
 
   @Get('runs/:runId/report/export')
   @Permissions('agent:team:view')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'runId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'runId', permissionCode: 'agent:team:view' })
   @ApiOkResponse({ description: 'Export agent team run audit report as CSV' })
   async exportRunReport(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -179,6 +181,8 @@ export class AgentTeamsController {
 
   @Post('runs/:runId/report/archives')
   @Permissions('agent:team:view')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'runId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'runId', permissionCode: 'agent:team:view' })
   @ApiOkResponse({ description: 'Create agent team run report archive' })
   async createRunReportArchive(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -198,6 +202,8 @@ export class AgentTeamsController {
 
   @Get('report/archives/:archiveId/download-url')
   @Permissions('agent:team:view')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'archiveId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'archiveId', permissionCode: 'agent:team:view' })
   @ApiOkResponse({ description: 'Create agent team run report archive download URL' })
   async getRunReportArchiveDownloadUrl(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -208,6 +214,8 @@ export class AgentTeamsController {
 
   @Delete('report/archives/:archiveId')
   @Permissions('agent:team:view')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'archiveId' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'archiveId', permissionCode: 'agent:team:view' })
   @ApiOkResponse({ description: 'Request agent team run report archive deletion approval' })
   async requestDeleteRunReportArchive(
     @CurrentUser() currentUser: AuthenticatedUser,

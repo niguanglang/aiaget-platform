@@ -373,6 +373,36 @@ test('run handoff and feedback mutations enforce team data scope and resource AC
   }
 });
 
+test('run report export and archive creation enforce team data scope and resource ACL through runId', async () => {
+  const source = await readFile(`${process.cwd()}/src/agent-teams/agent-teams.controller.ts`, 'utf8');
+  const exportSection = extractMethodSection(source, 'async exportRunReport');
+  const archiveCreateSection = extractMethodSection(source, 'async createRunReportArchive');
+
+  for (const section of [exportSection, archiveCreateSection]) {
+    assert.match(section, /@Permissions\('agent:team:view'\)/);
+    assert.match(section, /@RequireDataScope\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'runId'\s*\}\)/s);
+    assert.match(
+      section,
+      /@RequireResourceAcl\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'runId',\s*permissionCode: 'agent:team:view'\s*\}\)/s,
+    );
+  }
+});
+
+test('run report archive download and delete request enforce team data scope and resource ACL through archiveId', async () => {
+  const source = await readFile(`${process.cwd()}/src/agent-teams/agent-teams.controller.ts`, 'utf8');
+  const downloadSection = extractMethodSection(source, 'async getRunReportArchiveDownloadUrl');
+  const deleteRequestSection = extractMethodSection(source, 'async requestDeleteRunReportArchive');
+
+  for (const section of [downloadSection, deleteRequestSection]) {
+    assert.match(section, /@Permissions\('agent:team:view'\)/);
+    assert.match(section, /@RequireDataScope\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'archiveId'\s*\}\)/s);
+    assert.match(
+      section,
+      /@RequireResourceAcl\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'archiveId',\s*permissionCode: 'agent:team:view'\s*\}\)/s,
+    );
+  }
+});
+
 test('agent team run resource id resolves to owning team id before guard checks', async () => {
   const { ResourceAccessService } = await import('../common/services/resource-access.service');
   const calls: string[] = [];
@@ -394,6 +424,24 @@ test('agent team run resource id resolves to owning team id before guard checks'
   assert.equal(await service.resolveCanonicalResourceId('tenant-1', 'AGENT_TEAM', 'run-1'), 'team-1');
   assert.equal(await service.resolveCanonicalResourceId('tenant-1', 'AGENT_TEAM', 'team-1'), 'team-1');
   assert.deepEqual(calls, ['team:run-1', 'run:run-1', 'team:team-1']);
+});
+
+test('agent team report archive id resolves to owning team id before guard checks', async () => {
+  const { ResourceAccessService } = await import('../common/services/resource-access.service');
+  const archiveKey = 'agent-team-run-reports/team-1/2026-05-07T01-00-00-000Z-run-1.csv';
+  const archiveId = Buffer.from(archiveKey, 'utf8').toString('base64url');
+  const service = new ResourceAccessService({
+    agentTeam: {
+      findFirst: async (args: { where: { id: string } }) => (
+        args.where.id === 'team-1' ? { id: 'team-1' } : null
+      ),
+    },
+    agentTeamRun: {
+      findFirst: async () => null,
+    },
+  } as never);
+
+  assert.equal(await service.resolveCanonicalResourceId('tenant-1', 'AGENT_TEAM', archiveId), 'team-1');
 });
 
 async function callPrivate(target: unknown, methodName: string, args: unknown[]) {

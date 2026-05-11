@@ -25,6 +25,21 @@ export class ResourceAccessService {
       return resourceId;
     }
 
+    const archiveTeamId = decodeAgentTeamReportArchiveTeamId(resourceId);
+    if (archiveTeamId) {
+      const archiveTeam = await this.prisma.agentTeam.findFirst({
+        where: {
+          tenantId,
+          id: archiveTeamId,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+      if (archiveTeam) return archiveTeam.id;
+    }
+
     const team = await this.prisma.agentTeam.findFirst({
       where: {
         tenantId,
@@ -779,4 +794,17 @@ export class ResourceAccessService {
 
 function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
+}
+
+function decodeAgentTeamReportArchiveTeamId(resourceId: string) {
+  let key: string;
+  try {
+    key = Buffer.from(resourceId, 'base64url').toString('utf8');
+  } catch {
+    return null;
+  }
+
+  const parts = key.split('/');
+  const teamId = parts.length >= 3 && parts[0] === 'agent-team-run-reports' ? parts[1] : null;
+  return typeof teamId === 'string' && teamId.trim().length > 0 ? teamId : null;
 }

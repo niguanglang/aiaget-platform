@@ -556,8 +556,13 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
     },
   };
   const platformEvents = {
-    recordEvent: async (event: { eventType: string }) => {
+    recordEvent: async (event: { eventType: string; traceId?: string | null; requestId?: string | null }) => {
       events.push(event.eventType);
+      return {
+        id: `retry-event-${events.length}`,
+        traceId: event.traceId ?? null,
+        requestId: event.requestId ?? null,
+      };
     },
   };
 
@@ -577,11 +582,17 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
   assert.equal(automationResult.workflow_backend, 'TEMPORAL');
   assert.equal(automationResult.workflow_id, 'channel-automation-workflow-1');
   assert.equal(automationResult.workflow_run_id, 'channel-automation-run-1');
+  assert.equal(automationResult.retry_event_id, 'retry-event-1');
+  assert.equal(automationResult.retry_trace_id, 'trace-1');
+  assert.equal(automationResult.retry_request_id, 'request-1');
   assert.equal(selfHealingResult.status, 'QUEUED');
   assert.equal(selfHealingResult.task_type, 'channel_release_self_healing');
   assert.equal(selfHealingResult.workflow_backend, 'TEMPORAL');
   assert.equal(selfHealingResult.workflow_id, 'channel-self-healing-workflow-1');
   assert.equal(selfHealingResult.workflow_run_id, 'channel-self-healing-run-1');
+  assert.equal(selfHealingResult.retry_event_id, 'retry-event-2');
+  assert.equal(selfHealingResult.retry_trace_id, 'trace-1');
+  assert.equal(selfHealingResult.retry_request_id, 'request-1');
   assert.deepEqual(automationDispatches, [{ userId: 'user-1', channelId: 'channel-1' }]);
   assert.deepEqual(selfHealingDispatches, [{ userId: 'user-1', channelId: 'channel-2' }]);
   assert.deepEqual(events, [
@@ -624,8 +635,13 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
       },
     },
     platformEvents: {
-      recordEvent: async (event: { eventType: string }) => {
+      recordEvent: async (event: { eventType: string; traceId?: string | null; requestId?: string | null }) => {
         events.push(event.eventType);
+        return {
+          id: `retry-event-${events.length}`,
+          traceId: event.traceId ?? null,
+          requestId: event.requestId ?? null,
+        };
       },
     },
   });
@@ -638,6 +654,9 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
   assert.equal(result.workflow_backend, 'TEMPORAL');
   assert.equal(result.workflow_id, 'agent-team-workflow-1');
   assert.equal(result.workflow_run_id, 'agent-team-run-1');
+  assert.equal(result.retry_event_id, 'retry-event-1');
+  assert.equal(result.retry_trace_id, 'trace-1');
+  assert.equal(result.retry_request_id, 'request-1');
   assert.deepEqual(workflowRuns, ['run-1']);
   assert.deepEqual(events, ['workflow.agent_team_run.retry_requested']);
 });
@@ -675,8 +694,13 @@ test('retryWorkflowTask redispatches failed plugin rollback workflow through plu
       },
     },
     platformEvents: {
-      recordEvent: async (event: { eventType: string }) => {
+      recordEvent: async (event: { eventType: string; traceId?: string | null; requestId?: string | null }) => {
         events.push(event.eventType);
+        return {
+          id: `retry-event-${events.length}`,
+          traceId: event.traceId ?? null,
+          requestId: event.requestId ?? null,
+        };
       },
     },
   });
@@ -693,6 +717,9 @@ test('retryWorkflowTask redispatches failed plugin rollback workflow through plu
   assert.equal(result.workflow_backend, 'TEMPORAL');
   assert.equal(result.workflow_id, 'plugin-rollback-plugin-1-version-1');
   assert.equal(result.workflow_run_id, 'run-1');
+  assert.equal(result.retry_event_id, 'retry-event-1');
+  assert.equal(result.retry_trace_id, 'trace-1');
+  assert.equal(result.retry_request_id, 'request-1');
   assert.deepEqual(rollbacks, [{ userId: 'user-1', pluginId: 'plugin-1', versionId: 'version-1', version: '1.1.0' }]);
   assert.deepEqual(events, ['workflow.plugin_rollback.retry_requested']);
 });
@@ -729,8 +756,13 @@ test('retryWorkflowTask redispatches failed plugin hook execution workflow throu
       },
     },
     platformEvents: {
-      recordEvent: async (event: { eventType: string }) => {
+      recordEvent: async (event: { eventType: string; traceId?: string | null; requestId?: string | null }) => {
         events.push(event.eventType);
+        return {
+          id: `retry-event-${events.length}`,
+          traceId: event.traceId ?? null,
+          requestId: event.requestId ?? null,
+        };
       },
     },
   });
@@ -747,6 +779,9 @@ test('retryWorkflowTask redispatches failed plugin hook execution workflow throu
   assert.equal(result.workflow_backend, 'TEMPORAL');
   assert.equal(result.workflow_id, 'plugin-hook-hook-event-1');
   assert.equal(result.workflow_run_id, 'run-1');
+  assert.equal(result.retry_event_id, 'retry-event-1');
+  assert.equal(result.retry_trace_id, 'trace-1');
+  assert.equal(result.retry_request_id, 'request-1');
   assert.deepEqual(hookExecutions, [{ userId: 'user-1', eventId: 'hook-event-1', pluginId: 'plugin-1', hookId: 'hook-1' }]);
   assert.deepEqual(events, ['workflow.plugin_hook_execution.retry_requested']);
 });

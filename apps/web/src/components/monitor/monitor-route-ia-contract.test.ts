@@ -186,6 +186,13 @@ test('runtime workflow retry requires confirmation before mutation', () => {
   assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_backend/);
   assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_id/);
   assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_run_id/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.retry_event_id/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.retry_trace_id/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.retry_request_id/);
+  assert.match(workflowsSource, /查看事件/);
+  assert.match(workflowsSource, /查看 Trace/);
+  assert.match(workflowsSource, /\/monitor\/events\/\$\{retryEventId\}/);
+  assert.match(workflowsSource, /\/monitor\/traces\/\$\{retryTraceId\}/);
   assert.match(workflowsSource, /onConfirm=\{confirmWorkflowRetry\}/);
   assert.doesNotMatch(
     workflowsSource,

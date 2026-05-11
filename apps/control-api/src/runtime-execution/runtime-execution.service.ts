@@ -476,7 +476,7 @@ export class RuntimeExecutionService {
         errorMessage: null,
       },
     });
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'KNOWLEDGE_TASK',
       resourceId: task.id,
@@ -503,6 +503,7 @@ export class RuntimeExecutionService {
       task_id: task.id,
       status: 'QUEUED',
       message: '知识任务已重置为待处理，运行时恢复任务会重新调度。',
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -515,7 +516,7 @@ export class RuntimeExecutionService {
       throw new BadRequestException('Channel release automation workflow service is not available');
     }
 
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'CHANNEL',
       resourceId: channel.id,
@@ -541,6 +542,7 @@ export class RuntimeExecutionService {
       status: 'QUEUED',
       message: '渠道自动推进工作流已重新派发。',
       ...mapRetryWorkflowIdentifiers(dispatchResult),
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -553,7 +555,7 @@ export class RuntimeExecutionService {
       throw new BadRequestException('Channel release self-healing workflow service is not available');
     }
 
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'CHANNEL',
       resourceId: channel.id,
@@ -579,6 +581,7 @@ export class RuntimeExecutionService {
       status: 'QUEUED',
       message: '渠道发布自愈工作流已重新派发。',
       ...mapRetryWorkflowIdentifiers(dispatchResult),
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -610,7 +613,7 @@ export class RuntimeExecutionService {
       throw new BadRequestException('Only failed agent team workflow runs can be retried');
     }
 
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'AGENT_TEAM',
       resourceId: run.teamId,
@@ -638,6 +641,7 @@ export class RuntimeExecutionService {
       status: 'QUEUED',
       message: '多 Agent 团队运行工作流已重新派发。',
       ...mapRetryWorkflowIdentifiers(dispatchResult),
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -673,7 +677,7 @@ export class RuntimeExecutionService {
       throw new NotFoundException('Plugin rollback workflow task not found');
     }
 
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'PLUGIN',
       resourceId: pluginId,
@@ -703,6 +707,7 @@ export class RuntimeExecutionService {
       status: 'QUEUED',
       message: '插件回滚工作流已重新派发。',
       ...mapRetryWorkflowIdentifiers(dispatchResult),
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -732,7 +737,7 @@ export class RuntimeExecutionService {
       throw new BadRequestException('Plugin hook execution workflow task is missing plugin or hook id');
     }
 
-    await this.recordWorkflowEvent({
+    const retryEvent = await this.recordWorkflowEvent({
       tenantId: currentUser.tenantId,
       resourceType: 'PLUGIN_HOOK',
       resourceId: hookId,
@@ -764,6 +769,7 @@ export class RuntimeExecutionService {
       status: 'QUEUED',
       message: '插件 Hook 执行工作流已重新派发。',
       ...mapRetryWorkflowIdentifiers(dispatchResult),
+      ...mapRetryEventIdentifiers(retryEvent, currentUser),
     };
   }
 
@@ -1658,6 +1664,17 @@ function mapRetryWorkflowIdentifiers(value: unknown): Pick<RuntimeWorkflowRetryR
     workflow_backend: normalizeRetryWorkflowBackend(record.workflow_backend),
     workflow_id: typeof record.workflow_id === 'string' ? record.workflow_id : null,
     workflow_run_id: typeof record.workflow_run_id === 'string' ? record.workflow_run_id : null,
+  };
+}
+
+function mapRetryEventIdentifiers(
+  event: { id: string; requestId?: string | null; traceId?: string | null } | null,
+  currentUser: AuthenticatedUser,
+): Pick<RuntimeWorkflowRetryResult, 'retry_event_id' | 'retry_trace_id' | 'retry_request_id'> {
+  return {
+    retry_event_id: event?.id ?? null,
+    retry_trace_id: event?.traceId ?? currentUser.traceId ?? null,
+    retry_request_id: event?.requestId ?? currentUser.requestId ?? null,
   };
 }
 

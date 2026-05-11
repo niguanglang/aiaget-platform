@@ -7200,6 +7200,9 @@ export interface RuntimeWorkflowRetryResult {
   workflow_backend?: RuntimeWorkflowBackend;
   workflow_id?: string | null;
   workflow_run_id?: string | null;
+  retry_event_id?: string | null;
+  retry_trace_id?: string | null;
+  retry_request_id?: string | null;
 }
 
 export interface MonitorOverview {

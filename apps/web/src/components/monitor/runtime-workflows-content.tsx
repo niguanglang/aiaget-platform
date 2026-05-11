@@ -111,6 +111,9 @@ export function RuntimeWorkflowsContent() {
               workflowBackend={retryWorkflowMutation.data?.workflow_backend ?? '-'}
               workflowId={retryWorkflowMutation.data?.workflow_id ?? '-'}
               workflowRunId={retryWorkflowMutation.data?.workflow_run_id ?? '-'}
+              retryEventId={retryWorkflowMutation.data?.retry_event_id ?? '-'}
+              retryTraceId={retryWorkflowMutation.data?.retry_trace_id ?? '-'}
+              retryRequestId={retryWorkflowMutation.data?.retry_request_id ?? '-'}
             />
           ) : null}
         </div>
@@ -176,11 +179,17 @@ function WorkflowRetryResultCard({
   workflowBackend,
   workflowId,
   workflowRunId,
+  retryEventId,
+  retryTraceId,
+  retryRequestId,
 }: {
   result: RuntimeWorkflowRetryResult;
   workflowBackend: string;
   workflowId: string;
   workflowRunId: string;
+  retryEventId: string;
+  retryTraceId: string;
+  retryRequestId: string;
 }) {
   return (
     <Card className="grid gap-3 border-emerald-200/70 bg-emerald-50/60 p-5">
@@ -194,6 +203,11 @@ function WorkflowRetryResultCard({
         <ResultField label="Workflow ID" value={workflowId} />
         <ResultField label="Workflow Run ID" value={workflowRunId} />
       </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        <ActionField actionLabel="查看事件" label="事件" href={retryEventId !== '-' ? `/monitor/events/${retryEventId}` : null} value={retryEventId} />
+        <ActionField actionLabel="查看 Trace" label="Trace" href={retryTraceId !== '-' ? `/monitor/traces/${retryTraceId}` : null} value={retryTraceId} />
+        <ActionField actionLabel="查看请求" label="Request ID" href={retryRequestId !== '-' ? `/monitor?requestId=${encodeURIComponent(retryRequestId)}` : null} value={retryRequestId} />
+      </div>
     </Card>
   );
 }
@@ -203,6 +217,22 @@ function ResultField({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border bg-background/75 px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 break-words font-mono text-xs">{value}</div>
+    </div>
+  );
+}
+
+function ActionField({ actionLabel, label, value, href }: { actionLabel: string; label: string; value: string; href: string | null }) {
+  return (
+    <div className="rounded-md border bg-background/75 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 flex items-center gap-2">
+        <div className="min-w-0 flex-1 break-words font-mono text-xs">{value}</div>
+        {href ? (
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link href={href}>{actionLabel}</Link>
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

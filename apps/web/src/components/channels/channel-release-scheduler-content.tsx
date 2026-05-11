@@ -93,10 +93,15 @@ export function ChannelReleaseSchedulerContent() {
                 ]} />
                 <div className="grid gap-2">
                   {overview.last_run.results.slice(0, 8).map((item, index) => (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 p-3" key={`${item.channel_id}-${item.task}-${index}`}>
-                      <div>
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 lg:grid-cols-[1fr_auto]" key={`${item.channel_id}-${item.task}-${index}`}>
+                      <div className="min-w-0">
                         <div className="text-sm font-medium">{item.channel_name}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{item.task} · {item.decision ?? '无决策'}</div>
+                        <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
+                          <span>工作流后端：{item.workflow_backend ?? '-'}</span>
+                          <span>Workflow ID：{item.workflow_id ?? '-'}</span>
+                          <span>Workflow Run ID：{item.workflow_run_id ?? '-'}</span>
+                        </div>
                       </div>
                       <StatusBadge tone={item.status === 'SUCCESS' ? 'healthy' : item.status === 'FAILED' ? 'unavailable' : 'planned'}>{item.status}</StatusBadge>
                     </div>

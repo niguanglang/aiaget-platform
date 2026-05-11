@@ -126,6 +126,9 @@ export function ChannelReleaseSelfHealingContent() {
               { label: '自愈结论', value: evaluation.decision },
               { label: '建议回滚', value: evaluation.rollback_recommended ? '是' : '否' },
               { label: '可回滚', value: evaluation.rollback_available ? '是' : '否' },
+              { label: '工作流后端', value: selfHealing.workflow_backend ?? '-' },
+              { label: 'Workflow ID', value: selfHealing.workflow_id ?? '-' },
+              { label: 'Workflow Run ID', value: selfHealing.workflow_run_id ?? '-' },
               { label: '原因', value: evaluation.reason },
               { label: '评估时间', value: formatOptionalDateTime(evaluation.evaluated_at) },
             ]} />
@@ -161,6 +164,21 @@ export function ChannelReleaseSelfHealingContent() {
               <NumberPolicyField disabled={!permissions.canManage} label="冷却时间" max={1440} min={1} onChange={(value) => setSelfHealingPolicyForm((form) => ({ ...form, cooldown_minutes: value }))} suffix="分钟" value={selfHealingPolicyForm.cooldown_minutes} />
             </div>
             {!permissions.canManage ? <p className="text-xs text-muted-foreground">当前账号缺少 channel:publish:manage 权限，只能查看自愈策略。</p> : null}
+          </Card>
+          <Card className="grid gap-4 p-5">
+            <PanelTitle helper="最近一次自愈执行的 Runtime / Temporal 追踪标识。" title="最近自愈运行" />
+            {!selfHealing.last_run ? <EmptyState description="当前没有自愈运行记录。" title="暂无最近运行" /> : (
+              <DetailGrid items={[
+                { label: '运行 ID', value: selfHealing.last_run.run_id },
+                { label: '自愈结论', value: selfHealing.last_run.decision },
+                { label: '是否回滚', value: selfHealing.last_run.rolled_back ? '是' : '否' },
+                { label: '工作流后端', value: selfHealing.last_run.workflow_backend ?? '-' },
+                { label: 'Workflow ID', value: selfHealing.last_run.workflow_id ?? '-' },
+                { label: 'Workflow Run ID', value: selfHealing.last_run.workflow_run_id ?? '-' },
+                { label: '原因', value: selfHealing.last_run.reason },
+                { label: '完成时间', value: formatOptionalDateTime(selfHealing.last_run.finished_at) },
+              ]} />
+            )}
           </Card>
         </>
       )}

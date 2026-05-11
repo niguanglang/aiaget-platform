@@ -1,0 +1,38 @@
+# Project UI Brief
+
+- Page: M162 渠道发布工作流标识可视化
+- Routes:
+  - `/channels/release/automation`
+  - `/channels/release/self-healing`
+  - `/channels/release/scheduler`
+- Feature goal: 在渠道发布治理页面中展示 Runtime / Temporal 派发后返回的 `workflow_id` 与 `workflow_run_id`，帮助运维从控制面快速定位异步工作流。
+- Target users and permissions:
+  - 发布治理运营、平台运维、安全审计。
+  - 页面沿用 `useChannelOperationPermissions()`，查看需要 `channel:publish:view`，运行动作需要 `channel:publish:deploy`，策略保存需要 `channel:publish:manage`。
+- APIs/services:
+  - `getChannelReleaseAutomation(channelId)`
+  - `runChannelReleaseAutomation(channelId)`
+  - `updateChannelReleaseAutomation(channelId, input)`
+  - `getChannelReleaseSelfHealing(channelId)`
+  - `runChannelReleaseSelfHealing(channelId)`
+  - `updateChannelReleaseSelfHealing(channelId, input)`
+  - `getChannelReleaseSchedulerOverview()`
+  - `runChannelReleaseSchedulerOnce()`
+- Entities and fields:
+  - `ChannelReleaseAutomationOverview`: `workflow_mode`, `workflow_backend`, `workflow_id`, `workflow_run_id`, `last_run.workflow_backend`, `last_run.workflow_id`, `last_run.workflow_run_id`。
+  - `ChannelReleaseSelfHealingOverview`: `workflow_mode`, `workflow_backend`, `workflow_id`, `workflow_run_id`, `last_run.workflow_backend`, `last_run.workflow_id`, `last_run.workflow_run_id`。
+  - `ChannelReleaseSchedulerRunResult.results[]`: `channel_name`, `task`, `status`, `decision`, `workflow_backend`, `workflow_id`, `workflow_run_id`, `error_message`。
+- Existing components/design system:
+  - Next.js App Router, React, TypeScript, Tailwind CSS。
+  - Existing channel page shell: `ChannelCenterBackground`, `ChannelReleaseHeader`, `ReleaseChannelPicker`, `PanelTitle`。
+  - Existing display primitives: `Card`, `DetailGrid`, `EmptyState`, `StatusBadge`, `ChannelAlert`, `ChannelActionConfirmDialog`。
+- Required states:
+  - Loading/refreshing through existing header `refreshing` state.
+  - Empty data through `EmptyState`。
+  - Error through `ChannelAlert`。
+  - Disabled actions through existing permission and mutation state。
+  - Missing workflow IDs must display `-` or `暂无` without breaking layout.
+- Constraints:
+  - 不新增接口，不改后端契约。
+  - 页面文本保持中文。
+  - 列表和卡片保持轻量，不把完整运行详情塞回列表页。

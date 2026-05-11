@@ -679,6 +679,40 @@ test('release gate, automation, and self-healing pages own policy configuration 
   assert.doesNotMatch(selfHealingSource, /onClick=\{\(\) => policyMutation\.mutate/);
 });
 
+test('release workflow pages expose runtime workflow identifiers without embedding full trace detail', () => {
+  const automationSource = readFileSync(join(channelsRoot, 'channel-release-automation-content.tsx'), 'utf8');
+  const selfHealingSource = readFileSync(join(channelsRoot, 'channel-release-self-healing-content.tsx'), 'utf8');
+  const schedulerSource = readFileSync(join(channelsRoot, 'channel-release-scheduler-content.tsx'), 'utf8');
+
+  for (const source of [automationSource, selfHealingSource, schedulerSource]) {
+    assert.match(source, /工作流后端/);
+    assert.match(source, /Workflow ID/);
+    assert.match(source, /Workflow Run ID/);
+    assert.match(source, /workflow_id/);
+    assert.match(source, /workflow_run_id/);
+    assert.doesNotMatch(source, /Trace 详情/);
+    assert.doesNotMatch(source, /完整日志/);
+  }
+
+  assert.match(automationSource, /automation\.workflow_backend/);
+  assert.match(automationSource, /automation\.workflow_id/);
+  assert.match(automationSource, /automation\.workflow_run_id/);
+  assert.match(automationSource, /automation\.last_run\.workflow_backend/);
+  assert.match(automationSource, /automation\.last_run\.workflow_id/);
+  assert.match(automationSource, /automation\.last_run\.workflow_run_id/);
+
+  assert.match(selfHealingSource, /selfHealing\.workflow_backend/);
+  assert.match(selfHealingSource, /selfHealing\.workflow_id/);
+  assert.match(selfHealingSource, /selfHealing\.workflow_run_id/);
+  assert.match(selfHealingSource, /selfHealing\.last_run\.workflow_backend/);
+  assert.match(selfHealingSource, /selfHealing\.last_run\.workflow_id/);
+  assert.match(selfHealingSource, /selfHealing\.last_run\.workflow_run_id/);
+
+  assert.match(schedulerSource, /item\.workflow_backend/);
+  assert.match(schedulerSource, /item\.workflow_id/);
+  assert.match(schedulerSource, /item\.workflow_run_id/);
+});
+
 test('release control page owns approval, rollout, and rollback operations with confirmation and permission gates', () => {
   const controlSource = readFileSync(join(channelsRoot, 'channel-release-control-content.tsx'), 'utf8');
   const sharedSource = readFileSync(releaseSharedComponentPath, 'utf8');

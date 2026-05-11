@@ -125,6 +125,9 @@ export function ChannelReleaseAutomationContent() {
               { label: '今日运行', value: formatNumber(automation.today_run_count) },
               { label: '最近决策', value: automation.last_run?.decision ?? '暂无' },
               { label: '工作流模式', value: automation.workflow_mode ?? '-' },
+              { label: '工作流后端', value: automation.workflow_backend ?? '-' },
+              { label: 'Workflow ID', value: automation.workflow_id ?? '-' },
+              { label: 'Workflow Run ID', value: automation.workflow_run_id ?? '-' },
               { label: '下次可运行', value: formatOptionalDateTime(automation.next_allowed_at) },
             ]} />
           </Card>
@@ -161,6 +164,9 @@ export function ChannelReleaseAutomationContent() {
                 { label: '决策', value: automation.last_run.decision },
                 { label: '是否推进', value: automation.last_run.promoted ? '是' : '否' },
                 { label: '门禁结论', value: automation.last_run.gate_decision },
+                { label: '工作流后端', value: automation.last_run.workflow_backend ?? '-' },
+                { label: 'Workflow ID', value: automation.last_run.workflow_id ?? '-' },
+                { label: 'Workflow Run ID', value: automation.last_run.workflow_run_id ?? '-' },
                 { label: '原因', value: automation.last_run.reason },
                 { label: '完成时间', value: formatOptionalDateTime(automation.last_run.finished_at) },
               ]} />

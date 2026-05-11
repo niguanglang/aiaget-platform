@@ -118,12 +118,16 @@ function parseMaybeJson(value: string) {
   }
 }
 
-function isSensitiveKey(key: string) {
+export function isChannelSensitiveKey(key: string) {
   const normalized = normalizeKey(key);
   if (SENSITIVE_QUERY_KEYS.has(normalized)) return true;
   if (normalized === 'set_cookie' || normalized === 'x_api_key') return true;
 
   return SENSITIVE_KEY_PARTS.some((part) => normalized.includes(part));
+}
+
+function isSensitiveKey(key: string) {
+  return isChannelSensitiveKey(key);
 }
 
 function normalizeKey(key: string) {

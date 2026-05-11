@@ -24,7 +24,7 @@ import { encryptSecret, maskApiKey } from '../models/model-secrets';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
-import { redactChannelAuditText, redactChannelAuditUrl, redactChannelAuditValue } from './channel-audit-redaction';
+import { isChannelSensitiveKey, redactChannelAuditText, redactChannelAuditUrl, redactChannelAuditValue } from './channel-audit-redaction';
 import type {
   CreateChannelAccountDto,
   CreateChannelProviderDto,
@@ -182,6 +182,7 @@ export class ChannelOperationsService {
   }
 
   async createProvider(currentUser: AuthenticatedUser, dto: CreateChannelProviderDto): Promise<ChannelProviderItem> {
+    assertNoSensitiveConfig(dto.config, 'config');
     try {
       const provider = await this.prisma.channelProvider.create({
         data: {
@@ -211,6 +212,7 @@ export class ChannelOperationsService {
 
   async updateProvider(currentUser: AuthenticatedUser, id: string, dto: UpdateChannelProviderDto): Promise<ChannelProviderItem> {
     await this.ensureProvider(currentUser.tenantId, id);
+    if (dto.config !== undefined) assertNoSensitiveConfig(dto.config, 'config');
     const provider = await this.prisma.channelProvider.update({
       where: { id },
       data: {
@@ -309,6 +311,7 @@ export class ChannelOperationsService {
 
   async createAccount(currentUser: AuthenticatedUser, dto: CreateChannelAccountDto): Promise<ChannelAccountItem> {
     await this.ensureProvider(currentUser.tenantId, dto.provider_id);
+    assertNoSensitiveConfig(dto.config, 'config');
     try {
       const secret = dto.secret?.trim();
       const config = updateCredentialRotationConfig(dto.config ?? null, secret, currentUser.id);
@@ -347,6 +350,7 @@ export class ChannelOperationsService {
   async updateAccount(currentUser: AuthenticatedUser, id: string, dto: UpdateChannelAccountDto): Promise<ChannelAccountItem> {
     const secret = dto.secret?.trim();
     const currentAccount = await this.ensureAccount(currentUser.tenantId, id);
+    if (dto.config !== undefined) assertNoSensitiveConfig(dto.config, 'config');
     const baseConfig = dto.config !== undefined ? dto.config : currentAccount.config;
     const nextConfig = updateCredentialRotationConfig(baseConfig, secret, currentUser.id);
     const account = await this.prisma.channelAccount.update({
@@ -442,6 +446,8 @@ export class ChannelOperationsService {
   async createTemplate(currentUser: AuthenticatedUser, dto: CreateChannelTemplateDto): Promise<ChannelTemplateItem> {
     if (dto.provider_id) await this.ensureProvider(currentUser.tenantId, dto.provider_id);
     if (dto.account_id) await this.ensureAccount(currentUser.tenantId, dto.account_id);
+    assertNoSensitiveConfig(dto.variables, 'variables');
+    assertNoSensitiveConfig(dto.content_schema, 'content_schema');
     try {
       const template = await this.prisma.channelTemplate.create({
         data: {
@@ -477,6 +483,8 @@ export class ChannelOperationsService {
     await this.ensureTemplate(currentUser.tenantId, id);
     if (dto.provider_id) await this.ensureProvider(currentUser.tenantId, dto.provider_id);
     if (dto.account_id) await this.ensureAccount(currentUser.tenantId, dto.account_id);
+    if (dto.variables !== undefined) assertNoSensitiveConfig(dto.variables, 'variables');
+    if (dto.content_schema !== undefined) assertNoSensitiveConfig(dto.content_schema, 'content_schema');
     const template = await this.prisma.channelTemplate.update({
       where: { id },
       data: {
@@ -567,6 +575,8 @@ export class ChannelOperationsService {
 
   async createRouteRule(currentUser: AuthenticatedUser, dto: CreateChannelRouteRuleDto): Promise<ChannelRouteRuleItem> {
     await this.ensureRouteRelations(currentUser.tenantId, dto);
+    assertNoSensitiveConfig(dto.match_config, 'match_config');
+    assertNoSensitiveConfig(dto.target_config, 'target_config');
     try {
       const rule = await this.prisma.channelRouteRule.create({
         data: {
@@ -599,6 +609,8 @@ export class ChannelOperationsService {
   async updateRouteRule(currentUser: AuthenticatedUser, id: string, dto: UpdateChannelRouteRuleDto): Promise<ChannelRouteRuleItem> {
     await this.ensureRouteRule(currentUser.tenantId, id);
     await this.ensureRouteRelations(currentUser.tenantId, dto);
+    if (dto.match_config !== undefined) assertNoSensitiveConfig(dto.match_config, 'match_config');
+    if (dto.target_config !== undefined) assertNoSensitiveConfig(dto.target_config, 'target_config');
     const rule = await this.prisma.channelRouteRule.update({
       where: { id },
       data: {
@@ -1004,12 +1016,12 @@ function mapProvider(provider: ProviderRecord, deliveryCount24h: number): Channe
     updated_at: provider.updatedAt.toISOString(),
     metadata: {
       provider_type: provider.providerType,
-      endpoint_url: provider.endpointUrl,
-      callback_url: provider.callbackUrl,
+      endpoint_url: redactChannelAuditUrl(provider.endpointUrl),
+      callback_url: redactChannelAuditUrl(provider.callbackUrl),
       capabilities: provider.capabilities,
       auth_type: provider.authType,
       description: provider.description,
-      config: normalizeJson(provider.config),
+      config: redactChannelConfig(provider.config),
       readiness,
       credential_rotation: credentialRotation,
     },
@@ -1043,7 +1055,7 @@ function mapAccount(account: AccountRecord): ChannelAccountItem {
       external_account_id: account.externalAccountId,
       secret_masked: account.secretMasked,
       description: account.description,
-      config: normalizeJson(account.config),
+      config: redactChannelConfig(account.config),
       readiness,
       credential_rotation: credentialRotation,
     },
@@ -1071,8 +1083,8 @@ function mapTemplate(template: TemplateRecord): ChannelTemplateItem {
       account_name: template.account?.name ?? null,
       subject: template.subject,
       body: template.body,
-      variables: normalizeJson(template.variables),
-      content_schema: normalizeJson(template.contentSchema),
+      variables: redactChannelConfig(template.variables),
+      content_schema: redactChannelConfig(template.contentSchema),
       external_template_id: template.externalTemplateId,
       approved_at: template.approvedAt?.toISOString() ?? null,
     },
@@ -1082,6 +1094,8 @@ function mapTemplate(template: TemplateRecord): ChannelTemplateItem {
 function mapRouteRule(rule: RouteRuleRecord): ChannelRouteRuleItem {
   const matchConfig = normalizeRecord(rule.matchConfig);
   const targetConfig = normalizeRecord(rule.targetConfig);
+  const safeMatchConfig = redactChannelConfig(rule.matchConfig);
+  const safeTargetConfig = redactChannelConfig(rule.targetConfig);
   const channel = rule.publishChannels[0];
   return {
     id: rule.id,
@@ -1093,10 +1107,16 @@ function mapRouteRule(rule: RouteRuleRecord): ChannelRouteRuleItem {
     channel_id: channel?.id ?? null,
     channel_name: channel?.name ?? null,
     match_type: rule.matchType,
-    match_value: stringifyCompact(matchConfig?.value ?? matchConfig?.path ?? matchConfig),
+    match_value: stringifyCompact(safeMatchConfig && typeof safeMatchConfig === 'object' && !Array.isArray(safeMatchConfig)
+      ? safeMatchConfig.value ?? safeMatchConfig.path ?? safeMatchConfig
+      : safeMatchConfig),
     target_type: rule.targetType,
-    target_id: stringifyCompact(targetConfig?.id ?? targetConfig?.agent_id ?? rule.agentId),
-    fallback_target: stringifyCompact(targetConfig?.fallback ?? targetConfig?.fallback_target),
+    target_id: stringifyCompact(safeTargetConfig && typeof safeTargetConfig === 'object' && !Array.isArray(safeTargetConfig)
+      ? safeTargetConfig.id ?? safeTargetConfig.agent_id ?? rule.agentId
+      : rule.agentId),
+    fallback_target: stringifyCompact(safeTargetConfig && typeof safeTargetConfig === 'object' && !Array.isArray(safeTargetConfig)
+      ? safeTargetConfig.fallback ?? safeTargetConfig.fallback_target
+      : null),
     updated_at: rule.updatedAt.toISOString(),
     created_at: rule.createdAt.toISOString(),
     metadata: {
@@ -1107,8 +1127,8 @@ function mapRouteRule(rule: RouteRuleRecord): ChannelRouteRuleItem {
       provider_code: rule.provider?.code ?? null,
       account_id: rule.accountId,
       account_name: rule.account?.name ?? null,
-      match_config: matchConfig,
-      target_config: targetConfig,
+      match_config: safeMatchConfig,
+      target_config: safeTargetConfig,
     },
   };
 }
@@ -1342,6 +1362,10 @@ function redactChannelAuditJson(value: Prisma.JsonValue | null | undefined): Rec
   return redactChannelAuditValue(normalizeJson(value)) as Record<string, unknown> | unknown[] | string | number | boolean | null;
 }
 
+function redactChannelConfig(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | unknown[] | string | number | boolean | null {
+  return redactChannelAuditJson(value);
+}
+
 function normalizeRecord(value: Prisma.JsonValue | null | undefined): Record<string, unknown> | null {
   const normalized = normalizeJson(value);
 
@@ -1352,6 +1376,34 @@ function toJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJso
   if (value === undefined || value === null || value === Prisma.JsonNull) return Prisma.JsonNull;
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function assertNoSensitiveConfig(value: unknown, rootPath: string) {
+  const path = findSensitiveConfigPath(value, rootPath);
+  if (!path) return;
+
+  throw new BadRequestException(`渠道配置 ${path} 包含敏感字段，请使用独立 secret 字段或凭据管理能力。`);
+}
+
+function findSensitiveConfigPath(value: unknown, path: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return null;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const child = findSensitiveConfigPath(value[index], `${path}.${index}`);
+      if (child) return child;
+    }
+    return null;
+  }
+
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const entryPath = `${path}.${key}`;
+    if (isChannelSensitiveKey(key)) return entryPath;
+    const child = findSensitiveConfigPath(entry, entryPath);
+    if (child) return child;
+  }
+
+  return null;
 }
 
 function updateCredentialRotationConfig(value: unknown, secret: string | undefined, rotatedBy: string): Record<string, unknown> | null {

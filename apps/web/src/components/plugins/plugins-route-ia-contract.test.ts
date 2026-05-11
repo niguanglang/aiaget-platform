@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 const root = process.cwd();
@@ -176,6 +176,19 @@ test('custom plugin backend precheck exposes Tool Gateway binding preview before
   assert.match(sharedSource, /require_approval/);
   assert.match(sharedSource, /需要审批|无需审批/);
   assert.match(sharedSource, /gateway/);
+});
+
+test('custom plugin backend precheck exposes sandbox policy gate before install', () => {
+  const sharedTypesSource = source(resolve(root, '../../packages/shared-types/src/index.ts'));
+  const sharedSource = source(sharedPath);
+
+  assert.match(sharedTypesSource, /PluginSandboxPolicyPreview/);
+  assert.match(sharedTypesSource, /sandbox_required/);
+  assert.match(sharedTypesSource, /sandbox_policy/);
+  assert.match(sharedSource, /沙箱策略预检/);
+  assert.match(sharedSource, /result\.sandbox_required/);
+  assert.match(sharedSource, /result\.sandbox_policy/);
+  assert.match(sharedSource, /PLUGIN_SANDBOX_POLICY_REQUIRED|沙箱策略/);
 });
 
 test('plugin hook and menu binding mutations require confirmation before updating', () => {

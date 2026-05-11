@@ -1295,6 +1295,17 @@ export interface PluginToolBindingPreview {
   status: 'ACTIVE' | 'DISABLED';
 }
 
+export interface PluginSandboxPolicyPreview {
+  status: 'NOT_REQUIRED' | 'MISSING' | 'DECLARED';
+  isolation: 'PROCESS' | 'CONTAINER' | 'WASM' | 'REMOTE' | null;
+  network: 'DENY' | 'ALLOWLIST' | 'ALLOW' | null;
+  filesystem: 'NONE' | 'READONLY' | 'TEMP' | null;
+  timeout_ms: number | null;
+  memory_mb: number | null;
+  entry: string | null;
+  reason: string | null;
+}
+
 export interface PluginManifestValidationResult {
   status: PluginManifestValidationStatus;
   can_install: boolean;
@@ -1309,6 +1320,8 @@ export interface PluginManifestValidationResult {
   package_signature_type?: PluginPackageSignatureType | null;
   package_signature_verification_url?: string | null;
   package_integrity?: PluginPackageIntegrityResult | null;
+  sandbox_required: boolean;
+  sandbox_policy: PluginSandboxPolicyPreview;
   permission_codes: string[];
   menu_codes: string[];
   hook_codes: string[];

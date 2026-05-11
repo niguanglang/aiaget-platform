@@ -311,6 +311,122 @@ test('validateManifest records failed custom manifest precheck as platform event
   assert.equal((recordedEvents[0] as { userId?: string }).userId, currentUser.id);
 });
 
+test('validateManifest blocks custom plugin code entry without sandbox policy', async () => {
+  const recordedEvents: unknown[] = [];
+  const service = new PluginsService(
+    {} as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    {
+      verifyPackage: async () => {
+        throw new Error('package integrity should not run when sandbox policy is missing');
+      },
+    } as never,
+  );
+
+  const validation = await service.validateManifest(currentUser, {
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      package: {
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        signature: 'sigstore-bundle-placeholder',
+      },
+      runtime: {
+        type: 'code',
+        entry: 'dist/index.js',
+      },
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.can_install, false);
+  assert.equal(validation.sandbox_required, true);
+  assert.equal(validation.sandbox_policy?.status, 'MISSING');
+  assert.equal(validation.errors.some((issue) => issue.code === 'PLUGIN_SANDBOX_POLICY_REQUIRED'), true);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal((recordedEvents[0] as { payloadJson?: { sandbox_policy?: { status?: string } } }).payloadJson?.sandbox_policy?.status, 'MISSING');
+});
+
+test('validateManifest reports sandbox policy when custom code entry is explicitly isolated', async () => {
+  const service = new PluginsService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {
+      verifyPackage: async () => ({
+        status: 'PASSED',
+        verified: true,
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        final_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        expected_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        actual_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        package_size_bytes: 128,
+        content_type: 'application/gzip',
+        error_code: null,
+        error_message: null,
+      }),
+    } as never,
+  );
+
+  const validation = await service.validateManifest(currentUser, {
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      package: {
+        source_url: 'https://plugins.example.com/ticket-suite-1.2.0.tgz',
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        signature: 'sigstore-bundle-placeholder',
+      },
+      runtime: {
+        type: 'code',
+        entry: 'dist/index.js',
+      },
+      sandbox: {
+        isolation: 'PROCESS',
+        network: 'DENY',
+        filesystem: 'READONLY',
+        timeout_ms: 5000,
+        memory_mb: 128,
+      },
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.can_install, true);
+  assert.equal(validation.sandbox_required, true);
+  assert.equal(validation.sandbox_policy?.status, 'DECLARED');
+  assert.equal(validation.sandbox_policy?.isolation, 'PROCESS');
+  assert.equal(validation.sandbox_policy?.network, 'DENY');
+  assert.equal(validation.sandbox_policy?.filesystem, 'READONLY');
+});
+
 test('rollback rejects missing target version before loading plugin installation', async () => {
   const service = new PluginsService(
     {

@@ -5,6 +5,7 @@ import type {
   PluginManifestValidationResult,
   PluginPackageSignatureType,
   PluginRiskLevel,
+  PluginSandboxPolicyPreview,
   PluginSourceType,
   PluginToolBindingPreview,
 } from '@aiaget/shared-types';
@@ -92,6 +93,7 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
   const version = normalizeVersion(readFirstString(manifest, ['version', 'latest_version']) ?? input.latest_version ?? '1.0.0');
   const riskLevel = normalizePluginRiskLevel(readFirstString(manifest, ['risk_level', 'risk']) ?? input.risk_level ?? null);
   const packageMetadata = readPackageMetadata(manifest);
+  const sandboxPolicy = readSandboxPolicy(manifest);
   const errors: PluginManifestValidationIssue[] = [];
   const warnings: PluginManifestValidationIssue[] = [];
   const permissions = uniqueStrings([
@@ -124,6 +126,15 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
     warnings.push(buildValidationIssue('PACKAGE_SHA256_RECOMMENDED', 'WARN', 'package.sha256', '市场插件声明了包来源，建议同时声明 sha256。'));
   }
 
+  if (sandboxPolicy.status === 'MISSING') {
+    errors.push(buildValidationIssue(
+      'PLUGIN_SANDBOX_POLICY_REQUIRED',
+      'ERROR',
+      'sandbox',
+      '自定义插件声明了代码入口，必须声明沙箱隔离策略；当前控制面不会执行未隔离的第三方代码。',
+    ));
+  }
+
   if (permissions.length === 0) {
     warnings.push(buildValidationIssue('PERMISSION_PREVIEW_EMPTY', 'WARN', 'permissions', '插件未声明权限预览，安装审批时缺少最小权限说明。'));
   }
@@ -154,6 +165,8 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
     package_signature: packageMetadata.signature,
     package_signature_type: packageMetadata.signatureType,
     package_signature_verification_url: packageMetadata.signatureVerificationUrl,
+    sandbox_required: sandboxPolicy.status !== 'NOT_REQUIRED',
+    sandbox_policy: sandboxPolicy,
     permission_codes: permissions,
     menu_codes: menuCodes.map((code) => buildNamespacedCode('plugin', manifestCode, code, 100)),
     hook_codes: hookCodes,
@@ -164,6 +177,91 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
       ? `Manifest 校验通过，将同步 ${permissions.length} 个权限、${menuCodes.length} 个菜单、${hookCodes.length} 个 Hook、${toolBindings.length} 个工具。`
       : `Manifest 校验失败：${errors.map((issue) => issue.message).join('；')}`,
   };
+}
+
+function readSandboxPolicy(manifest: Record<string, unknown>): PluginSandboxPolicyPreview {
+  const entry = readPluginCodeEntry(manifest);
+  if (!entry) {
+    return {
+      status: 'NOT_REQUIRED',
+      isolation: null,
+      network: null,
+      filesystem: null,
+      timeout_ms: null,
+      memory_mb: null,
+      entry: null,
+      reason: 'Manifest 未声明自定义代码入口，当前插件按 Tool Gateway 生成工具边界执行。',
+    };
+  }
+
+  const sandbox = isRecord(manifest.sandbox) ? manifest.sandbox : null;
+  if (!sandbox) {
+    return {
+      status: 'MISSING',
+      isolation: null,
+      network: null,
+      filesystem: null,
+      timeout_ms: null,
+      memory_mb: null,
+      entry,
+      reason: 'Manifest 声明了自定义代码入口，但没有声明 sandbox 策略。',
+    };
+  }
+
+  const isolation = normalizeSandboxIsolation(readFirstString(sandbox, ['isolation', 'type']));
+  const network = normalizeSandboxNetwork(readFirstString(sandbox, ['network', 'network_policy']));
+  const filesystem = normalizeSandboxFilesystem(readFirstString(sandbox, ['filesystem', 'fs', 'filesystem_policy']));
+  const timeoutMs = readPositiveInteger(sandbox.timeout_ms ?? sandbox.timeoutMs);
+  const memoryMb = readPositiveInteger(sandbox.memory_mb ?? sandbox.memoryMb);
+
+  return {
+    status: 'DECLARED',
+    isolation,
+    network,
+    filesystem,
+    timeout_ms: timeoutMs,
+    memory_mb: memoryMb,
+    entry,
+    reason: 'Manifest 已声明自定义代码沙箱策略；本阶段只做安装前门禁，不在 Control API 进程内执行插件代码。',
+  };
+}
+
+function readPluginCodeEntry(manifest: Record<string, unknown>) {
+  const runtime = isRecord(manifest.runtime) ? manifest.runtime : null;
+  const runtimeType = runtime ? readFirstString(runtime, ['type', 'runtime_type'])?.toLowerCase() : null;
+  const runtimeEntry = runtime ? readFirstString(runtime, ['entry', 'entry_point', 'main', 'main_entry']) : null;
+  if (runtimeEntry && (!runtimeType || runtimeType === 'code' || runtimeType === 'node' || runtimeType === 'python' || runtimeType === 'wasm')) {
+    return runtimeEntry;
+  }
+
+  return readFirstString(manifest, ['entry', 'entry_point', 'main', 'main_entry']);
+}
+
+function normalizeSandboxIsolation(value: string | null): PluginSandboxPolicyPreview['isolation'] {
+  const normalized = value?.trim().toUpperCase();
+  if (normalized === 'PROCESS' || normalized === 'CONTAINER' || normalized === 'WASM' || normalized === 'REMOTE') return normalized;
+  return null;
+}
+
+function normalizeSandboxNetwork(value: string | null): PluginSandboxPolicyPreview['network'] {
+  const normalized = value?.trim().toUpperCase();
+  if (normalized === 'DENY' || normalized === 'ALLOWLIST' || normalized === 'ALLOW') return normalized;
+  return null;
+}
+
+function normalizeSandboxFilesystem(value: string | null): PluginSandboxPolicyPreview['filesystem'] {
+  const normalized = value?.trim().toUpperCase();
+  if (normalized === 'NONE' || normalized === 'READONLY' || normalized === 'TEMP') return normalized;
+  return null;
+}
+
+function readPositiveInteger(value: unknown) {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string'
+      ? Number.parseInt(value, 10)
+      : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
 }
 
 function readSecurityReviewStatus(manifest: Record<string, unknown> | null) {

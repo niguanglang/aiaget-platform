@@ -548,6 +548,7 @@ function BackendManifestValidationPanel({
             <ManifestSummary label="声明 sha256" value={result.package_sha256 ?? '未声明'} />
           </div>
           <PackageIntegritySummary integrity={integrity} />
+          <PluginSandboxPolicySummary required={result.sandbox_required} sandboxPolicy={result.sandbox_policy} />
           <ToolGatewayBindingPreview bindings={result.tool_bindings} />
           <ManifestValidationIssueList items={result.errors} title="错误" tone="error" />
           <ManifestValidationIssueList items={result.warnings} title="警告" tone="warn" />
@@ -560,6 +561,37 @@ function BackendManifestValidationPanel({
           本地 JSON 解析只用于快速预览，安装门禁以后端预检结果为准。
         </p>
       )}
+    </section>
+  );
+}
+
+function PluginSandboxPolicySummary({
+  required,
+  sandboxPolicy,
+}: {
+  required: boolean;
+  sandboxPolicy: PluginManifestValidationResult['sandbox_policy'];
+}) {
+  return (
+    <section className="rounded-md border bg-background p-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h4 className="text-xs font-semibold">沙箱策略预检</h4>
+        <StatusBadge tone={sandboxPolicyTone(sandboxPolicy)}>
+          {sandboxPolicyLabel(sandboxPolicy)}
+        </StatusBadge>
+        {required ? <StatusBadge tone="degraded">需要沙箱</StatusBadge> : <StatusBadge tone="ready">无需沙箱</StatusBadge>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ManifestSummary label="代码入口" value={sandboxPolicy.entry ?? '未声明'} />
+        <ManifestSummary label="隔离方式" value={sandboxPolicy.isolation ?? '未声明'} />
+        <ManifestSummary label="网络策略" value={sandboxPolicy.network ?? '未声明'} />
+        <ManifestSummary label="文件系统" value={sandboxPolicy.filesystem ?? '未声明'} />
+        <ManifestSummary label="timeout_ms" value={sandboxPolicy.timeout_ms ? String(sandboxPolicy.timeout_ms) : '未声明'} />
+        <ManifestSummary label="memory_mb" value={sandboxPolicy.memory_mb ? String(sandboxPolicy.memory_mb) : '未声明'} />
+      </div>
+      <p className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
+        {sandboxPolicy.reason ?? '当前插件未声明自定义代码入口，安装后只通过 Tool Gateway 生成工具边界执行。'}
+      </p>
     </section>
   );
 }
@@ -708,6 +740,18 @@ function packageSignatureLabel(signature: NonNullable<PluginPackageIntegrityResu
   if (signature.status === 'PASSED') return '签名已验证';
   if (signature.status === 'FAILED') return '签名未通过';
   return signature.signature_present ? '签名已记录' : '未提供签名';
+}
+
+function sandboxPolicyTone(policy: PluginManifestValidationResult['sandbox_policy']) {
+  if (policy.status === 'DECLARED') return 'healthy' as const;
+  if (policy.status === 'MISSING') return 'unavailable' as const;
+  return 'ready' as const;
+}
+
+function sandboxPolicyLabel(policy: PluginManifestValidationResult['sandbox_policy']) {
+  if (policy.status === 'DECLARED') return '已声明';
+  if (policy.status === 'MISSING') return '缺少策略';
+  return '不需要';
 }
 
 function formatBytes(value: number | null) {

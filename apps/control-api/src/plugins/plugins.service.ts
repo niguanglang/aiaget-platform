@@ -214,8 +214,12 @@ export class PluginsService {
     return records.map((item) => this.mapInstallationItem(item));
   }
 
-  async validateManifest(dto: CreatePluginInstallationInput) {
-    return this.validateManifestWithPackageIntegrity(dto);
+  async validateManifest(currentUser: AuthenticatedUser, dto: CreatePluginInstallationInput) {
+    const validation = await this.validateManifestWithPackageIntegrity(dto);
+    if (!validation.can_install) {
+      await this.recordManifestValidationFailed(currentUser, validation);
+    }
+    return validation;
   }
 
   private async buildPluginWhere(currentUser: AuthenticatedUser): Promise<Prisma.PluginWhereInput> {
@@ -287,38 +291,12 @@ export class PluginsService {
   async install(currentUser: AuthenticatedUser, dto: CreatePluginInstallationInput): Promise<PluginInstallationDetail> {
     const validation = validatePluginManifestInput(dto);
     if (!validation.can_install) {
-      await this.platformEvents.recordEvent({
-        tenantId: currentUser.tenantId,
-        departmentId: currentUser.departmentId ?? null,
-        userId: currentUser.id,
-        resourceType: 'PLUGIN',
-        resourceId: validation.manifest_code,
-        eventSource: 'CONTROL_API',
-        eventType: 'plugin.manifest.validation_failed',
-        status: 'FAILED',
-        severity: 'WARN',
-        billable: false,
-        summary: validation.summary,
-        payloadJson: JSON.parse(JSON.stringify(validation)) as Prisma.InputJsonValue,
-      });
+      await this.recordManifestValidationFailed(currentUser, validation);
       throw new BadRequestException(validation.summary);
     }
     await this.attachPackageIntegrity(validation);
     if (!validation.can_install) {
-      await this.platformEvents.recordEvent({
-        tenantId: currentUser.tenantId,
-        departmentId: currentUser.departmentId ?? null,
-        userId: currentUser.id,
-        resourceType: 'PLUGIN',
-        resourceId: validation.manifest_code,
-        eventSource: 'CONTROL_API',
-        eventType: 'plugin.manifest.validation_failed',
-        status: 'FAILED',
-        severity: 'WARN',
-        billable: false,
-        summary: validation.summary,
-        payloadJson: JSON.parse(JSON.stringify(validation)) as Prisma.InputJsonValue,
-      });
+      await this.recordManifestValidationFailed(currentUser, validation);
       throw new BadRequestException(validation.summary);
     }
     const packageIntegrity = validation.package_integrity;
@@ -495,6 +473,26 @@ export class PluginsService {
     validation.summary = `Manifest 校验失败：${validation.errors.map((issue) => issue.message).join('；')}`;
   }
 
+  private async recordManifestValidationFailed(
+    currentUser: AuthenticatedUser,
+    validation: ReturnType<typeof validatePluginManifestInput>,
+  ) {
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'PLUGIN',
+      resourceId: validation.manifest_code,
+      eventSource: 'CONTROL_API',
+      eventType: 'plugin.manifest.validation_failed',
+      status: 'FAILED',
+      severity: 'WARN',
+      billable: false,
+      summary: validation.summary,
+      payloadJson: JSON.parse(JSON.stringify(validation)) as Prisma.InputJsonValue,
+    });
+  }
+
   async update(currentUser: AuthenticatedUser, pluginId: string, dto: UpdatePluginInstallationInput): Promise<PluginInstallationDetail> {
     const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
     const nextLatestVersion = dto.latest_version?.trim() || undefined;
@@ -620,6 +618,7 @@ export class PluginsService {
   }
 
   async rollback(currentUser: AuthenticatedUser, pluginId: string, dto: RollbackPluginInput) {
+    this.assertRollbackTarget(dto);
     const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
     const version = await this.prisma.pluginVersion.findFirst({
       where: {
@@ -735,6 +734,17 @@ export class PluginsService {
     });
 
     return this.getInstallation(currentUser, pluginId);
+  }
+
+  private assertRollbackTarget(dto: RollbackPluginInput) {
+    const versionId = dto.version_id?.trim();
+    const version = dto.version?.trim();
+    if (!versionId && !version) {
+      throw new BadRequestException('插件回滚必须指定版本 ID 或版本号。');
+    }
+    if (versionId && version) {
+      throw new BadRequestException('插件回滚版本 ID 和版本号只能二选一。');
+    }
   }
 
   private async dispatchRollbackWorkflow(

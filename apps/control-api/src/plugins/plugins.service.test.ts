@@ -237,7 +237,7 @@ test('validateManifest includes real package integrity result for custom plugin 
     } as never,
   );
 
-  const validation = await service.validateManifest({
+  const validation = await service.validateManifest(currentUser, {
     code: 'ticket-suite',
     source_type: 'CUSTOM',
     manifest_json: {
@@ -263,6 +263,95 @@ test('validateManifest includes real package integrity result for custom plugin 
   assert.equal(validation.status, 'PASSED');
   assert.equal(validation.package_integrity?.verified, true);
   assert.equal(validation.package_integrity?.package_size_bytes, 128);
+});
+
+test('validateManifest records failed custom manifest precheck as platform event before install flow', async () => {
+  const recordedEvents: unknown[] = [];
+  const service = new PluginsService(
+    {} as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    {
+      verifyPackage: async () => {
+        throw new Error('package integrity should not run when manifest metadata is already invalid');
+      },
+    } as never,
+  );
+
+  const validation = await (service as unknown as {
+    validateManifest: (user: typeof currentUser, dto: Record<string, unknown>) => Promise<{ can_install: boolean; errors: Array<{ code: string }> }>;
+  }).validateManifest(currentUser, {
+    code: 'ticket-suite',
+    source_type: 'CUSTOM',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.can_install, false);
+  assert.equal(validation.errors.some((issue) => issue.code === 'PACKAGE_SOURCE_REQUIRED'), true);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal((recordedEvents[0] as { eventType?: string }).eventType, 'plugin.manifest.validation_failed');
+  assert.equal((recordedEvents[0] as { resourceId?: string }).resourceId, 'ticket-suite');
+  assert.equal((recordedEvents[0] as { userId?: string }).userId, currentUser.id);
+});
+
+test('rollback rejects missing target version before loading plugin installation', async () => {
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => {
+          throw new Error('plugin installation lookup should not run without rollback target');
+        },
+      },
+    } as never,
+    {} as never,
+    {} as never,
+    { verifyPackage: async () => { throw new Error('rollback should not verify package'); } } as never,
+  );
+
+  await assert.rejects(
+    () => service.rollback(currentUser, 'plugin-1', {}),
+    BadRequestException,
+  );
+});
+
+test('rollback rejects ambiguous target version before loading plugin installation', async () => {
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => {
+          throw new Error('plugin installation lookup should not run with ambiguous rollback target');
+        },
+      },
+    } as never,
+    {} as never,
+    {} as never,
+    { verifyPackage: async () => { throw new Error('rollback should not verify package'); } } as never,
+  );
+
+  await assert.rejects(
+    () => service.rollback(currentUser, 'plugin-1', {
+      version: '1.1.0',
+      version_id: 'version-1',
+    }),
+    BadRequestException,
+  );
 });
 
 test('rollback restores a published plugin version snapshot and records event before returning detail', async () => {

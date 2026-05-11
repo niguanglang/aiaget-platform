@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey, verify } from 'node:crypto';
 
 import type {
   PluginPackageIntegrityResult,
@@ -204,8 +204,59 @@ class ExternalPluginPackageSignatureVerifier implements PluginPackageSignatureVe
   }
 }
 
+class LocalPublicKeyPluginPackageSignatureVerifier implements PluginPackageSignatureVerifier {
+  constructor(
+    private readonly publicKeyPem: string,
+    private readonly algorithm: string,
+  ) {}
+
+  async verify(input: VerifyPluginPackageSignatureInput): Promise<PluginPackageSignatureResult> {
+    if (!input.signature) {
+      return new MetadataOnlyPluginPackageSignatureVerifier().verify(input);
+    }
+
+    try {
+      const verified = verify(
+        this.algorithm,
+        input.bytes,
+        createPublicKey(this.publicKeyPem),
+        Buffer.from(input.signature, 'base64'),
+      );
+
+      if (!verified) {
+        return buildFailedSignatureResult(input, 'PACKAGE_SIGNATURE_REJECTED', '插件包本地公钥签名校验失败。');
+      }
+
+      return {
+        status: 'PASSED',
+        verified: true,
+        signature_type: input.signatureType ?? 'CUSTOM',
+        signature_present: true,
+        verification_url: input.verificationUrl,
+        subject: input.finalUrl,
+        issuer: 'local-public-key',
+        error_code: null,
+        error_message: null,
+      };
+    } catch (error) {
+      return buildFailedSignatureResult(
+        input,
+        'PACKAGE_SIGNATURE_LOCAL_VERIFIER_FAILED',
+        error instanceof Error ? `插件包本地公钥签名校验失败：${error.message}` : '插件包本地公钥签名校验失败。',
+      );
+    }
+  }
+}
+
 function createDefaultPluginPackageSignatureVerifier(): PluginPackageSignatureVerifier {
   const verifierUrl = process.env.PLUGIN_SIGNATURE_VERIFIER_URL?.trim();
+  const publicKeyPem = process.env.PLUGIN_SIGNATURE_PUBLIC_KEY?.trim();
+  if (!verifierUrl && publicKeyPem) {
+    return new LocalPublicKeyPluginPackageSignatureVerifier(
+      publicKeyPem,
+      process.env.PLUGIN_SIGNATURE_LOCAL_ALGORITHM?.trim() || 'RSA-SHA256',
+    );
+  }
   if (!verifierUrl) return new MetadataOnlyPluginPackageSignatureVerifier();
 
   return new ExternalPluginPackageSignatureVerifier(

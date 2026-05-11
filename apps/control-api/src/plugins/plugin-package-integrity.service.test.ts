@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
 import { PluginPackageIntegrityService } from './plugin-package-integrity.service';
@@ -292,6 +292,90 @@ test('fails package integrity when configured external verifier returns an HTTP 
   } finally {
     restoreEnv('PLUGIN_SIGNATURE_VERIFIER_URL', previousVerifierUrl);
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('verifies custom package signature with configured local public key verifier', async () => {
+  const packageBytes = Buffer.from('locally-signed-custom-plugin-package-content');
+  const expectedSha256 = createHash('sha256').update(packageBytes).digest('hex');
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const signature = sign('RSA-SHA256', packageBytes, privateKey).toString('base64');
+  const previousVerifierUrl = process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+  const previousPublicKey = process.env.PLUGIN_SIGNATURE_PUBLIC_KEY;
+  const previousAlgorithm = process.env.PLUGIN_SIGNATURE_LOCAL_ALGORITHM;
+
+  delete process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+  process.env.PLUGIN_SIGNATURE_PUBLIC_KEY = publicKey.export({ format: 'pem', type: 'spki' }).toString();
+  process.env.PLUGIN_SIGNATURE_LOCAL_ALGORITHM = 'RSA-SHA256';
+
+  try {
+    const service = new PluginPackageIntegrityService({
+      download: async (url) => ({
+        bytes: packageBytes,
+        finalUrl: url,
+        contentLength: packageBytes.length,
+        contentType: 'application/gzip',
+      }),
+    });
+
+    const result = await service.verifyPackage({
+      sourceUrl: 'https://plugins.example.com/ticket-suite.tgz',
+      expectedSha256,
+      signature,
+      signatureType: 'CUSTOM',
+    });
+
+    assert.equal(result.status, 'PASSED');
+    assert.equal(result.verified, true);
+    assert.equal(result.signature?.status, 'PASSED');
+    assert.equal(result.signature?.verified, true);
+    assert.equal(result.signature?.issuer, 'local-public-key');
+  } finally {
+    restoreEnv('PLUGIN_SIGNATURE_VERIFIER_URL', previousVerifierUrl);
+    restoreEnv('PLUGIN_SIGNATURE_PUBLIC_KEY', previousPublicKey);
+    restoreEnv('PLUGIN_SIGNATURE_LOCAL_ALGORITHM', previousAlgorithm);
+  }
+});
+
+test('fails custom package signature when local public key verifier rejects detached signature', async () => {
+  const packageBytes = Buffer.from('locally-signed-custom-plugin-package-content');
+  const tamperedBytes = Buffer.from('tampered-local-signature-content');
+  const expectedSha256 = createHash('sha256').update(tamperedBytes).digest('hex');
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const signature = sign('RSA-SHA256', packageBytes, privateKey).toString('base64');
+  const previousVerifierUrl = process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+  const previousPublicKey = process.env.PLUGIN_SIGNATURE_PUBLIC_KEY;
+  const previousAlgorithm = process.env.PLUGIN_SIGNATURE_LOCAL_ALGORITHM;
+
+  delete process.env.PLUGIN_SIGNATURE_VERIFIER_URL;
+  process.env.PLUGIN_SIGNATURE_PUBLIC_KEY = publicKey.export({ format: 'pem', type: 'spki' }).toString();
+  process.env.PLUGIN_SIGNATURE_LOCAL_ALGORITHM = 'RSA-SHA256';
+
+  try {
+    const service = new PluginPackageIntegrityService({
+      download: async (url) => ({
+        bytes: tamperedBytes,
+        finalUrl: url,
+        contentLength: tamperedBytes.length,
+        contentType: 'application/gzip',
+      }),
+    });
+
+    const result = await service.verifyPackage({
+      sourceUrl: 'https://plugins.example.com/ticket-suite.tgz',
+      expectedSha256,
+      signature,
+      signatureType: 'CUSTOM',
+    });
+
+    assert.equal(result.status, 'FAILED');
+    assert.equal(result.verified, false);
+    assert.equal(result.error_code, 'PACKAGE_SIGNATURE_REJECTED');
+    assert.equal(result.signature?.status, 'FAILED');
+  } finally {
+    restoreEnv('PLUGIN_SIGNATURE_VERIFIER_URL', previousVerifierUrl);
+    restoreEnv('PLUGIN_SIGNATURE_PUBLIC_KEY', previousPublicKey);
+    restoreEnv('PLUGIN_SIGNATURE_LOCAL_ALGORITHM', previousAlgorithm);
   }
 });
 

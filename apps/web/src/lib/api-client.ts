@@ -184,6 +184,7 @@ import type {
   PluginManifestValidationResult,
   QueuePluginHookExecutionInput,
   RollbackPluginInput,
+  UpgradePluginInput,
   PublishChannelListItem,
   PublishChannelOverview,
   PublishPromptInput,
@@ -2662,9 +2663,10 @@ export function disablePlugin(pluginId: string) {
   });
 }
 
-export function upgradePlugin(pluginId: string) {
+export function upgradePlugin(pluginId: string, input: UpgradePluginInput = {}) {
   return request<PluginInstallationDetail>(`/plugins/${pluginId}/upgrade`, {
     method: 'POST',
+    body: input,
   });
 }
 

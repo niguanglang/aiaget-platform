@@ -1241,7 +1241,7 @@ export interface ResourceAclCheckResult {
 
 export type PluginSourceType = 'MARKET' | 'CUSTOM';
 export type PluginInstallationStatus = 'PENDING_REVIEW' | 'INSTALLED' | 'ACTIVE' | 'DISABLED' | 'UPGRADING' | 'FAILED' | 'ARCHIVED';
-export type PluginRuntimeStatus = 'RUNNING' | 'STOPPED' | 'UPGRADING' | 'BLOCKED' | 'ERROR';
+export type PluginRuntimeStatus = 'READY' | 'RUNNING' | 'STOPPED' | 'UPGRADING' | 'BLOCKED' | 'ERROR';
 export type PluginRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type PluginHookStatus = 'ACTIVE' | 'DISABLED' | 'DELETED';
 export type PluginManifestValidationStatus = 'PASSED' | 'FAILED';
@@ -1478,6 +1478,20 @@ export interface PluginUninstallResult {
 export interface RollbackPluginInput {
   version_id?: string;
   version?: string;
+  change_note?: string | null;
+}
+
+export interface UpgradePluginInput {
+  code?: string;
+  name?: string;
+  provider?: string;
+  description?: string | null;
+  latest_version?: string;
+  source_type?: PluginSourceType;
+  manifest_json?: Record<string, unknown> | null;
+  config_json?: Record<string, unknown> | null;
+  permission_preview?: string[];
+  risk_level?: PluginRiskLevel;
   change_note?: string | null;
 }
 

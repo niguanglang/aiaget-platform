@@ -4,12 +4,13 @@ import type {
   SecurityOperationAlertNotificationTaskName,
   SecurityOperationAlertNotificationTaskRecoveryAction,
   SecurityOperationAlertNotificationTaskRecoveryFailureSource,
+  SecurityOperationAlertNotificationTaskRecoverySuggestion,
   SecurityOperationAlertNotificationTaskRecoveryReason,
   SecurityOperationAlertNotificationTaskRecoveryStatus,
   SecurityOperationAlertNotificationTaskRunResult,
 } from '@aiaget/shared-types';
-import { useQuery } from '@tanstack/react-query';
-import { Archive, ArrowRight, Search, Wrench } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Archive, ArrowRight, Download, Search, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -18,6 +19,7 @@ import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SecurityConfirmDialog,
   SecurityWorkspaceHeader,
   formatBytes,
   formatDateTime,
@@ -33,6 +35,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
+  createSecurityOperationAlertNotificationTaskRecoveryAuditArchive,
+  exportSecurityOperationAlertNotificationTaskRecoveryAudits,
   getSecurityCenterOverview,
   getSecurityOperationAlertNotificationTaskOverview,
   getSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovalOverview,
@@ -40,7 +44,16 @@ import {
   listSecurityOperationAlertNotificationTaskRecoveryAuditArchives,
   listSecurityOperationAlertNotificationTaskRecoveryAudits,
   listSecurityOperationAlertNotificationTaskRuns,
+  runSecurityOperationAlertNotificationAutoNotify,
+  runSecurityOperationAlertNotificationAutoRetry,
+  updateSecurityOperationAlertNotificationTaskRecoverySuggestion,
+  type ApiClientError,
 } from '@/lib/api-client';
+
+type RecoverySuggestionActionTarget = {
+  action: SecurityOperationAlertNotificationTaskRecoveryAction;
+  suggestion: SecurityOperationAlertNotificationTaskRecoverySuggestion;
+};
 
 const taskNames: Array<{ label: string; value: SecurityOperationAlertNotificationTaskName }> = [
   { label: '自动通知', value: 'AUTO_NOTIFY' },
@@ -79,6 +92,7 @@ const failureSources: Array<{ label: string; value: SecurityOperationAlertNotifi
 ];
 
 export function SecurityRecoveryContent() {
+  const queryClient = useQueryClient();
   const [taskRunTask, setTaskRunTask] = useState<SecurityOperationAlertNotificationTaskName | ''>('');
   const [taskRunStatus, setTaskRunStatus] = useState<SecurityOperationAlertNotificationTaskRunResult['status'] | ''>('');
   const [taskRunKeyword, setTaskRunKeyword] = useState('');
@@ -87,6 +101,10 @@ export function SecurityRecoveryContent() {
   const [auditReason, setAuditReason] = useState<SecurityOperationAlertNotificationTaskRecoveryReason | ''>('');
   const [auditFailureSource, setAuditFailureSource] = useState<SecurityOperationAlertNotificationTaskRecoveryFailureSource | ''>('');
   const [auditKeyword, setAuditKeyword] = useState('');
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuggestionActionTarget, setRecoverySuggestionActionTarget] =
+    useState<RecoverySuggestionActionTarget | null>(null);
 
   const securityOverviewQuery = useQuery({
     queryKey: ['security-recovery-page-security-overview'],
@@ -129,6 +147,106 @@ export function SecurityRecoveryContent() {
     queryFn: listSecurityOperationAlertNotificationTaskRecoveryAuditArchives,
   });
 
+  const refreshTaskRecoveryQueries = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-security-overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-task-overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-task-runs'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-audits'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archive-approval-overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archive-approvals'] }),
+      queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archives'] }),
+    ]);
+
+  const autoNotifyMutation = useMutation({
+    mutationFn: runSecurityOperationAlertNotificationAutoNotify,
+    onSuccess: async (result) => {
+      setRecoveryError(null);
+      setRecoveryNotice(`自动通知任务已运行：扫描 ${formatNumber(result.scanned_count)} 条，成功 ${formatNumber(result.success_count)} 条，失败 ${formatNumber(result.failed_count)} 条。`);
+      await refreshTaskRecoveryQueries();
+    },
+    onError: (error: ApiClientError) => {
+      setRecoveryNotice(null);
+      setRecoveryError(`自动通知任务运行失败：${error.message}`);
+    },
+  });
+
+  const autoRetryMutation = useMutation({
+    mutationFn: runSecurityOperationAlertNotificationAutoRetry,
+    onSuccess: async (result) => {
+      setRecoveryError(null);
+      setRecoveryNotice(`自动重试任务已运行：扫描 ${formatNumber(result.scanned_count)} 条，成功 ${formatNumber(result.success_count)} 条，失败 ${formatNumber(result.failed_count)} 条。`);
+      await refreshTaskRecoveryQueries();
+    },
+    onError: (error: ApiClientError) => {
+      setRecoveryNotice(null);
+      setRecoveryError(`自动重试任务运行失败：${error.message}`);
+    },
+  });
+
+  const recoverySuggestionMutation = useMutation({
+    mutationFn: (target: RecoverySuggestionActionTarget) =>
+      updateSecurityOperationAlertNotificationTaskRecoverySuggestion(target.suggestion.id, {
+        action: target.action,
+        note: `通过安全中心自愈恢复页面${recoveryActionLabel(target.action)}建议`,
+      }),
+    onSuccess: async (result) => {
+      setRecoveryError(null);
+      setRecoveryNotice(`自愈建议已处理为「${recoveryStatusLabel(result.status)}」，恢复审计已刷新。`);
+      setRecoverySuggestionActionTarget(null);
+      await refreshTaskRecoveryQueries();
+    },
+    onError: (error: ApiClientError) => {
+      setRecoveryNotice(null);
+      setRecoveryError(`自愈建议处理失败：${error.message}`);
+      setRecoverySuggestionActionTarget(null);
+    },
+  });
+
+  const exportRecoveryAuditsMutation = useMutation({
+    mutationFn: () =>
+      exportSecurityOperationAlertNotificationTaskRecoveryAudits({
+        action: auditAction,
+        status: auditStatus,
+        reason_code: auditReason,
+        failure_source: auditFailureSource,
+        keyword: auditKeyword,
+      }),
+    onSuccess: (blob) => {
+      downloadBlob(blob, `安全自愈恢复审计-${new Date().toISOString().slice(0, 10)}.csv`);
+      setRecoveryError(null);
+      setRecoveryNotice(`恢复审计导出完成，当前筛选命中 ${formatNumber(recoveryAuditsQuery.data?.summary.total_count)} 条。`);
+    },
+    onError: (error: ApiClientError) => {
+      setRecoveryNotice(null);
+      setRecoveryError(`恢复审计导出失败：${error.message}`);
+    },
+  });
+
+  const createRecoveryArchiveMutation = useMutation({
+    mutationFn: () =>
+      createSecurityOperationAlertNotificationTaskRecoveryAuditArchive({
+        action: auditAction,
+        status: auditStatus,
+        reason_code: auditReason,
+        failure_source: auditFailureSource,
+        keyword: auditKeyword,
+      }),
+    onSuccess: async (result) => {
+      setRecoveryError(null);
+      setRecoveryNotice(`恢复审计归档已创建：${result.item.file_name}。`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archive-approval-overview'] }),
+        queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archive-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['security-recovery-page-archives'] }),
+      ]);
+    },
+    onError: (error: ApiClientError) => {
+      setRecoveryNotice(null);
+      setRecoveryError(`恢复审计归档创建失败：${error.message}`);
+    },
+  });
+
   const taskOverview = taskOverviewQuery.data;
   const taskRuns = taskRunsQuery.data?.items ?? [];
   const recoveryAudits = recoveryAuditsQuery.data?.items ?? [];
@@ -136,6 +254,12 @@ export function SecurityRecoveryContent() {
   const archiveApprovals = archiveApprovalsQuery.data ?? [];
   const archives = archivesQuery.data?.items ?? [];
   const failureRate = securityOverviewQuery.data?.approval_operations.notification_task_failure_rate_24h ?? 0;
+  const taskActionPending = autoNotifyMutation.isPending || autoRetryMutation.isPending;
+
+  function confirmRecoverySuggestionAction() {
+    if (!recoverySuggestionActionTarget) return;
+    recoverySuggestionMutation.mutate(recoverySuggestionActionTarget);
+  }
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -173,11 +297,28 @@ export function SecurityRecoveryContent() {
         <MetricCard helper="自愈建议" label="待处理建议" value={formatNumber(suggestions.length)} />
       </section>
 
+      {recoveryNotice ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{recoveryNotice}</div>
+      ) : null}
+      {recoveryError ? (
+        <PageError>{recoveryError}</PageError>
+      ) : null}
+
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="p-5">
-          <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">任务运行</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Wrench className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">任务运行</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={taskActionPending} onClick={() => autoNotifyMutation.mutate()} size="sm" type="button" variant="outline">
+                {autoNotifyMutation.isPending ? '通知运行中' : '运行自动通知'}
+              </Button>
+              <Button disabled={taskActionPending} onClick={() => autoRetryMutation.mutate()} size="sm" type="button" variant="outline">
+                {autoRetryMutation.isPending ? '重试运行中' : '运行自动重试'}
+              </Button>
+            </div>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">自动通知和自动重试任务状态，任务动作由既有后端调度接口执行。</p>
           {taskOverviewQuery.isError ? (
@@ -266,7 +407,32 @@ export function SecurityRecoveryContent() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     客户成功复盘归档删除失败 {formatNumber(suggestion.customer_success_close_won_report_archive_delete_failed_count)} 条
                   </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    状态 {recoveryStatusLabel(suggestion.status)} · 最近动作 {suggestion.last_action ? recoveryActionLabel(suggestion.last_action) : '暂无'} · 最近备注 {suggestion.last_note ?? '暂无'} · 更新 {formatDateTime(suggestion.updated_at)}
+                  </p>
                   <p className="mt-2 text-xs text-muted-foreground">{suggestion.evidence}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={suggestion.primary_action_href}>
+                        <ArrowRight className="size-4" />
+                        {suggestion.primary_action_label}
+                      </Link>
+                    </Button>
+                    {suggestion.secondary_action_href && suggestion.secondary_action_label ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={suggestion.secondary_action_href}>{suggestion.secondary_action_label}</Link>
+                      </Button>
+                    ) : null}
+                    <Button disabled={recoverySuggestionMutation.isPending || suggestion.status === 'ACKNOWLEDGED'} onClick={() => setRecoverySuggestionActionTarget({ action: 'ACKNOWLEDGE', suggestion })} size="sm" type="button" variant="outline">
+                      确认
+                    </Button>
+                    <Button disabled={recoverySuggestionMutation.isPending || suggestion.status === 'IGNORED'} onClick={() => setRecoverySuggestionActionTarget({ action: 'IGNORE', suggestion })} size="sm" type="button" variant="outline">
+                      忽略
+                    </Button>
+                    <Button disabled={recoverySuggestionMutation.isPending || suggestion.status === 'RESOLVED'} onClick={() => setRecoverySuggestionActionTarget({ action: 'RESOLVE', suggestion })} size="sm" type="button" variant="outline">
+                      解决
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -275,7 +441,19 @@ export function SecurityRecoveryContent() {
 
         <Card className="overflow-hidden">
           <div className="border-b p-4">
-            <h2 className="text-sm font-semibold">恢复审计</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">恢复审计</h2>
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={exportRecoveryAuditsMutation.isPending} onClick={() => exportRecoveryAuditsMutation.mutate()} size="sm" type="button" variant="outline">
+                  <Download className="size-4" />
+                  {exportRecoveryAuditsMutation.isPending ? '导出中' : '导出恢复审计'}
+                </Button>
+                <Button disabled={createRecoveryArchiveMutation.isPending} onClick={() => createRecoveryArchiveMutation.mutate()} size="sm" type="button" variant="outline">
+                  <Archive className="size-4" />
+                  {createRecoveryArchiveMutation.isPending ? '归档中' : '创建恢复审计归档'}
+                </Button>
+              </div>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">按动作、状态、原因和失败来源检索自愈处理记录。</p>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[140px_140px_180px_180px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setAuditAction(event.target.value as SecurityOperationAlertNotificationTaskRecoveryAction | '')} value={auditAction}>
@@ -377,6 +555,17 @@ export function SecurityRecoveryContent() {
           </div>
         )}
       </Card>
+
+      {recoverySuggestionActionTarget ? (
+        <SecurityConfirmDialog
+          body={recoverySuggestionConfirmBody(recoverySuggestionActionTarget)}
+          confirmLabel={recoverySuggestionConfirmLabel(recoverySuggestionActionTarget.action)}
+          pending={recoverySuggestionMutation.isPending}
+          title="确认处理自愈建议"
+          onCancel={() => setRecoverySuggestionActionTarget(null)}
+          onConfirm={confirmRecoverySuggestionAction}
+        />
+      ) : null}
     </main>
   );
 }
@@ -413,6 +602,14 @@ function recoveryActionLabel(action: SecurityOperationAlertNotificationTaskRecov
     RESOLVE: '解决',
   };
   return labels[action] ?? action;
+}
+
+function recoverySuggestionConfirmLabel(action: SecurityOperationAlertNotificationTaskRecoveryAction) {
+  return `${recoveryActionLabel(action)}建议`;
+}
+
+function recoverySuggestionConfirmBody(target: RecoverySuggestionActionTarget) {
+  return `确认${recoveryActionLabel(target.action)}自愈建议「${target.suggestion.title}」？该动作会写入恢复审计，并刷新安全中心任务恢复闭环。`;
 }
 
 function recoveryStatusLabel(status: SecurityOperationAlertNotificationTaskRecoveryStatus) {
@@ -453,4 +650,15 @@ function archiveApprovalTone(status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPL
   if (status === 'PENDING') return 'degraded';
   if (status === 'REJECTED') return 'unavailable';
   return 'healthy';
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }

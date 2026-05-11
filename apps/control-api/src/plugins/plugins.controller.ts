@@ -37,6 +37,7 @@ import { RollbackPluginDto } from './dto/rollback-plugin.dto';
 import { UpdatePluginHookDto } from './dto/update-plugin-hook.dto';
 import { UpdatePluginInstallationDto } from './dto/update-plugin-installation.dto';
 import { UpdatePluginMenuBindingDto } from './dto/update-plugin-menu-binding.dto';
+import { UpgradePluginDto } from './dto/upgrade-plugin.dto';
 import { PluginHookExecutionService } from './plugin-hook-execution.service';
 import { PluginsService } from './plugins.service';
 
@@ -148,8 +149,9 @@ export class PluginsController {
   async upgrade(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('pluginId') pluginId: string,
+    @Body() dto: UpgradePluginDto,
   ): Promise<PluginInstallationDetail> {
-    return this.pluginsService.upgrade(currentUser, pluginId);
+    return this.pluginsService.upgrade(currentUser, pluginId, dto);
   }
 
   @Post(':pluginId/rollback')

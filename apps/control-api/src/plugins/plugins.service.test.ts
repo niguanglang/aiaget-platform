@@ -427,6 +427,291 @@ test('validateManifest reports sandbox policy when custom code entry is explicit
   assert.equal(validation.sandbox_policy?.filesystem, 'READONLY');
 });
 
+test('upgrade with manifest verifies package integrity and synchronizes generated plugin artifacts', async () => {
+  const calls: Array<{ data?: Record<string, unknown>; model: string; op: string; where?: Record<string, unknown> }> = [];
+  const recordedEvents: unknown[] = [];
+  let verifiedPackage = false;
+  const installation = {
+    id: 'plugin-installation-1',
+    tenantId: currentUser.tenantId,
+    pluginId: 'plugin-1',
+    installedVersion: '1.2.0',
+    latestVersion: '1.2.0',
+    manifestJson: { code: 'ticket-suite', version: '1.2.0' },
+    configJson: { enabled: true },
+    riskLevel: 'MEDIUM',
+    status: 'ACTIVE',
+    runtimeStatus: 'RUNNING',
+    enabledAt: null,
+    disabledAt: null,
+  };
+  const upgradeManifest = {
+    schema_version: '1.0',
+    code: 'ticket-suite',
+    name: '工单套件',
+    version: '1.3.0',
+    provider: '内部插件',
+    risk_level: 'HIGH',
+    package: {
+      source_url: 'https://plugins.example.com/ticket-suite-1.3.0.tgz',
+      sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      signature: 'sigstore-bundle-placeholder',
+    },
+    permissions: ['plugin:ticket:view', 'plugin:ticket:create'],
+    menus: [
+      {
+        code: 'dashboard',
+        name: '插件看板',
+        type: 'MENU',
+        path: '/plugins/ticket-suite/dashboard',
+        component: 'PluginDashboard',
+      },
+    ],
+    tools: [
+      {
+        code: 'create_ticket',
+        name: '创建工单',
+        method: 'POST',
+        url: 'https://plugins.example.com/tools/create-ticket',
+        risk_level: 'HIGH',
+      },
+    ],
+  };
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => installation,
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginInstallation', op: 'update', ...args });
+          return { ...installation, ...args.data };
+        },
+      },
+      plugin: {
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'plugin', op: 'update', ...args });
+          return { id: 'plugin-1', ...args.data };
+        },
+      },
+      pluginVersion: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.update, model: 'pluginVersion', op: 'upsert', where: args.where });
+          return args.create;
+        },
+      },
+      permission: { upsert: async (args: { create: Record<string, unknown> }) => {
+        calls.push({ data: args.create, model: 'permission', op: 'upsert' });
+        return args.create;
+      } },
+      pluginHook: {
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginHook', op: 'updateMany', ...args });
+          return { count: 0 };
+        },
+      },
+      menu: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          const code = (args.where.tenantId_code as { code: string }).code;
+          calls.push({ data: args.create, model: 'menu', op: 'upsert', where: args.where });
+          return { id: `menu-${code}`, code };
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'menu', op: 'updateMany', ...args });
+          return { count: 0 };
+        },
+      },
+      pluginMenuBinding: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.create, model: 'pluginMenuBinding', op: 'upsert', where: args.where });
+          return args.create;
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginMenuBinding', op: 'updateMany', ...args });
+          return { count: 0 };
+        },
+      },
+      tool: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.create, model: 'tool', op: 'upsert', where: args.where });
+          return args.create;
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'tool', op: 'updateMany', ...args });
+          return { count: 0 };
+        },
+      },
+      pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
+        calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
+        return args.data;
+      } },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    {
+      verifyPackage: async () => {
+        verifiedPackage = true;
+        return {
+          status: 'PASSED',
+          verified: true,
+          source_url: 'https://plugins.example.com/ticket-suite-1.3.0.tgz',
+          final_url: 'https://plugins.example.com/ticket-suite-1.3.0.tgz',
+          expected_sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          actual_sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          package_size_bytes: 256,
+          content_type: 'application/gzip',
+          error_code: null,
+          error_message: null,
+        };
+      },
+    } as never,
+  );
+  const getInstallation = service.getInstallation.bind(service);
+  service.getInstallation = (async () => ({
+    id: installation.id,
+    tenant_id: currentUser.tenantId,
+    plugin_id: 'plugin-1',
+    code: 'ticket-suite',
+    name: '工单套件',
+    provider: '内部插件',
+    description: null,
+    source_type: 'CUSTOM',
+    installed_version: '1.3.0',
+    latest_version: '1.3.0',
+    status: 'INSTALLED',
+    runtime_status: 'STOPPED',
+    risk_level: 'HIGH',
+    owner_id: currentUser.id,
+    menu_count: 1,
+    hook_count: 0,
+    permission_count: 2,
+    installed_at: null,
+    last_upgraded_at: null,
+    enabled_at: null,
+    disabled_at: null,
+    updated_at: new Date().toISOString(),
+    manifest_json: upgradeManifest,
+    config_json: null,
+    permission_preview: ['plugin:ticket:view', 'plugin:ticket:create'],
+    menu_bindings: [],
+    hooks: [],
+    versions: [],
+    audit_logs: [],
+    security_preview: { summary: 'ok', risks: [], notes: [] },
+  })) as typeof service.getInstallation;
+
+  try {
+    await service.upgrade(currentUser, 'plugin-1', {
+      code: 'ticket-suite',
+      source_type: 'CUSTOM',
+      manifest_json: upgradeManifest,
+      change_note: '升级到 1.3.0 并同步 Manifest',
+    });
+
+    assert.equal(verifiedPackage, true);
+    assert.ok(calls.some((call) => call.model === 'plugin' && call.op === 'update' && call.data?.latestVersion === '1.3.0' && call.data?.riskLevel === 'HIGH'));
+    assert.ok(calls.some((call) => call.model === 'pluginInstallation' && call.op === 'update' && call.data?.installedVersion === '1.3.0' && call.data?.status === 'INSTALLED'));
+    assert.ok(calls.some((call) => call.model === 'pluginVersion' && call.op === 'upsert' && call.data?.changeNote === '升级到 1.3.0 并同步 Manifest'));
+    assert.ok(calls.some((call) => call.model === 'permission' && call.op === 'upsert' && call.data?.code === 'plugin:ticket:create'));
+    assert.ok(calls.some((call) => call.model === 'menu' && call.op === 'upsert' && (call.where?.tenantId_code as { code?: string } | undefined)?.code === 'plugin_ticket-suite_dashboard'));
+    assert.ok(calls.some((call) => call.model === 'tool' && call.op === 'upsert' && (call.where?.tenantId_code as { code?: string } | undefined)?.code === 'plugin_tool_ticket-suite_create_ticket'));
+    const upgradeEvent = recordedEvents.find((event) => (event as { eventType?: string }).eventType === 'plugin.upgraded') as {
+      payloadJson?: { package_integrity?: { verified?: boolean }; hooks?: number; menus?: number; tools?: number };
+    };
+    assert.equal(upgradeEvent.payloadJson?.package_integrity?.verified, true);
+    assert.equal(upgradeEvent.payloadJson?.menus, 1);
+    assert.equal(upgradeEvent.payloadJson?.tools, 1);
+  } finally {
+    service.getInstallation = getInstallation;
+  }
+});
+
+test('upgrade with manifest rejects manifest code that does not belong to current plugin before writing records', async () => {
+  let pluginUpdateCalled = false;
+  let installationUpdateCalled = false;
+  const installation = {
+    id: 'plugin-installation-1',
+    tenantId: currentUser.tenantId,
+    pluginId: 'plugin-1',
+    installedVersion: '1.2.0',
+    latestVersion: '1.2.0',
+    manifestJson: { code: 'ticket-suite', version: '1.2.0' },
+    configJson: { enabled: true },
+    riskLevel: 'MEDIUM',
+    status: 'ACTIVE',
+    runtimeStatus: 'RUNNING',
+    enabledAt: null,
+    disabledAt: null,
+  };
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => installation,
+        update: async () => {
+          installationUpdateCalled = true;
+          throw new Error('plugin installation update should not run for mismatched manifest code');
+        },
+      },
+      plugin: {
+        update: async () => {
+          pluginUpdateCalled = true;
+          throw new Error('plugin update should not run for mismatched manifest code');
+        },
+      },
+    } as never,
+    {} as never,
+    {} as never,
+    {
+      verifyPackage: async () => ({
+        status: 'PASSED',
+        verified: true,
+        source_url: 'https://plugins.example.com/other-plugin-1.3.0.tgz',
+        final_url: 'https://plugins.example.com/other-plugin-1.3.0.tgz',
+        expected_sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        actual_sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        package_size_bytes: 256,
+        content_type: 'application/gzip',
+        error_code: null,
+        error_message: null,
+      }),
+    } as never,
+  );
+
+  await assert.rejects(
+    () => service.upgrade(currentUser, 'plugin-1', {
+      code: 'ticket-suite',
+      source_type: 'CUSTOM',
+      manifest_json: {
+        schema_version: '1.0',
+        code: 'other-plugin',
+        name: '其他插件',
+        version: '1.3.0',
+        provider: '内部插件',
+        package: {
+          source_url: 'https://plugins.example.com/other-plugin-1.3.0.tgz',
+          sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+          signature: 'sigstore-bundle-placeholder',
+        },
+        tools: [
+          {
+            code: 'create_ticket',
+            name: '创建工单',
+            method: 'POST',
+            url: 'https://plugins.example.com/tools/create-ticket',
+          },
+        ],
+      },
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(pluginUpdateCalled, false);
+  assert.equal(installationUpdateCalled, false);
+});
+
 test('rollback rejects missing target version before loading plugin installation', async () => {
   const service = new PluginsService(
     {

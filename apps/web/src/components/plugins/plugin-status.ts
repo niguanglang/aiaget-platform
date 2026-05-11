@@ -16,7 +16,7 @@ export const pluginInstallationStatuses: PluginInstallationStatus[] = [
   'ARCHIVED',
 ];
 
-export const pluginRuntimeStatuses: PluginRuntimeStatus[] = ['RUNNING', 'STOPPED', 'UPGRADING', 'BLOCKED', 'ERROR'];
+export const pluginRuntimeStatuses: PluginRuntimeStatus[] = ['READY', 'RUNNING', 'STOPPED', 'UPGRADING', 'BLOCKED', 'ERROR'];
 export const pluginRiskLevels: PluginRiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 export function pluginStatusLabel(status: PluginInstallationStatus | null) {
@@ -37,6 +37,7 @@ export function pluginStatusLabel(status: PluginInstallationStatus | null) {
 
 export function pluginRuntimeLabel(status: PluginRuntimeStatus) {
   const labels: Record<PluginRuntimeStatus, string> = {
+    READY: '就绪',
     RUNNING: '运行中',
     STOPPED: '已停止',
     UPGRADING: '升级中',
@@ -82,6 +83,7 @@ export function pluginStatusTone(status: PluginInstallationStatus | null) {
 }
 
 export function pluginRuntimeTone(status: PluginRuntimeStatus) {
+  if (status === 'READY') return 'ready' as const;
   if (status === 'RUNNING') return 'healthy' as const;
   if (status === 'ERROR') return 'unavailable' as const;
   if (status === 'UPGRADING' || status === 'BLOCKED') return 'degraded' as const;

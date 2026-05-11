@@ -260,7 +260,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-notifications/archive-approvals/:approvalId/approve')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Approve operation alert notification audit archive deletion' })
   async approveOperationAlertNotificationArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -271,7 +271,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-notifications/archive-approvals/:approvalId/reject')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Reject operation alert notification audit archive deletion' })
   async rejectOperationAlertNotificationArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -422,7 +422,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/:approvalId/approve')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Approve notification task recovery audit archive deletion' })
   async approveOperationAlertNotificationTaskRecoveryAuditArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -433,7 +433,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-notification-task-recovery-suggestions/audits/archive-approvals/:approvalId/reject')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Reject notification task recovery audit archive deletion' })
   async rejectOperationAlertNotificationTaskRecoveryAuditArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -632,7 +632,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-sla/dead-letter-audits/archive-approvals/:approvalId/approve')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Approve approval/archive operation alert SLA dead letter audit archive deletion' })
   async approveOperationAlertSlaDeadLetterAuditArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -643,7 +643,7 @@ export class SecurityCenterController {
   }
 
   @Post('operation-alert-sla/dead-letter-audits/archive-approvals/:approvalId/reject')
-  @Permissions('security:rule:view')
+  @Permissions('security:approval:handle')
   @ApiOkResponse({ description: 'Reject approval/archive operation alert SLA dead letter audit archive deletion' })
   async rejectOperationAlertSlaDeadLetterAuditArchiveApproval(
     @CurrentUser() currentUser: AuthenticatedUser,

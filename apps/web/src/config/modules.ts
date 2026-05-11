@@ -828,10 +828,10 @@ export const moduleSpecs: ModuleSpec[] = [
     status: 'ready',
     primaryAction: '复制接口',
     metrics: [
-      { label: '开放接口', value: '1', helper: '外部 Agent 调用' },
+      { label: '开放接口', value: '4', helper: '新建 + 续聊' },
       { label: '鉴权方式', value: '2', helper: 'Bearer / x-api-key' },
       { label: '请求字段', value: '2', helper: 'message + title' },
-      { label: '安全校验', value: '8', helper: '权限与审计闭环' },
+      { label: '流式事件', value: '4', helper: 'start/delta/done/error' },
     ],
     filters: ['接口路径', '鉴权方式', '请求字段', '响应字段', '错误码'],
     columns: ['接口', '方法', '鉴权', '权限', '请求体', '响应', '错误处理'],
@@ -848,7 +848,7 @@ export const moduleSpecs: ModuleSpec[] = [
     ],
     rowActions: ['复制接口', '复制 curl', '复制 TypeScript', '打开 API Key', '打开 Swagger'],
     emptyTitle: '暂无开放接口',
-    emptyDescription: '当前版本开放外部 Agent 非流式调用，后续流式接口会在这里补充。',
+    emptyDescription: '当前支持外部 Agent 非流式调用、SSE 流式调用、新建会话和续聊接口。',
   },
   {
     key: 'audit',

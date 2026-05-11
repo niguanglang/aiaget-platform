@@ -96,7 +96,7 @@ export function ApiKeyRow({
           <h3 className="text-sm font-semibold">{apiKey.name}</h3>
           <StatusBadge tone={statusTone(apiKey.status)}>{tenantStatusLabel(apiKey.status)}</StatusBadge>
           <StatusBadge tone={riskTone(risk)}>{riskLabels[risk]}</StatusBadge>
-          {apiKey.allow_stream ? <StatusBadge tone="mock">流式</StatusBadge> : null}
+          {apiKey.allow_stream ? <StatusBadge tone="ready">流式</StatusBadge> : null}
           {apiKey.webhook_enabled ? <StatusBadge tone={webhookTone(apiKey.webhook_last_status)}>Webhook</StatusBadge> : null}
         </div>
         <div className="mt-2 break-all font-mono text-xs text-muted-foreground">{apiKey.masked_key}</div>

@@ -158,7 +158,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
   });
 
   const upgradeMutation = useMutation({
-    mutationFn: upgradePlugin,
+    mutationFn: () => upgradePlugin(pluginId),
     onSuccess: async (result) => {
       setNotice(`${result.name} 已进入升级流程。`);
       setActionError(null);
@@ -236,7 +236,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
     if (!installationActionTarget) return;
 
     if (installationActionTarget.type === 'UPGRADE') {
-      upgradeMutation.mutate(installationActionTarget.plugin.plugin_id);
+      upgradeMutation.mutate();
       return;
     }
 
@@ -249,6 +249,10 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
 
   const rollbackCandidate = detail.versions.find((version) => version.version !== detail.installed_version) ?? null;
   const selectedCompareVersion = detail.versions.find((version) => version.id === versionCompareTargetId) ?? rollbackCandidate;
+  const selectedRollbackVersion =
+    selectedCompareVersion && selectedCompareVersion.version !== detail.installed_version
+      ? selectedCompareVersion
+      : null;
   const versionCompareRows = selectedCompareVersion
     ? buildManifestDiffRows({
         after: detail.manifest_json,
@@ -363,9 +367,9 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
               <UploadCloud className="size-4" />
               升级插件
             </Button>
-            <Button disabled={!canUpgrade || isMutating || !rollbackCandidate} onClick={() => rollbackCandidate && setRollbackActionTarget({ plugin: detail, version: rollbackCandidate })} type="button" variant="outline">
+            <Button disabled={!canUpgrade || isMutating || !selectedRollbackVersion} onClick={() => selectedRollbackVersion && setRollbackActionTarget({ plugin: detail, version: selectedRollbackVersion })} type="button" variant="outline">
               <History className="size-4" />
-              {rollbackCandidate ? `回滚至 ${rollbackCandidate.version}` : '暂无可回滚版本'}
+              {selectedRollbackVersion ? `回滚至 ${selectedRollbackVersion.version}` : '请选择可回滚版本'}
             </Button>
             <Button disabled={!canUninstall || isMutating || detail.status === 'ARCHIVED'} onClick={() => setUninstallTarget(detail)} type="button" variant="destructive">
               <Archive className="size-4" />

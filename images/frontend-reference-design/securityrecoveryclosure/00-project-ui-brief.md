@@ -1,0 +1,33 @@
+# Project UI Brief
+
+- Page: SecurityRecoveryClosure
+- Route: /security/recovery
+- Feature goal: 自愈恢复运营闭环
+- Parent layout: console security center route, existing `SecurityWorkspaceHeader` page shell
+- Target users and permissions: security operators handling notification task recovery and audit evidence
+- APIs/services:
+  - `getSecurityCenterOverview`
+  - `getSecurityOperationAlertNotificationTaskOverview`
+  - `listSecurityOperationAlertNotificationTaskRuns`
+  - `runSecurityOperationAlertNotificationAutoNotify`
+  - `runSecurityOperationAlertNotificationAutoRetry`
+  - `updateSecurityOperationAlertNotificationTaskRecoverySuggestion`
+  - `listSecurityOperationAlertNotificationTaskRecoveryAudits`
+  - `exportSecurityOperationAlertNotificationTaskRecoveryAudits`
+  - `createSecurityOperationAlertNotificationTaskRecoveryAuditArchive`
+  - recovery audit archive list and approval overview APIs
+- Entities/fields/statuses:
+  - task overview: scheduler state, running state, policy source, lookback hours
+  - task run: task, status, scanned/success/failed/skipped counts, finished time
+  - recovery suggestion: severity, reason, failure source, status, last action/note, primary/secondary action links
+  - recovery audit: action, status, reason, failure source, trace/request/replay identifiers
+  - archive approval: archive count, size, pending/applied approvals
+- Existing components/design system:
+  - `Card`, `Button`, `MetricCard`, `StatusBadge`, `EmptyState`
+  - `SecurityConfirmDialog`, `RefreshButton`, `PageError`, `LoadingRows`
+  - Lucide icons already used by security pages
+- Required states: loading, empty, error, disabled while mutation pending, success notice, destructive confirmation
+- Constraints:
+  - keep `/security/recovery` focused on notification task recovery only
+  - do not move archive deletion review into this page; link evidence and summaries only
+  - preserve existing query keys where possible and invalidate related summaries after mutation

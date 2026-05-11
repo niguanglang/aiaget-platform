@@ -16,7 +16,7 @@ export class UpdatePluginInstallationDto {
   status?: PluginInstallationStatus;
 
   @IsOptional()
-  @IsIn(['RUNNING', 'STOPPED', 'UPGRADING', 'BLOCKED', 'ERROR'] satisfies PluginRuntimeStatus[])
+  @IsIn(['READY', 'RUNNING', 'STOPPED', 'UPGRADING', 'BLOCKED', 'ERROR'] satisfies PluginRuntimeStatus[])
   runtime_status?: PluginRuntimeStatus;
 
   @IsOptional()

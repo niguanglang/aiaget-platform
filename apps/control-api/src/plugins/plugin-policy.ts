@@ -282,11 +282,8 @@ function buildSandboxRiskLevel(
 
 function readPluginCodeEntry(manifest: Record<string, unknown>) {
   const runtime = isRecord(manifest.runtime) ? manifest.runtime : null;
-  const runtimeType = runtime ? readFirstString(runtime, ['type', 'runtime_type'])?.toLowerCase() : null;
   const runtimeEntry = runtime ? readFirstString(runtime, ['entry', 'entry_point', 'main', 'main_entry']) : null;
-  if (runtimeEntry && (!runtimeType || runtimeType === 'code' || runtimeType === 'node' || runtimeType === 'python' || runtimeType === 'wasm')) {
-    return runtimeEntry;
-  }
+  if (runtimeEntry) return runtimeEntry;
 
   return readFirstString(manifest, ['entry', 'entry_point', 'main', 'main_entry']);
 }

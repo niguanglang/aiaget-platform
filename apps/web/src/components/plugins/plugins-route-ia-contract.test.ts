@@ -78,6 +78,7 @@ test('plugin installations page exposes version compare before rollback decision
   assert.match(installationsSource, /buildManifestDiffRows/);
   assert.match(installationsSource, /versionCompareTargetId/);
   assert.match(installationsSource, /selectedCompareVersion/);
+  assert.match(installationsSource, /selectedRollbackVersion/);
   assert.match(installationsSource, /before: selectedCompareVersion\.manifest_json/);
   assert.match(installationsSource, /after: detail\.manifest_json/);
   assert.match(installationsSource, /无 Manifest 差异/);
@@ -126,6 +127,7 @@ test('plugin high-impact installation actions require an explicit confirmation t
   assert.match(installationsSource, /RollbackActionTarget/);
   assert.match(installationsSource, /rollbackActionTarget/);
   assert.match(installationsSource, /setRollbackActionTarget/);
+  assert.match(installationsSource, /version: selectedRollbackVersion/);
   assert.match(installationsSource, /确认回滚插件/);
   assert.match(installationsSource, /确认回滚/);
   assert.doesNotMatch(installationsSource, /onClick=\{\(\) => runtimeMutation\.mutate/);

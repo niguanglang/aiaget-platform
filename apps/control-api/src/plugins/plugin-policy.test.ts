@@ -147,6 +147,21 @@ test('audits declared custom code sandbox policy as low risk before hook executi
   assert.equal(audit.policy.filesystem, 'READONLY');
 });
 
+test('treats any runtime entry as custom code that requires sandbox policy', () => {
+  const audit = auditSandboxPolicyForHookExecution({
+    runtime: {
+      type: 'custom',
+      entry: 'dist/index.js',
+    },
+  });
+
+  assert.equal(audit.allowed, false);
+  assert.equal(audit.risk_level, 'CRITICAL');
+  assert.equal(audit.policy.status, 'MISSING');
+  assert.equal(audit.policy.entry, 'dist/index.js');
+  assert.ok(audit.violations.includes('自定义代码入口必须声明 sandbox 策略。'));
+});
+
 test('audits custom code sandbox policy with open network as critical and blocking', () => {
   const audit = auditSandboxPolicyForHookExecution({
     runtime: {

@@ -370,9 +370,9 @@ export default function ApiReferencePage() {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">M61</StatusBadge>
             <StatusBadge tone="healthy">开放接口</StatusBadge>
-            <StatusBadge tone="mock">SSE 流式</StatusBadge>
-            <StatusBadge tone="mock">会话续聊</StatusBadge>
-            <StatusBadge tone="mock">Webhook 回调</StatusBadge>
+            <StatusBadge tone="ready">SSE 流式</StatusBadge>
+            <StatusBadge tone="ready">会话续聊</StatusBadge>
+            <StatusBadge tone="healthy">Webhook 回调</StatusBadge>
           </div>
           <h1 className="text-3xl font-semibold tracking-normal">开放接口文档中心</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">

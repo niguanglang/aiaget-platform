@@ -21,6 +21,7 @@ import type {
   UpdatePluginHookInput,
   UpdatePluginInstallationInput,
   UpdatePluginMenuBindingInput,
+  UpgradePluginInput,
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';
@@ -564,8 +565,12 @@ export class PluginsService {
     return this.setRuntimeState(currentUser, pluginId, 'DISABLED');
   }
 
-  async upgrade(currentUser: AuthenticatedUser, pluginId: string) {
+  async upgrade(currentUser: AuthenticatedUser, pluginId: string, dto: UpgradePluginInput = {}) {
     const installation = await this.ensureInstallation(currentUser.tenantId, pluginId);
+    if (dto.manifest_json) {
+      return this.upgradeWithManifest(currentUser, pluginId, installation, dto);
+    }
+
     const nextVersion = bumpPatch(installation.latestVersion);
 
     await this.prisma.plugin.update({
@@ -614,6 +619,134 @@ export class PluginsService {
       severity: 'INFO',
       billable: false,
       summary: `插件 ${pluginId} 已升级`,
+    });
+
+    return this.getInstallation(currentUser, pluginId);
+  }
+
+  private async upgradeWithManifest(
+    currentUser: AuthenticatedUser,
+    pluginId: string,
+    installation: Awaited<ReturnType<PluginsService['ensureInstallation']>>,
+    dto: UpgradePluginInput,
+  ) {
+    const sourceType = dto.source_type ?? (installation.sourceType as CreatePluginInstallationInput['source_type']) ?? 'MARKET';
+    const manifestDto: CreatePluginInstallationInput = {
+      code: dto.code ?? pluginId,
+      name: dto.name,
+      provider: dto.provider,
+      description: dto.description,
+      latest_version: dto.latest_version,
+      source_type: sourceType,
+      manifest_json: dto.manifest_json,
+      config_json: dto.config_json,
+      permission_preview: dto.permission_preview,
+      risk_level: dto.risk_level,
+    };
+    const validation = await this.validateManifestWithPackageIntegrity(manifestDto);
+    if (!validation.can_install) {
+      await this.recordManifestValidationFailed(currentUser, validation);
+      throw new BadRequestException(validation.summary);
+    }
+
+    const manifest = normalizePluginManifest(manifestDto);
+    const installedManifestCode = normalizeInstalledPluginCode(installation.manifestJson) ?? normalizeOptionalText(dto.code ?? null);
+    if (installedManifestCode && manifest.code !== installedManifestCode) {
+      throw new BadRequestException(`升级 Manifest 编码 ${manifest.code} 与当前插件编码 ${installedManifestCode} 不一致。`);
+    }
+
+    const now = new Date();
+    const packageIntegrity = validation.package_integrity;
+
+    await this.prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        name: manifest.name,
+        provider: manifest.provider,
+        description: manifest.description,
+        latestVersion: manifest.version,
+        riskLevel: manifest.riskLevel,
+        manifestJson: toJsonInput(manifest.raw),
+        configJson: toJsonInput(manifest.config),
+        permissionPreview: toJsonInput(manifest.permissions),
+        status: 'INSTALLED',
+        runtimeStatus: 'STOPPED',
+        lastUpgradedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.prisma.pluginInstallation.update({
+      where: { id: installation.id },
+      data: {
+        installedVersion: manifest.version,
+        latestVersion: manifest.version,
+        status: 'INSTALLED',
+        runtimeStatus: 'STOPPED',
+        sourceType,
+        riskLevel: manifest.riskLevel,
+        configJson: toJsonInput(manifest.config),
+        manifestJson: toJsonInput(manifest.raw),
+        permissionPreview: toJsonInput(manifest.permissions),
+        lastUpgradedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+
+    await this.upsertPluginVersionSnapshot({
+      tenantId: currentUser.tenantId,
+      pluginId,
+      version: manifest.version,
+      manifestJson: toJsonInput(manifest.raw) as Prisma.JsonValue,
+      changeNote: dto.change_note?.trim() || `插件升级至 ${manifest.version} 并同步 Manifest。`,
+      createdBy: currentUser.id,
+    });
+
+    const syncSummary = await this.syncPluginManifest(currentUser, pluginId, manifest);
+    await this.recordAudit(
+      currentUser,
+      pluginId,
+      'UPGRADE',
+      '升级插件',
+      `插件版本升级至 ${manifest.version}，同步 ${syncSummary.hooks} 个 Hook、${syncSummary.menus} 个菜单、${syncSummary.tools} 个工具。`,
+      'INFO',
+      {
+        manifest_code: manifest.code,
+        version: manifest.version,
+        previous_installed_version: installation.installedVersion,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+        permissions: manifest.permissions,
+        risk_level: manifest.riskLevel,
+        source_type: sourceType,
+        package_integrity: packageIntegrity ?? null,
+      },
+      manifest.riskLevel,
+    );
+    await this.platformEvents.recordEvent({
+      tenantId: currentUser.tenantId,
+      departmentId: currentUser.departmentId ?? null,
+      userId: currentUser.id,
+      resourceType: 'PLUGIN',
+      resourceId: pluginId,
+      pluginId,
+      eventSource: 'CONTROL_API',
+      eventType: 'plugin.upgraded',
+      status: 'SUCCESS',
+      severity: manifest.riskLevel === 'CRITICAL' || manifest.riskLevel === 'HIGH' ? 'WARN' : 'INFO',
+      billable: false,
+      summary: `插件 ${pluginId} 已升级并同步 Manifest`,
+      payloadJson: JSON.parse(JSON.stringify({
+        plugin_code: manifest.code,
+        manifest_code: manifest.code,
+        version: manifest.version,
+        previous_installed_version: installation.installedVersion,
+        hooks: syncSummary.hooks,
+        menus: syncSummary.menus,
+        tools: syncSummary.tools,
+        package_integrity: packageIntegrity ?? null,
+      })) as Prisma.InputJsonValue,
     });
 
     return this.getInstallation(currentUser, pluginId);
@@ -1817,6 +1950,13 @@ function normalizePluginManifest(dto: CreatePluginInstallationInput): Normalized
     tools,
     config,
   };
+}
+
+function normalizeInstalledPluginCode(value: unknown) {
+  if (!isPlainRecord(value)) return null;
+  const code = getString(value, ['code', 'plugin_code']);
+  if (!code) return null;
+  return normalizeManifestCode(code);
 }
 
 function normalizeManifestMenu(value: Record<string, unknown>, index: number): NormalizedPluginManifestMenu {

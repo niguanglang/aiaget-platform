@@ -355,6 +355,16 @@ test('recovery page owns notification task recovery data flow and Chinese page r
   assert.match(source, /listSecurityOperationAlertNotificationTaskRuns/);
   assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAudits/);
   assert.match(source, /listSecurityOperationAlertNotificationTaskRecoveryAuditArchiveApprovals/);
+  assert.match(source, /runSecurityOperationAlertNotificationAutoNotify/);
+  assert.match(source, /runSecurityOperationAlertNotificationAutoRetry/);
+  assert.match(source, /updateSecurityOperationAlertNotificationTaskRecoverySuggestion/);
+  assert.match(source, /exportSecurityOperationAlertNotificationTaskRecoveryAudits/);
+  assert.match(source, /createSecurityOperationAlertNotificationTaskRecoveryAuditArchive/);
+  assert.match(source, /recoverySuggestionActionTarget/);
+  assert.match(source, /confirmRecoverySuggestionAction/);
+  assert.match(source, /确认处理自愈建议/);
+  assert.match(source, /导出恢复审计/);
+  assert.match(source, /创建恢复审计归档/);
   assert.match(source, /客户成功复盘归档删除/);
   assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);
   assert.match(source, /customer_success_close_won_report_archive_delete_failed_count/);

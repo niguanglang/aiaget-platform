@@ -1,5 +1,6 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { hasPermission } from '@aiaget/shared-types';
 
 import type {
   PaginatedResult,
@@ -16,6 +17,7 @@ import type {
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { ApprovalsService } from '../approvals/approvals.service';
+import { redactChannelAuditUrl } from '../channels/channel-audit-redaction';
 import { ChannelsService } from '../channels/channels.service';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CustomerSuccessOpportunitiesService } from '../customer-success-opportunities/customer-success-opportunities.service';
@@ -273,8 +275,13 @@ export class SecurityApprovalWorkbenchService {
       }
     } else if (item.type === 'CHANNEL_PUBLISH_APPROVAL') {
       const channelPayload = { note: input.decision_note ?? null };
-      if (input.decision === 'APPROVE') await this.channelsService.approvePublish(currentUser, item.source_id, channelPayload);
-      else await this.channelsService.rejectPublish(currentUser, item.source_id, channelPayload);
+      if (input.decision === 'APPROVE') {
+        assertChannelPublishPermission(currentUser, 'channel:publish:deploy');
+        await this.channelsService.approvePublish(currentUser, item.source_id, channelPayload);
+      } else {
+        assertChannelPublishPermission(currentUser, 'channel:publish:disable');
+        await this.channelsService.rejectPublish(currentUser, item.source_id, channelPayload);
+      }
     } else if (item.type === 'APPROVAL_AUDIT_ARCHIVE_DELETE') {
       if (input.decision === 'APPROVE') await this.approvalsService.approveArchiveDeleteApproval(currentUser, item.source_id, payload);
       else await this.approvalsService.rejectArchiveDeleteApproval(currentUser, item.source_id, payload);
@@ -618,8 +625,8 @@ function mapChannelPublishApproval(channel: ChannelPublishApprovalRecord): Workb
       rollback_available: control.rollback_available,
       channel_status: channel.status,
       health_status: channel.healthStatus,
-      endpoint_url: channel.endpointUrl,
-      callback_url: channel.callbackUrl,
+      endpoint_url: redactChannelAuditUrl(channel.endpointUrl),
+      callback_url: redactChannelAuditUrl(channel.callbackUrl),
     },
     timeline: buildSimpleTimeline({
       id: channel.id,
@@ -631,6 +638,11 @@ function mapChannelPublishApproval(channel: ChannelPublishApprovalRecord): Workb
       reviewer,
     }),
   };
+}
+
+function assertChannelPublishPermission(currentUser: AuthenticatedUser, permission: string) {
+  if (currentUser.roles.includes('tenant_admin') || hasPermission(currentUser.permissions, permission)) return;
+  throw new ForbiddenException('Permission denied');
 }
 
 function buildApprovalAuditArchiveDeleteItems(events: ApprovalAuditEventRecord[]): WorkbenchSourceRecord[] {

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   ConversationDetail,
@@ -15,6 +15,7 @@ import { ExternalChannelRolloutGateService } from './external-channel-rollout-ga
 import { ExternalWebhookService } from './external-webhook.service';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class ExternalApiService {
@@ -25,6 +26,7 @@ export class ExternalApiService {
     @Inject(ExternalWebhookService) private readonly webhooks: ExternalWebhookService,
     @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(BillingService) private readonly billingService: BillingService,
   ) {}
 
   async chat(principal: ExternalApiPrincipal, agentId: string, dto: ExternalAgentChatDto): Promise<ExternalAgentChatResponse> {
@@ -32,6 +34,7 @@ export class ExternalApiService {
     const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_chat', principal, agentId, idempotencyKey));
     if (cached) return cached;
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performChat(principal, agentId, dto);
 
     await this.recordExternalInvocation(principal, agentId, result, {
@@ -51,8 +54,6 @@ export class ExternalApiService {
       message: dto.message,
       title: dto.title,
     });
-
-    await this.externalApiKeys.markUsed(principal.key.id);
 
     const result = mapExternalResponse(conversation);
     void this.webhooks.notifyRunCompleted(principal, result);
@@ -77,6 +78,7 @@ export class ExternalApiService {
     const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_chat', principal, channelId, idempotencyKey));
     if (cached) return withChannel(cached, channelId);
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performChat(principal, agentId, dto);
 
     await this.recordChannelInvocation(principal, channelId, result, {
@@ -99,6 +101,7 @@ export class ExternalApiService {
     const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('agent_conversation', principal, conversationId, idempotencyKey));
     if (cached) return cached;
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performContinueChat(principal, conversationId, dto);
 
     await this.recordExternalInvocation(principal, result.agent_id, result, {
@@ -120,8 +123,6 @@ export class ExternalApiService {
     const conversation = await this.conversationsService.sendMessage(principal.user, conversationId, {
       message: dto.message,
     });
-
-    await this.externalApiKeys.markUsed(principal.key.id);
 
     const result = mapExternalResponse(conversation);
     void this.webhooks.notifyRunCompleted(principal, result);
@@ -147,6 +148,7 @@ export class ExternalApiService {
     const cached = await this.findIdempotentResult(principal, buildIdempotencyDedupeKey('channel_conversation', principal, conversationId, idempotencyKey));
     if (cached) return withChannel(cached, channelId);
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performContinueChat(principal, conversationId, dto);
 
     await this.recordChannelInvocation(principal, channelId, result, {
@@ -174,6 +176,7 @@ export class ExternalApiService {
       return cached;
     }
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performStreamChat(principal, agentId, dto, emit);
 
     await this.recordExternalInvocation(principal, agentId, result, {
@@ -213,8 +216,6 @@ export class ExternalApiService {
       }
     });
 
-    await this.externalApiKeys.markUsed(principal.key.id);
-
     const result = mapExternalResponse(finalConversation ?? conversation);
     void this.webhooks.notifyRunCompleted(principal, result);
 
@@ -244,6 +245,7 @@ export class ExternalApiService {
       return response;
     }
 
+    await this.reserveExternalApiCall(principal);
     let finalResult: ExternalAgentChatResponse | null = null;
     const result = await this.performStreamChat(principal, agentId, dto, (eventName, payload) => {
       if (payload.type === 'done') {
@@ -284,6 +286,7 @@ export class ExternalApiService {
       return cached;
     }
 
+    await this.reserveExternalApiCall(principal);
     const result = await this.performStreamContinueChat(principal, conversationId, dto, emit);
 
     await this.recordExternalInvocation(principal, result.agent_id, result, {
@@ -321,8 +324,6 @@ export class ExternalApiService {
       }
     });
 
-    await this.externalApiKeys.markUsed(principal.key.id);
-
     const result = mapExternalResponse(finalConversation ?? conversation);
     void this.webhooks.notifyRunCompleted(principal, result);
 
@@ -353,6 +354,7 @@ export class ExternalApiService {
       return response;
     }
 
+    await this.reserveExternalApiCall(principal);
     let finalResult: ExternalAgentChatResponse | null = null;
     const result = await this.performStreamContinueChat(principal, conversationId, dto, (eventName, payload) => {
       if (payload.type === 'done') {
@@ -409,7 +411,7 @@ export class ExternalApiService {
       eventType: options.eventType,
       status: result.status === 'FAILED' ? 'FAILED' : 'SUCCESS',
       severity: result.status === 'FAILED' ? 'WARN' : 'INFO',
-      billable: false,
+      billable: true,
       summary: `渠道外部调用完成：${result.agent_name}`,
       payloadJson: {
         api_key_id: principal.key.id,
@@ -439,7 +441,7 @@ export class ExternalApiService {
       metricType: 'channel_external_requests',
       unit: 'request',
       quantity: 1,
-      billable: false,
+      billable: true,
       costSource: result.status === 'FAILED' ? 'FAILED' : 'EXTERNAL_CHANNEL',
       traceId: result.trace_id ?? principal.user.traceId ?? null,
       requestId: principal.user.requestId ?? null,
@@ -501,7 +503,7 @@ export class ExternalApiService {
       eventType: options.eventType,
       status: result.status === 'FAILED' ? 'FAILED' : 'SUCCESS',
       severity: result.status === 'FAILED' ? 'WARN' : 'INFO',
-      billable: false,
+      billable: true,
       summary: `外部调用完成：${result.agent_name}`,
       payloadJson: {
         api_key_id: principal.key.id,
@@ -531,7 +533,7 @@ export class ExternalApiService {
       metricType: 'external_agent_requests',
       unit: 'request',
       quantity: 1,
-      billable: false,
+      billable: true,
       costSource: result.status === 'FAILED' ? 'FAILED' : 'EXTERNAL_API',
       traceId: result.trace_id ?? principal.user.traceId ?? null,
       requestId: principal.user.requestId ?? null,
@@ -539,6 +541,23 @@ export class ExternalApiService {
       sourceSystem: 'external_api',
       sourceId: result.run_id ?? result.conversation_id,
     });
+  }
+
+  private async reserveExternalApiCall(principal: ExternalApiPrincipal) {
+    const result = await this.billingService.enforceQuota(principal.user, {
+      subject_type: 'API_KEY',
+      subject_id: principal.key.id,
+      metric_type: 'API_CALL',
+      period: 'MONTH',
+      usage_delta: 1,
+    });
+
+    if (!result.allow || result.block) {
+      const status = result.action === 'BLOCK' ? HttpStatus.FORBIDDEN : HttpStatus.TOO_MANY_REQUESTS;
+      throw new HttpException(result.reason || 'Billing quota exceeded', status);
+    }
+
+    await this.externalApiKeys.markUsed(principal.key.id);
   }
 
   private async findIdempotentResult(principal: ExternalApiPrincipal, dedupeKey: string | null): Promise<ExternalAgentChatResponse | null> {

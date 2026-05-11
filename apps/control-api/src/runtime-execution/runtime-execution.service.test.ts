@@ -788,6 +788,7 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
 test('retryWorkflowTask redispatches failed agent team workflow runs through agent team service', async () => {
   const workflowRuns: string[] = [];
   const events: string[] = [];
+  const runUpdates: Array<Record<string, unknown>> = [];
   const prisma = {
     agentTeamRun: {
       findFirst: async (args: { where: { id: string; tenantId: string } }) => ({
@@ -801,6 +802,10 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
           name: '生产巡检团队',
         },
       }),
+      update: async (args: { data: Record<string, unknown> }) => {
+        runUpdates.push(args.data);
+        return { id: 'run-1' };
+      },
     },
   };
   const service = createRuntimeExecutionService({
@@ -843,6 +848,14 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
   assert.equal(result.retry_request_id, 'request-1');
   assert.deepEqual(workflowRuns, ['run-1']);
   assert.deepEqual(events, ['workflow.agent_team_run.retry_requested']);
+  assert.deepEqual(runUpdates, [
+    {
+      status: 'QUEUED',
+      errorMessage: null,
+      endedAt: null,
+      updatedBy: 'user-1',
+    },
+  ]);
 });
 
 test('retryWorkflowTask redispatches failed plugin rollback workflow through plugin workflow service', async () => {

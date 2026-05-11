@@ -645,6 +645,17 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: run.id,
     });
+    await this.prisma.agentTeamRun.update({
+      where: {
+        id: run.id,
+      },
+      data: {
+        status: 'QUEUED',
+        errorMessage: null,
+        endedAt: null,
+        updatedBy: currentUser.id,
+      },
+    });
     const dispatchResult = await this.agentTeamsService.runWorkflowRun(run.id);
 
     return {

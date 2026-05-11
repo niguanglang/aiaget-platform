@@ -66,7 +66,6 @@ export class ExternalApiKeyService {
     ensureAgentAllowed(key, agentId);
     ensureIpAllowed(key, request);
     this.ensureMinuteLimit(key);
-    await this.ensureDailyQuota(key);
 
     await this.ensurePermission(user, 'system:api_key:invoke', request, key, agentId);
     await this.ensurePermission(user, 'conversation:chat:manage', request, key, agentId);
@@ -197,6 +196,8 @@ export class ExternalApiKeyService {
       },
       select: {
         id: true,
+        status: true,
+        dailyQuota: true,
         usedCountToday: true,
         quotaResetDate: true,
       },
@@ -206,17 +207,55 @@ export class ExternalApiKeyService {
 
     const today = quotaDate();
     const shouldReset = !key.quotaResetDate || key.quotaResetDate.toISOString().slice(0, 10) !== today.toISOString().slice(0, 10);
+    const currentUsedToday = shouldReset ? 0 : key.usedCountToday;
+    const dailyQuota = key.dailyQuota && key.dailyQuota > 0 ? key.dailyQuota : null;
+    if (dailyQuota !== null && currentUsedToday >= dailyQuota) {
+      throw new HttpException('API key daily quota exceeded', HttpStatus.TOO_MANY_REQUESTS);
+    }
 
-    await this.prisma.apiKey.update({
-      where: {
-        id: keyId,
-      },
-      data: {
-        lastUsedAt: new Date(),
-        quotaResetDate: today,
-        usedCountToday: shouldReset ? 1 : { increment: 1 },
-      },
-    });
+    let updated = shouldReset
+      ? await this.prisma.apiKey.updateMany({
+          where: {
+            id: keyId,
+            status: 'ACTIVE',
+            OR: [
+              { quotaResetDate: null },
+              { quotaResetDate: { not: today } },
+            ],
+          },
+          data: {
+            lastUsedAt: new Date(),
+            quotaResetDate: today,
+            usedCountToday: 1,
+          },
+        })
+      : { count: 0 };
+
+    if (!shouldReset || updated.count === 0) {
+      updated = await this.prisma.apiKey.updateMany({
+        where: {
+          id: keyId,
+          status: 'ACTIVE',
+          quotaResetDate: today,
+          ...(dailyQuota === null
+            ? {}
+            : {
+                usedCountToday: {
+                  lt: dailyQuota,
+                },
+              }),
+        },
+        data: {
+          lastUsedAt: new Date(),
+          quotaResetDate: today,
+          usedCountToday: { increment: 1 },
+        },
+      });
+    }
+
+    if (updated.count === 0) {
+      throw new HttpException('API key daily quota exceeded', HttpStatus.TOO_MANY_REQUESTS);
+    }
   }
 
   private ensureMinuteLimit(key: ExternalApiKeyRecord) {
@@ -243,19 +282,6 @@ export class ExternalApiKeyService {
       if (bucket.windowStart < currentWindowStart - 60000) {
         this.minuteBuckets.delete(key);
       }
-    }
-  }
-
-  private async ensureDailyQuota(key: ExternalApiKeyRecord) {
-    if (!key.dailyQuota) return;
-
-    const today = quotaDate();
-    const usedToday = key.quotaResetDate?.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)
-      ? key.usedCountToday
-      : 0;
-
-    if (usedToday >= key.dailyQuota) {
-      throw new HttpException('API key daily quota exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
   }
 

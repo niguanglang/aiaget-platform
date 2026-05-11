@@ -206,10 +206,14 @@ test('approval workbench includes channel publish approvals and forwards decisio
   assert.equal(detail.metadata.rollout_percentage, 20);
   assert.equal(detail.timeline.length, 1);
 
-  await service.review(buildUser(), 'CHANNEL_PUBLISH_APPROVAL:channel-1', {
+  await service.review(
+    buildUser({ permissions: ['security:approval:view', 'security:approval:handle', 'channel:publish:deploy'] }),
+    'CHANNEL_PUBLISH_APPROVAL:channel-1',
+    {
     decision: 'APPROVE',
     decision_note: '允许渠道灰度发布',
-  });
+    },
+  );
 
   assert.deepEqual(calls, [
     {
@@ -218,6 +222,38 @@ test('approval workbench includes channel publish approvals and forwards decisio
       note: '允许渠道灰度发布',
     },
   ]);
+});
+
+test('approval workbench redacts sensitive channel publish approval urls in metadata', async () => {
+  const service = createService();
+
+  const detail = await service.get(buildUser(), 'CHANNEL_PUBLISH_APPROVAL:channel-1');
+  const serialized = JSON.stringify(detail.metadata);
+
+  assert.equal(
+    detail.metadata.endpoint_url,
+    'https://channels.example.test/wechat?token=%5BREDACTED%5D&plain=1&signature=%5BREDACTED%5D',
+  );
+  assert.equal(
+    detail.metadata.callback_url,
+    'https://control.example.test/callback?secret=%5BREDACTED%5D&visible=ok&msg_signature=%5BREDACTED%5D',
+  );
+  assert.doesNotMatch(serialized, /endpoint-token|endpoint-signature|callback-secret|callback-signature/);
+});
+
+test('approval workbench cannot handle channel publish approval with only security approval permission', async () => {
+  const calls: Array<{ service: string; id: string; note: string | null }> = [];
+  const service = createService({ calls });
+
+  await assert.rejects(
+    () =>
+      service.review(buildUser(), 'CHANNEL_PUBLISH_APPROVAL:channel-1', {
+        decision: 'APPROVE',
+        decision_note: '不能绕过渠道发布权限',
+      }),
+    /Permission denied/,
+  );
+  assert.deepEqual(calls, []);
 });
 
 test('approval workbench export limits filtered csv and records an audit event with filters', async () => {
@@ -485,8 +521,8 @@ function buildChannelPublishApproval() {
     name: '企业微信客服渠道',
     description: '企业微信客服发布入口',
     status: 'DRAFT',
-    endpointUrl: 'https://channels.example.test/wechat',
-    callbackUrl: 'https://control.example.test/callback',
+    endpointUrl: 'https://channels.example.test/wechat?token=endpoint-token&plain=1&signature=endpoint-signature',
+    callbackUrl: 'https://control.example.test/callback?secret=callback-secret&visible=ok&msg_signature=callback-signature',
     secretEncrypted: null,
     secretMasked: null,
     config: {
@@ -671,14 +707,14 @@ function buildActor(id: string, name: string) {
   };
 }
 
-function buildUser() {
+function buildUser(input: { permissions?: string[] } = {}) {
   return {
     id: 'user-1',
     tenantId: 'tenant-1',
     departmentId: 'department-1',
     email: 'user-1@example.test',
     roles: [],
-    permissions: ['security:approval:view', 'security:approval:handle'],
+    permissions: input.permissions ?? ['security:approval:view', 'security:approval:handle'],
     requestId: 'request-1',
     traceId: 'trace-1',
   };

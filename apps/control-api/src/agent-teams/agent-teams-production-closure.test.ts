@@ -6,6 +6,127 @@ process.env.RUNTIME_BASE_URL ??= 'http://runtime.example.test';
 process.env.CONTROL_API_INTERNAL_BASE_URL ??= 'http://control-api.example.test';
 process.env.RUNTIME_INTERNAL_TOKEN ??= 'test-runtime-internal-token';
 
+test('failed agent team recoverable workflow retry resets run before redispatching', async () => {
+  const { AgentTeamsService } = await import('./agent-teams.service');
+  const { RuntimeExecutionService } = await import('../runtime-execution/runtime-execution.service');
+  const calls: string[] = [];
+  const events: string[] = [];
+  const run = {
+    id: 'run-1',
+    tenantId: 'tenant-1',
+    teamId: 'team-1',
+    objective: '生成生产巡检报告',
+    status: 'FAILED',
+    requestId: 'request-1',
+    traceId: '1'.repeat(32),
+    totalSteps: 1,
+    completedSteps: 0,
+    failedSteps: 1,
+    totalTokens: 10,
+    totalCost: 0.01,
+    latencyMs: 1000,
+    errorMessage: 'Runtime 团队编排失败。',
+    startedAt: new Date('2026-05-07T01:00:00.000Z'),
+    endedAt: new Date('2026-05-07T01:00:03.000Z'),
+    createdAt: new Date('2026-05-07T01:00:00.000Z'),
+    updatedAt: new Date('2026-05-07T01:00:03.000Z'),
+    deletedAt: null,
+    createdBy: 'user-1',
+    updatedBy: 'user-1',
+    operator: buildUser(),
+  };
+  const prisma = {
+    agentTeamRun: {
+      findFirst: async (args: { where?: { id?: string; tenantId?: string; status?: { in?: string[] } }; include?: unknown }) => {
+        calls.push(`run:findFirst:${JSON.stringify(args.where)}`);
+        if (args.where?.id !== run.id) {
+          return null;
+        }
+        if (args.where?.tenantId && args.where.tenantId !== run.tenantId) {
+          return null;
+        }
+        if (args.where?.status?.in && !args.where.status.in.includes(run.status)) {
+          return null;
+        }
+        return args.include ? { ...run, team: { id: 'team-1', name: '生产巡检团队' } } : run;
+      },
+      findUnique: async () => ({ status: run.status }),
+      update: async (args: { data: { status?: string; errorMessage?: string | null; endedAt?: Date | null } }) => {
+        calls.push(`run:update:${JSON.stringify(args.data)}`);
+        Object.assign(run, args.data);
+        return run;
+      },
+    },
+    user: {
+      findFirst: async () => ({
+        id: 'user-1',
+        tenantId: 'tenant-1',
+        departmentId: 'dept-1',
+        email: 'operator@example.test',
+        userRoles: [
+          {
+            role: {
+              id: 'role-1',
+              code: 'operator',
+              rolePermissions: [
+                {
+                  permission: {
+                    code: 'agent:team:run',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    },
+  };
+  const agentTeamsService = new AgentTeamsService(
+    prisma as never,
+    null as never,
+    { recordEvent: async () => undefined } as never,
+    null as never,
+  );
+  const agentTeamsRecord = agentTeamsService as unknown as Record<string, unknown>;
+  agentTeamsRecord.dispatchTeamRun = async (_user: unknown, runId: string) => {
+    calls.push(`dispatch:${runId}:${run.status}:${run.errorMessage ?? 'null'}:${run.endedAt ? 'ended' : 'open'}`);
+    return {
+      workflow_backend: 'TEMPORAL',
+      workflow_id: 'agent-team-workflow-1',
+      workflow_run_id: 'agent-team-run-1',
+    };
+  };
+  const runtimeService = new RuntimeExecutionService(
+    prisma as never,
+    null as never,
+    { enqueue: () => undefined } as never,
+    null as never,
+    null as never,
+    null as never,
+    agentTeamsService as never,
+    null as never,
+    {
+      recordEvent: async (event: { eventType: string; traceId?: string | null; requestId?: string | null }) => {
+        events.push(event.eventType);
+        return {
+          id: `event-${events.length}`,
+          traceId: event.traceId ?? null,
+          requestId: event.requestId ?? null,
+        };
+      },
+    } as never,
+  );
+
+  const result = await runtimeService.retryWorkflowTask(buildUser(), 'run-1', 'agent_team_run');
+
+  assert.equal(result.status, 'QUEUED');
+  assert.equal(run.status, 'QUEUED');
+  assert.equal(run.errorMessage, null);
+  assert.equal(run.endedAt, null);
+  assert.ok(calls.includes('dispatch:run-1:QUEUED:null:open'));
+  assert.deepEqual(events, ['workflow.agent_team_run.retry_requested']);
+});
+
 test('startRun records a started platform event before dispatching team workflow', async () => {
   const { AgentTeamsService } = await import('./agent-teams.service');
   const events: Array<Record<string, unknown>> = [];

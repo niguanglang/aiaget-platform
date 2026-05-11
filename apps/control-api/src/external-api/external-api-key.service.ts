@@ -22,8 +22,6 @@ export interface ExternalApiPrincipal {
 
 @Injectable()
 export class ExternalApiKeyService {
-  private readonly minuteBuckets = new Map<string, { windowStart: number; count: number }>();
-
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DataScopeQueryService) private readonly dataScopeQuery: DataScopeQueryService,
@@ -65,7 +63,7 @@ export class ExternalApiKeyService {
     ensureScope(key, options.stream ? EXTERNAL_STREAM_SCOPE : EXTERNAL_CHAT_SCOPE);
     ensureAgentAllowed(key, agentId);
     ensureIpAllowed(key, request);
-    this.ensureMinuteLimit(key);
+    await this.ensureMinuteLimit(key);
 
     await this.ensurePermission(user, 'system:api_key:invoke', request, key, agentId);
     await this.ensurePermission(user, 'conversation:chat:manage', request, key, agentId);
@@ -258,30 +256,44 @@ export class ExternalApiKeyService {
     }
   }
 
-  private ensureMinuteLimit(key: ExternalApiKeyRecord) {
+  private async ensureMinuteLimit(key: ExternalApiKeyRecord) {
     const limit = Math.max(1, key.rateLimitPerMinute);
-    const now = Date.now();
-    const windowStart = Math.floor(now / 60000) * 60000;
-    const bucket = this.minuteBuckets.get(key.id);
+    const windowStart = minuteWindowStart(new Date());
+    const bucket = await this.prisma.externalApiKeyRateLimitWindow.upsert({
+      where: {
+        apiKeyId_windowStart: {
+          apiKeyId: key.id,
+          windowStart,
+        },
+      },
+      create: {
+        tenantId: key.tenantId,
+        apiKeyId: key.id,
+        windowStart,
+        count: 1,
+      },
+      update: {
+        count: {
+          increment: 1,
+        },
+      },
+      select: {
+        count: true,
+      },
+    });
 
-    if (!bucket || bucket.windowStart !== windowStart) {
-      this.minuteBuckets.set(key.id, { windowStart, count: 1 });
-      this.cleanupMinuteBuckets(windowStart);
-      return;
-    }
+    void this.prisma.externalApiKeyRateLimitWindow
+      .deleteMany({
+        where: {
+          windowStart: {
+            lt: new Date(windowStart.getTime() - 5 * 60 * 1000),
+          },
+        },
+      })
+      .catch(() => undefined);
 
-    if (bucket.count >= limit) {
+    if (bucket.count > limit) {
       throw new HttpException('API key rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
-    }
-
-    bucket.count += 1;
-  }
-
-  private cleanupMinuteBuckets(currentWindowStart: number) {
-    for (const [key, bucket] of this.minuteBuckets.entries()) {
-      if (bucket.windowStart < currentWindowStart - 60000) {
-        this.minuteBuckets.delete(key);
-      }
     }
   }
 
@@ -586,6 +598,10 @@ function parseStringArray(value: Prisma.JsonValue | null) {
 
 function resourceAclSubjectKey(subjectType: string, subjectId: string) {
   return `${subjectType}:${subjectId}`;
+}
+
+function minuteWindowStart(date: Date) {
+  return new Date(Math.floor(date.getTime() / 60000) * 60000);
 }
 
 function quotaDate() {

@@ -109,6 +109,15 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
     errors.push(buildValidationIssue('MANIFEST_CODE_REQUIRED', 'ERROR', 'code', 'Manifest 必须声明稳定的插件 code。'));
   }
 
+  if (packageMetadata.sourceUrl && !isSupportedPackageSource(packageMetadata.sourceUrl)) {
+    errors.push(buildValidationIssue(
+      'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
+      'ERROR',
+      'package.source_url',
+      '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
+    ));
+  }
+
   if (sourceType === 'CUSTOM') {
     if (!packageMetadata.sourceUrl) {
       errors.push(buildValidationIssue('PACKAGE_SOURCE_REQUIRED', 'ERROR', 'package.source_url', '自定义插件必须声明安装包来源。'));
@@ -501,6 +510,15 @@ function normalizePackageSource(value: string | null) {
   if (!value) return null;
   if (value.startsWith('s3://') || value.startsWith('minio://')) return value;
   return normalizeUrl(value);
+}
+
+function isSupportedPackageSource(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function normalizePackageSignatureType(value: string | null): PluginPackageSignatureType | null {

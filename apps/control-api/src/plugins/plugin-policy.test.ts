@@ -88,6 +88,82 @@ test('blocks custom plugin manifests without package source integrity metadata',
   );
 });
 
+test('blocks custom plugin manifests with unsupported object storage package sources', () => {
+  for (const sourceUrl of ['s3://plugin-bucket/ticket-suite-1.2.0.tgz', 'minio://plugin-bucket/ticket-suite-1.2.0.tgz']) {
+    const validation = validatePluginManifestInput({
+      code: 'ticket-suite',
+      source_type: 'CUSTOM',
+      manifest_json: {
+        schema_version: '1.0',
+        code: 'ticket-suite',
+        version: '1.2.0',
+        package: {
+          source_url: sourceUrl,
+          sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          signature: 'sigstore-bundle-placeholder',
+        },
+        permissions: ['plugin:ticket:create'],
+        tools: [
+          {
+            code: 'create-ticket',
+            name: '创建工单',
+            method: 'POST',
+            url: 'https://plugins.example.com/tools/create-ticket',
+          },
+        ],
+      },
+    });
+
+    assert.equal(validation.status, 'FAILED');
+    assert.equal(validation.can_install, false);
+    assert.equal(validation.package_source, sourceUrl);
+    assert.deepEqual(
+      validation.errors.map((issue) => [issue.code, issue.path, issue.message]),
+      [[
+        'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
+        'package.source_url',
+        '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
+      ]],
+    );
+  }
+});
+
+test('blocks market plugin manifests with unsupported object storage package sources before downloader', () => {
+  const validation = validatePluginManifestInput({
+    code: 'ticket-suite',
+    source_type: 'MARKET',
+    manifest_json: {
+      schema_version: '1.0',
+      code: 'ticket-suite',
+      version: '1.2.0',
+      package: {
+        source_url: 's3://plugin-bucket/ticket-suite-1.2.0.tgz',
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      },
+      permissions: ['plugin:ticket:create'],
+      tools: [
+        {
+          code: 'create-ticket',
+          name: '创建工单',
+          method: 'POST',
+          url: 'https://plugins.example.com/tools/create-ticket',
+        },
+      ],
+    },
+  });
+
+  assert.equal(validation.status, 'FAILED');
+  assert.equal(validation.can_install, false);
+  assert.deepEqual(
+    validation.errors.map((issue) => [issue.code, issue.path, issue.message]),
+    [[
+      'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
+      'package.source_url',
+      '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
+    ]],
+  );
+});
+
 test('previews plugin tool center binding for valid custom manifests', () => {
   const validation = validatePluginManifestInput({
     code: 'ticket-suite',

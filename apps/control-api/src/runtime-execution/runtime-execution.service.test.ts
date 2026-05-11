@@ -1078,6 +1078,107 @@ test('runPluginHookExecution executes generated plugin hook tool through Tool Ga
   assert.deepEqual(events.map((event) => event.eventType), ['workflow.plugin_hook_execution.approval_required']);
 });
 
+test('runPluginHookExecution fails audibly when generated plugin hook tool code is missing', async () => {
+  const queriedToolCodes: string[] = [];
+  const toolExecutions: string[] = [];
+  const events: Array<{ eventType: string; status: string; payloadJson?: Record<string, unknown> }> = [];
+  const prisma = {
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        resourceId: 'hook-1',
+        traceId: 'trace-1',
+        requestId: 'request-1',
+        payloadJson: {
+          plugin_id: 'plugin-1',
+          hook_id: 'hook-1',
+          hook_code: 'ticket.created',
+          payload: { ticket_id: 'T-001' },
+        },
+      }),
+    },
+    user: {
+      findFirst: async () => ({
+        id: 'user-1',
+        tenantId: 'tenant-1',
+        departmentId: null,
+        email: 'operator@example.test',
+        userRoles: [],
+      }),
+    },
+    pluginHook: {
+      findFirst: async () => ({
+        id: 'hook-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        code: 'ticket.created',
+        status: 'ACTIVE',
+        configJson: {
+          require_approval: true,
+        },
+      }),
+    },
+    tool: {
+      findFirst: async (args: { where?: { code?: string } }) => {
+        const code = args.where?.code;
+        if (code) {
+          queriedToolCodes.push(code);
+        }
+        return code === 'plugin_tool_plugin_1_ticket_created'
+          ? {
+            id: 'fallback-tool-1',
+            tenantId: 'tenant-1',
+            code,
+            status: 'ACTIVE',
+          }
+          : null;
+      },
+    },
+  };
+  const service = createRuntimeExecutionService({
+    prisma,
+    toolsService: {
+      execute: async (_user: unknown, toolId: string) => {
+        toolExecutions.push(toolId);
+        return {
+          status: 'SUCCESS',
+          approval_request_id: null,
+          latency_ms: 0,
+          response_status: 200,
+          error_message: null,
+          response_body: null,
+        };
+      },
+    },
+    platformEvents: {
+      recordEvent: async (event: { eventType: string; status: string; payloadJson?: Record<string, unknown> }) => {
+        events.push(event);
+      },
+      recordUsage: async () => undefined,
+    },
+  });
+
+  await assert.rejects(
+    () => service.runPluginHookExecution({
+      event_id: 'event-1',
+      plugin_id: 'plugin-1',
+      hook_id: 'hook-1',
+      workflow_id: 'plugin-hook-event-1',
+      run_id: 'run-1',
+    }),
+    /Plugin hook generated tool code is missing/,
+  );
+
+  assert.deepEqual(queriedToolCodes, []);
+  assert.deepEqual(toolExecutions, []);
+  assert.deepEqual(events.map((event) => event.eventType), ['workflow.plugin_hook_execution.failed']);
+  assert.equal(events[0]?.status, 'FAILED');
+  assert.equal(events[0]?.payloadJson?.tool_code, null);
+  assert.equal(events[0]?.payloadJson?.error_message, 'Plugin hook generated tool code is missing');
+});
+
 test('runtime internal permission denial is projected as a security access event', async () => {
   const events: Array<{ eventType: string; resourceType: string; traceId?: string | null; requestId?: string | null; summary?: string | null }> = [];
   const service = createRuntimeExecutionService({

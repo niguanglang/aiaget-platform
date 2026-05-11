@@ -1003,8 +1003,38 @@ export class RuntimeExecutionService {
 
     const hookConfig = jsonObjectOrNull(hook.configJson);
     const toolCode = stringValue(hookConfig?.generated_tool_code)
-      ?? stringValue(payload?.generated_tool_code)
-      ?? `plugin_tool_${dto.plugin_id}_${hook.code}`.replace(/[^a-zA-Z0-9_]/g, '_');
+      ?? stringValue(payload?.generated_tool_code);
+    if (!toolCode) {
+      const errorMessage = 'Plugin hook generated tool code is missing';
+      await this.recordWorkflowEvent({
+        tenantId: event.tenantId,
+        resourceType: 'PLUGIN_HOOK',
+        resourceId: dto.hook_id,
+        taskId: dto.event_id,
+        requestId: event.requestId ?? null,
+        traceId: event.traceId ?? null,
+        eventType: 'workflow.plugin_hook_execution.failed',
+        status: 'FAILED',
+        severity: 'ERROR',
+        summary: `插件 Hook ${hook.code} 执行失败：缺少 Manifest/绑定生成的工具编码。`,
+        payloadJson: {
+          event_id: dto.event_id,
+          plugin_id: dto.plugin_id,
+          hook_id: dto.hook_id,
+          hook_code: hook.code,
+          tool_id: null,
+          tool_code: null,
+          workflow_id: dto.workflow_id ?? null,
+          workflow_run_id: dto.run_id ?? null,
+          status: 'FAILED',
+          approval_request_id: null,
+          error_message: errorMessage,
+        },
+        sourceSystem: 'runtime_workflow',
+        sourceId: dto.event_id,
+      });
+      throw new BadRequestException(errorMessage);
+    }
     const tool = await this.prisma.tool.findFirst({
       where: {
         tenantId: event.tenantId,

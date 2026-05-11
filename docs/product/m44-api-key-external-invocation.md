@@ -35,7 +35,7 @@ x-api-key: ak_xxx
 2. 校验 scope，当前非流式调用需要 `external:agent:chat`。
 3. 校验 Agent 白名单，空白名单表示不限制 Agent，但仍要继续校验用户权限。
 4. 校验 IP 白名单。
-5. 校验内存分钟限流和数据库日额度。
+5. 校验 PostgreSQL 共享分钟限流窗口和数据库日额度。
 6. 将 API Key 创建人还原成真实用户身份。
 7. 校验 `system:api_key:invoke`、`conversation:chat:manage`、`agent:agent:use`。
 8. 校验 Agent 数据权限与 Resource ACL，资源授权主体支持父部门授权对子部门用户继承。
@@ -57,6 +57,7 @@ x-api-key: ak_xxx
 
 ```text
 apps/control-api/prisma/migrations/20260501100000_m44_api_key_external_invocation/migration.sql
+apps/control-api/prisma/migrations/20260511103000_external_api_key_rate_limit_windows/migration.sql
 ```
 
 本次未自动执行迁移，需由你确认后在目标数据库执行。

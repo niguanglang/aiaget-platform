@@ -200,6 +200,18 @@ test('alerts page owns approval and alert operation data flow and Chinese page r
   assert.match(source, /渠道发布审批/);
   assert.match(source, /渠道发布/);
   assert.match(source, /getSecurityOperationAlertSlaOverview/);
+  assert.match(source, /getSecurityOperationAlertSlaNotificationRetryOverview/);
+  assert.match(source, /getSecurityOperationAlertSlaDeadLetterOverview/);
+  assert.match(source, /SLA 自动重试/);
+  assert.match(source, /SLA 死信处置/);
+  assert.match(source, /retryable_items/);
+  assert.match(source, /dead_letter_items/);
+  assert.match(source, /latest_action_event_id/);
+  assert.match(source, /事件来源/);
+  assert.match(source, /来源 ID/);
+  assert.match(source, /去重键/);
+  assert.match(source, /重放键/);
+  assert.match(source, /最近处置/);
   assert.match(source, /客户成功复盘归档删除/);
   assert.match(source, /CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_DELETE/);
   assert.match(source, /customer_success_close_won_report_archive_delete_pending/);

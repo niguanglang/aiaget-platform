@@ -377,6 +377,12 @@ test('sender list route links to delivery detail instead of embedding the detail
   assert.match(senderSource, /Sender 投递/);
   assert.match(senderSource, /listChannelSenderDeliveries/);
   assert.match(senderSource, /\/channels\/sender\/deliveries\/\$\{encodeURIComponent\(item\.delivery_id\)\}/);
+  assert.match(senderSource, /发送模式/);
+  assert.match(senderSource, /平台 API/);
+  assert.match(senderSource, /senderModeLabel\(item\.sender_mode\)/);
+  assert.match(senderSource, /providerApiLabel\(item\.provider_api\)/);
+  assert.match(senderSource, /原生 API/);
+  assert.match(senderSource, /Webhook/);
   assert.doesNotMatch(senderSource, /\bselectedDeliveryId\b/);
   assert.doesNotMatch(senderSource, /\bsetSelectedDeliveryId\b/);
   assert.doesNotMatch(senderSource, /\bdetailQuery\b/);
@@ -387,6 +393,12 @@ test('sender list route links to delivery detail instead of embedding the detail
   assert.match(detailSource, /投递详情/);
   assert.match(detailSource, /getChannelSenderDelivery/);
   assert.match(detailSource, /retryChannelSenderDelivery/);
+  assert.match(detailSource, /发送模式/);
+  assert.match(detailSource, /平台 API/);
+  assert.match(detailSource, /senderModeLabel\(item\.sender_mode\)/);
+  assert.match(detailSource, /providerApiLabel\(item\.provider_api\)/);
+  assert.match(detailSource, /原生 API/);
+  assert.match(detailSource, /Webhook/);
   assert.match(detailSource, /请求头/);
   assert.match(detailSource, /响应正文/);
   assert.doesNotMatch(detailSource, /listChannelSenderDeliveries/);

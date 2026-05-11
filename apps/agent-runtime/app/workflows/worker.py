@@ -67,7 +67,7 @@ async def start_knowledge_task_workflow(task_id: str) -> dict[str, str]:
 async def start_agent_team_run_workflow(run_id: str) -> dict[str, str]:
     workflow_id = f"agent-team-run-{run_id}"
     if not settings.temporal_enabled:
-        schedule_agent_team_local_fallback(run_id)
+        schedule_agent_team_local_fallback(run_id, workflow_id=workflow_id, workflow_run_id="local-fallback", workflow_backend="LOCAL_FALLBACK")
         return {
             "workflow_id": workflow_id,
             "run_id": "local-fallback",
@@ -81,13 +81,14 @@ async def start_agent_team_run_workflow(run_id: str) -> dict[str, str]:
     client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
     handle = await client.start_workflow(
         AgentTeamRunWorkflow.run,
-        AgentTeamRunWorkflowInput(run_id=run_id),
+        AgentTeamRunWorkflowInput(run_id=run_id, workflow_id=workflow_id, workflow_backend="TEMPORAL"),
         id=workflow_id,
         task_queue=settings.temporal_task_queue,
     )
+    temporal_run_id = getattr(handle, "result_run_id", "") or ""
     return {
         "workflow_id": workflow_id,
-        "run_id": getattr(handle, "result_run_id", "") or "",
+        "run_id": temporal_run_id,
         "status": "STARTED",
         "backend": "TEMPORAL",
     }
@@ -107,11 +108,14 @@ async def resume_agent_team_run_workflow(
         if approved:
             schedule_agent_team_local_fallback(
                 run_id,
-                handoff_id,
-                decision_note,
-                completed_member_ids or [],
-                previous_outputs or [],
-                next_round_index or 1,
+                workflow_id=workflow_id,
+                workflow_run_id="local-fallback",
+                workflow_backend="LOCAL_FALLBACK",
+                handoff_id=handoff_id,
+                decision_note=decision_note,
+                completed_member_ids=completed_member_ids or [],
+                previous_outputs=previous_outputs or [],
+                next_round_index=next_round_index or 1,
             )
         return {
             "workflow_id": workflow_id,
@@ -304,6 +308,9 @@ async def run_control_api_knowledge_task(task_id: str) -> None:
 
 async def run_control_api_agent_team_run(
     run_id: str,
+    workflow_id: str | None = None,
+    workflow_run_id: str | None = None,
+    workflow_backend: str | None = None,
     handoff_id: str | None = None,
     decision_note: str | None = None,
     completed_member_ids: list[str] | None = None,
@@ -315,6 +322,9 @@ async def run_control_api_agent_team_run(
         "/api/v1/runtime/internal/agent-team-runs/run",
         {
             "run_id": run_id,
+            "workflow_backend": workflow_backend,
+            "workflow_id": workflow_id,
+            "workflow_run_id": workflow_run_id,
             "handoff_id": handoff_id,
             "decision_note": decision_note,
             "completed_member_ids": completed_member_ids or [],
@@ -417,6 +427,9 @@ def schedule_local_fallback(task_id: str) -> None:
 
 def schedule_agent_team_local_fallback(
     run_id: str,
+    workflow_id: str | None = None,
+    workflow_run_id: str | None = None,
+    workflow_backend: str | None = None,
     handoff_id: str | None = None,
     decision_note: str | None = None,
     completed_member_ids: list[str] | None = None,
@@ -426,6 +439,9 @@ def schedule_agent_team_local_fallback(
     task = asyncio.create_task(
         run_control_api_agent_team_run(
             run_id,
+            workflow_id,
+            workflow_run_id,
+            workflow_backend,
             handoff_id,
             decision_note,
             completed_member_ids,

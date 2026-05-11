@@ -6,6 +6,18 @@ export class RuntimeAgentTeamRunDto {
 
   @IsOptional()
   @IsString()
+  workflow_backend?: string | null;
+
+  @IsOptional()
+  @IsString()
+  workflow_id?: string | null;
+
+  @IsOptional()
+  @IsString()
+  workflow_run_id?: string | null;
+
+  @IsOptional()
+  @IsString()
   handoff_id?: string | null;
 
   @IsOptional()

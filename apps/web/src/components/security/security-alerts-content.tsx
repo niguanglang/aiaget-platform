@@ -10,6 +10,10 @@ import {
   type SecurityApprovalWorkbenchType,
   type SecurityOperationAlertAction,
   type SecurityOperationAlertNotificationStatus,
+  type SecurityOperationAlertSlaDeadLetterAction,
+  type SecurityOperationAlertSlaDeadLetterDispositionStatus,
+  type SecurityOperationAlertSlaDeadLetterItem,
+  type SecurityOperationAlertSlaNotificationItem,
 } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Archive, ArrowRight, CheckCircle2, ClipboardCheck, Download, Search, Send, XCircle } from 'lucide-react';
@@ -24,6 +28,7 @@ import {
   RefreshButton,
   SecurityConfirmDialog,
   SecurityWorkspaceHeader,
+  type SecurityStatusTone,
   alertStatusLabel,
   alertStatusTone,
   approvalStatusLabel,
@@ -49,6 +54,8 @@ import {
   getSecurityApprovalWorkbenchItem,
   getSecurityApprovalWorkbenchOverview,
   getSecurityCenterOverview,
+  getSecurityOperationAlertSlaDeadLetterOverview,
+  getSecurityOperationAlertSlaNotificationRetryOverview,
   getSecurityOperationAlertSlaOverview,
   createSecurityOperationAlertNotificationArchive,
   exportSecurityApprovalWorkbenchItems,
@@ -198,6 +205,14 @@ export function SecurityAlertsContent() {
     queryKey: ['security-alerts-page-sla-overview'],
     queryFn: getSecurityOperationAlertSlaOverview,
   });
+  const slaRetryQuery = useQuery({
+    queryKey: ['security-alerts-page-sla-notification-retry-overview'],
+    queryFn: getSecurityOperationAlertSlaNotificationRetryOverview,
+  });
+  const slaDeadLetterQuery = useQuery({
+    queryKey: ['security-alerts-page-sla-dead-letter-overview'],
+    queryFn: getSecurityOperationAlertSlaDeadLetterOverview,
+  });
 
   const securityOverview = securityOverviewQuery.data;
   const approvalOverview = approvalOverviewQuery.data;
@@ -211,6 +226,9 @@ export function SecurityAlertsContent() {
   ).length;
   const alerts = securityOverview?.approval_operations.operational_alerts ?? [];
   const slaItems = slaQuery.data?.items ?? [];
+  const slaRetryableItems = slaRetryQuery.data?.retryable_items ?? [];
+  const slaRetryDeadLetterItems = slaRetryQuery.data?.dead_letter_items ?? [];
+  const slaDeadLetterItems = slaDeadLetterQuery.data?.items ?? [];
   const approvalOperations = securityOverview?.approval_operations;
   const hasExportGovernanceRisk =
     (approvalOperations?.approval_workbench_high_risk_exports_24h ?? 0) > 0 ||
@@ -388,12 +406,14 @@ export function SecurityAlertsContent() {
       <SecurityWorkspaceHeader
         actions={
           <>
-            <RefreshButton loading={securityOverviewQuery.isFetching || approvalOverviewQuery.isFetching || approvalItemsQuery.isFetching || notificationQuery.isFetching || slaQuery.isFetching} onClick={() => {
+            <RefreshButton loading={securityOverviewQuery.isFetching || approvalOverviewQuery.isFetching || approvalItemsQuery.isFetching || notificationQuery.isFetching || slaQuery.isFetching || slaRetryQuery.isFetching || slaDeadLetterQuery.isFetching} onClick={() => {
               void securityOverviewQuery.refetch();
               void approvalOverviewQuery.refetch();
               void approvalItemsQuery.refetch();
               void notificationQuery.refetch();
               void slaQuery.refetch();
+              void slaRetryQuery.refetch();
+              void slaDeadLetterQuery.refetch();
             }} />
             <Button asChild variant="outline">
               <Link href="/security/recovery">
@@ -719,6 +739,11 @@ export function SecurityAlertsContent() {
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">SLA 告警</h2>
             <p className="mt-1 text-sm text-muted-foreground">展示超时扫描、自动升级和待通知状态，具体升级动作复用现有后端接口。</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <MetricCard helper="达到重试窗口的通知" label="SLA 自动重试" value={formatNumber(slaRetryQuery.data?.summary.pending_auto_retry_count)} />
+              <MetricCard helper="超过最大重试次数" label="SLA 死信通知" value={formatNumber(slaRetryQuery.data?.summary.dead_letter_count)} />
+              <MetricCard helper="待人工处置的死信" label="死信未关闭" value={formatNumber(slaDeadLetterQuery.data?.summary.open_count)} />
+            </div>
           </div>
           {slaQuery.isError ? (
             <div className="p-4"><PageError>SLA 告警加载失败。</PageError></div>
@@ -744,6 +769,36 @@ export function SecurityAlertsContent() {
             </div>
           )}
         </Card>
+
+        <section className="grid gap-4 xl:grid-cols-3">
+          <SlaNotificationListCard
+            description="达到重试间隔且未超过最大重试次数的通知，保留来源、请求、Trace 和重放键用于追溯。"
+            emptyDescription="当前没有等待自动重试的 SLA 通知。"
+            emptyTitle="暂无自动重试"
+            isError={slaRetryQuery.isError}
+            isLoading={slaRetryQuery.isLoading}
+            items={slaRetryableItems}
+            title="SLA 自动重试"
+          />
+          <SlaNotificationListCard
+            description="自动重试策略已识别的死信通知，仍以原始通知事件为审计主键。"
+            emptyDescription="当前没有进入死信状态的 SLA 通知。"
+            emptyTitle="暂无死信通知"
+            isError={slaRetryQuery.isError}
+            isLoading={slaRetryQuery.isLoading}
+            items={slaRetryDeadLetterItems}
+            title="SLA 死信通知"
+          />
+          <SlaDeadLetterListCard
+            description="死信处置视图展示最近处置、处置事件和处置时间，不在本页承载完整处理表单。"
+            emptyDescription="当前没有需要展示的 SLA 死信处置记录。"
+            emptyTitle="暂无死信处置"
+            isError={slaDeadLetterQuery.isError}
+            isLoading={slaDeadLetterQuery.isLoading}
+            items={slaDeadLetterItems}
+            title="SLA 死信处置"
+          />
+        </section>
       </section>
 
       {approvalReviewTarget ? (
@@ -827,6 +882,128 @@ function OperationAlertCard({
   );
 }
 
+function SlaNotificationListCard({
+  description,
+  emptyDescription,
+  emptyTitle,
+  isError,
+  isLoading,
+  items,
+  title,
+}: {
+  description: string;
+  emptyDescription: string;
+  emptyTitle: string;
+  isError: boolean;
+  isLoading: boolean;
+  items: SecurityOperationAlertSlaNotificationItem[];
+  title: string;
+}) {
+  return (
+    <Card className="min-w-0 overflow-hidden">
+      <div className="border-b p-4">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      {isError ? (
+        <div className="p-4"><PageError>{title}加载失败。</PageError></div>
+      ) : isLoading ? (
+        <LoadingRows count={3} />
+      ) : items.length === 0 ? (
+        <EmptyState description={emptyDescription} title={emptyTitle} />
+      ) : (
+        <div className="divide-y">
+          {items.slice(0, 5).map((item) => (
+            <SlaNotificationListItem item={item} key={item.notification_event_id} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SlaNotificationListItem({ item }: { item: SecurityOperationAlertSlaNotificationItem }) {
+  return (
+    <div className="grid gap-2 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+        {item.dead_lettered ? <StatusBadge tone="unavailable">已死信</StatusBadge> : null}
+        <StatusBadge tone="planned">重试 {item.retry_count} 次</StatusBadge>
+        <span className="font-medium">{item.title}</span>
+      </div>
+      <p className="line-clamp-2 text-sm text-muted-foreground">{item.message}</p>
+      <p className="text-xs leading-6 text-muted-foreground">
+        事件来源 {item.source_system ?? '暂无'} · 来源 ID {shortId(item.source_id)} · 去重键 {shortId(item.dedupe_key)} · 请求 {shortId(item.request_id)} · Trace {shortId(item.trace_id)} · 重放键 {shortId(item.replay_key)}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        通知事件 {shortId(item.notification_event_id)} · 投递时间 {formatDateTime(item.delivered_at)}
+      </p>
+      {item.dead_letter_reason ? <p className="text-xs text-destructive">死信原因：{item.dead_letter_reason}</p> : null}
+    </div>
+  );
+}
+
+function SlaDeadLetterListCard({
+  description,
+  emptyDescription,
+  emptyTitle,
+  isError,
+  isLoading,
+  items,
+  title,
+}: {
+  description: string;
+  emptyDescription: string;
+  emptyTitle: string;
+  isError: boolean;
+  isLoading: boolean;
+  items: SecurityOperationAlertSlaDeadLetterItem[];
+  title: string;
+}) {
+  return (
+    <Card className="min-w-0 overflow-hidden">
+      <div className="border-b p-4">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      {isError ? (
+        <div className="p-4"><PageError>{title}加载失败。</PageError></div>
+      ) : isLoading ? (
+        <LoadingRows count={3} />
+      ) : items.length === 0 ? (
+        <EmptyState description={emptyDescription} title={emptyTitle} />
+      ) : (
+        <div className="divide-y">
+          {items.slice(0, 5).map((item) => (
+            <SlaDeadLetterListItem item={item} key={item.notification_event_id} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SlaDeadLetterListItem({ item }: { item: SecurityOperationAlertSlaDeadLetterItem }) {
+  return (
+    <div className="grid gap-2 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge tone={notificationStatusTone(item.status)}>{notificationStatusLabel(item.status)}</StatusBadge>
+        <StatusBadge tone={deadLetterDispositionTone(item.disposition_status)}>{deadLetterDispositionLabel(item.disposition_status)}</StatusBadge>
+        <StatusBadge tone="planned">重试 {item.retry_count} 次</StatusBadge>
+        <span className="font-medium">{item.title}</span>
+      </div>
+      <p className="line-clamp-2 text-sm text-muted-foreground">{item.message}</p>
+      <p className="text-xs leading-6 text-muted-foreground">
+        事件来源 {item.source_system ?? '暂无'} · 来源 ID {shortId(item.source_id)} · 去重键 {shortId(item.dedupe_key)} · 请求 {shortId(item.request_id)} · Trace {shortId(item.trace_id)} · 重放键 {shortId(item.replay_key)}
+      </p>
+      <p className="text-xs leading-6 text-muted-foreground">
+        最近处置 {item.latest_action ? deadLetterActionLabel(item.latest_action) : '暂无'} · 处置事件 {shortId(item.latest_action_event_id)} · 处置时间 {formatDateTime(item.latest_action_at)}
+      </p>
+      {item.dead_letter_reason ? <p className="text-xs text-destructive">死信原因：{item.dead_letter_reason}</p> : null}
+    </div>
+  );
+}
+
 function operationAlertActionLabel(action: SecurityOperationAlertAction) {
   const labels: Record<SecurityOperationAlertAction, string> = {
     ACKNOWLEDGE: '确认',
@@ -835,6 +1012,33 @@ function operationAlertActionLabel(action: SecurityOperationAlertAction) {
   };
 
   return labels[action] ?? action;
+}
+
+function deadLetterActionLabel(action: SecurityOperationAlertSlaDeadLetterAction) {
+  const labels: Record<SecurityOperationAlertSlaDeadLetterAction, string> = {
+    CLAIM: '认领',
+    REQUEUE: '重新入队',
+    CLOSE: '关闭',
+  };
+
+  return labels[action] ?? action;
+}
+
+function deadLetterDispositionLabel(status: SecurityOperationAlertSlaDeadLetterDispositionStatus) {
+  const labels: Record<SecurityOperationAlertSlaDeadLetterDispositionStatus, string> = {
+    OPEN: '待处置',
+    CLAIMED: '已认领',
+    REQUEUED: '已重新入队',
+    CLOSED: '已关闭',
+  };
+
+  return labels[status] ?? status;
+}
+
+function deadLetterDispositionTone(status: SecurityOperationAlertSlaDeadLetterDispositionStatus): SecurityStatusTone {
+  if (status === 'OPEN') return 'degraded';
+  if (status === 'CLOSED' || status === 'REQUEUED') return 'healthy';
+  return 'planned';
 }
 
 function operationAlertConfirmTitle(target: OperationAlertActionTarget) {

@@ -15,6 +15,9 @@ from app.runtime.contracts import RuntimeAgentTeamResumeSignal
 @dataclass
 class AgentTeamRunWorkflowInput:
     run_id: str
+    workflow_id: str | None = None
+    workflow_run_id: str | None = None
+    workflow_backend: str | None = None
 
 
 @dataclass
@@ -26,6 +29,9 @@ class AgentTeamRunWorkflowResult:
 @dataclass
 class AgentTeamRunActivityInput:
     run_id: str
+    workflow_id: str | None = None
+    workflow_run_id: str | None = None
+    workflow_backend: str | None = None
     handoff_id: str | None = None
     decision_note: str | None = None
     completed_member_ids: list[str] | None = None
@@ -41,6 +47,9 @@ if activity is not None:
 
         status = await run_control_api_agent_team_run(
             input.run_id,
+            input.workflow_id,
+            input.workflow_run_id,
+            input.workflow_backend,
             input.handoff_id,
             input.decision_note,
             input.completed_member_ids,
@@ -56,6 +65,9 @@ else:
 
         status = await run_control_api_agent_team_run(
             input.run_id,
+            input.workflow_id,
+            input.workflow_run_id,
+            input.workflow_backend,
             input.handoff_id,
             input.decision_note,
             input.completed_member_ids,
@@ -79,8 +91,17 @@ if workflow is not None:
         @workflow.run
         async def run(self, input: AgentTeamRunWorkflowInput) -> AgentTeamRunWorkflowResult:
             waiting_for_signal = False
+            info = workflow.info()
+            workflow_id = input.workflow_id or info.workflow_id
+            workflow_run_id = input.workflow_run_id or info.run_id
+            workflow_backend = input.workflow_backend or "TEMPORAL"
             while True:
-                activity_input = AgentTeamRunActivityInput(run_id=input.run_id)
+                activity_input = AgentTeamRunActivityInput(
+                    run_id=input.run_id,
+                    workflow_id=workflow_id,
+                    workflow_run_id=workflow_run_id,
+                    workflow_backend=workflow_backend,
+                )
                 if waiting_for_signal:
                     await workflow.wait_condition(lambda: self.resume_signal is not None)
                     signal = self.resume_signal
@@ -91,6 +112,9 @@ if workflow is not None:
                         return AgentTeamRunWorkflowResult(run_id=input.run_id, status="REJECTED")
                     activity_input = AgentTeamRunActivityInput(
                         run_id=input.run_id,
+                        workflow_id=workflow_id,
+                        workflow_run_id=workflow_run_id,
+                        workflow_backend=workflow_backend,
                         handoff_id=signal.handoff_id,
                         decision_note=signal.decision_note,
                         completed_member_ids=signal.completed_member_ids,
@@ -118,4 +142,11 @@ else:
             self.resume_signal = signal
 
         async def run(self, input: AgentTeamRunWorkflowInput) -> AgentTeamRunWorkflowResult:
-            return await run_agent_team_run_activity(AgentTeamRunActivityInput(run_id=input.run_id))
+            return await run_agent_team_run_activity(
+                AgentTeamRunActivityInput(
+                    run_id=input.run_id,
+                    workflow_id=input.workflow_id,
+                    workflow_run_id=input.workflow_run_id,
+                    workflow_backend=input.workflow_backend,
+                )
+            )

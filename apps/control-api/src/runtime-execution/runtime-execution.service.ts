@@ -820,6 +820,9 @@ export class RuntimeExecutionService {
       payloadJson: {
         run_id: dto.run_id,
         team_id: run?.teamId ?? null,
+        workflow_backend: normalizeRetryWorkflowBackend(dto.workflow_backend),
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.workflow_run_id ?? null,
         status: result.status,
       },
       sourceSystem: 'runtime_workflow',

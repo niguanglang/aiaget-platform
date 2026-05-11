@@ -202,42 +202,72 @@ test('persists sender mode and provider api for native and webhook delivery audi
   assert.doesNotMatch(JSON.stringify(webhookSender.senderCreates[0]?.data), /sender-token/);
 });
 
-test('records skipped sender mode, provider api and diagnostic event payload when native sender config is missing', async () => {
-  const channel = buildChannel({
-    channel: 'FEISHU',
-    config: {},
-  });
-  const { service, senderCreates, senderUpdates, normalizedCreates, normalizedUpdates, recordedEvents } = await createSenderService(channel);
-
-  const result = await service.sendReply({
-    request: buildRequest(),
-    channel: channel as never,
-    operator: buildOperator(),
-    message: {
-      provider: 'FEISHU',
-      text: 'incoming',
-      externalConversationId: null,
-      externalMessageId: 'external-message-1',
-      senderId: null,
-      responseUrl: null,
+test('records skipped sender mode, provider api and diagnostic event payload when sender config is missing', async () => {
+  const cases = [
+    {
+      provider: 'WECHAT_WORK',
+      providerApi: 'WECHAT_WORK_MESSAGE_SEND',
+      diagnostic: /企业微信/,
     },
-    answer: 'answer',
-    conversationId: 'conversation-1',
-    runId: 'run-1',
-    traceId: 'trace-1',
-  });
+    {
+      provider: 'DINGTALK',
+      providerApi: 'DINGTALK_SESSION_WEBHOOK',
+      diagnostic: /钉钉/,
+    },
+    {
+      provider: 'FEISHU',
+      providerApi: 'FEISHU_IM_MESSAGE',
+      diagnostic: /飞书/,
+    },
+    {
+      provider: 'SLACK',
+      providerApi: 'SLACK_CHAT_POST_MESSAGE',
+      diagnostic: /Slack/,
+    },
+    {
+      provider: 'CUSTOM_WEBHOOK',
+      providerApi: 'CUSTOM_WEBHOOK',
+      diagnostic: /自定义 Webhook/,
+    },
+  ] as const;
 
-  assert.equal(result.status, 'SKIPPED');
-  assert.match(result.errorMessage ?? '', /飞书/);
-  assert.match(result.errorMessage ?? '', /未配置/);
-  assert.equal(JSON.stringify(senderCreates[0]?.data.requestBody).includes('sender_mode'), false);
-  assert.equal(senderUpdates[0]?.data.status, 'SKIPPED');
-  assert.equal(JSON.stringify(normalizedCreates[0]?.data.requestBody).includes('sender_mode'), false);
-  assert.equal(normalizedUpdates[0]?.data.errorMessage, result.errorMessage);
-  assert.equal(recordedEvents[0]?.eventType, 'channel.sender.skipped');
-  assert.equal(recordedEvents[0]?.payloadJson.sender_mode, 'SKIPPED');
-  assert.equal(recordedEvents[0]?.payloadJson.provider_api, 'FEISHU_IM_MESSAGE');
-  assert.equal(recordedEvents[0]?.payloadJson.diagnostic, result.errorMessage);
+  for (const item of cases) {
+    const channel = buildChannel({
+      channel: item.provider,
+      config: {},
+    });
+    const { service, senderCreates, senderUpdates, normalizedCreates, normalizedUpdates, recordedEvents } = await createSenderService(channel);
+
+    const result = await service.sendReply({
+      request: buildRequest(),
+      channel: channel as never,
+      operator: buildOperator(),
+      message: {
+        provider: item.provider,
+        text: 'incoming',
+        externalConversationId: null,
+        externalMessageId: 'external-message-1',
+        senderId: null,
+        responseUrl: null,
+      },
+      answer: 'answer',
+      conversationId: 'conversation-1',
+      runId: 'run-1',
+      traceId: 'trace-1',
+    });
+
+    assert.equal(result.status, 'SKIPPED');
+    assert.match(result.errorMessage ?? '', item.diagnostic);
+    assert.match(result.errorMessage ?? '', /未配置/);
+    assert.equal(JSON.stringify(senderCreates[0]?.data.requestBody).includes('sender_mode'), false);
+    assert.equal(senderUpdates[0]?.data.status, 'SKIPPED');
+    assert.equal(JSON.stringify(normalizedCreates[0]?.data.requestBody).includes('sender_mode'), false);
+    assert.equal(normalizedUpdates[0]?.data.errorMessage, result.errorMessage);
+    assert.equal(recordedEvents[0]?.eventType, 'channel.sender.skipped');
+    assert.equal(recordedEvents[0]?.payloadJson.sender_mode, 'SKIPPED');
+    assert.equal(recordedEvents[0]?.payloadJson.provider_api, item.providerApi);
+    assert.equal(recordedEvents[0]?.payloadJson.diagnostic, result.errorMessage);
+  }
 });
 
 test('rejects sender retry when persisted audit credentials are already redacted', async (t) => {

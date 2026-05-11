@@ -15,9 +15,18 @@
 | SLA 死信列表 | `latest_action`、`latest_action_event_id`、`latest_action_at` | 展示最近一次认领、重投或关闭处置；没有处置时返回 `null`。 |
 | 自愈审计列表 | `source_system`、`source_id`、`dedupe_key`、`request_id`、`trace_id`、`replay_key` | 复盘自愈动作来源、幂等键和请求链路。 |
 
-## 前端消费建议
+## 前端落地
 
-运营列表可以把 `source_system/source_id` 作为“事件来源”，把 `dedupe_key/replay_key` 作为“去重/重放键”，把 `request_id/trace_id` 作为“请求链路”。用户可见文案建议使用中文，例如“事件来源”“来源 ID”“去重键”“请求 ID”“追踪 ID”“重放键”“最近处置”。
+`/security/alerts` 已接入持久化视图：
+
+- 通知审计列表展示“事件来源”“来源 ID”“去重键”“请求”“Trace”“重放键”。
+- SLA 告警区展示 `SLA 自动重试`、`SLA 死信通知`、`死信未关闭` 指标。
+- `SLA 自动重试` 卡片消费 `getSecurityOperationAlertSlaNotificationRetryOverview().retryable_items`，展示重试次数和来源追踪字段。
+- `SLA 死信通知` 卡片消费 `getSecurityOperationAlertSlaNotificationRetryOverview().dead_letter_items`，展示策略识别出的死信通知。
+- `SLA 死信处置` 卡片消费 `getSecurityOperationAlertSlaDeadLetterOverview().items`，展示“最近处置”“处置事件”“处置时间”。
+- 自愈恢复审计在 `/security/recovery` 展示同组持久化字段。
+
+页面只做运营审计和追溯入口，不在告警页承载完整死信处理表单或归档治理。
 
 ## 约束
 

@@ -454,6 +454,8 @@ test('getWorkflowStatus lists failed agent team workflow runs as recoverable tas
                 run_id: 'run-1',
                 team_id: 'team-1',
                 error_message: 'supervisor timeout',
+                workflow_id: 'agent-team-run-run-1',
+                workflow_run_id: 'temporal-run-1',
               },
               occurredAt,
             },
@@ -493,8 +495,51 @@ test('getWorkflowStatus lists failed agent team workflow runs as recoverable tas
   assert.deepEqual(status.recoverable_tasks.map((task) => task.task_type), ['agent_team_run']);
   assert.equal(status.recoverable_tasks[0]?.task_id, 'run-1');
   assert.equal(status.recoverable_tasks[0]?.workflow_task_type, 'AGENT_TEAM_RUN');
+  assert.equal(status.recoverable_tasks[0]?.workflow_id, 'agent-team-run-run-1');
+  assert.equal(status.recoverable_tasks[0]?.workflow_run_id, 'temporal-run-1');
   assert.equal(status.recoverable_tasks[0]?.title, '生产巡检团队 · 生成生产巡检报告');
   assert.equal(status.recoverable_tasks[0]?.error_message, 'supervisor timeout');
+});
+
+test('runAgentTeamRun records Temporal workflow identifiers on failed agent team events', async () => {
+  const recordedEvents: Array<{ eventType: string; payloadJson: Record<string, unknown> }> = [];
+  const service = createRuntimeExecutionService({
+    prisma: {
+      agentTeamRun: {
+        findFirst: async () => ({
+          tenantId: 'tenant-1',
+          teamId: 'team-1',
+          requestId: 'request-run-1',
+          traceId: 'trace-run-1',
+        }),
+      },
+    },
+    agentTeamsService: {
+      runWorkflowRun: async () => ({
+        run_id: 'run-1',
+        status: 'FAILED',
+        error_message: 'supervisor timeout',
+      }),
+    },
+    platformEvents: {
+      recordEvent: async (event: { eventType: string; payloadJson: Record<string, unknown> }) => {
+        recordedEvents.push(event);
+        return { id: 'event-agent-team-1' };
+      },
+    },
+  });
+
+  await service.runAgentTeamRun({
+    run_id: 'run-1',
+    workflow_backend: 'TEMPORAL',
+    workflow_id: 'agent-team-run-run-1',
+    workflow_run_id: 'temporal-run-1',
+  });
+
+  assert.equal(recordedEvents[0]?.eventType, 'workflow.agent_team_run.failed');
+  assert.equal(recordedEvents[0]?.payloadJson.workflow_backend, 'TEMPORAL');
+  assert.equal(recordedEvents[0]?.payloadJson.workflow_id, 'agent-team-run-run-1');
+  assert.equal(recordedEvents[0]?.payloadJson.workflow_run_id, 'temporal-run-1');
 });
 
 test('getWorkflowStatus lists failed plugin rollback workflows as recoverable tasks', async () => {

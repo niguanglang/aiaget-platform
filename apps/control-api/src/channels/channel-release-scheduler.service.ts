@@ -294,6 +294,8 @@ export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDes
           status: lastRun?.decision === 'FAILED' || lastRun?.decision === 'BLOCKED' ? 'FAILED' : 'SUCCESS',
           decision: lastRun?.decision ?? null,
           workflow_backend: overview.workflow_backend ?? lastRun?.workflow_backend ?? null,
+          workflow_id: overview.workflow_id ?? lastRun?.workflow_id ?? null,
+          workflow_run_id: overview.workflow_run_id ?? lastRun?.workflow_run_id ?? null,
           error_message: lastRun?.error_message ?? null,
         };
       }
@@ -308,6 +310,8 @@ export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDes
         status: lastRun?.decision === 'FAILED' ? 'FAILED' : 'SUCCESS',
         decision: lastRun?.decision ?? null,
         workflow_backend: overview.workflow_backend ?? lastRun?.workflow_backend ?? null,
+        workflow_id: overview.workflow_id ?? lastRun?.workflow_id ?? null,
+        workflow_run_id: overview.workflow_run_id ?? lastRun?.workflow_run_id ?? null,
         error_message: lastRun?.error_message ?? null,
       };
     } catch (error) {
@@ -321,6 +325,8 @@ export class ChannelReleaseSchedulerService implements OnModuleInit, OnModuleDes
         status: 'FAILED',
         decision: null,
         workflow_backend: null,
+        workflow_id: null,
+        workflow_run_id: null,
         error_message: message,
       };
     }

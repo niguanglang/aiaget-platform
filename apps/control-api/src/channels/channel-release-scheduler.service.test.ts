@@ -39,6 +39,30 @@ test('scheduled release scheduler lock expires and allows the next window to run
   assert.equal(state.recordedEvents.filter((event) => event.eventType === 'channel.release_scheduler.scheduled_run_locked').length, 0);
 });
 
+test('scheduled release scheduler preserves workflow identifiers from dispatch results', async () => {
+  const state = createReleaseSchedulerState();
+  const service = await createService(state);
+
+  const result = await service.runOnce(tenantId);
+
+  const automation = result.results.find((item) => item.task === 'AUTOMATION');
+  const selfHealing = result.results.find((item) => item.task === 'SELF_HEALING');
+  assert.equal(automation?.workflow_backend, 'TEMPORAL');
+  assert.equal(automation?.workflow_id, 'release-automation-workflow-1');
+  assert.equal(automation?.workflow_run_id, 'release-automation-run-1');
+  assert.equal(selfHealing?.workflow_backend, 'TEMPORAL');
+  assert.equal(selfHealing?.workflow_id, 'release-self-healing-workflow-1');
+  assert.equal(selfHealing?.workflow_run_id, 'release-self-healing-run-1');
+
+  const finishEvent = state.recordedEvents.find((event) =>
+    event.eventType === 'channel.release_scheduler.scheduled_run_finished'
+    || event.eventType === 'channel.release_scheduler.manual_run_finished'
+  );
+  const payload = finishEvent?.payloadJson as { results?: Array<{ workflow_id?: string; workflow_run_id?: string }> } | undefined;
+  assert.equal(payload?.results?.[0]?.workflow_id, 'release-automation-workflow-1');
+  assert.equal(payload?.results?.[1]?.workflow_run_id, 'release-self-healing-run-1');
+});
+
 async function runScheduledTick(service: ChannelReleaseSchedulerService) {
   await (service as unknown as { runScheduledTick(): Promise<void> }).runScheduledTick();
 }
@@ -106,10 +130,14 @@ function createReleaseSchedulerState(input: { platformEvents?: Array<Record<stri
       automationDispatches.push({ user, channelId });
 
       return {
-        workflow_backend: 'LOCAL',
+        workflow_backend: 'TEMPORAL',
+        workflow_id: 'release-automation-workflow-1',
+        workflow_run_id: 'release-automation-run-1',
         last_run: {
           decision: 'EXECUTED',
-          workflow_backend: 'LOCAL',
+          workflow_backend: 'TEMPORAL',
+          workflow_id: 'release-automation-workflow-1',
+          workflow_run_id: 'release-automation-run-1',
           error_message: null,
         },
       };
@@ -121,10 +149,14 @@ function createReleaseSchedulerState(input: { platformEvents?: Array<Record<stri
       selfHealingDispatches.push({ user, channelId });
 
       return {
-        workflow_backend: 'LOCAL',
+        workflow_backend: 'TEMPORAL',
+        workflow_id: 'release-self-healing-workflow-1',
+        workflow_run_id: 'release-self-healing-run-1',
         last_run: {
           decision: 'NOOP',
-          workflow_backend: 'LOCAL',
+          workflow_backend: 'TEMPORAL',
+          workflow_id: 'release-self-healing-workflow-1',
+          workflow_run_id: 'release-self-healing-run-1',
           error_message: null,
         },
       };

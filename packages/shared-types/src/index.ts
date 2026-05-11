@@ -4274,6 +4274,7 @@ export interface ChannelReleaseAutomationRunResult {
   finished_at: string;
   error_message: string | null;
   workflow_id?: string | null;
+  workflow_run_id?: string | null;
   workflow_backend?: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
 }
 
@@ -4290,6 +4291,8 @@ export interface ChannelReleaseAutomationOverview {
   recent_events: PlatformEventListItem[];
   workflow_mode?: 'local' | 'temporal_first' | 'temporal';
   workflow_backend?: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
 }
 
 export type ChannelReleaseSelfHealingDecision =
@@ -4355,6 +4358,7 @@ export interface ChannelReleaseSelfHealingRunResult {
   finished_at: string;
   error_message: string | null;
   workflow_id?: string | null;
+  workflow_run_id?: string | null;
   workflow_backend?: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
 }
 
@@ -4368,6 +4372,8 @@ export interface ChannelReleaseSelfHealingOverview {
   recent_events: PlatformEventListItem[];
   workflow_mode?: 'local' | 'temporal_first' | 'temporal';
   workflow_backend?: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
 }
 
 export type ChannelReleaseSchedulerTask = 'AUTOMATION' | 'SELF_HEALING';
@@ -4381,6 +4387,8 @@ export interface ChannelReleaseSchedulerChannelResult {
   status: ChannelReleaseSchedulerStatus;
   decision: string | null;
   workflow_backend: 'LOCAL' | 'LOCAL_FALLBACK' | 'TEMPORAL' | null;
+  workflow_id: string | null;
+  workflow_run_id: string | null;
   error_message: string | null;
 }
 

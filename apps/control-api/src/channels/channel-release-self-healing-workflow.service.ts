@@ -54,6 +54,8 @@ export class ChannelReleaseSelfHealingWorkflowService {
         ...overview,
         workflow_mode: WORKFLOW_MODE,
         workflow_backend: workflow.backend,
+        workflow_id: workflow.workflowId,
+        workflow_run_id: workflow.runId,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown channel self-healing workflow dispatch error';
@@ -82,6 +84,8 @@ export class ChannelReleaseSelfHealingWorkflowService {
       ...overview,
       workflow_mode: WORKFLOW_MODE,
       workflow_backend: backend,
+      workflow_id: overview.last_run?.workflow_id ?? null,
+      workflow_run_id: overview.last_run?.workflow_run_id ?? null,
     };
   }
 

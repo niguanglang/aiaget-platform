@@ -840,6 +840,7 @@ export class ChannelsService {
       error_message: message,
       workflow_backend: 'TEMPORAL',
       workflow_id: null,
+      workflow_run_id: null,
     });
     const saved = await this.storeReleaseSelfHealingRun(currentUser, channel.id, result);
     await this.recordPublishJob(currentUser, channel, {
@@ -888,6 +889,7 @@ export class ChannelsService {
       error_message: message,
       workflow_backend: 'TEMPORAL',
       workflow_id: null,
+      workflow_run_id: null,
     });
     const saved = await this.storeReleaseAutomationRun(currentUser, channel.id, result);
     await this.recordPublishJob(currentUser, channel, {
@@ -1892,6 +1894,7 @@ export class ChannelsService {
       reason: evaluation.reason,
       workflow_backend: workflowContext.workflowBackend ?? null,
       workflow_id: workflowContext.workflowId ?? null,
+      workflow_run_id: workflowContext.workflowRunId ?? null,
     });
 
     if (!policy.enabled) {
@@ -1955,6 +1958,7 @@ export class ChannelsService {
         policy: withoutReleaseSelfHealingUpdatedAt(policy),
         workflow_backend: workflowContext.workflowBackend ?? null,
         workflow_id: workflowContext.workflowId ?? null,
+        workflow_run_id: workflowContext.workflowRunId ?? null,
       },
       resultPayload: {
         run: saved,
@@ -2019,6 +2023,7 @@ export class ChannelsService {
       reason: '自动推进条件未满足。',
       workflow_backend: workflowContext.workflowBackend ?? null,
       workflow_id: workflowContext.workflowId ?? null,
+      workflow_run_id: workflowContext.workflowRunId ?? null,
     });
 
     if (!policy.enabled) {
@@ -2080,6 +2085,7 @@ export class ChannelsService {
         policy: withoutReleaseAutomationUpdatedAt(policy),
         workflow_backend: workflowContext.workflowBackend ?? null,
         workflow_id: workflowContext.workflowId ?? null,
+        workflow_run_id: workflowContext.workflowRunId ?? null,
       },
       resultPayload: {
         run: saved,
@@ -3165,6 +3171,7 @@ function normalizeReleaseSelfHealingRun(value: unknown): ChannelReleaseSelfHeali
     finished_at: finishedAt,
     error_message: nullableText(record.error_message),
     workflow_id: nullableText(record.workflow_id),
+    workflow_run_id: nullableText(record.workflow_run_id),
     workflow_backend: normalizeReleaseWorkflowBackend(record.workflow_backend),
   };
 }
@@ -3223,6 +3230,7 @@ function normalizeReleaseAutomationRun(value: unknown): ChannelReleaseAutomation
     finished_at: finishedAt,
     error_message: nullableText(record.error_message),
     workflow_id: nullableText(record.workflow_id),
+    workflow_run_id: nullableText(record.workflow_run_id),
     workflow_backend: normalizeReleaseAutomationWorkflowBackend(record.workflow_backend),
   };
 }
@@ -3413,6 +3421,7 @@ function buildReleaseAutomationRunResult(
     error_message?: string | null;
     workflow_backend?: ChannelReleaseAutomationRunResult['workflow_backend'];
     workflow_id?: string | null;
+    workflow_run_id?: string | null;
   },
 ): ChannelReleaseAutomationRunResult {
   return {
@@ -3429,6 +3438,7 @@ function buildReleaseAutomationRunResult(
     finished_at: new Date().toISOString(),
     error_message: input.error_message ?? null,
     workflow_id: input.workflow_id ?? null,
+    workflow_run_id: input.workflow_run_id ?? null,
     workflow_backend: input.workflow_backend ?? null,
   };
 }
@@ -3445,6 +3455,7 @@ function buildReleaseSelfHealingRunResult(
     error_message?: string | null;
     workflow_backend?: ChannelReleaseSelfHealingRunResult['workflow_backend'];
     workflow_id?: string | null;
+    workflow_run_id?: string | null;
   },
 ): ChannelReleaseSelfHealingRunResult {
   return {
@@ -3459,6 +3470,7 @@ function buildReleaseSelfHealingRunResult(
     finished_at: new Date().toISOString(),
     error_message: input.error_message ?? null,
     workflow_id: input.workflow_id ?? null,
+    workflow_run_id: input.workflow_run_id ?? null,
     workflow_backend: input.workflow_backend ?? null,
   };
 }

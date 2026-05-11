@@ -311,6 +311,23 @@ export function WorkflowBackendCard({
           <div className="font-medium">最近派发失败</div>
           <p className="mt-1 leading-6 text-muted-foreground">{latestFailure.error_message}</p>
           <div className="mt-1 text-xs text-muted-foreground">{latestFailure.occurred_at ? formatDateTime(latestFailure.occurred_at) : '-'}</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {latestFailure.failure_event_id ? (
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link href={`/monitor/events/${latestFailure.failure_event_id}`}>查看最近失败事件</Link>
+              </Button>
+            ) : null}
+            {latestFailure.failure_trace_id ? (
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link href={`/monitor/traces/${latestFailure.failure_trace_id}`}>查看最近失败 Trace</Link>
+              </Button>
+            ) : null}
+            {latestFailure.failure_request_id ? (
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link href={`/monitor?requestId=${encodeURIComponent(latestFailure.failure_request_id)}`}>查看最近失败请求</Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

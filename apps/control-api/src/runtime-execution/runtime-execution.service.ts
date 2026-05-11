@@ -423,6 +423,7 @@ export class RuntimeExecutionService {
         task_id: latestEvent?.taskId ?? latestEvent?.resourceId ?? null,
         error_message: backendStatus.latest_failure.error_message,
         occurred_at: latestEvent?.occurredAt.toISOString() ?? null,
+        ...(latestEvent ? failureMonitorIdentifiersFromWorkflowEvent(latestEvent) : {}),
       } : null,
       recoverable_tasks: recoverableTasks,
     };

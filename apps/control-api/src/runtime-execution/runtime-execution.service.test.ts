@@ -225,6 +225,50 @@ test('getWorkflowStatus links failed knowledge tasks to failure monitor records'
   assert.equal(status.recoverable_tasks[0]?.failure_request_id, 'request-knowledge-1');
 });
 
+test('getWorkflowStatus links latest failure to monitor records', async () => {
+  const occurredAt = new Date('2026-05-04T01:02:03.000Z');
+  const prisma = {
+    $transaction: async (queries: unknown[]) => Promise.all(queries),
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-latest',
+        eventType: 'workflow.plugin_rollback.dispatch_failed',
+        taskId: 'workflow-1',
+        resourceId: 'plugin-1',
+        traceId: 'trace-latest-1',
+        requestId: 'request-latest-1',
+        summary: '插件回滚派发失败：queue unavailable',
+        payloadJson: {
+          plugin_id: 'plugin-1',
+          error_message: 'queue unavailable',
+          workflow_backend: 'TEMPORAL',
+        },
+        occurredAt,
+      }),
+      findMany: async () => [],
+    },
+    knowledgeEmbeddingTask: {
+      findMany: async () => [],
+    },
+    agentPublishChannel: {
+      findMany: async () => [],
+    },
+    agentTeamRun: {
+      findMany: async () => [],
+    },
+    plugin: {
+      findMany: async () => [],
+    },
+  };
+
+  const service = createRuntimeExecutionService({ prisma });
+  const status = await service.getWorkflowStatus(buildUser());
+
+  assert.equal(status.latest_failure?.failure_event_id, 'event-latest');
+  assert.equal(status.latest_failure?.failure_trace_id, 'trace-latest-1');
+  assert.equal(status.latest_failure?.failure_request_id, 'request-latest-1');
+});
+
 test('getWorkflowStatus lists failed channel release workflows as recoverable tasks', async () => {
   const occurredAt = new Date('2026-05-05T01:02:03.000Z');
   const prisma = {

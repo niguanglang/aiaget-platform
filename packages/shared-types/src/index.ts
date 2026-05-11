@@ -7159,6 +7159,9 @@ export interface RuntimeWorkflowFailureItem {
   task_id: string | null;
   error_message: string;
   occurred_at: string | null;
+  failure_event_id?: string | null;
+  failure_trace_id?: string | null;
+  failure_request_id?: string | null;
 }
 
 export interface RuntimeWorkflowRecoverableTaskItem {

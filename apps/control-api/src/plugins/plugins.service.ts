@@ -87,6 +87,8 @@ interface NormalizedPluginManifestHook {
   method: string;
   status: PluginHookStatus;
   configJson: Record<string, unknown> | null;
+  toolCode: string | null;
+  generatedToolCode: string | null;
 }
 
 interface NormalizedPluginManifestTool {
@@ -1089,7 +1091,7 @@ export class PluginsService {
   ) {
     const [permissions, hooks, menus, tools] = await Promise.all([
       this.syncPluginPermissions(currentUser, manifest),
-      this.syncPluginHooks(currentUser, pluginId, manifest.hooks),
+      this.syncPluginHooks(currentUser, pluginId, manifest),
       this.syncPluginMenus(currentUser, pluginId, manifest.menus, manifest.code),
       this.syncPluginTools(currentUser, manifest),
     ]);
@@ -1190,11 +1192,27 @@ export class PluginsService {
   private async syncPluginHooks(
     currentUser: AuthenticatedUser,
     pluginId: string,
-    hooks: NormalizedPluginManifestHook[],
+    manifest: NormalizedPluginManifest,
   ) {
     let synced = 0;
+    const now = new Date();
+    const activeCodes = manifest.hooks.map((hook) => hook.code);
+    const toolCodes = new Set(manifest.tools.map((tool) => tool.code));
+    const generatedToolCodes = new Set(manifest.tools.map((tool) => buildPluginToolCode(manifest.code, tool.code)));
+    const fallbackToolCode = manifest.tools.length === 1 ? manifest.tools[0]?.code ?? null : null;
 
-    for (const hook of hooks) {
+    for (const hook of manifest.hooks) {
+      const generatedToolCode = hook.generatedToolCode && generatedToolCodes.has(hook.generatedToolCode)
+        ? hook.generatedToolCode
+        : hook.toolCode && toolCodes.has(hook.toolCode)
+          ? buildPluginToolCode(manifest.code, hook.toolCode)
+          : fallbackToolCode
+            ? buildPluginToolCode(manifest.code, fallbackToolCode)
+            : null;
+      const hookConfig = {
+        ...(hook.configJson ?? {}),
+        ...(generatedToolCode ? { generated_tool_code: generatedToolCode } : {}),
+      };
       await this.prisma.pluginHook.upsert({
         where: {
           tenantId_pluginId_code: {
@@ -1212,7 +1230,7 @@ export class PluginsService {
           target: hook.target,
           method: hook.method,
           status: hook.status,
-          configJson: toJsonInput(hook.configJson),
+          configJson: toJsonInput(hookConfig),
           createdBy: currentUser.id,
           updatedBy: currentUser.id,
         },
@@ -1222,13 +1240,29 @@ export class PluginsService {
           target: hook.target,
           method: hook.method,
           status: hook.status,
-          configJson: toJsonInput(hook.configJson),
+          configJson: toJsonInput(hookConfig),
           deletedAt: null,
           updatedBy: currentUser.id,
         },
       });
       synced += 1;
     }
+
+    await this.prisma.pluginHook.updateMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        pluginId,
+        code: {
+          notIn: activeCodes,
+        },
+        deletedAt: null,
+      },
+      data: {
+        status: 'DELETED',
+        deletedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
 
     return synced;
   }
@@ -1241,6 +1275,8 @@ export class PluginsService {
   ) {
     let synced = 0;
     const menuIdByRawCode = new Map<string, string>();
+    const activeMenuCodes = menus.map((menu) => buildPluginMenuCode(pluginCode, menu.code));
+    const now = new Date();
 
     for (const menu of menus) {
       const menuCode = buildPluginMenuCode(pluginCode, menu.code);
@@ -1346,6 +1382,40 @@ export class PluginsService {
       synced += 1;
     }
 
+    await this.prisma.pluginMenuBinding.updateMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        pluginId,
+        menuId: {
+          notIn: Array.from(menuIdByRawCode.values()),
+        },
+        deletedAt: null,
+      },
+      data: {
+        status: 'DELETED',
+        enabled: false,
+        visible: false,
+        deletedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+    await this.prisma.menu.updateMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        code: {
+          startsWith: buildPluginCodePrefix('plugin', pluginCode),
+          notIn: activeMenuCodes,
+        },
+        deletedAt: null,
+      },
+      data: {
+        enabled: false,
+        visible: false,
+        deletedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
+
     return synced;
   }
 
@@ -1366,6 +1436,8 @@ export class PluginsService {
 
   private async syncPluginTools(currentUser: AuthenticatedUser, manifest: NormalizedPluginManifest) {
     let synced = 0;
+    const activeToolCodes = manifest.tools.map((tool) => buildPluginToolCode(manifest.code, tool.code));
+    const now = new Date();
 
     for (const tool of manifest.tools) {
       const toolCode = buildPluginToolCode(manifest.code, tool.code);
@@ -1422,6 +1494,22 @@ export class PluginsService {
       });
       synced += 1;
     }
+
+    await this.prisma.tool.updateMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        code: {
+          startsWith: buildPluginCodePrefix('plugin_tool', manifest.code),
+          notIn: activeToolCodes,
+        },
+        deletedAt: null,
+      },
+      data: {
+        status: 'DELETED',
+        deletedAt: now,
+        updatedBy: currentUser.id,
+      },
+    });
 
     return synced;
   }
@@ -1767,6 +1855,11 @@ function normalizeManifestHook(value: Record<string, unknown>, index: number): N
   const method = normalizeHookMethod(getString(value, ['method']) ?? null);
   const status = normalizeHookStatus(getString(value, ['status']) ?? null);
   const configJson = getRecord(value, ['config', 'config_json']);
+  const toolCode = normalizeOptionalText(getString(value, ['tool_code', 'toolCode']) ?? null);
+  const generatedToolCode = normalizeOptionalText(
+    getString(value, ['generated_tool_code', 'generatedToolCode'])
+    ?? (configJson ? getString(configJson, ['generated_tool_code', 'generatedToolCode']) : null),
+  );
 
   return {
     code,
@@ -1776,6 +1869,8 @@ function normalizeManifestHook(value: Record<string, unknown>, index: number): N
     method,
     status,
     configJson,
+    toolCode: toolCode ? normalizeManifestCode(toolCode) : null,
+    generatedToolCode: generatedToolCode ? normalizeManifestCode(generatedToolCode) : null,
   };
 }
 
@@ -1841,6 +1936,10 @@ function buildPluginMenuCode(pluginCode: string, rawCode: string) {
 
 function buildPluginToolCode(pluginCode: string, rawCode: string) {
   return buildNamespacedCode('plugin_tool', pluginCode, rawCode, 100);
+}
+
+function buildPluginCodePrefix(prefix: string, pluginCode: string) {
+  return `${[prefix, pluginCode].map((part) => normalizeManifestCode(part)).join('_')}_`;
 }
 
 function buildNamespacedCode(prefix: string, namespace: string, rawCode: string, maxLength: number) {

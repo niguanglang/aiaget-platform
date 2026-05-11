@@ -139,6 +139,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M110 审批与归档告警通知任务自愈闭环审计归档删除审批自动通知任务](./m110-approval-archive-alert-notification-task-recovery-audit-delete-approval-auto-notify.md)
 - [M111 审批与归档告警通知任务执行历史分类增强](./m111-approval-archive-alert-notification-task-run-history-category.md)
 - [M155 插件生产预检闭环](./m155-plugin-production-precheck-closure.md)
+- [M156 插件 Manifest 同步收敛](./m156-plugin-manifest-sync-convergence.md)
 - [M112 审批与归档告警通知任务失败聚合分类增强](./m112-approval-archive-alert-notification-task-failure-category.md)
 - [M113 审批与归档告警通知任务自愈闭环失败来源分类](./m113-approval-archive-alert-notification-task-recovery-failure-source-closure.md)
 - [M114 审批与归档告警通知任务失败来源运营告警升级](./m114-approval-archive-alert-notification-task-source-alerts.md)

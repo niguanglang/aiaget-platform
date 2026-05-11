@@ -415,10 +415,22 @@ test('rollback restores a published plugin version snapshot and records event be
         },
       },
       permission: { upsert: async () => ({}) },
-      pluginHook: { upsert: async () => ({}) },
-      menu: { upsert: async () => ({ id: 'menu-1' }) },
-      pluginMenuBinding: { upsert: async () => ({}) },
-      tool: { upsert: async () => ({}) },
+      pluginHook: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
+      menu: {
+        upsert: async () => ({ id: 'menu-1' }),
+        updateMany: async () => ({ count: 0 }),
+      },
+      pluginMenuBinding: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
+      tool: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
       pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
         calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
         return args.data;
@@ -547,10 +559,22 @@ test('rollback dispatches plugin rollback workflow after control-plane snapshot 
         },
       },
       permission: { upsert: async () => ({}) },
-      pluginHook: { upsert: async () => ({}) },
-      menu: { upsert: async () => ({ id: 'menu-1' }) },
-      pluginMenuBinding: { upsert: async () => ({}) },
-      tool: { upsert: async () => ({}) },
+      pluginHook: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
+      menu: {
+        upsert: async () => ({ id: 'menu-1' }),
+        updateMany: async () => ({ count: 0 }),
+      },
+      pluginMenuBinding: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
+      tool: {
+        upsert: async () => ({}),
+        updateMany: async () => ({ count: 0 }),
+      },
       pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
         calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
         return args.data;
@@ -623,6 +647,203 @@ test('rollback dispatches plugin rollback workflow after control-plane snapshot 
     assert.equal(rollbackEvent.payloadJson?.workflow_backend, 'TEMPORAL');
     assert.equal(rollbackEvent.payloadJson?.workflow_id, 'plugin-rollback-plugin-1-version-1');
     assert.equal(rollbackEvent.payloadJson?.workflow_run_id, 'run-1');
+  } finally {
+    service.getInstallation = getInstallation;
+  }
+});
+
+test('rollback manifest sync prunes removed plugin hooks menus and tools while wiring hook generated tool code', async () => {
+  const calls: Array<{ data?: Record<string, unknown>; model: string; op: string; where?: Record<string, unknown> }> = [];
+  const recordedEvents: unknown[] = [];
+  const rollbackManifest = {
+    code: 'ticket-suite',
+    name: '工单套件',
+    version: '1.1.0',
+    provider: '内部插件',
+    risk_level: 'MEDIUM',
+    permissions: ['plugin:ticket:view'],
+    menus: [
+      {
+        code: 'dashboard',
+        name: '插件看板',
+        type: 'MENU',
+        path: '/plugins/ticket-suite/dashboard',
+        component: 'PluginDashboard',
+      },
+    ],
+    hooks: [
+      {
+        code: 'ticket_created',
+        name: '工单创建',
+        type: 'EVENT',
+        target: 'ticket.created',
+        tool_code: 'create_ticket',
+      },
+    ],
+    tools: [
+      {
+        code: 'create_ticket',
+        name: '创建工单',
+        method: 'POST',
+        url: 'https://plugins.example.com/tools/create-ticket',
+      },
+    ],
+  };
+  const installation = {
+    id: 'plugin-installation-1',
+    tenantId: currentUser.tenantId,
+    pluginId: 'plugin-1',
+    installedVersion: '1.2.0',
+    latestVersion: '1.2.0',
+    manifestJson: {
+      code: 'ticket-suite',
+      version: '1.2.0',
+      menus: [{ code: 'legacy' }],
+      hooks: [{ code: 'legacy_hook' }],
+      tools: [{ code: 'legacy_tool' }],
+    },
+    configJson: { enabled: true },
+    riskLevel: 'MEDIUM',
+    status: 'ACTIVE',
+    runtimeStatus: 'RUNNING',
+    enabledAt: null,
+    disabledAt: null,
+  };
+  const service = new PluginsService(
+    {
+      pluginInstallation: {
+        findFirst: async () => installation,
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginInstallation', op: 'update', ...args });
+          return { ...installation, ...args.data };
+        },
+      },
+      pluginVersion: {
+        findFirst: async () => ({
+          id: 'version-1',
+          tenantId: currentUser.tenantId,
+          pluginId: 'plugin-1',
+          version: '1.1.0',
+          status: 'PUBLISHED',
+          manifestJson: rollbackManifest,
+          changeNote: '稳定版本',
+          publishedAt: new Date('2026-05-01T00:00:00Z'),
+          createdAt: new Date('2026-05-01T00:00:00Z'),
+          deletedAt: null,
+          createdBy: currentUser.id,
+        }),
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.update, model: 'pluginVersion', op: 'upsert', where: args.where });
+          return args.create;
+        },
+      },
+      plugin: {
+        update: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'plugin', op: 'update', ...args });
+          return { id: 'plugin-1', ...args.data };
+        },
+      },
+      permission: { upsert: async () => ({}) },
+      pluginHook: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.create, model: 'pluginHook', op: 'upsert', where: args.where });
+          return args.create;
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginHook', op: 'updateMany', ...args });
+          return { count: 1 };
+        },
+      },
+      menu: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          const code = (args.where.tenantId_code as { code: string }).code;
+          calls.push({ data: args.create, model: 'menu', op: 'upsert', where: args.where });
+          return { id: `menu-${code}`, code };
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'menu', op: 'updateMany', ...args });
+          return { count: 1 };
+        },
+      },
+      pluginMenuBinding: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.create, model: 'pluginMenuBinding', op: 'upsert', where: args.where });
+          return args.create;
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'pluginMenuBinding', op: 'updateMany', ...args });
+          return { count: 1 };
+        },
+      },
+      tool: {
+        upsert: async (args: { create: Record<string, unknown>; update: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ data: args.create, model: 'tool', op: 'upsert', where: args.where });
+          return args.create;
+        },
+        updateMany: async (args: { data: Record<string, unknown>; where: Record<string, unknown> }) => {
+          calls.push({ model: 'tool', op: 'updateMany', ...args });
+          return { count: 1 };
+        },
+      },
+      pluginAuditLog: { create: async (args: { data: Record<string, unknown> }) => {
+        calls.push({ data: args.data, model: 'pluginAuditLog', op: 'create' });
+        return args.data;
+      } },
+    } as never,
+    {} as never,
+    {
+      recordEvent: (event: unknown) => {
+        recordedEvents.push(event);
+        return Promise.resolve(event);
+      },
+    } as never,
+    { verifyPackage: async () => { throw new Error('rollback should not verify package'); } } as never,
+  );
+  const getInstallation = service.getInstallation.bind(service);
+  service.getInstallation = (async () => ({
+    id: installation.id,
+    tenant_id: currentUser.tenantId,
+    plugin_id: 'plugin-1',
+    code: 'ticket-suite',
+    name: '工单套件',
+    provider: '内部插件',
+    description: null,
+    source_type: 'CUSTOM',
+    installed_version: '1.1.0',
+    latest_version: '1.1.0',
+    status: 'INSTALLED',
+    runtime_status: 'STOPPED',
+    risk_level: 'MEDIUM',
+    owner_id: currentUser.id,
+    menu_count: 1,
+    hook_count: 1,
+    permission_count: 1,
+    installed_at: null,
+    last_upgraded_at: null,
+    enabled_at: null,
+    disabled_at: null,
+    updated_at: new Date().toISOString(),
+    manifest_json: rollbackManifest,
+    config_json: null,
+    permission_preview: ['plugin:ticket:view'],
+    menu_bindings: [],
+    hooks: [],
+    versions: [],
+    audit_logs: [],
+    security_preview: { summary: 'ok', risks: [], notes: [] },
+  })) as typeof service.getInstallation;
+
+  try {
+    await service.rollback(currentUser, 'plugin-1', {
+      version_id: 'version-1',
+    });
+
+    const hookCreate = calls.find((call) => call.model === 'pluginHook' && call.op === 'upsert' && call.data?.code === 'ticket_created');
+    assert.equal((hookCreate?.data?.configJson as { generated_tool_code?: string } | undefined)?.generated_tool_code, 'plugin_tool_ticket-suite_create_ticket');
+    assert.ok(calls.some((call) => call.model === 'pluginHook' && call.op === 'updateMany' && (call.where?.code as { notIn?: string[] } | undefined)?.notIn?.includes('ticket_created')));
+    assert.ok(calls.some((call) => call.model === 'pluginMenuBinding' && call.op === 'updateMany' && (call.where?.menuId as { notIn?: string[] } | undefined)?.notIn?.includes('menu-plugin_ticket-suite_dashboard')));
+    assert.ok(calls.some((call) => call.model === 'menu' && call.op === 'updateMany' && (call.where?.code as { startsWith?: string; notIn?: string[] } | undefined)?.startsWith === 'plugin_ticket-suite_' && (call.where?.code as { notIn?: string[] } | undefined)?.notIn?.includes('plugin_ticket-suite_dashboard')));
+    assert.ok(calls.some((call) => call.model === 'tool' && call.op === 'updateMany' && (call.where?.code as { startsWith?: string; notIn?: string[] } | undefined)?.startsWith === 'plugin_tool_ticket-suite_' && (call.where?.code as { notIn?: string[] } | undefined)?.notIn?.includes('plugin_tool_ticket-suite_create_ticket')));
   } finally {
     service.getInstallation = getInstallation;
   }

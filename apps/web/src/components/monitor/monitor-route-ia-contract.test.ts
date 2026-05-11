@@ -167,6 +167,12 @@ test('runtime workflows page owns runtime workflow API calls', () => {
   assert.match(sharedPanelsSource, /canRetry: \(task: RuntimeWorkflowRecoverableTaskItem\) => boolean/);
   assert.match(sharedPanelsSource, /disabled=\{!canRetry\(task\) \|\| pending\}/);
   assert.match(sharedPanelsSource, /团队协作运行/);
+  assert.match(sharedPanelsSource, /Workflow ID/);
+  assert.match(sharedPanelsSource, /Workflow Run ID/);
+  assert.match(sharedPanelsSource, /task\.workflow_id/);
+  assert.match(sharedPanelsSource, /task\.workflow_run_id/);
+  assert.doesNotMatch(sharedPanelsSource, /完整日志/);
+  assert.doesNotMatch(sharedPanelsSource, /Trace 详情/);
 });
 
 test('runtime workflow retry requires confirmation before mutation', () => {

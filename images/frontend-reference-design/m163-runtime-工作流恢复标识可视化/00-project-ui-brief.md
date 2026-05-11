@@ -1,0 +1,29 @@
+# Project UI Brief
+
+- Page: M163 Runtime 工作流恢复标识可视化
+- Route: `/runtime/workflows`
+- Feature goal: Runtime 工作流恢复队列展示失败任务对应的 Workflow ID 与 Workflow Run ID，和渠道发布、插件、Agent Team 回调事件中的 workflow 标识保持一致。
+- Target users and permissions:
+  - 平台运维、安全审计、模块管理员。
+  - 页面读取需要登录会话。
+  - 恢复重试按任务类型使用现有权限：知识库 `knowledge:base:manage`，渠道发布 `channel:publish:deploy`，多 Agent `agent:team:run`，插件 `plugin:center:manage`。
+- APIs/services:
+  - `GET /runtime/workflows/status`
+  - `POST /runtime/workflows/retry`
+- Data entities and fields:
+  - `RuntimeWorkflowStatusOverview`: `workflow_mode`, `workflow_backend`, `backend_status`, `latest_failure`, `recoverable_tasks`。
+  - `RuntimeWorkflowRecoverableTaskItem`: `task_type`, `task_id`, `workflow_task_type`, `status`, `title`, `workflow_id`, `workflow_run_id`, `run_id`, `channel_id`, `plugin_id`, `error_message`, `updated_at`。
+- Existing components/design system:
+  - Page shell: `RuntimeWorkflowsContent`, `MonitorCenterBackground`。
+  - Shared panel: `WorkflowBackendCard` in `monitor-shared-panels.tsx`。
+  - UI primitives: `Card`, `Button`, `StatusBadge`, `EmptyState`。
+- Required states:
+  - Loading: “正在加载工作流状态...”。
+  - Empty: “暂无恢复项”。
+  - Error: “工作流状态加载失败”。
+  - Permission-disabled retry buttons through `canRetry(task)`。
+  - Missing workflow IDs display `-`。
+- Constraints:
+  - 不嵌入完整 Trace 详情或完整日志。
+  - 不新增 Runtime API 路由。
+  - 页面文案保持中文。

@@ -1667,6 +1667,25 @@ function pluginIdFromWorkflowEvent(event: {
     ?? stringValue(event.resourceId);
 }
 
+function workflowIdFromWorkflowEvent(event: {
+  taskId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.workflow_id)
+    ?? stringValue(event.taskId);
+}
+
+function workflowRunIdFromWorkflowEvent(event: {
+  runId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.workflow_run_id)
+    ?? stringValue(payload?.run_id)
+    ?? stringValue(event.runId);
+}
+
 function pluginVersionIdFromWorkflowEvent(event: {
   taskId?: string | null;
   payloadJson?: unknown;
@@ -1764,6 +1783,8 @@ function mapAgentTeamWorkflowRecoverableTask(
     document_id: null,
     team_id: run?.teamId ?? stringValue(payload?.team_id),
     run_id: runId,
+    workflow_id: workflowIdFromWorkflowEvent(event),
+    workflow_run_id: workflowRunIdFromWorkflowEvent(event),
     error_message: run?.errorMessage ?? stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: (run?.updatedAt ?? event.occurredAt).toISOString(),
   };
@@ -1805,6 +1826,8 @@ function mapChannelWorkflowRecoverableTask(
     knowledge_base_id: null as string | null,
     document_id: null,
     channel_id: channelId,
+    workflow_id: workflowIdFromWorkflowEvent(event),
+    workflow_run_id: workflowRunIdFromWorkflowEvent(event),
     error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: event.occurredAt.toISOString(),
   };
@@ -1845,6 +1868,8 @@ function mapPluginWorkflowRecoverableTask(
       plugin_id: pluginId,
       hook_id: hookId,
       hook_code: hookCode,
+      workflow_id: workflowIdFromWorkflowEvent(event),
+      workflow_run_id: workflowRunIdFromWorkflowEvent(event),
       error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
       updated_at: event.occurredAt.toISOString(),
     };
@@ -1874,6 +1899,8 @@ function mapPluginWorkflowRecoverableTask(
     plugin_id: pluginId,
     version_id: versionId,
     version,
+    workflow_id: workflowIdFromWorkflowEvent(event),
+    workflow_run_id: workflowRunIdFromWorkflowEvent(event),
     error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: event.occurredAt.toISOString(),
   };

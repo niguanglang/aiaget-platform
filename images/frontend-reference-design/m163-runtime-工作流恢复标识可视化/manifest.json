@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-11T05:58:31.769925+00:00",
+  "page": "M163 Runtime 工作流恢复标识可视化",
+  "route": "/runtime/workflows",
+  "feature": "恢复队列展示 workflow ID 与 workflow run ID",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

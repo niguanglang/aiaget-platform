@@ -7177,6 +7177,8 @@ export interface RuntimeWorkflowRecoverableTaskItem {
   version?: string | null;
   hook_id?: string | null;
   hook_code?: string | null;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
   error_message: string | null;
   updated_at: string;
 }

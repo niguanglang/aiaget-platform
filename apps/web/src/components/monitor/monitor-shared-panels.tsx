@@ -332,6 +332,8 @@ export function WorkflowBackendCard({
                   <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.error_message ?? '任务失败，等待恢复。'}</p>
                   <div className="mt-1 flex flex-wrap gap-2 font-mono text-xs text-muted-foreground">
                     <span>{task.task_id}</span>
+                    <span>Workflow ID {task.workflow_id ?? '-'}</span>
+                    <span>Workflow Run ID {task.workflow_run_id ?? '-'}</span>
                     {task.team_id ? <span>团队 {task.team_id}</span> : null}
                     {task.run_id ? <span>运行 {task.run_id}</span> : null}
                     {task.channel_id ? <span>渠道 {task.channel_id}</span> : null}

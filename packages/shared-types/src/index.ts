@@ -7197,6 +7197,9 @@ export interface RuntimeWorkflowRetryResult {
   task_id: string;
   status: 'QUEUED';
   message: string;
+  workflow_backend?: RuntimeWorkflowBackend;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
 }
 
 export interface MonitorOverview {

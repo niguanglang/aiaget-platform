@@ -423,6 +423,15 @@ interface RuntimeWorkflowSignalResponse {
   backend: RuntimeWorkflowBackend;
 }
 
+export interface AgentTeamWorkflowRunDispatchResult {
+  success: boolean;
+  run_id: string;
+  status: AgentTeamRunSummary['status'];
+  workflow_backend: RuntimeWorkflowBackend | 'LOCAL' | null;
+  workflow_id: string | null;
+  workflow_run_id: string | null;
+}
+
 interface TeamResumeContext {
   handoffId: string | null;
   decisionNote: string | null;
@@ -1226,7 +1235,7 @@ export class AgentTeamsService {
       previousOutputs?: string[];
       nextRoundIndex?: number;
     },
-  ): Promise<{ success: boolean; run_id: string; status: AgentTeamRunSummary['status'] }> {
+  ): Promise<AgentTeamWorkflowRunDispatchResult> {
     const run = await this.prisma.agentTeamRun.findFirst({
       where: {
         id: runId,
@@ -1242,7 +1251,17 @@ export class AgentTeamsService {
     }
 
     const actor = await this.resolveRunActor(run);
-    await this.executeRuntimeTeamRun(actor, run.id, resumeContext ?? null);
+    let workflowDispatch: Pick<AgentTeamWorkflowRunDispatchResult, 'workflow_backend' | 'workflow_id' | 'workflow_run_id'>;
+    if (resumeContext) {
+      await this.executeRuntimeTeamRun(actor, run.id, resumeContext);
+      workflowDispatch = {
+        workflow_backend: 'LOCAL',
+        workflow_id: null,
+        workflow_run_id: null,
+      };
+    } else {
+      workflowDispatch = await this.dispatchTeamRun(actor, run.id);
+    }
     const updatedRun = await this.prisma.agentTeamRun.findUnique({
       where: {
         id: run.id,
@@ -1251,25 +1270,51 @@ export class AgentTeamsService {
         status: true,
       },
     });
-    return { success: true, run_id: run.id, status: (updatedRun?.status ?? run.status) as AgentTeamRunSummary['status'] };
+    return {
+      success: true,
+      run_id: run.id,
+      status: (updatedRun?.status ?? run.status) as AgentTeamRunSummary['status'],
+      ...workflowDispatch,
+    };
   }
 
-  private async dispatchTeamRun(currentUser: AuthenticatedUser, runId: string) {
+  private async dispatchTeamRun(
+    currentUser: AuthenticatedUser,
+    runId: string,
+  ): Promise<Pick<AgentTeamWorkflowRunDispatchResult, 'workflow_backend' | 'workflow_id' | 'workflow_run_id'>> {
     if (AGENT_TEAM_WORKFLOW_MODE === 'local') {
       await this.executeRuntimeTeamRun(currentUser, runId);
-      return;
+      return {
+        workflow_backend: 'LOCAL',
+        workflow_id: null,
+        workflow_run_id: null,
+      };
     }
 
     try {
-      await this.startRuntimeTeamWorkflow(runId);
+      const workflow = await this.startRuntimeTeamWorkflow(runId);
+      return {
+        workflow_backend: workflow.backend,
+        workflow_id: workflow.workflowId,
+        workflow_run_id: workflow.runId,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown agent team workflow dispatch error';
       if (AGENT_TEAM_WORKFLOW_MODE === 'temporal_first') {
         await this.executeRuntimeTeamRun(currentUser, runId);
-        return;
+        return {
+          workflow_backend: 'LOCAL_FALLBACK',
+          workflow_id: null,
+          workflow_run_id: null,
+        };
       }
 
       await this.markWorkflowDispatchFailed(currentUser, runId, message);
+      return {
+        workflow_backend: null,
+        workflow_id: null,
+        workflow_run_id: null,
+      };
     }
   }
 
@@ -1367,6 +1412,7 @@ export class AgentTeamsService {
     if (AGENT_TEAM_WORKFLOW_MODE === 'temporal' && workflow.backend !== 'TEMPORAL') {
       throw new Error('Runtime workflow endpoint returned LOCAL_FALLBACK while AGENT_TEAM_WORKFLOW_MODE=temporal');
     }
+    return workflow;
   }
 
   private async resumeRuntimeTeamWorkflow(

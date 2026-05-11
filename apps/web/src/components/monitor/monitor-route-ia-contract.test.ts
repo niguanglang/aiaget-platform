@@ -159,6 +159,7 @@ test('runtime workflows page owns runtime workflow API calls', () => {
   assert.match(workflowsSource, /\/runtime\/workflows\/status/);
   assert.match(workflowsSource, /\/runtime\/workflows\/retry/);
   assert.match(workflowsSource, /\bRuntimeWorkflowStatusOverview\b/);
+  assert.match(workflowsSource, /\bRuntimeWorkflowRetryResult\b/);
   assert.match(workflowsSource, /hasPermission\(permissions, 'knowledge:base:manage'\)/);
   assert.match(workflowsSource, /hasPermission\(permissions, 'agent:team:run'\)/);
   assert.match(workflowsSource, /hasPermission\(permissions, 'channel:publish:deploy'\)/);
@@ -181,6 +182,10 @@ test('runtime workflow retry requires confirmation before mutation', () => {
   assert.match(workflowsSource, /workflowRetryTarget/);
   assert.match(workflowsSource, /function confirmWorkflowRetry/);
   assert.match(workflowsSource, /确认恢复工作流任务/);
+  assert.match(workflowsSource, /最近重试结果/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_backend/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_id/);
+  assert.match(workflowsSource, /retryWorkflowMutation\.data\?\.workflow_run_id/);
   assert.match(workflowsSource, /onConfirm=\{confirmWorkflowRetry\}/);
   assert.doesNotMatch(
     workflowsSource,

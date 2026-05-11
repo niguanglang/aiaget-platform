@@ -532,6 +532,8 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
       automationDispatches.push({ userId: user.id, channelId });
       return {
         workflow_backend: 'TEMPORAL',
+        workflow_id: 'channel-automation-workflow-1',
+        workflow_run_id: 'channel-automation-run-1',
         last_run: {
           decision: 'EXECUTED',
           error_message: null,
@@ -544,6 +546,8 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
       selfHealingDispatches.push({ userId: user.id, channelId });
       return {
         workflow_backend: 'TEMPORAL',
+        workflow_id: 'channel-self-healing-workflow-1',
+        workflow_run_id: 'channel-self-healing-run-1',
         last_run: {
           decision: 'ROLLBACK_EXECUTED',
           error_message: null,
@@ -570,8 +574,14 @@ test('retryWorkflowTask redispatches failed channel release workflows through th
 
   assert.equal(automationResult.status, 'QUEUED');
   assert.equal(automationResult.task_type, 'channel_release_automation');
+  assert.equal(automationResult.workflow_backend, 'TEMPORAL');
+  assert.equal(automationResult.workflow_id, 'channel-automation-workflow-1');
+  assert.equal(automationResult.workflow_run_id, 'channel-automation-run-1');
   assert.equal(selfHealingResult.status, 'QUEUED');
   assert.equal(selfHealingResult.task_type, 'channel_release_self_healing');
+  assert.equal(selfHealingResult.workflow_backend, 'TEMPORAL');
+  assert.equal(selfHealingResult.workflow_id, 'channel-self-healing-workflow-1');
+  assert.equal(selfHealingResult.workflow_run_id, 'channel-self-healing-run-1');
   assert.deepEqual(automationDispatches, [{ userId: 'user-1', channelId: 'channel-1' }]);
   assert.deepEqual(selfHealingDispatches, [{ userId: 'user-1', channelId: 'channel-2' }]);
   assert.deepEqual(events, [
@@ -603,7 +613,14 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
     agentTeamsService: {
       runWorkflowRun: async (runId: string) => {
         workflowRuns.push(runId);
-        return { success: true, run_id: runId, status: 'SUCCESS' };
+        return {
+          success: true,
+          run_id: runId,
+          status: 'SUCCESS',
+          workflow_backend: 'TEMPORAL',
+          workflow_id: 'agent-team-workflow-1',
+          workflow_run_id: 'agent-team-run-1',
+        };
       },
     },
     platformEvents: {
@@ -618,6 +635,9 @@ test('retryWorkflowTask redispatches failed agent team workflow runs through age
   assert.equal(result.status, 'QUEUED');
   assert.equal(result.task_type, 'agent_team_run');
   assert.equal(result.task_id, 'run-1');
+  assert.equal(result.workflow_backend, 'TEMPORAL');
+  assert.equal(result.workflow_id, 'agent-team-workflow-1');
+  assert.equal(result.workflow_run_id, 'agent-team-run-1');
   assert.deepEqual(workflowRuns, ['run-1']);
   assert.deepEqual(events, ['workflow.agent_team_run.retry_requested']);
 });
@@ -670,6 +690,9 @@ test('retryWorkflowTask redispatches failed plugin rollback workflow through plu
   assert.equal(result.status, 'QUEUED');
   assert.equal(result.task_type, 'plugin_rollback');
   assert.equal(result.task_id, 'plugin-1:version-1');
+  assert.equal(result.workflow_backend, 'TEMPORAL');
+  assert.equal(result.workflow_id, 'plugin-rollback-plugin-1-version-1');
+  assert.equal(result.workflow_run_id, 'run-1');
   assert.deepEqual(rollbacks, [{ userId: 'user-1', pluginId: 'plugin-1', versionId: 'version-1', version: '1.1.0' }]);
   assert.deepEqual(events, ['workflow.plugin_rollback.retry_requested']);
 });
@@ -721,6 +744,9 @@ test('retryWorkflowTask redispatches failed plugin hook execution workflow throu
   assert.equal(result.status, 'QUEUED');
   assert.equal(result.task_type, 'plugin_hook_execution');
   assert.equal(result.task_id, 'hook-event-1');
+  assert.equal(result.workflow_backend, 'TEMPORAL');
+  assert.equal(result.workflow_id, 'plugin-hook-hook-event-1');
+  assert.equal(result.workflow_run_id, 'run-1');
   assert.deepEqual(hookExecutions, [{ userId: 'user-1', eventId: 'hook-event-1', pluginId: 'plugin-1', hookId: 'hook-1' }]);
   assert.deepEqual(events, ['workflow.plugin_hook_execution.retry_requested']);
 });

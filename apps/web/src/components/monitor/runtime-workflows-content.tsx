@@ -1,6 +1,12 @@
 'use client';
 
-import { hasPermission, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType } from '@aiaget/shared-types';
+import {
+  hasPermission,
+  type RuntimeWorkflowRecoverableTaskItem,
+  type RuntimeWorkflowRetryResult,
+  type RuntimeWorkflowStatusOverview,
+  type RuntimeWorkflowTaskType,
+} from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -89,15 +95,25 @@ export function RuntimeWorkflowsContent() {
       ) : workflowQuery.isError ? (
         <Card className="p-5 text-sm text-destructive">工作流状态加载失败。</Card>
       ) : (
-        <WorkflowBackendCard
-          canRetry={canRetryWorkflowTask}
-          loading={workflowQuery.isLoading}
-          onRefresh={() => void workflowQuery.refetch()}
-          onRetry={(taskType, taskId) => setWorkflowRetryTarget({ task_type: taskType, task_id: taskId })}
-          pendingTask={retryWorkflowMutation.variables ?? null}
-          retrying={retryWorkflowMutation.isPending}
-          workflow={workflowQuery.data ?? null}
-        />
+        <div className="grid gap-4">
+          <WorkflowBackendCard
+            canRetry={canRetryWorkflowTask}
+            loading={workflowQuery.isLoading}
+            onRefresh={() => void workflowQuery.refetch()}
+            onRetry={(taskType, taskId) => setWorkflowRetryTarget({ task_type: taskType, task_id: taskId })}
+            pendingTask={retryWorkflowMutation.variables ?? null}
+            retrying={retryWorkflowMutation.isPending}
+            workflow={workflowQuery.data ?? null}
+          />
+          {retryWorkflowMutation.data ? (
+            <WorkflowRetryResultCard
+              result={retryWorkflowMutation.data}
+              workflowBackend={retryWorkflowMutation.data?.workflow_backend ?? '-'}
+              workflowId={retryWorkflowMutation.data?.workflow_id ?? '-'}
+              workflowRunId={retryWorkflowMutation.data?.workflow_run_id ?? '-'}
+            />
+          ) : null}
+        </div>
       )}
 
       {workflowRetryTarget ? (
@@ -155,7 +171,43 @@ async function getRuntimeWorkflowStatus(accessToken: string) {
   return (await response.json()) as RuntimeWorkflowStatusOverview;
 }
 
-async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: RuntimeWorkflowTaskType; task_id: string }) {
+function WorkflowRetryResultCard({
+  result,
+  workflowBackend,
+  workflowId,
+  workflowRunId,
+}: {
+  result: RuntimeWorkflowRetryResult;
+  workflowBackend: string;
+  workflowId: string;
+  workflowRunId: string;
+}) {
+  return (
+    <Card className="grid gap-3 border-emerald-200/70 bg-emerald-50/60 p-5">
+      <div>
+        <div className="text-sm font-semibold text-emerald-950">最近重试结果</div>
+        <p className="mt-1 text-sm leading-6 text-emerald-900">{result.message}</p>
+      </div>
+      <div className="grid gap-2 md:grid-cols-4">
+        <ResultField label="任务" value={`${result.task_type} / ${result.task_id}`} />
+        <ResultField label="工作流后端" value={workflowBackend} />
+        <ResultField label="Workflow ID" value={workflowId} />
+        <ResultField label="Workflow Run ID" value={workflowRunId} />
+      </div>
+    </Card>
+  );
+}
+
+function ResultField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-background/75 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words font-mono text-xs">{value}</div>
+    </div>
+  );
+}
+
+async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type: RuntimeWorkflowTaskType; task_id: string }): Promise<RuntimeWorkflowRetryResult> {
   const headers = buildWorkflowHeaders(accessToken);
   headers.set('content-type', 'application/json');
   const response = await fetch(`${controlApiBaseUrl}/runtime/workflows/retry`, {

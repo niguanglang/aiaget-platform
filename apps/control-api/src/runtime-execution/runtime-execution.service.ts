@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType, type TestToolResult } from '@aiaget/shared-types';
+import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowBackend, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType, type TestToolResult } from '@aiaget/shared-types';
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { buildTraceparent, createSpanId, type TraceContext } from '../common/tracing/trace-context';
@@ -533,13 +533,14 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: channel.id,
     });
-    await this.releaseAutomationWorkflow.dispatch(currentUser, channel.id);
+    const dispatchResult = await this.releaseAutomationWorkflow.dispatch(currentUser, channel.id);
 
     return {
       task_type: 'channel_release_automation' as RuntimeWorkflowTaskType,
       task_id: channel.id,
       status: 'QUEUED',
       message: '渠道自动推进工作流已重新派发。',
+      ...mapRetryWorkflowIdentifiers(dispatchResult),
     };
   }
 
@@ -570,13 +571,14 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: channel.id,
     });
-    await this.releaseSelfHealingWorkflow.dispatch(currentUser, channel.id);
+    const dispatchResult = await this.releaseSelfHealingWorkflow.dispatch(currentUser, channel.id);
 
     return {
       task_type: 'channel_release_self_healing' as RuntimeWorkflowTaskType,
       task_id: channel.id,
       status: 'QUEUED',
       message: '渠道发布自愈工作流已重新派发。',
+      ...mapRetryWorkflowIdentifiers(dispatchResult),
     };
   }
 
@@ -628,13 +630,14 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: run.id,
     });
-    await this.agentTeamsService.runWorkflowRun(run.id);
+    const dispatchResult = await this.agentTeamsService.runWorkflowRun(run.id);
 
     return {
       task_type: 'agent_team_run',
       task_id: run.id,
       status: 'QUEUED',
       message: '多 Agent 团队运行工作流已重新派发。',
+      ...mapRetryWorkflowIdentifiers(dispatchResult),
     };
   }
 
@@ -689,7 +692,7 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: taskId,
     });
-    await this.pluginRollbackWorkflow.dispatchRollback(currentUser, pluginId, {
+    const dispatchResult = await this.pluginRollbackWorkflow.dispatchRollback(currentUser, pluginId, {
       versionId: version.id,
       version: version.version,
     });
@@ -699,6 +702,7 @@ export class RuntimeExecutionService {
       task_id: taskId,
       status: 'QUEUED',
       message: '插件回滚工作流已重新派发。',
+      ...mapRetryWorkflowIdentifiers(dispatchResult),
     };
   }
 
@@ -748,7 +752,7 @@ export class RuntimeExecutionService {
       sourceSystem: 'runtime_workflow',
       sourceId: event.id,
     });
-    await this.pluginHookWorkflow.dispatchHookExecution(currentUser, {
+    const dispatchResult = await this.pluginHookWorkflow.dispatchHookExecution(currentUser, {
       eventId: event.id,
       pluginId,
       hookId,
@@ -759,6 +763,7 @@ export class RuntimeExecutionService {
       task_id: event.id,
       status: 'QUEUED',
       message: '插件 Hook 执行工作流已重新派发。',
+      ...mapRetryWorkflowIdentifiers(dispatchResult),
     };
   }
 
@@ -1641,6 +1646,27 @@ function workflowRetryPermissionCode(taskType: RuntimeWorkflowTaskType) {
   if (taskType === 'plugin_rollback') return 'plugin:center:manage';
   if (taskType === 'plugin_hook_execution') return 'plugin:center:manage';
   return 'channel:publish:deploy';
+}
+
+function mapRetryWorkflowIdentifiers(value: unknown): Pick<RuntimeWorkflowRetryResult, 'workflow_backend' | 'workflow_id' | 'workflow_run_id'> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    workflow_backend: normalizeRetryWorkflowBackend(record.workflow_backend),
+    workflow_id: typeof record.workflow_id === 'string' ? record.workflow_id : null,
+    workflow_run_id: typeof record.workflow_run_id === 'string' ? record.workflow_run_id : null,
+  };
+}
+
+function normalizeRetryWorkflowBackend(value: unknown): RuntimeWorkflowBackend {
+  if (value === 'LOCAL' || value === 'LOCAL_FALLBACK' || value === 'TEMPORAL') {
+    return value;
+  }
+
+  return null;
 }
 
 function parsePluginRollbackTaskId(taskId: string) {

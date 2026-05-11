@@ -1,0 +1,23 @@
+# Project UI Brief
+
+- Page: M164 Runtime 工作流重试结果
+- Route: /runtime/workflows
+- Feature goal: 运行时工作流恢复重试返回新派发 Workflow ID 与 Run ID 并在页面展示
+- APIs/services:
+  - `GET /runtime/workflows/status`
+  - `POST /runtime/workflows/retry`
+- Entities/fields/statuses:
+  - `RuntimeWorkflowStatusOverview`: `workflow_mode`, `workflow_backend`, `backend_status`, `latest_failure`, `recoverable_tasks`
+  - `RuntimeWorkflowRecoverableTaskItem`: `task_type`, `task_id`, `workflow_task_type`, `workflow_id`, `workflow_run_id`, `error_message`, `updated_at`
+  - `RuntimeWorkflowRetryResult`: `task_type`, `task_id`, `status`, `message`, `workflow_backend`, `workflow_id`, `workflow_run_id`
+- Existing components/design system:
+  - Console route shell under `app/(console)/runtime/workflows/page.tsx`
+  - `WorkflowBackendCard`, `MonitorCenterBackground`, `Button`, `Card`, `StatusBadge`
+  - Tailwind utility classes and compact admin-card density
+- Required states:
+  - loading: status card loading text and disabled refresh
+  - empty: no recoverable workflow tasks
+  - error: status load failure
+  - disabled: retry button disabled without permission or while pending
+  - success: compact “最近重试结果” card with new workflow identifiers
+  - permission-denied: retry action disabled through existing permission gates

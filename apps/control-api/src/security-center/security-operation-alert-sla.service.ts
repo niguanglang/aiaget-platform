@@ -1783,6 +1783,12 @@ function mapSlaNotificationEvent(event: Prisma.PlatformEventGetPayload<object>):
     retried_from_event_id: typeof payload?.retried_from_event_id === 'string' ? payload.retried_from_event_id : null,
     dead_lettered: payload?.dead_lettered === true,
     dead_letter_reason: typeof payload?.dead_letter_reason === 'string' ? payload.dead_letter_reason : null,
+    source_system: event.sourceSystem ?? null,
+    source_id: event.sourceId ?? null,
+    dedupe_key: event.dedupeKey ?? stringValue(payload?.dedupe_key),
+    request_id: event.requestId,
+    trace_id: event.traceId,
+    replay_key: stringValue(payload?.replay_key),
     delivered_at: typeof payload?.delivered_at === 'string' ? payload.delivered_at : event.occurredAt.toISOString(),
     created_at: event.createdAt.toISOString(),
     message: event.summary ?? slaNotificationMessage(status, channels, false),
@@ -1883,6 +1889,9 @@ function deadLetterItemWithDisposition(
     disposition_event_id: actionEvent?.id ?? null,
     handled_by: typeof payload?.handled_by === 'string' ? payload.handled_by : actionEvent?.userId ?? null,
     handled_at: typeof payload?.handled_at === 'string' ? payload.handled_at : actionEvent?.occurredAt.toISOString() ?? null,
+    latest_action: action,
+    latest_action_event_id: actionEvent?.id ?? null,
+    latest_action_at: actionEvent?.occurredAt.toISOString() ?? null,
   };
 }
 
@@ -2379,4 +2388,8 @@ function buildSystemUser(tenantId: string, requestId: string): AuthenticatedUser
 function jsonObjectOrNull(value: Prisma.JsonValue | null): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : null;
 }

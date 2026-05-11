@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PluginHookWorkflowService } from './plugin-hook-workflow.service';
+import { auditSandboxPolicyForHookExecution } from './plugin-policy';
 
 const RUNNABLE_INSTALLATION_STATUSES = ['ACTIVE', 'INSTALLED'] as const;
 const RUNNABLE_RUNTIME_STATUSES = ['RUNNING', 'READY'] as const;
@@ -60,6 +61,50 @@ export class PluginHookExecutionService {
       throw new BadRequestException('Plugin hook is not active');
     }
 
+    const sandboxAudit = auditSandboxPolicyForHookExecution(normalizeJsonRecord(installation.manifestJson));
+    const sandboxPayload = {
+      sandbox_policy: sandboxAudit.policy,
+      sandbox_risk_level: sandboxAudit.risk_level,
+      sandbox_violations: sandboxAudit.violations,
+    };
+
+    if (!sandboxAudit.allowed) {
+      await this.platformEvents.recordEvent({
+        tenantId: currentUser.tenantId,
+        departmentId: currentUser.departmentId ?? null,
+        userId: currentUser.id,
+        resourceType: 'PLUGIN_HOOK',
+        resourceId: hook.id,
+        pluginId,
+        traceId: input.trace_id ?? currentUser.traceId ?? null,
+        eventSource: 'CONTROL_API',
+        eventType: 'plugin.hook.execution.sandbox_blocked',
+        status: 'FAILED',
+        severity: 'WARN',
+        billable: false,
+        sourceSystem: 'PLUGIN_HOOK',
+        sourceId: input.source_event_id ?? null,
+        dedupeKey: input.source_event_id
+          ? `plugin-hook-sandbox-blocked:${currentUser.tenantId}:${pluginId}:${hook.id}:${input.source_event_id}`
+          : null,
+        summary: `插件 Hook ${hook.code} 未通过运行前沙箱策略审计，已阻断入队。`,
+        payloadJson: toJsonInput({
+          plugin_id: pluginId,
+          hook_id: hook.id,
+          hook_code: hook.code,
+          hook_type: hook.hookType,
+          target: hook.target,
+          method: hook.method,
+          payload: input.payload ?? null,
+          config: hook.configJson ?? null,
+          execution_boundary: 'PLUGIN_SANDBOX_POLICY_BLOCKED',
+          ...sandboxPayload,
+        }),
+      });
+
+      throw new BadRequestException('插件 Hook 未通过运行前沙箱策略审计，已阻断入队。');
+    }
+
     const event = await this.platformEvents.recordEvent({
       tenantId: currentUser.tenantId,
       departmentId: currentUser.departmentId ?? null,
@@ -88,7 +133,10 @@ export class PluginHookExecutionService {
         method: hook.method,
         payload: input.payload ?? null,
         config: hook.configJson ?? null,
-        execution_boundary: 'CONTROL_PLANE_EVENT_ONLY',
+        execution_boundary: sandboxAudit.policy.status === 'NOT_REQUIRED'
+          ? 'CONTROL_PLANE_EVENT_ONLY'
+          : 'PLUGIN_SANDBOX_POLICY_GATED',
+        ...sandboxPayload,
       }),
     });
 
@@ -170,4 +218,9 @@ export class PluginHookExecutionService {
 
 function toJsonInput(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeJsonRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
 }

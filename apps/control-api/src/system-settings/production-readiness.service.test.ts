@@ -65,6 +65,28 @@ test('production readiness overview derives tenant counts from platform data', a
   assert.ok(knowledgeItem?.evidence.includes('失败任务 1 个，待处理任务 0 个。'));
 });
 
+test('production readiness overview includes observability trace quality evidence in release validation', async () => {
+  const { SystemSettingsService } = await import('./system-settings.service');
+  const service = new SystemSettingsService(buildPrisma() as never);
+
+  const overview = await service.getProductionReadinessOverview(buildUser());
+  const releaseItems = overview.categories.find((category) => category.category === 'RELEASE_VALIDATION')?.items ?? [];
+  const traceQualityItem = releaseItems.find((item) => item.id === 'observability-trace-quality');
+
+  assert.ok(traceQualityItem);
+  assert.equal(traceQualityItem.status, 'MANUAL');
+  assert.equal(traceQualityItem.action_href, '/monitor/observability');
+  assert.equal(traceQualityItem.observability_signal?.trace_coverage_label, 'Trace 覆盖率待在监控中心确认');
+  assert.equal(traceQualityItem.observability_signal?.orphan_event_label, '孤立事件需为 0 或已有解释');
+  assert.equal(traceQualityItem.observability_signal?.error_trace_label, '错误链路需完成归因');
+  assert.equal(traceQualityItem.observability_signal?.slow_trace_label, '慢链路需完成阈值复核');
+  assert.ok(traceQualityItem.evidence_summary?.includes('Trace 覆盖率'));
+  assert.ok(traceQualityItem.evidence_summary?.includes('孤立事件'));
+  assert.ok(traceQualityItem.evidence_summary?.includes('错误链路'));
+  assert.ok(traceQualityItem.evidence_summary?.includes('慢链路'));
+  assert.ok(traceQualityItem.evidence.some((evidence) => evidence.includes('/monitor/observability')));
+});
+
 test('production readiness overview attaches latest manual acceptance evidence per checklist item', async () => {
   const { SystemSettingsService } = await import('./system-settings.service');
   const prisma = buildPrisma({

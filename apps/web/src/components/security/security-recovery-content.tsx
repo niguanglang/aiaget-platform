@@ -25,6 +25,7 @@ import {
   formatPercent,
   securityRiskLevelLabel,
   securityRiskTone,
+  shortId,
 } from '@/components/security/security-page-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -318,6 +319,9 @@ export function SecurityRecoveryContent() {
                       <span className="font-medium">{audit.title}</span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{failureSourceLabel(audit.failure_source)} · {recoveryReasonLabel(audit.reason_code)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      事件来源 {audit.source_system ?? '暂无'} · 来源 ID {shortId(audit.source_id)} · 去重键 {shortId(audit.dedupe_key)} · 请求 {shortId(audit.request_id)} · Trace {shortId(audit.trace_id)} · 重放键 {shortId(audit.replay_key)}
+                    </p>
                   </div>
                   <div className="text-sm text-muted-foreground">{formatDateTime(audit.occurred_at)}</div>
                 </div>

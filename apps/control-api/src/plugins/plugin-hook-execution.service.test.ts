@@ -29,6 +29,7 @@ test('queues active plugin hook execution as a platform event without executing 
           tenantId: currentUser.tenantId,
           status: 'ACTIVE',
           runtimeStatus: 'RUNNING',
+          manifestJson: null,
         }),
       },
       pluginHook: {
@@ -69,6 +70,169 @@ test('queues active plugin hook execution as a platform event without executing 
   assert.equal(recordedEvents[0]?.pluginId, 'plugin-1');
   assert.equal(recordedEvents[0]?.resourceType, 'PLUGIN_HOOK');
   assert.deepEqual((recordedEvents[0]?.payloadJson as { payload?: unknown }).payload, { ticket_id: 'T-001' });
+  assert.equal((recordedEvents[0]?.payloadJson as { execution_boundary?: string }).execution_boundary, 'CONTROL_PLANE_EVENT_ONLY');
+});
+
+test('queues custom code plugin hook only after sandbox policy audit passes', async () => {
+  const recordedEvents: Array<Record<string, unknown>> = [];
+  const service = new PluginHookExecutionService(
+    {
+      platformEvent: {
+        findFirst: async () => null,
+      },
+      pluginInstallation: {
+        findFirst: async () => ({
+          id: 'installation-1',
+          pluginId: 'plugin-1',
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          runtimeStatus: 'RUNNING',
+          manifestJson: {
+            runtime: {
+              type: 'code',
+              entry: 'dist/index.js',
+            },
+            sandbox: {
+              isolation: 'PROCESS',
+              network: 'DENY',
+              filesystem: 'READONLY',
+              timeout_ms: 5000,
+              memory_mb: 128,
+            },
+          },
+        }),
+      },
+      pluginHook: {
+        findFirst: async () => ({
+          id: 'hook-1',
+          tenantId: currentUser.tenantId,
+          pluginId: 'plugin-1',
+          code: 'ticket.created',
+          name: '工单创建事件',
+          hookType: 'EVENT',
+          target: 'ticket.created',
+          method: 'ASYNC_EVENT',
+          status: 'ACTIVE',
+          configJson: { timeout_ms: 1000 },
+          deletedAt: null,
+        }),
+      },
+    } as never,
+    {
+      recordEvent: async (event: Record<string, unknown>) => {
+        recordedEvents.push(event);
+        return { id: 'event-1', ...event };
+      },
+    } as never,
+  );
+
+  const result = await service.queueHookExecution(currentUser, 'plugin-1', 'hook-1', {
+    payload: { ticket_id: 'T-001' },
+  });
+
+  assert.equal(result.status, 'QUEUED');
+  assert.equal(recordedEvents.length, 1);
+  const payload = recordedEvents[0]?.payloadJson as {
+    execution_boundary?: string;
+    sandbox_policy?: { status?: string; isolation?: string; network?: string; filesystem?: string; timeout_ms?: number; memory_mb?: number };
+    sandbox_risk_level?: string;
+    sandbox_violations?: string[];
+  };
+  assert.equal(payload.execution_boundary, 'PLUGIN_SANDBOX_POLICY_GATED');
+  assert.equal(payload.sandbox_policy?.status, 'DECLARED');
+  assert.equal(payload.sandbox_policy?.isolation, 'PROCESS');
+  assert.equal(payload.sandbox_policy?.network, 'DENY');
+  assert.equal(payload.sandbox_policy?.filesystem, 'READONLY');
+  assert.equal(payload.sandbox_policy?.timeout_ms, 5000);
+  assert.equal(payload.sandbox_policy?.memory_mb, 128);
+  assert.equal(payload.sandbox_risk_level, 'LOW');
+  assert.deepEqual(payload.sandbox_violations, []);
+});
+
+test('blocks custom code plugin hook when sandbox policy audit fails', async () => {
+  const recordedEvents: Array<Record<string, unknown>> = [];
+  const dispatches: Array<unknown> = [];
+  const service = new PluginHookExecutionService(
+    {
+      platformEvent: {
+        findFirst: async () => null,
+      },
+      pluginInstallation: {
+        findFirst: async () => ({
+          id: 'installation-1',
+          pluginId: 'plugin-1',
+          tenantId: currentUser.tenantId,
+          status: 'ACTIVE',
+          runtimeStatus: 'RUNNING',
+          manifestJson: {
+            runtime: {
+              type: 'code',
+              entry: 'dist/index.js',
+            },
+            sandbox: {
+              isolation: 'PROCESS',
+              network: 'ALLOW',
+              filesystem: 'READONLY',
+              timeout_ms: 5000,
+              memory_mb: 128,
+            },
+          },
+        }),
+      },
+      pluginHook: {
+        findFirst: async () => ({
+          id: 'hook-1',
+          tenantId: currentUser.tenantId,
+          pluginId: 'plugin-1',
+          code: 'ticket.created',
+          name: '工单创建事件',
+          hookType: 'EVENT',
+          target: 'ticket.created',
+          method: 'ASYNC_EVENT',
+          status: 'ACTIVE',
+          configJson: { timeout_ms: 1000 },
+          deletedAt: null,
+        }),
+      },
+    } as never,
+    {
+      recordEvent: async (event: Record<string, unknown>) => {
+        recordedEvents.push(event);
+        return { id: 'event-blocked-1', ...event };
+      },
+    } as never,
+    {
+      dispatchHookExecution: async (user: typeof currentUser, input: unknown) => {
+        dispatches.push({ user, input });
+        return {
+          workflow_backend: null,
+          workflow_id: null,
+          workflow_run_id: null,
+        };
+      },
+    } as never,
+  );
+
+  await assert.rejects(
+    () => service.queueHookExecution(currentUser, 'plugin-1', 'hook-1', {
+      payload: { ticket_id: 'T-001' },
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(dispatches.length, 0);
+  assert.equal(recordedEvents.length, 1);
+  assert.equal(recordedEvents[0]?.eventType, 'plugin.hook.execution.sandbox_blocked');
+  assert.equal(recordedEvents[0]?.status, 'FAILED');
+  const payload = recordedEvents[0]?.payloadJson as {
+    sandbox_policy?: { status?: string; network?: string };
+    sandbox_risk_level?: string;
+    sandbox_violations?: string[];
+  };
+  assert.equal(payload.sandbox_policy?.status, 'DECLARED');
+  assert.equal(payload.sandbox_policy?.network, 'ALLOW');
+  assert.equal(payload.sandbox_risk_level, 'CRITICAL');
+  assert.ok(payload.sandbox_violations?.includes('sandbox.network 不允许使用 ALLOW。'));
 });
 
 test('dispatches active plugin hook execution through workflow boundary after queue event is recorded', async () => {

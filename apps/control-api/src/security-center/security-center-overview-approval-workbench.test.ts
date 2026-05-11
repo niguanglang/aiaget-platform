@@ -126,6 +126,53 @@ test('approval workbench export alert notifications preserve exported field ledg
   assert.match(csv, /通知筛选来源、通知筛选状态、通知筛选关键词/);
 });
 
+test('operation alert notification and recovery audit items expose persistent replay fields', async () => {
+  const prisma = buildPrisma({
+    operationAlertNotificationEvents: [
+      buildOperationAlertNotificationEvent('persistent-notification', {
+        alert_id: 'approval-workbench-export-volume-risk',
+        alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+        status: 'FAILED',
+        dedupe_key: 'notification-dedupe-1',
+        replay_key: 'notification-replay-1',
+      }),
+    ],
+    recoveryAuditEvents: [
+      buildRecoveryAuditEvent('persistent-recovery', {
+        suggestion_id: 'operation-alert-notification-task-sla-dead-letter-failure-source',
+        title: '通知任务自愈建议',
+        action: 'ACKNOWLEDGE',
+        status: 'ACKNOWLEDGED',
+        failure_source: 'SLA_DEAD_LETTER_ARCHIVE_DELETE',
+        dedupe_key: 'recovery-dedupe-1',
+        replay_key: 'recovery-replay-1',
+      }),
+    ],
+  });
+  const service = new SecurityCenterService(prisma as never, buildStorage() as never);
+  stubOverviewDependencies(service);
+
+  const notifications = await service.listOperationAlertNotifications(buildUser(), {
+    alert_category: 'APPROVAL_WORKBENCH_EXPORT',
+  });
+
+  assert.equal(notifications.items[0]?.source_system, 'security_center');
+  assert.equal(notifications.items[0]?.source_id, 'source-persistent-notification');
+  assert.equal(notifications.items[0]?.dedupe_key, 'notification-dedupe-1');
+  assert.equal(notifications.items[0]?.request_id, 'request-persistent-notification');
+  assert.equal(notifications.items[0]?.trace_id, 'trace-persistent-notification');
+  assert.equal(notifications.items[0]?.replay_key, 'notification-replay-1');
+
+  const recoveryAudits = await service.listNotificationTaskRecoveryAudits(buildUser(), {});
+
+  assert.equal(recoveryAudits.items[0]?.source_system, 'security_center');
+  assert.equal(recoveryAudits.items[0]?.source_id, 'source-persistent-recovery');
+  assert.equal(recoveryAudits.items[0]?.dedupe_key, 'recovery-dedupe-1');
+  assert.equal(recoveryAudits.items[0]?.request_id, 'request-persistent-recovery');
+  assert.equal(recoveryAudits.items[0]?.trace_id, 'trace-persistent-recovery');
+  assert.equal(recoveryAudits.items[0]?.replay_key, 'recovery-replay-1');
+});
+
 test('operation alert notify and lifecycle actions persist archive approval source categories', async () => {
   const cases = [
     {
@@ -422,6 +469,7 @@ function stubOverviewDependencies(service: SecurityCenterService) {
 function buildPrisma(input: {
   notificationTaskEvents?: ReturnType<typeof buildNotificationTaskEvent>[];
   operationAlertNotificationEvents?: ReturnType<typeof buildOperationAlertNotificationEvent>[];
+  recoveryAuditEvents?: ReturnType<typeof buildRecoveryAuditEvent>[];
 } = {}) {
   const exportedAt = new Date('2026-05-08T08:00:00.000Z');
   const createdEvents: Array<{ data: PlatformEventData }> = [];
@@ -521,6 +569,12 @@ function buildPrisma(input: {
         ) {
           return input.notificationTaskEvents ?? [];
         }
+        if (
+          typeof eventType === 'object' &&
+          eventType.in?.includes('platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged')
+        ) {
+          return input.recoveryAuditEvents ?? [];
+        }
         if (typeof eventType === 'object' && eventType.in?.includes('platform.security.approval_workbench.exported')) {
           return exportEvents;
         }
@@ -599,6 +653,37 @@ function buildOperationAlertNotificationEvent(id: string, payload: Record<string
     },
     occurredAt: new Date('2026-05-08T08:01:00.000Z'),
     createdAt: new Date('2026-05-08T08:01:00.000Z'),
+    sourceSystem: 'security_center',
+    sourceId: `source-${id}`,
+    dedupeKey: typeof payload.dedupe_key === 'string' ? payload.dedupe_key : null,
+  };
+}
+
+function buildRecoveryAuditEvent(id: string, payload: Record<string, unknown>) {
+  return {
+    id,
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    resourceType: 'security_operation_alert_notification_task_recovery_suggestion',
+    resourceId: typeof payload.suggestion_id === 'string' ? payload.suggestion_id : id,
+    requestId: `request-${id}`,
+    traceId: `trace-${id}`,
+    eventSource: 'security_center',
+    eventType: 'platform.security.approval_operation_alert_notification_task.recovery_suggestion.acknowledged',
+    status: 'SUCCESS',
+    severity: 'INFO',
+    summary: '已确认通知任务自愈建议',
+    payloadJson: {
+      severity: 'HIGH',
+      note: '已安排复盘',
+      evidence: 'SLA 死信通知失败',
+      ...payload,
+    },
+    occurredAt: new Date('2026-05-08T08:02:00.000Z'),
+    createdAt: new Date('2026-05-08T08:02:00.000Z'),
+    sourceSystem: 'security_center',
+    sourceId: `source-${id}`,
+    dedupeKey: typeof payload.dedupe_key === 'string' ? payload.dedupe_key : null,
   };
 }
 

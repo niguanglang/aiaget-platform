@@ -702,6 +702,9 @@ export function SecurityAlertsContent() {
                       <span className="font-medium">{shortId(item.alert_id)}</span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.message}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      事件来源 {item.source_system ?? '暂无'} · 来源 ID {shortId(item.source_id)} · 去重键 {shortId(item.dedupe_key)} · 请求 {shortId(item.request_id)} · Trace {shortId(item.trace_id)} · 重放键 {shortId(item.replay_key)}
+                    </p>
                   </div>
                   <div className="text-sm text-muted-foreground">重试 {item.retry_count} 次 · {formatDateTime(item.created_at)}</div>
                 </div>

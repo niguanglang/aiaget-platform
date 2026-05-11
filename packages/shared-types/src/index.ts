@@ -1306,6 +1306,15 @@ export interface PluginSandboxPolicyPreview {
   reason: string | null;
 }
 
+export type PluginSandboxRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface PluginSandboxPolicyAudit {
+  allowed: boolean;
+  policy: PluginSandboxPolicyPreview;
+  risk_level: PluginSandboxRiskLevel;
+  violations: string[];
+}
+
 export interface PluginManifestValidationResult {
   status: PluginManifestValidationStatus;
   can_install: boolean;
@@ -2034,6 +2043,13 @@ export interface ProductionReadinessCheckItem {
   action_label: string;
   action_href: string;
   evidence: string[];
+  evidence_summary?: string;
+  observability_signal?: {
+    trace_coverage_label: string;
+    orphan_event_label: string;
+    error_trace_label: string;
+    slow_trace_label: string;
+  };
   acceptance: ProductionReadinessAcceptance | null;
 }
 
@@ -2607,8 +2623,12 @@ export interface SecurityOperationAlertNotificationItem extends SecurityOperatio
   webhook_error: string | null;
   retry_count: number;
   retried_from_event_id: string | null;
+  source_system: string | null;
+  source_id: string | null;
+  dedupe_key: string | null;
   request_id: string | null;
   trace_id: string | null;
+  replay_key: string | null;
   created_at: string;
 }
 
@@ -2886,8 +2906,12 @@ export interface SecurityOperationAlertNotificationTaskRecoveryAuditItem {
   status: SecurityOperationAlertNotificationTaskRecoveryStatus;
   note: string | null;
   evidence: string | null;
+  source_system: string | null;
+  source_id: string | null;
+  dedupe_key: string | null;
   request_id: string | null;
   trace_id: string | null;
+  replay_key: string | null;
   occurred_at: string;
 }
 
@@ -3056,6 +3080,12 @@ export interface SecurityOperationAlertSlaNotificationItem {
   retried_from_event_id: string | null;
   dead_lettered: boolean;
   dead_letter_reason: string | null;
+  source_system: string | null;
+  source_id: string | null;
+  dedupe_key: string | null;
+  request_id: string | null;
+  trace_id: string | null;
+  replay_key: string | null;
   delivered_at: string;
   created_at: string;
   message: string;
@@ -3145,6 +3175,9 @@ export interface SecurityOperationAlertSlaDeadLetterItem extends SecurityOperati
   disposition_event_id: string | null;
   handled_by: string | null;
   handled_at: string | null;
+  latest_action: SecurityOperationAlertSlaDeadLetterAction | null;
+  latest_action_event_id: string | null;
+  latest_action_at: string | null;
 }
 
 export interface SecurityOperationAlertSlaDeadLetterActionInput {
@@ -4570,6 +4603,7 @@ export interface UpdateChannelSenderPolicyInput {
 }
 
 export type ChannelSenderDeliveryStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'RETRYING';
+export type ChannelSenderMode = 'NATIVE_API' | 'WEBHOOK' | 'SKIPPED';
 
 export interface ChannelSenderDeliveryListItem {
   id: string;
@@ -4582,6 +4616,8 @@ export interface ChannelSenderDeliveryListItem {
   agent_id: string;
   agent_name: string | null;
   provider: ChannelCallbackProvider;
+  sender_mode: ChannelSenderMode;
+  provider_api: string;
   target: string | null;
   status: ChannelSenderDeliveryStatus;
   response_status: number | null;

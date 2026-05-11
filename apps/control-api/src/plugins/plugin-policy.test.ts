@@ -3,7 +3,12 @@ import test from 'node:test';
 
 import { DATA_SCOPE_RESOURCE_DEFINITIONS } from '../data-scopes/data-scope.constants';
 import { RESOURCE_ACL_RESOURCE_DEFINITIONS } from '../resource-acls/resource-acl.constants';
-import { buildPluginManifestPolicy, buildPluginGeneratedCodes, validatePluginManifestInput } from './plugin-policy';
+import {
+  auditSandboxPolicyForHookExecution,
+  buildPluginManifestPolicy,
+  buildPluginGeneratedCodes,
+  validatePluginManifestInput,
+} from './plugin-policy';
 
 test('blocks high risk plugin enablement until review is approved', () => {
   const policy = buildPluginManifestPolicy({
@@ -116,4 +121,69 @@ test('previews plugin tool center binding for valid custom manifests', () => {
   assert.equal(validation.tool_bindings[0]?.generated_tool_code, 'plugin_tool_ticket-suite_create-ticket');
   assert.equal(validation.tool_bindings[0]?.gateway, 'TOOL_GATEWAY');
   assert.equal(validation.tool_bindings[0]?.require_approval, true);
+});
+
+test('audits declared custom code sandbox policy as low risk before hook execution', () => {
+  const audit = auditSandboxPolicyForHookExecution({
+    runtime: {
+      type: 'code',
+      entry: 'dist/index.js',
+    },
+    sandbox: {
+      isolation: 'PROCESS',
+      network: 'DENY',
+      filesystem: 'READONLY',
+      timeout_ms: 5000,
+      memory_mb: 128,
+    },
+  });
+
+  assert.equal(audit.allowed, true);
+  assert.equal(audit.risk_level, 'LOW');
+  assert.deepEqual(audit.violations, []);
+  assert.equal(audit.policy.status, 'DECLARED');
+  assert.equal(audit.policy.isolation, 'PROCESS');
+  assert.equal(audit.policy.network, 'DENY');
+  assert.equal(audit.policy.filesystem, 'READONLY');
+});
+
+test('audits custom code sandbox policy with open network as critical and blocking', () => {
+  const audit = auditSandboxPolicyForHookExecution({
+    runtime: {
+      type: 'code',
+      entry: 'dist/index.js',
+    },
+    sandbox: {
+      isolation: 'PROCESS',
+      network: 'ALLOW',
+      filesystem: 'READONLY',
+      timeout_ms: 5000,
+      memory_mb: 128,
+    },
+  });
+
+  assert.equal(audit.allowed, false);
+  assert.equal(audit.risk_level, 'CRITICAL');
+  assert.ok(audit.violations.includes('sandbox.network 不允许使用 ALLOW。'));
+});
+
+test('audits malformed sandbox limits as incomplete policy instead of coercing strings', () => {
+  const audit = auditSandboxPolicyForHookExecution({
+    runtime: {
+      type: 'code',
+      entry: 'dist/index.js',
+    },
+    sandbox: {
+      isolation: 'PROCESS',
+      network: 'DENY',
+      filesystem: 'READONLY',
+      timeout_ms: '5000ms',
+      memory_mb: '1.5',
+    },
+  });
+
+  assert.equal(audit.allowed, false);
+  assert.equal(audit.risk_level, 'HIGH');
+  assert.ok(audit.violations.includes('sandbox.timeout_ms 必须大于 0。'));
+  assert.ok(audit.violations.includes('sandbox.memory_mb 必须大于 0。'));
 });

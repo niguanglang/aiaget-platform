@@ -164,6 +164,8 @@ function SenderDeliveryDetailPanel({
           { label: '渠道', value: item.channel_name },
           { label: 'Agent', value: item.agent_name ?? item.agent_id },
           { label: '平台', value: channelProviderLabel(item.provider) },
+          { label: '发送模式', value: senderModeLabel(item.sender_mode) },
+          { label: '平台 API', value: providerApiLabel(item.provider_api) },
           { label: '目标', value: item.target ?? '未配置' },
           { label: '响应状态', value: item.response_status === null ? '无' : String(item.response_status) },
           { label: 'Trace', value: item.trace_id ?? '无' },
@@ -209,4 +211,24 @@ function channelProviderLabel(provider: ChannelCallbackProvider) {
   };
 
   return labels[provider] ?? provider;
+}
+
+function senderModeLabel(mode: ChannelSenderDeliveryDetail['sender_mode']) {
+  if (mode === 'NATIVE_API') return '原生 API';
+  if (mode === 'WEBHOOK') return 'Webhook';
+  return '已跳过';
+}
+
+function providerApiLabel(value: string) {
+  const labels: Record<string, string> = {
+    WECHAT_WORK_MESSAGE_SEND: '企业微信消息发送',
+    DINGTALK_SESSION_WEBHOOK: '钉钉会话 Webhook',
+    FEISHU_BOT_WEBHOOK: '飞书机器人 Webhook',
+    FEISHU_IM_MESSAGE: '飞书 IM 消息',
+    SLACK_INCOMING_WEBHOOK: 'Slack Incoming Webhook',
+    SLACK_CHAT_POST_MESSAGE: 'Slack chat.postMessage',
+    CUSTOM_WEBHOOK: '自定义 Webhook',
+  };
+
+  return labels[value] ?? value;
 }

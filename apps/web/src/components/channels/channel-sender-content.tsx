@@ -288,6 +288,8 @@ function SenderDeliveryRow({
         <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
           <span className="truncate">投递 ID：{item.delivery_id}</span>
           <span className="truncate">目标：{item.target ?? '未配置'}</span>
+          <span>发送模式：{senderModeLabel(item.sender_mode)}</span>
+          <span className="truncate">平台 API：{providerApiLabel(item.provider_api)}</span>
           <span>耗时：{formatLatency(item.latency_ms)}</span>
           <span>时间：{formatOptionalDateTime(item.delivered_at ?? item.created_at)}</span>
         </div>
@@ -344,4 +346,24 @@ function channelProviderLabel(provider: ChannelCallbackProvider) {
   };
 
   return labels[provider] ?? provider;
+}
+
+function senderModeLabel(mode: ChannelSenderDeliveryListItem['sender_mode']) {
+  if (mode === 'NATIVE_API') return '原生 API';
+  if (mode === 'WEBHOOK') return 'Webhook';
+  return '已跳过';
+}
+
+function providerApiLabel(value: string) {
+  const labels: Record<string, string> = {
+    WECHAT_WORK_MESSAGE_SEND: '企业微信消息发送',
+    DINGTALK_SESSION_WEBHOOK: '钉钉会话 Webhook',
+    FEISHU_BOT_WEBHOOK: '飞书机器人 Webhook',
+    FEISHU_IM_MESSAGE: '飞书 IM 消息',
+    SLACK_INCOMING_WEBHOOK: 'Slack Incoming Webhook',
+    SLACK_CHAT_POST_MESSAGE: 'Slack chat.postMessage',
+    CUSTOM_WEBHOOK: '自定义 Webhook',
+  };
+
+  return labels[value] ?? value;
 }

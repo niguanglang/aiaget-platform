@@ -67,6 +67,8 @@ export interface ChannelSenderResult {
 
 interface DispatchPlan {
   provider: ChannelCallbackProvider;
+  senderMode: ChannelSenderMode;
+  providerApi: ChannelSenderProviderApi;
   target: string | null;
   requestUrl: string | null;
   requestBody: unknown;
@@ -79,6 +81,16 @@ interface DispatchPlan {
     errorKey: string;
   };
 }
+
+type ChannelSenderMode = 'NATIVE_API' | 'WEBHOOK' | 'SKIPPED';
+type ChannelSenderProviderApi =
+  | 'WECHAT_WORK_MESSAGE_SEND'
+  | 'DINGTALK_SESSION_WEBHOOK'
+  | 'FEISHU_BOT_WEBHOOK'
+  | 'FEISHU_IM_MESSAGE'
+  | 'SLACK_INCOMING_WEBHOOK'
+  | 'SLACK_CHAT_POST_MESSAGE'
+  | 'CUSTOM_WEBHOOK';
 
 export interface ListChannelSenderDeliveriesQuery {
   channel_id?: string;
@@ -111,6 +123,8 @@ export class ExternalChannelSenderService {
       ? await this.buildPlan({ ...input, answer })
       : {
           provider: input.message.provider,
+          senderMode: 'SKIPPED',
+          providerApi: providerApiFor(input.message.provider),
           target: null,
           requestUrl: null,
           requestBody: null,
@@ -124,7 +138,7 @@ export class ExternalChannelSenderService {
     if (plan.skipReason || !plan.requestUrl) {
       const result = skipped(plan.provider, plan.skipReason ?? '渠道主动回复目标未配置。', plan.target);
       await this.updateDeliveryRecord(delivery.id, result, null);
-      await this.recordResult(input, result, delivery.deliveryId);
+      await this.recordResult(input, plan, result, delivery.deliveryId);
 
       return result;
     }
@@ -145,7 +159,7 @@ export class ExternalChannelSenderService {
     }
 
     await this.updateDeliveryRecord(delivery.id, result, Date.now() - startedAt);
-    await this.recordResult(input, result, delivery.deliveryId);
+    await this.recordResult(input, plan, result, delivery.deliveryId);
 
     return result;
   }
@@ -415,7 +429,7 @@ export class ExternalChannelSenderService {
 
   private async buildPlan(input: SenderInput): Promise<DispatchPlan> {
     if (readConfigBoolean(input.channel.config, 'sender_disabled')) {
-      return skippedPlan(input.message.provider, '渠道已配置 sender_disabled，跳过主动发送。');
+      return skippedPlan(input.message.provider, providerApiFor(input.message.provider), '渠道已配置 sender_disabled，跳过主动发送。');
     }
 
     switch (input.message.provider) {
@@ -439,11 +453,13 @@ export class ExternalChannelSenderService {
     const agentId = credential.wechat_work_agent_id ?? readConfigString(input.channel.config, 'wechat_work_agent_id');
     const toUser = input.message.senderId ?? readConfigString(input.channel.config, 'wechat_work_default_touser') ?? '@all';
     if (!accessToken || !agentId) {
-      return skippedPlan(input.message.provider, '企业微信 access_token 或 agent_id 未配置。');
+      return skippedPlan(input.message.provider, 'WECHAT_WORK_MESSAGE_SEND', '企业微信主动回复 access_token 或 agent_id 未配置，请配置 wechat_work_access_token，或配置 corp_id/corp_secret 自动换取 access_token，并配置 wechat_work_agent_id。');
     }
 
     return {
       provider: input.message.provider,
+      senderMode: 'NATIVE_API',
+      providerApi: 'WECHAT_WORK_MESSAGE_SEND',
       target: toUser,
       requestUrl: `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${encodeURIComponent(accessToken)}`,
       requestBody: {
@@ -473,11 +489,13 @@ export class ExternalChannelSenderService {
       ?? readConfigString(input.channel.config, 'sender_webhook_url')
       ?? readConfigString(input.channel.config, 'webhook_url');
     if (!webhook) {
-      return skippedPlan(input.message.provider, '钉钉 sessionWebhook 或 sender_webhook_url 未配置。');
+      return skippedPlan(input.message.provider, 'DINGTALK_SESSION_WEBHOOK', '钉钉主动回复 sessionWebhook 或 sender_webhook_url 未配置，请在回调 payload 提供 response_url/sessionWebhook，或配置 dingtalk_session_webhook、sender_webhook_url、webhook_url。');
     }
 
     return {
       provider: input.message.provider,
+      senderMode: 'WEBHOOK',
+      providerApi: 'DINGTALK_SESSION_WEBHOOK',
       target: redactUrl(webhook),
       requestUrl: appendDingTalkSign(webhook, credential.dingtalk_sign_secret ?? readConfigString(input.channel.config, 'dingtalk_sign_secret')),
       requestBody: {
@@ -504,6 +522,8 @@ export class ExternalChannelSenderService {
     if (webhook) {
       return {
         provider: input.message.provider,
+        senderMode: 'WEBHOOK',
+        providerApi: 'FEISHU_BOT_WEBHOOK',
         target: redactUrl(webhook),
         requestUrl: webhook,
         requestBody: {
@@ -528,11 +548,13 @@ export class ExternalChannelSenderService {
       ? readConfigString(input.channel.config, 'feishu_receive_id_type') ?? 'chat_id'
       : readConfigString(input.channel.config, 'feishu_receive_id_type') ?? 'open_id';
     if (!token || !receiveId) {
-      return skippedPlan(input.message.provider, '飞书 token 或 receive_id 未配置。');
+      return skippedPlan(input.message.provider, 'FEISHU_IM_MESSAGE', '飞书主动回复 token 或 receive_id 未配置，请配置 feishu_tenant_access_token/feishu_bot_access_token，并确保回调提供会话 ID，或配置 feishu_default_receive_id。');
     }
 
     return {
       provider: input.message.provider,
+      senderMode: 'NATIVE_API',
+      providerApi: 'FEISHU_IM_MESSAGE',
       target: `${receiveIdType}:${receiveId}`,
       requestUrl: `https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=${encodeURIComponent(receiveIdType)}`,
       requestBody: {
@@ -560,6 +582,8 @@ export class ExternalChannelSenderService {
     if (webhook) {
       return {
         provider: input.message.provider,
+        senderMode: 'WEBHOOK',
+        providerApi: 'SLACK_INCOMING_WEBHOOK',
         target: redactUrl(webhook),
         requestUrl: webhook,
         requestBody: {
@@ -575,11 +599,13 @@ export class ExternalChannelSenderService {
     const token = credential.slack_bot_token ?? readConfigString(input.channel.config, 'slack_bot_token');
     const channelId = input.message.externalConversationId ?? readConfigString(input.channel.config, 'slack_default_channel_id');
     if (!token || !channelId) {
-      return skippedPlan(input.message.provider, 'Slack bot token 或 channel 未配置。');
+      return skippedPlan(input.message.provider, 'SLACK_CHAT_POST_MESSAGE', 'Slack 主动回复 bot token 或 channel 未配置，请配置 slack_bot_token，并确保回调提供 channel，或配置 slack_default_channel_id。');
     }
 
     return {
       provider: input.message.provider,
+      senderMode: 'NATIVE_API',
+      providerApi: 'SLACK_CHAT_POST_MESSAGE',
       target: channelId,
       requestUrl: 'https://slack.com/api/chat.postMessage',
       requestBody: {
@@ -606,7 +632,7 @@ export class ExternalChannelSenderService {
       ?? readConfigString(input.channel.config, 'webhook_url')
       ?? input.channel.callbackUrl;
     if (!webhook) {
-      return skippedPlan(input.message.provider, '自定义 sender_webhook_url 或 callback_url 未配置。');
+      return skippedPlan(input.message.provider, 'CUSTOM_WEBHOOK', '自定义 Webhook 主动回复 sender_webhook_url、webhook_url 或 callback_url 未配置，请至少配置一个可发送地址。');
     }
 
     const body = {
@@ -622,6 +648,8 @@ export class ExternalChannelSenderService {
 
     return {
       provider: input.message.provider,
+      senderMode: 'WEBHOOK',
+      providerApi: 'CUSTOM_WEBHOOK',
       target: redactUrl(webhook),
       requestUrl: webhook,
       requestBody: body,
@@ -857,6 +885,7 @@ export class ExternalChannelSenderService {
       runId: string | null;
       traceId: string | null;
     },
+    plan: DispatchPlan,
     result: ChannelSenderResult,
     deliveryId: string,
   ) {
@@ -886,10 +915,13 @@ export class ExternalChannelSenderService {
       payloadJson: {
         delivery_id: deliveryId,
         provider: result.provider,
+        sender_mode: result.status === 'SKIPPED' ? 'SKIPPED' : plan.senderMode,
+        provider_api: plan.providerApi,
         target: result.target,
         response_status: result.responseStatus,
         response_body: result.responseBody === null ? null : toJsonValue(redactChannelAuditValue(result.responseBody)),
         error_message: result.errorMessage,
+        diagnostic: result.status === 'SKIPPED' ? result.errorMessage : null,
         external_conversation_id: input.message.externalConversationId,
         external_message_id: input.message.externalMessageId,
       },
@@ -929,6 +961,8 @@ export class ExternalChannelSenderService {
     delivery: DeliveryRecord,
     result: ChannelSenderResult,
   ) {
+    const senderMode = inferSenderMode(delivery);
+    const providerApi = inferProviderApi(delivery.provider as ChannelCallbackProvider, delivery.requestUrl, senderMode);
     const event = await this.platformEvents.recordEvent({
       tenantId: currentUser.tenantId,
       departmentId: currentUser.departmentId ?? null,
@@ -954,9 +988,12 @@ export class ExternalChannelSenderService {
         delivery_id: delivery.deliveryId,
         parent_delivery_id: delivery.parentDeliveryId,
         provider: delivery.provider,
+        sender_mode: senderMode,
+        provider_api: providerApi,
         target: delivery.target,
         response_status: delivery.responseStatus,
         error_message: result.errorMessage,
+        diagnostic: result.status === 'SKIPPED' ? result.errorMessage : null,
       },
       sourceSystem: 'channel_sender',
       sourceId: delivery.deliveryId,
@@ -1011,6 +1048,8 @@ export class ExternalChannelSenderService {
   }
 
   private async recordTaskRetryResult(delivery: DeliveryRecord, result: ChannelSenderResult, requestId: string) {
+    const senderMode = inferSenderMode(delivery);
+    const providerApi = inferProviderApi(delivery.provider as ChannelCallbackProvider, delivery.requestUrl, senderMode);
     const event = await this.platformEvents.recordEvent({
       tenantId: delivery.tenantId,
       actorType: 'SYSTEM',
@@ -1034,9 +1073,12 @@ export class ExternalChannelSenderService {
         delivery_id: delivery.deliveryId,
         parent_delivery_id: delivery.parentDeliveryId,
         provider: delivery.provider,
+        sender_mode: senderMode,
+        provider_api: providerApi,
         target: delivery.target,
         response_status: delivery.responseStatus,
         error_message: result.errorMessage,
+        diagnostic: result.status === 'SKIPPED' ? result.errorMessage : null,
       },
       sourceSystem: 'channel_sender_task',
       sourceId: delivery.deliveryId,
@@ -1095,9 +1137,11 @@ function skipped(provider: ChannelCallbackProvider, reason: string, target: stri
   };
 }
 
-function skippedPlan(provider: ChannelCallbackProvider, reason: string): DispatchPlan {
+function skippedPlan(provider: ChannelCallbackProvider, providerApi: ChannelSenderProviderApi, reason: string): DispatchPlan {
   return {
     provider,
+    senderMode: 'SKIPPED',
+    providerApi,
     target: null,
     requestUrl: null,
     requestBody: null,
@@ -1105,6 +1149,18 @@ function skippedPlan(provider: ChannelCallbackProvider, reason: string): Dispatc
     timeoutMs: 15000,
     skipReason: reason,
   };
+}
+
+function providerApiFor(provider: ChannelCallbackProvider): ChannelSenderProviderApi {
+  const providerApis: Record<ChannelCallbackProvider, ChannelSenderProviderApi> = {
+    WECHAT_WORK: 'WECHAT_WORK_MESSAGE_SEND',
+    DINGTALK: 'DINGTALK_SESSION_WEBHOOK',
+    FEISHU: 'FEISHU_IM_MESSAGE',
+    SLACK: 'SLACK_CHAT_POST_MESSAGE',
+    CUSTOM_WEBHOOK: 'CUSTOM_WEBHOOK',
+  };
+
+  return providerApis[provider];
 }
 
 function senderSummary(result: ChannelSenderResult) {
@@ -1378,6 +1434,9 @@ function toNormalizedDeliveryStatus(status: ChannelSenderResult['status']) {
 }
 
 function mapDeliveryListItem(delivery: DeliveryRecord): ChannelSenderDeliveryListItem {
+  const senderMode = inferSenderMode(delivery);
+  const providerApi = inferProviderApi(delivery.provider as ChannelCallbackProvider, delivery.requestUrl, senderMode);
+
   return {
     id: delivery.id,
     delivery_id: delivery.deliveryId,
@@ -1389,6 +1448,8 @@ function mapDeliveryListItem(delivery: DeliveryRecord): ChannelSenderDeliveryLis
     agent_id: delivery.agentId,
     agent_name: delivery.agent?.name ?? delivery.channel.agent?.name ?? null,
     provider: delivery.provider as ChannelCallbackProvider,
+    sender_mode: senderMode,
+    provider_api: providerApi,
     target: delivery.target ?? redactUrl(delivery.requestUrl),
     status: delivery.status as ChannelSenderDeliveryStatus,
     response_status: delivery.responseStatus,
@@ -1421,6 +1482,29 @@ function isDeliveryStatus(value: unknown): value is ChannelSenderDeliveryStatus 
 
 function isProvider(value: unknown): value is ChannelCallbackProvider {
   return value === 'WECHAT_WORK' || value === 'DINGTALK' || value === 'FEISHU' || value === 'SLACK' || value === 'CUSTOM_WEBHOOK';
+}
+
+function inferSenderMode(delivery: Pick<DeliveryRecord, 'status' | 'provider' | 'requestUrl'>): ChannelSenderMode {
+  if (delivery.status === 'SKIPPED' || !delivery.requestUrl) return 'SKIPPED';
+  const provider = delivery.provider as ChannelCallbackProvider;
+  if (provider === 'WECHAT_WORK') return 'NATIVE_API';
+  if (provider === 'CUSTOM_WEBHOOK' || provider === 'DINGTALK') return 'WEBHOOK';
+  if (provider === 'FEISHU') return delivery.requestUrl.includes('/im/v1/messages') ? 'NATIVE_API' : 'WEBHOOK';
+  if (provider === 'SLACK') return delivery.requestUrl.includes('/api/chat.postMessage') ? 'NATIVE_API' : 'WEBHOOK';
+
+  return 'WEBHOOK';
+}
+
+function inferProviderApi(
+  provider: ChannelCallbackProvider,
+  requestUrl: string | null,
+  senderMode: ChannelSenderMode,
+): ChannelSenderProviderApi {
+  if (senderMode === 'SKIPPED') return providerApiFor(provider);
+  if (provider === 'FEISHU') return requestUrl?.includes('/im/v1/messages') ? 'FEISHU_IM_MESSAGE' : 'FEISHU_BOT_WEBHOOK';
+  if (provider === 'SLACK') return requestUrl?.includes('/api/chat.postMessage') ? 'SLACK_CHAT_POST_MESSAGE' : 'SLACK_INCOMING_WEBHOOK';
+
+  return providerApiFor(provider);
 }
 
 function providerLabel(provider: ChannelCallbackProvider) {

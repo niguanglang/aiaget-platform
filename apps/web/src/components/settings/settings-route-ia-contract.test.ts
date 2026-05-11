@@ -64,6 +64,13 @@ test('production readiness center owns rollout checklist and manual acceptance e
   assert.match(productionReadinessSource, /acceptProductionReadinessCheck/);
   assert.match(productionReadinessSource, /提交验收/);
   assert.match(productionReadinessSource, /验收记录/);
+  assert.match(productionReadinessSource, /可观测性证据/);
+  assert.match(productionReadinessSource, /Trace 覆盖率/);
+  assert.match(productionReadinessSource, /孤立事件/);
+  assert.match(productionReadinessSource, /错误链路/);
+  assert.match(productionReadinessSource, /慢链路/);
+  assert.match(productionReadinessSource, /observability_signal/);
+  assert.match(productionReadinessSource, /\/monitor\/observability/);
   assert.match(productionReadinessSource, /acceptanceDrafts/);
   assert.doesNotMatch(productionReadinessSource, /只读清单/);
   assert.doesNotMatch(productionReadinessSource, /只读取平台状态/);

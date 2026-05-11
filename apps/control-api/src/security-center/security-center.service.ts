@@ -3548,8 +3548,12 @@ function mapNotificationTaskRecoveryAuditEvent(
     status,
     note: typeof payload?.note === 'string' ? payload.note : null,
     evidence: typeof payload?.evidence === 'string' ? payload.evidence : null,
+    source_system: event.sourceSystem ?? null,
+    source_id: event.sourceId ?? null,
+    dedupe_key: event.dedupeKey ?? stringValue(payload?.dedupe_key),
     request_id: event.requestId,
     trace_id: event.traceId,
+    replay_key: stringValue(payload?.replay_key),
     occurred_at: event.occurredAt.toISOString(),
   };
 }
@@ -5185,8 +5189,12 @@ function mapSecurityOperationAlertNotificationEvent(
     message: event.summary ?? securityOperationNotificationMessage(status, channels, false),
     retry_count: typeof payload?.retry_count === 'number' ? payload.retry_count : 0,
     retried_from_event_id: typeof payload?.retried_from_event_id === 'string' ? payload.retried_from_event_id : null,
+    source_system: event.sourceSystem ?? null,
+    source_id: event.sourceId ?? null,
+    dedupe_key: event.dedupeKey ?? stringValue(payload?.dedupe_key),
     request_id: event.requestId,
     trace_id: event.traceId,
+    replay_key: stringValue(payload?.replay_key),
     delivered_at: typeof payload?.delivered_at === 'string' ? payload.delivered_at : event.occurredAt.toISOString(),
     created_at: event.createdAt.toISOString(),
   };

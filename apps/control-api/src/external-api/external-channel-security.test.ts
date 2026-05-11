@@ -129,6 +129,117 @@ test('redacts sender request and response secrets before persisting delivery aud
   assert.match(senderUpdate, /\[REDACTED\]/);
 });
 
+test('persists sender mode and provider api for native and webhook delivery audits', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, access_token: 'response-token' }), { status: 200 });
+
+  const slackChannel = buildChannel({
+    channel: 'SLACK',
+    config: {
+      slack_bot_token: 'xoxb-secret-token',
+    },
+  });
+  const slackSender = await createSenderService(slackChannel);
+
+  await slackSender.service.sendReply({
+    request: buildRequest(),
+    channel: slackChannel as never,
+    operator: buildOperator(),
+    message: {
+      provider: 'SLACK',
+      text: 'incoming',
+      externalConversationId: 'C123',
+      externalMessageId: '1714970000.000100',
+      senderId: 'U123',
+      responseUrl: null,
+    },
+    answer: 'native answer',
+    conversationId: 'conversation-1',
+    runId: 'run-1',
+    traceId: 'trace-1',
+  });
+
+  assert.equal(JSON.stringify(slackSender.senderCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(JSON.stringify(slackSender.normalizedCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(slackSender.recordedEvents[0]?.payloadJson.sender_mode, 'NATIVE_API');
+  assert.equal(slackSender.recordedEvents[0]?.payloadJson.provider_api, 'SLACK_CHAT_POST_MESSAGE');
+  assert.doesNotMatch(JSON.stringify(slackSender.senderCreates[0]?.data), /xoxb-secret-token|Authorization":"Bearer/);
+  assert.doesNotMatch(JSON.stringify(slackSender.recordedEvents[0]?.payloadJson), /xoxb-secret-token|Authorization/i);
+
+  const webhookChannel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    config: {
+      webhook_url: 'https://hooks.example.test/sender?token=sender-token&plain=1',
+    },
+  });
+  const webhookSender = await createSenderService(webhookChannel);
+
+  await webhookSender.service.sendReply({
+    request: buildRequest(),
+    channel: webhookChannel as never,
+    operator: buildOperator(),
+    message: {
+      provider: 'CUSTOM_WEBHOOK',
+      text: 'incoming',
+      externalConversationId: 'external-conversation-1',
+      externalMessageId: 'external-message-1',
+      senderId: 'sender-1',
+      responseUrl: null,
+    },
+    answer: 'webhook answer',
+    conversationId: 'conversation-1',
+    runId: 'run-1',
+    traceId: 'trace-1',
+  });
+
+  assert.equal(JSON.stringify(webhookSender.senderCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(JSON.stringify(webhookSender.normalizedCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(webhookSender.recordedEvents[0]?.payloadJson.sender_mode, 'WEBHOOK');
+  assert.equal(webhookSender.recordedEvents[0]?.payloadJson.provider_api, 'CUSTOM_WEBHOOK');
+  assert.doesNotMatch(JSON.stringify(webhookSender.senderCreates[0]?.data), /sender-token/);
+});
+
+test('records skipped sender mode, provider api and diagnostic event payload when native sender config is missing', async () => {
+  const channel = buildChannel({
+    channel: 'FEISHU',
+    config: {},
+  });
+  const { service, senderCreates, senderUpdates, normalizedCreates, normalizedUpdates, recordedEvents } = await createSenderService(channel);
+
+  const result = await service.sendReply({
+    request: buildRequest(),
+    channel: channel as never,
+    operator: buildOperator(),
+    message: {
+      provider: 'FEISHU',
+      text: 'incoming',
+      externalConversationId: null,
+      externalMessageId: 'external-message-1',
+      senderId: null,
+      responseUrl: null,
+    },
+    answer: 'answer',
+    conversationId: 'conversation-1',
+    runId: 'run-1',
+    traceId: 'trace-1',
+  });
+
+  assert.equal(result.status, 'SKIPPED');
+  assert.match(result.errorMessage ?? '', /飞书/);
+  assert.match(result.errorMessage ?? '', /未配置/);
+  assert.equal(JSON.stringify(senderCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(senderUpdates[0]?.data.status, 'SKIPPED');
+  assert.equal(JSON.stringify(normalizedCreates[0]?.data.requestBody).includes('sender_mode'), false);
+  assert.equal(normalizedUpdates[0]?.data.errorMessage, result.errorMessage);
+  assert.equal(recordedEvents[0]?.eventType, 'channel.sender.skipped');
+  assert.equal(recordedEvents[0]?.payloadJson.sender_mode, 'SKIPPED');
+  assert.equal(recordedEvents[0]?.payloadJson.provider_api, 'FEISHU_IM_MESSAGE');
+  assert.equal(recordedEvents[0]?.payloadJson.diagnostic, result.errorMessage);
+});
+
 test('rejects sender retry when persisted audit credentials are already redacted', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -155,6 +266,60 @@ test('rejects sender retry when persisted audit credentials are already redacted
     },
   );
   assert.equal(senderCreates.length, 0);
+});
+
+test('records sender mode and provider api for manual retry events', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true }), { status: 200 });
+
+  const channel = buildChannel({
+    channel: 'SLACK',
+  });
+  const delivery = buildFailedSenderDelivery(channel, {
+    provider: 'SLACK',
+    requestUrl: 'https://slack.com/api/chat.postMessage',
+    requestHeaders: { Authorization: 'Bearer retry-token' },
+    target: 'C123',
+  });
+  const { service, recordedEvents } = await createSenderRetryService(delivery);
+
+  await service.retryDelivery(buildOperator(), 'delivery-1');
+
+  const retryEvent = recordedEvents.find((event) => event.eventType === 'channel.sender.retry_sent');
+  assert.ok(retryEvent);
+  assert.equal(retryEvent.payloadJson.sender_mode, 'NATIVE_API');
+  assert.equal(retryEvent.payloadJson.provider_api, 'SLACK_CHAT_POST_MESSAGE');
+  assert.doesNotMatch(JSON.stringify(retryEvent.payloadJson), /retry-token|Authorization/i);
+});
+
+test('records sender mode and provider api for automatic retry events', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify({ code: 0 }), { status: 200 });
+
+  const channel = buildChannel({
+    channel: 'FEISHU',
+  });
+  const delivery = buildFailedSenderDelivery(channel, {
+    provider: 'FEISHU',
+    requestUrl: 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id',
+    requestHeaders: { Authorization: 'Bearer retry-token' },
+    target: 'chat_id:oc_123',
+  });
+  const { service, recordedEvents } = await createSenderRetryService(delivery);
+
+  await service.retryDeliveryForTask(delivery as never, 'sender-auto-retry-test');
+
+  const retryEvent = recordedEvents.find((event) => event.eventType === 'channel.sender.auto_retry_sent');
+  assert.ok(retryEvent);
+  assert.equal(retryEvent.payloadJson.sender_mode, 'NATIVE_API');
+  assert.equal(retryEvent.payloadJson.provider_api, 'FEISHU_IM_MESSAGE');
+  assert.doesNotMatch(JSON.stringify(retryEvent.payloadJson), /retry-token|Authorization/i);
 });
 
 test('rejects Slack callback when signing secret is not configured', async () => {
@@ -421,6 +586,7 @@ function buildConversation(message: string) {
 async function createSenderRetryService(delivery: Record<string, unknown>) {
   const { ExternalChannelSenderService } = await import('./external-channel-sender.service');
   const senderCreates: Array<{ data: Record<string, unknown> }> = [];
+  const recordedEvents: Array<Record<string, unknown> & { payloadJson: Record<string, unknown> }> = [];
   const prisma = {
     channelSenderDelivery: {
       findFirst: () => Promise.resolve(delivery),
@@ -456,7 +622,10 @@ async function createSenderRetryService(delivery: Record<string, unknown>) {
     },
   };
   const platformEvents = {
-    recordEvent: async () => ({ id: 'event-1' }),
+    recordEvent: async (input: Record<string, unknown> & { payloadJson: Record<string, unknown> }) => {
+      recordedEvents.push(input);
+      return { id: 'event-1' };
+    },
     recordUsage: async () => ({}),
   };
   const dataScopeQuery = {
@@ -465,6 +634,7 @@ async function createSenderRetryService(delivery: Record<string, unknown>) {
 
   return {
     senderCreates,
+    recordedEvents,
     service: new ExternalChannelSenderService(prisma as never, platformEvents as never, dataScopeQuery as never),
   };
 }
@@ -475,6 +645,7 @@ async function createSenderService(channel: Record<string, unknown>) {
   const senderUpdates: Array<{ data: Record<string, unknown> }> = [];
   const normalizedCreates: Array<{ data: Record<string, unknown> }> = [];
   const normalizedUpdates: Array<{ data: Record<string, unknown> }> = [];
+  const recordedEvents: Array<Record<string, unknown> & { payloadJson: Record<string, unknown> }> = [];
   const prisma = {
     channelSenderDelivery: {
       create: async (input: { data: Record<string, unknown> }) => {
@@ -520,7 +691,10 @@ async function createSenderService(channel: Record<string, unknown>) {
     },
   };
   const platformEvents = {
-    recordEvent: async () => ({ id: 'event-1' }),
+    recordEvent: async (input: Record<string, unknown> & { payloadJson: Record<string, unknown> }) => {
+      recordedEvents.push(input);
+      return { id: 'event-1' };
+    },
     recordUsage: async () => ({}),
   };
 
@@ -529,6 +703,7 @@ async function createSenderService(channel: Record<string, unknown>) {
     senderUpdates,
     normalizedCreates,
     normalizedUpdates,
+    recordedEvents,
     service: new ExternalChannelSenderService(prisma as never, platformEvents as never, {} as never),
   };
 }

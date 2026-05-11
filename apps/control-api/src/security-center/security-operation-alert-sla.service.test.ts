@@ -30,6 +30,51 @@ test('SLA notification retry overview separates retryable items from dead letter
   assert.match(overview.dead_letter_items[0]?.dead_letter_reason ?? '', /最大重试次数 3 次/);
 });
 
+test('SLA retry and dead letter items expose persistent replay fields', async () => {
+  const prisma = buildPrisma({
+    settings: [
+      { key: 'operation_alert_sla_notification_auto_retry_enabled', value: true },
+      { key: 'operation_alert_sla_notification_retry_backoff_seconds', value: 60 },
+      { key: 'operation_alert_sla_notification_max_retry_count', value: 3 },
+      { key: 'operation_alert_sla_notification_retry_batch_size', value: 5 },
+      { key: 'operation_alert_sla_notification_lookback_hours', value: 24 },
+    ],
+    events: [
+      buildSlaNotificationEvent('failed-old', 'FAILED', {
+        deliveredAt: minutesAgo(15),
+        retryCount: 0,
+        dedupeKey: 'sla-retry-dedupe-1',
+        replayKey: 'sla-retry-replay-1',
+      }),
+      buildSlaNotificationEvent('failed-dead-letter', 'FAILED', {
+        deliveredAt: minutesAgo(30),
+        retryCount: 3,
+        dedupeKey: 'sla-dead-letter-dedupe-1',
+        replayKey: 'sla-dead-letter-replay-1',
+      }),
+    ],
+  });
+  const service = new SecurityOperationAlertSlaService(prisma as never, buildSecurityCenter() as never, buildStorage() as never);
+
+  const retryOverview = await service.getNotificationRetryOverview(buildUser());
+  const deadLetterOverview = await service.getDeadLetterOverview(buildUser());
+
+  assert.equal(retryOverview.retryable_items[0]?.source_system, 'security_center');
+  assert.equal(retryOverview.retryable_items[0]?.source_id, 'source-failed-old');
+  assert.equal(retryOverview.retryable_items[0]?.dedupe_key, 'sla-retry-dedupe-1');
+  assert.equal(retryOverview.retryable_items[0]?.request_id, 'request-failed-old');
+  assert.equal(retryOverview.retryable_items[0]?.trace_id, 'trace-failed-old');
+  assert.equal(retryOverview.retryable_items[0]?.replay_key, 'sla-retry-replay-1');
+
+  assert.equal(deadLetterOverview.items[0]?.source_system, 'security_center');
+  assert.equal(deadLetterOverview.items[0]?.source_id, 'source-failed-dead-letter');
+  assert.equal(deadLetterOverview.items[0]?.dedupe_key, 'sla-dead-letter-dedupe-1');
+  assert.equal(deadLetterOverview.items[0]?.request_id, 'request-failed-dead-letter');
+  assert.equal(deadLetterOverview.items[0]?.trace_id, 'trace-failed-dead-letter');
+  assert.equal(deadLetterOverview.items[0]?.replay_key, 'sla-dead-letter-replay-1');
+  assert.equal(deadLetterOverview.items[0]?.latest_action, null);
+});
+
 test('SLA notification auto retry records retries and task event without retrying dead letters', async () => {
   const prisma = buildPrisma({
     settings: [
@@ -170,7 +215,7 @@ function buildStorage() {
 function buildSlaNotificationEvent(
   id: string,
   status: 'FAILED' | 'PARTIAL' | 'SENT' | 'SKIPPED',
-  input: { deliveredAt: string; retryCount: number },
+  input: { deliveredAt: string; retryCount: number; dedupeKey?: string | null; replayKey?: string | null },
 ): PlatformEventRecord {
   return {
     id,
@@ -204,12 +249,15 @@ function buildSlaNotificationEvent(
       retried_from_event_id: null,
       dead_lettered: false,
       dead_letter_reason: null,
+      dedupe_key: input.dedupeKey ?? null,
+      replay_key: input.replayKey ?? null,
       delivered_at: input.deliveredAt,
     },
     occurredAt: new Date(input.deliveredAt),
     createdAt: new Date(input.deliveredAt),
     sourceSystem: 'security_center',
     sourceId: `source-${id}`,
+    dedupeKey: input.dedupeKey ?? null,
     user: buildActor('user-1', '申请人'),
   };
 }
@@ -233,6 +281,7 @@ function normalizeCreatedEvent(id: string, data: PlatformEventData): PlatformEve
     createdAt: data.createdAt ?? data.occurredAt ?? new Date(),
     sourceSystem: data.sourceSystem ?? null,
     sourceId: data.sourceId ?? null,
+    dedupeKey: data.dedupeKey ?? null,
     user: data.userId ? buildActor(data.userId, '申请人') : null,
   };
 }
@@ -304,6 +353,7 @@ type PlatformEventRecord = {
   createdAt: Date;
   sourceSystem: string | null;
   sourceId: string | null;
+  dedupeKey: string | null;
   user?: ReturnType<typeof buildActor> | null;
 };
 
@@ -334,4 +384,5 @@ type PlatformEventData = {
   createdAt?: Date;
   sourceSystem?: string | null;
   sourceId?: string | null;
+  dedupeKey?: string | null;
 };

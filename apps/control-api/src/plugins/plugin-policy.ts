@@ -5,6 +5,7 @@ import type {
   PluginManifestValidationResult,
   PluginPackageSignatureType,
   PluginRiskLevel,
+  PluginSandboxPolicyAudit,
   PluginSandboxPolicyPreview,
   PluginSourceType,
   PluginToolBindingPreview,
@@ -179,7 +180,49 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
   };
 }
 
-function readSandboxPolicy(manifest: Record<string, unknown>): PluginSandboxPolicyPreview {
+export function auditSandboxPolicyForHookExecution(manifest: Record<string, unknown> | null): PluginSandboxPolicyAudit {
+  const policy = readSandboxPolicy(manifest ?? {});
+  const violations: string[] = [];
+
+  if (policy.status === 'NOT_REQUIRED') {
+    return {
+      allowed: true,
+      policy,
+      risk_level: 'LOW',
+      violations,
+    };
+  }
+
+  if (policy.status !== 'DECLARED') {
+    violations.push('自定义代码入口必须声明 sandbox 策略。');
+  }
+  if (!policy.isolation) {
+    violations.push('sandbox.isolation 必须声明隔离方式。');
+  }
+  if (policy.network === 'ALLOW') {
+    violations.push('sandbox.network 不允许使用 ALLOW。');
+  } else if (!policy.network) {
+    violations.push('sandbox.network 必须声明网络策略。');
+  }
+  if (!policy.filesystem) {
+    violations.push('sandbox.filesystem 必须声明文件系统策略。');
+  }
+  if (!policy.timeout_ms || policy.timeout_ms <= 0) {
+    violations.push('sandbox.timeout_ms 必须大于 0。');
+  }
+  if (!policy.memory_mb || policy.memory_mb <= 0) {
+    violations.push('sandbox.memory_mb 必须大于 0。');
+  }
+
+  return {
+    allowed: violations.length === 0,
+    policy,
+    risk_level: buildSandboxRiskLevel(policy, violations),
+    violations,
+  };
+}
+
+export function readSandboxPolicy(manifest: Record<string, unknown>): PluginSandboxPolicyPreview {
   const entry = readPluginCodeEntry(manifest);
   if (!entry) {
     return {
@@ -226,6 +269,17 @@ function readSandboxPolicy(manifest: Record<string, unknown>): PluginSandboxPoli
   };
 }
 
+function buildSandboxRiskLevel(
+  policy: PluginSandboxPolicyPreview,
+  violations: string[],
+): PluginSandboxPolicyAudit['risk_level'] {
+  if (policy.status === 'NOT_REQUIRED') return 'LOW';
+  if (policy.status !== 'DECLARED' || policy.network === 'ALLOW') return 'CRITICAL';
+  if (violations.length > 0) return 'HIGH';
+  if (policy.network === 'ALLOWLIST' || policy.filesystem === 'TEMP' || policy.isolation === 'REMOTE') return 'MEDIUM';
+  return 'LOW';
+}
+
 function readPluginCodeEntry(manifest: Record<string, unknown>) {
   const runtime = isRecord(manifest.runtime) ? manifest.runtime : null;
   const runtimeType = runtime ? readFirstString(runtime, ['type', 'runtime_type'])?.toLowerCase() : null;
@@ -256,12 +310,18 @@ function normalizeSandboxFilesystem(value: string | null): PluginSandboxPolicyPr
 }
 
 function readPositiveInteger(value: unknown) {
-  const parsed = typeof value === 'number'
-    ? value
-    : typeof value === 'string'
-      ? Number.parseInt(value, 10)
-      : Number.NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number.parseInt(normalized, 10);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  return null;
 }
 
 function readSecurityReviewStatus(manifest: Record<string, unknown> | null) {

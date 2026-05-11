@@ -121,9 +121,9 @@ export function ProductionReadinessContent() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/monitor">
+            <Link href="/monitor/observability">
               <ExternalLink className="size-4" />
-              监控中心
+              可观测性质量
             </Link>
           </Button>
           <Button disabled={readinessQuery.isFetching} onClick={() => void readinessQuery.refetch()} type="button">
@@ -253,6 +253,20 @@ function ReadinessItemCard({
           <StatusBadge tone="planned">{item.owner}</StatusBadge>
         </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>
+        {item.evidence_summary || item.observability_signal ? (
+          <div className="mt-3 rounded-md border border-sky-200 bg-sky-50/60 px-3 py-2">
+            <div className="text-xs font-medium text-sky-950">可观测性证据</div>
+            {item.evidence_summary ? <div className="mt-1 text-xs leading-5 text-sky-900">{item.evidence_summary}</div> : null}
+            {item.observability_signal ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <TraceEvidencePill label="Trace 覆盖率" value={item.observability_signal.trace_coverage_label} />
+                <TraceEvidencePill label="孤立事件" value={item.observability_signal.orphan_event_label} />
+                <TraceEvidencePill label="错误链路" value={item.observability_signal.error_trace_label} />
+                <TraceEvidencePill label="慢链路" value={item.observability_signal.slow_trace_label} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-3 grid gap-2">
           {item.evidence.map((evidence) => (
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground" key={evidence}>
@@ -294,6 +308,15 @@ function ReadinessItemCard({
         {!canAccept ? <div className="text-xs text-muted-foreground">需要 system:settings:manage 权限。</div> : null}
         {error ? <div className="text-xs text-red-600">{error}</div> : null}
       </div>
+    </div>
+  );
+}
+
+function TraceEvidencePill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-sky-200 bg-background/80 px-2 py-1">
+      <div className="text-[11px] font-medium text-sky-950">{label}</div>
+      <div className="mt-0.5 text-xs leading-5 text-sky-800">{value}</div>
     </div>
   );
 }

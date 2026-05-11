@@ -339,6 +339,23 @@ export function WorkflowBackendCard({
                     {task.channel_id ? <span>渠道 {task.channel_id}</span> : null}
                     <span>{formatDateTime(task.updated_at)}</span>
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {task.failure_event_id ? (
+                      <Button asChild size="sm" type="button" variant="outline">
+                        <Link href={`/monitor/events/${task.failure_event_id}`}>查看失败事件</Link>
+                      </Button>
+                    ) : null}
+                    {task.failure_trace_id ? (
+                      <Button asChild size="sm" type="button" variant="outline">
+                        <Link href={`/monitor/traces/${task.failure_trace_id}`}>查看失败 Trace</Link>
+                      </Button>
+                    ) : null}
+                    {task.failure_request_id ? (
+                      <Button asChild size="sm" type="button" variant="outline">
+                        <Link href={`/monitor?requestId=${encodeURIComponent(task.failure_request_id)}`}>查看失败请求</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <Button disabled={!canRetry(task) || pending} onClick={() => onRetry(task.task_type, task.task_id)} type="button" variant="outline">
                   <RotateCcw className={pending ? 'size-4 animate-spin' : 'size-4'} />

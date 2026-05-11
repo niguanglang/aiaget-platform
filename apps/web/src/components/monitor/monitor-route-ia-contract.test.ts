@@ -172,6 +172,14 @@ test('runtime workflows page owns runtime workflow API calls', () => {
   assert.match(sharedPanelsSource, /Workflow Run ID/);
   assert.match(sharedPanelsSource, /task\.workflow_id/);
   assert.match(sharedPanelsSource, /task\.workflow_run_id/);
+  assert.match(sharedPanelsSource, /task\.failure_event_id/);
+  assert.match(sharedPanelsSource, /task\.failure_trace_id/);
+  assert.match(sharedPanelsSource, /task\.failure_request_id/);
+  assert.match(sharedPanelsSource, /查看失败事件/);
+  assert.match(sharedPanelsSource, /查看失败 Trace/);
+  assert.match(sharedPanelsSource, /查看失败请求/);
+  assert.match(sharedPanelsSource, /\/monitor\/events\/\$\{task\.failure_event_id\}/);
+  assert.match(sharedPanelsSource, /\/monitor\/traces\/\$\{task\.failure_trace_id\}/);
   assert.doesNotMatch(sharedPanelsSource, /完整日志/);
   assert.doesNotMatch(sharedPanelsSource, /Trace 详情/);
 });

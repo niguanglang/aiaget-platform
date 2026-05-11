@@ -158,10 +158,13 @@ test('getWorkflowStatus lists failed channel release workflows as recoverable ta
       }),
       findMany: async () => [
         {
+          id: 'event-channel-1',
           eventType: 'workflow.channel_release_automation.failed',
           channelId: 'channel-1',
           resourceId: 'channel-1',
           taskId: 'workflow-1',
+          traceId: 'trace-channel-1',
+          requestId: 'request-channel-1',
           summary: '渠道自动推进失败：gate rejected',
           payloadJson: {
             channel_id: 'channel-1',
@@ -217,6 +220,9 @@ test('getWorkflowStatus lists failed channel release workflows as recoverable ta
   assert.equal(status.recoverable_tasks[0]?.workflow_task_type, 'CHANNEL_RELEASE_AUTOMATION');
   assert.equal(status.recoverable_tasks[0]?.workflow_id, 'workflow-1');
   assert.equal(status.recoverable_tasks[0]?.workflow_run_id, 'workflow-run-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_event_id, 'event-channel-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_trace_id, 'trace-channel-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_request_id, 'request-channel-1');
   assert.equal(status.recoverable_tasks[0]?.title, '生产灰度渠道');
   assert.equal(status.recoverable_tasks[0]?.error_message, 'gate rejected');
   assert.equal(status.recoverable_tasks[1]?.task_id, 'channel-2');

@@ -1,0 +1,3 @@
+# Product Prototype / Wireframe Prompt
+
+Create a mid-fidelity wireframe for `/runtime/workflows`. Layout: page header with Runtime badges, title "Runtime 工作流", description, and "返回监控" button. Body: one "工作流后端" card with top status row and refresh button; optional "最近派发失败" alert; then a recoverable task list. Each task row has left content with compact metadata and a secondary action cluster for monitor deep links, and right content with "恢复重试". Prototype must show absent deep links as hidden rather than disabled clutter. Detail pages are represented only as outgoing links to monitor event, trace, and request filter routes.

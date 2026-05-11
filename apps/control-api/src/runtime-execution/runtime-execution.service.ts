@@ -1729,6 +1729,18 @@ function workflowRunIdFromWorkflowEvent(event: {
     ?? stringValue(event.runId);
 }
 
+function failureMonitorIdentifiersFromWorkflowEvent(event: {
+  id?: string | null;
+  traceId?: string | null;
+  requestId?: string | null;
+}): Pick<RuntimeWorkflowRecoverableTaskItem, 'failure_event_id' | 'failure_trace_id' | 'failure_request_id'> {
+  return {
+    failure_event_id: stringValue(event.id),
+    failure_trace_id: stringValue(event.traceId),
+    failure_request_id: stringValue(event.requestId),
+  };
+}
+
 function pluginVersionIdFromWorkflowEvent(event: {
   taskId?: string | null;
   payloadJson?: unknown;
@@ -1787,9 +1799,12 @@ function channelIdFromWorkflowEvent(event: {
 
 function mapAgentTeamWorkflowRecoverableTask(
   event: {
+    id?: string | null;
     eventType: string;
     runId?: string | null;
     taskId?: string | null;
+    traceId?: string | null;
+    requestId?: string | null;
     summary?: string | null;
     payloadJson?: unknown;
     occurredAt: Date;
@@ -1828,6 +1843,7 @@ function mapAgentTeamWorkflowRecoverableTask(
     run_id: runId,
     workflow_id: workflowIdFromWorkflowEvent(event),
     workflow_run_id: workflowRunIdFromWorkflowEvent(event),
+    ...failureMonitorIdentifiersFromWorkflowEvent(event),
     error_message: run?.errorMessage ?? stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: (run?.updatedAt ?? event.occurredAt).toISOString(),
   };
@@ -1835,10 +1851,13 @@ function mapAgentTeamWorkflowRecoverableTask(
 
 function mapChannelWorkflowRecoverableTask(
   event: {
+    id?: string | null;
     eventType: string;
     channelId?: string | null;
     resourceId?: string | null;
     taskId?: string | null;
+    traceId?: string | null;
+    requestId?: string | null;
     summary?: string | null;
     payloadJson?: unknown;
     occurredAt: Date;
@@ -1871,6 +1890,7 @@ function mapChannelWorkflowRecoverableTask(
     channel_id: channelId,
     workflow_id: workflowIdFromWorkflowEvent(event),
     workflow_run_id: workflowRunIdFromWorkflowEvent(event),
+    ...failureMonitorIdentifiersFromWorkflowEvent(event),
     error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: event.occurredAt.toISOString(),
   };
@@ -1878,10 +1898,13 @@ function mapChannelWorkflowRecoverableTask(
 
 function mapPluginWorkflowRecoverableTask(
   event: {
+    id?: string | null;
     eventType: string;
     pluginId?: string | null;
     resourceId?: string | null;
     taskId?: string | null;
+    traceId?: string | null;
+    requestId?: string | null;
     summary?: string | null;
     payloadJson?: unknown;
     occurredAt: Date;
@@ -1913,6 +1936,7 @@ function mapPluginWorkflowRecoverableTask(
       hook_code: hookCode,
       workflow_id: workflowIdFromWorkflowEvent(event),
       workflow_run_id: workflowRunIdFromWorkflowEvent(event),
+      ...failureMonitorIdentifiersFromWorkflowEvent(event),
       error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
       updated_at: event.occurredAt.toISOString(),
     };
@@ -1944,6 +1968,7 @@ function mapPluginWorkflowRecoverableTask(
     version,
     workflow_id: workflowIdFromWorkflowEvent(event),
     workflow_run_id: workflowRunIdFromWorkflowEvent(event),
+    ...failureMonitorIdentifiersFromWorkflowEvent(event),
     error_message: stringValue(payload?.error_message) ?? stringValue(event.summary),
     updated_at: event.occurredAt.toISOString(),
   };

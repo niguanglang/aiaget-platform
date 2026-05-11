@@ -136,6 +136,95 @@ test('retryWorkflowTask requires workflow-specific recovery permissions', async 
   );
 });
 
+test('getWorkflowStatus links failed knowledge tasks to failure monitor records', async () => {
+  const occurredAt = new Date('2026-05-04T01:02:03.000Z');
+  const taskUpdatedAt = new Date('2026-05-04T01:03:04.000Z');
+  const prisma = {
+    $transaction: async (queries: unknown[]) => Promise.all(queries),
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-latest',
+        eventType: 'workflow.knowledge_task.failed',
+        taskId: 'task-1',
+        resourceId: 'task-1',
+        summary: '知识库后台任务失败。',
+        payloadJson: {
+          task_id: 'task-1',
+          error_message: 'parse failed',
+          workflow_backend: 'TEMPORAL',
+        },
+        occurredAt,
+      }),
+      findMany: async (args: { where: { eventType?: { in?: string[] } } }) => {
+        const eventTypes = args.where.eventType?.in ?? [];
+        if (eventTypes.includes('workflow.knowledge_task.failed')) {
+          return [
+            {
+              id: 'event-knowledge-1',
+              eventType: 'workflow.knowledge_task.failed',
+              resourceId: 'task-1',
+              taskId: 'task-1',
+              traceId: 'trace-knowledge-1',
+              requestId: 'request-knowledge-1',
+              summary: '知识库后台任务失败：parse failed',
+              payloadJson: {
+                task_id: 'task-1',
+                workflow_id: 'knowledge-workflow-1',
+                workflow_run_id: 'knowledge-run-1',
+                error_message: 'parse failed',
+              },
+              occurredAt,
+            },
+          ];
+        }
+        return [];
+      },
+    },
+    knowledgeEmbeddingTask: {
+      findMany: async () => [
+        {
+          id: 'task-1',
+          tenantId: 'tenant-1',
+          taskType: 'PROCESS',
+          status: 'FAILED',
+          knowledgeId: 'knowledge-1',
+          documentId: 'document-1',
+          errorMessage: 'parse failed',
+          updatedAt: taskUpdatedAt,
+          knowledge: {
+            id: 'knowledge-1',
+            name: '运维知识库',
+          },
+          document: {
+            id: 'document-1',
+            title: '巡检手册.pdf',
+          },
+        },
+      ],
+    },
+    agentPublishChannel: {
+      findMany: async () => [],
+    },
+    agentTeamRun: {
+      findMany: async () => [],
+    },
+    plugin: {
+      findMany: async () => [],
+    },
+  };
+
+  const service = createRuntimeExecutionService({ prisma });
+  const status = await service.getWorkflowStatus(buildUser());
+
+  assert.deepEqual(status.recoverable_tasks.map((task) => task.task_type), ['knowledge_task']);
+  assert.equal(status.recoverable_tasks[0]?.task_id, 'task-1');
+  assert.equal(status.recoverable_tasks[0]?.workflow_id, 'knowledge-workflow-1');
+  assert.equal(status.recoverable_tasks[0]?.workflow_run_id, 'knowledge-run-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_event_id, 'event-knowledge-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_trace_id, 'trace-knowledge-1');
+  assert.equal(status.recoverable_tasks[0]?.failure_request_id, 'request-knowledge-1');
+});
+
 test('getWorkflowStatus lists failed channel release workflows as recoverable tasks', async () => {
   const occurredAt = new Date('2026-05-05T01:02:03.000Z');
   const prisma = {

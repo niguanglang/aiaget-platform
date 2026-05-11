@@ -1,0 +1,3 @@
+# Product UI Design Image Prompt
+
+Create a high-fidelity Chinese enterprise SaaS admin interface for `/runtime/workflows`, focused on a recoverable knowledge-base background task. The task row title is a document name such as "巡检手册.pdf", with badges "知识库任务" and "PROCESS", concise error text, task id, Workflow ID, Workflow Run ID, knowledge base id, document id, updated time, and monitor deep-link buttons "查看失败事件", "查看失败 Trace", "查看失败请求". Keep the page compact and operational, using shadcn/Tailwind dashboard styling, subtle border, soft shadow, clean whitespace, no event payloads embedded in the row.

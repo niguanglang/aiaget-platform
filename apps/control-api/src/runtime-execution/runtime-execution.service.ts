@@ -210,7 +210,7 @@ export class RuntimeExecutionService {
   }
 
   async getWorkflowStatus(currentUser: AuthenticatedUser): Promise<RuntimeWorkflowStatusOverview> {
-    const [latestEvent, failedTasks, failedChannelEvents, failedAgentTeamEvents, failedPluginEvents] = await this.prisma.$transaction([
+    const [latestEvent, failedTasks, failedKnowledgeEvents, failedChannelEvents, failedAgentTeamEvents, failedPluginEvents] = await this.prisma.$transaction([
       this.prisma.platformEvent.findFirst({
         where: {
           tenantId: currentUser.tenantId,
@@ -248,6 +248,20 @@ export class RuntimeExecutionService {
           updatedAt: 'desc',
         },
         take: 5,
+      }),
+      this.prisma.platformEvent.findMany({
+        where: {
+          tenantId: currentUser.tenantId,
+          eventSource: 'runtime_workflow',
+          status: 'FAILED',
+          eventType: {
+            in: ['workflow.knowledge_task.failed', 'workflow.knowledge_task.dispatch_failed'],
+          },
+        },
+        orderBy: {
+          occurredAt: 'desc',
+        },
+        take: 10,
       }),
       this.prisma.platformEvent.findMany({
         where: {
@@ -304,6 +318,13 @@ export class RuntimeExecutionService {
       workflowBackend: normalizeWorkflowBackend(payload?.workflow_backend),
       errorMessage: latestEvent.summary ?? stringValue(payload?.error_message),
     } : null);
+    const failedKnowledgeEventByTaskId = new Map<string, (typeof failedKnowledgeEvents)[number]>();
+    for (const event of failedKnowledgeEvents) {
+      const taskId = knowledgeTaskIdFromWorkflowEvent(event);
+      if (taskId && !failedKnowledgeEventByTaskId.has(taskId)) {
+        failedKnowledgeEventByTaskId.set(taskId, event);
+      }
+    }
     const channelIds = Array.from(
       new Set(
         failedChannelEvents
@@ -380,17 +401,7 @@ export class RuntimeExecutionService {
     }) : [];
     const pluginById = new Map(plugins.map((plugin) => [plugin.id, plugin]));
     const recoverableTasks: RuntimeWorkflowRecoverableTaskItem[] = [
-      ...failedTasks.map((task) => ({
-        task_type: 'knowledge_task' as const,
-        task_id: task.id,
-        workflow_task_type: task.taskType,
-        status: task.status,
-        title: task.document?.title ?? task.knowledge.name,
-        knowledge_base_id: task.knowledgeId,
-        document_id: task.documentId,
-        error_message: task.errorMessage,
-        updated_at: task.updatedAt.toISOString(),
-      })),
+      ...failedTasks.map((task) => mapKnowledgeWorkflowRecoverableTask(task, failedKnowledgeEventByTaskId.get(task.id))),
       ...failedChannelEvents
         .map((event) => mapChannelWorkflowRecoverableTask(event, channelById.get(channelIdFromWorkflowEvent(event) ?? '')))
         .filter((task): task is RuntimeWorkflowRecoverableTaskItem => Boolean(task)),
@@ -1795,6 +1806,54 @@ function channelIdFromWorkflowEvent(event: {
   return stringValue(event.channelId)
     ?? stringValue(payload?.channel_id)
     ?? stringValue(event.resourceId);
+}
+
+function knowledgeTaskIdFromWorkflowEvent(event: {
+  taskId?: string | null;
+  resourceId?: string | null;
+  payloadJson?: unknown;
+}) {
+  const payload = jsonObjectOrNull(event.payloadJson);
+  return stringValue(payload?.task_id)
+    ?? stringValue(event.taskId)
+    ?? stringValue(event.resourceId);
+}
+
+function mapKnowledgeWorkflowRecoverableTask(
+  task: {
+    id: string;
+    taskType: string;
+    status: string;
+    knowledgeId: string;
+    documentId: string | null;
+    errorMessage?: string | null;
+    updatedAt: Date;
+    knowledge: { name: string };
+    document?: { title?: string | null } | null;
+  },
+  event: {
+    id?: string | null;
+    taskId?: string | null;
+    resourceId?: string | null;
+    traceId?: string | null;
+    requestId?: string | null;
+    payloadJson?: unknown;
+  } | undefined,
+): RuntimeWorkflowRecoverableTaskItem {
+  return {
+    task_type: 'knowledge_task',
+    task_id: task.id,
+    workflow_task_type: task.taskType,
+    status: task.status,
+    title: task.document?.title ?? task.knowledge.name,
+    knowledge_base_id: task.knowledgeId,
+    document_id: task.documentId,
+    workflow_id: event ? workflowIdFromWorkflowEvent(event) : undefined,
+    workflow_run_id: event ? workflowRunIdFromWorkflowEvent(event) : undefined,
+    ...(event ? failureMonitorIdentifiersFromWorkflowEvent(event) : {}),
+    error_message: task.errorMessage ?? null,
+    updated_at: task.updatedAt.toISOString(),
+  };
 }
 
 function mapAgentTeamWorkflowRecoverableTask(

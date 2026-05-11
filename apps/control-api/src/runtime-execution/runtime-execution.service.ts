@@ -210,7 +210,6 @@ export class RuntimeExecutionService {
   }
 
   async getWorkflowStatus(currentUser: AuthenticatedUser): Promise<RuntimeWorkflowStatusOverview> {
-    const mode = normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
     const [latestEvent, failedTasks, failedChannelEvents, failedAgentTeamEvents, failedPluginEvents] = await this.prisma.$transaction([
       this.prisma.platformEvent.findFirst({
         where: {
@@ -299,6 +298,7 @@ export class RuntimeExecutionService {
       }),
     ]);
     const payload = jsonObjectOrNull(latestEvent?.payloadJson);
+    const mode = resolveWorkflowModeForEvent(latestEvent?.eventType);
     const backendStatus = resolveWorkflowBackendStatus(mode, latestEvent ? {
       eventType: latestEvent.eventType,
       workflowBackend: normalizeWorkflowBackend(payload?.workflow_backend),
@@ -1609,6 +1609,30 @@ function workflowTaskTypeFromEvent(eventType: string | undefined | null): Runtim
   }
 
   return 'knowledge_task';
+}
+
+function resolveWorkflowModeForEvent(eventType: string | undefined | null) {
+  if (eventType?.startsWith('workflow.channel_release_self_healing.')) {
+    return normalizeWorkflowMode(process.env.CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE);
+  }
+
+  if (eventType?.startsWith('workflow.channel_release_')) {
+    return normalizeWorkflowMode(process.env.CHANNEL_RELEASE_WORKFLOW_MODE);
+  }
+
+  if (eventType === 'workflow.agent_team_run.failed' || eventType === 'workflow.agent_team_run.finished' || eventType === 'workflow.agent_team_run.started') {
+    return normalizeWorkflowMode(process.env.AGENT_TEAM_WORKFLOW_MODE);
+  }
+
+  if (eventType?.startsWith('workflow.plugin_rollback.')) {
+    return normalizeWorkflowMode(process.env.PLUGIN_ROLLBACK_WORKFLOW_MODE);
+  }
+
+  if (eventType?.startsWith('workflow.plugin_hook_execution.')) {
+    return normalizeWorkflowMode(process.env.PLUGIN_HOOK_WORKFLOW_MODE);
+  }
+
+  return normalizeWorkflowMode(process.env.KNOWLEDGE_WORKFLOW_MODE);
 }
 
 function workflowRetryPermissionCode(taskType: RuntimeWorkflowTaskType) {

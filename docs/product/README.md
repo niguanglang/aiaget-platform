@@ -141,6 +141,7 @@ Product requirements, page specs, and milestone acceptance criteria live here.
 - [M155 插件生产预检闭环](./m155-plugin-production-precheck-closure.md)
 - [M156 插件 Manifest 同步收敛](./m156-plugin-manifest-sync-convergence.md)
 - [M157 渠道配置敏感字段边界](./m157-channel-config-secret-boundary.md)
+- [M158 Runtime Workflow 领域状态归一](./m158-runtime-workflow-domain-status.md)
 - [M112 审批与归档告警通知任务失败聚合分类增强](./m112-approval-archive-alert-notification-task-failure-category.md)
 - [M113 审批与归档告警通知任务自愈闭环失败来源分类](./m113-approval-archive-alert-notification-task-recovery-failure-source-closure.md)
 - [M114 审批与归档告警通知任务失败来源运营告警升级](./m114-approval-archive-alert-notification-task-source-alerts.md)

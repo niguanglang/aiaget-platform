@@ -218,6 +218,59 @@ test('getWorkflowStatus lists failed channel release workflows as recoverable ta
   assert.equal(status.recoverable_tasks[1]?.title, 'WECHAT');
 });
 
+test('getWorkflowStatus reports workflow mode from the latest workflow domain', async () => {
+  const previousKnowledgeMode = process.env.KNOWLEDGE_WORKFLOW_MODE;
+  const previousChannelMode = process.env.CHANNEL_RELEASE_WORKFLOW_MODE;
+  process.env.KNOWLEDGE_WORKFLOW_MODE = 'local';
+  process.env.CHANNEL_RELEASE_WORKFLOW_MODE = 'temporal';
+  const occurredAt = new Date('2026-05-05T01:02:03.000Z');
+  const prisma = {
+    $transaction: async (queries: unknown[]) => Promise.all(queries),
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-latest',
+        eventType: 'workflow.channel_release_automation.dispatched',
+        taskId: 'workflow-1',
+        resourceId: 'channel-1',
+        summary: '渠道自动推进已派发。',
+        payloadJson: {
+          channel_id: 'channel-1',
+          workflow_id: 'workflow-1',
+          workflow_backend: 'TEMPORAL',
+        },
+        occurredAt,
+      }),
+      findMany: async () => [],
+    },
+    knowledgeEmbeddingTask: {
+      findMany: async () => [],
+    },
+    agentPublishChannel: {
+      findMany: async () => [],
+    },
+  };
+
+  try {
+    const service = createRuntimeExecutionService({ prisma });
+    const status = await service.getWorkflowStatus(buildUser());
+
+    assert.equal(status.workflow_mode, 'temporal');
+    assert.equal(status.workflow_backend, 'TEMPORAL');
+    assert.equal(status.backend_status, 'READY');
+  } finally {
+    if (previousKnowledgeMode === undefined) {
+      delete process.env.KNOWLEDGE_WORKFLOW_MODE;
+    } else {
+      process.env.KNOWLEDGE_WORKFLOW_MODE = previousKnowledgeMode;
+    }
+    if (previousChannelMode === undefined) {
+      delete process.env.CHANNEL_RELEASE_WORKFLOW_MODE;
+    } else {
+      process.env.CHANNEL_RELEASE_WORKFLOW_MODE = previousChannelMode;
+    }
+  }
+});
+
 test('getWorkflowStatus lists failed agent team workflow runs as recoverable tasks', async () => {
   const occurredAt = new Date('2026-05-06T01:02:03.000Z');
   const prisma = {

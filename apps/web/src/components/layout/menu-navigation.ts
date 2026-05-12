@@ -61,6 +61,8 @@ export interface NavigationLink {
   icon: LucideIcon;
   description: string;
   level: number;
+  affix: boolean;
+  hideBreadcrumb: boolean;
   children: NavigationLink[];
 }
 
@@ -196,6 +198,8 @@ export function buildNavigationLinks(menus: AuthorizedMenuItem[] | undefined, pe
         icon: item.icon,
         description: item.description,
         level: 1,
+        affix: item.href === '/dashboard',
+        hideBreadcrumb: false,
         children: [],
       }));
   }
@@ -229,6 +233,8 @@ function mapAuthorizedMenu(menu: AuthorizedMenuItem, level: number): NavigationL
     icon: resolveIcon(menu),
     description: menu.permission_code ? `权限：${menu.permission_code}` : '租户菜单',
     level,
+    affix: menu.affix,
+    hideBreadcrumb: menu.hide_breadcrumb,
     children,
   };
 
@@ -261,6 +267,8 @@ function appendFallbackModules(navigation: NavigationLink[], permissions: readon
       icon: item.icon,
       description: item.description,
       level: 1,
+      affix: false,
+      hideBreadcrumb: false,
       children: [],
     }));
 

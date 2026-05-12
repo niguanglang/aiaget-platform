@@ -10,6 +10,9 @@ const menuEditSourcePath = join(process.cwd(), 'src/components/menus/menu-edit-c
 const menuNavigationSource = readFileSync(join(process.cwd(), 'src/components/layout/menu-navigation.ts'), 'utf8');
 const sidebarSource = readFileSync(join(process.cwd(), 'src/components/layout/sidebar.tsx'), 'utf8');
 const mobileNavSource = readFileSync(join(process.cwd(), 'src/components/layout/mobile-nav.tsx'), 'utf8');
+const consoleShellSource = readFileSync(join(process.cwd(), 'src/components/layout/console-shell.tsx'), 'utf8');
+const consoleRouteChromeSource = readFileSync(join(process.cwd(), 'src/components/layout/console-route-chrome.tsx'), 'utf8');
+const topbarSource = readFileSync(join(process.cwd(), 'src/components/layout/topbar.tsx'), 'utf8');
 const sharedTypesSource = readFileSync(join(process.cwd(), '../../packages/shared-types/src/index.ts'), 'utf8');
 
 test('menu center route-level pages exist for list, create, detail, and edit', () => {
@@ -158,6 +161,33 @@ test('desktop sidebar keeps routed menu links and expand buttons as sibling cont
   assert.match(sidebarSource, /aria-expanded=\{isExpanded\}/);
   assert.doesNotMatch(routedLinkBranch, /\{chevron\}/);
   assert.doesNotMatch(routedLinkBranch, /<button[\s\S]*<\/Link>/);
+});
+
+test('mobile navigation treats directory nodes as drilldown buttons instead of hash links', () => {
+  assert.match(mobileNavSource, /onDrilldown/);
+  assert.match(mobileNavSource, /item\.href === '#'/);
+  assert.match(mobileNavSource, /type="button"/);
+  assert.match(mobileNavSource, /aria-expanded/);
+  assert.doesNotMatch(mobileNavSource, /href=\{item\.href\}[\s\S]*item\.href === '#'/);
+});
+
+test('console shell owns breadcrumbs, visited tabs, and persisted sidebar collapse state', () => {
+  assert.match(consoleShellSource, /ConsoleRouteChrome/);
+  assert.match(consoleShellSource, /AIAget\.sidebarCollapsed/);
+  assert.match(consoleShellSource, /window\.localStorage/);
+  assert.match(consoleRouteChromeSource, /visitedTabs/);
+  assert.match(consoleRouteChromeSource, /面包屑/);
+  assert.match(consoleRouteChromeSource, /访问页签/);
+  assert.match(consoleRouteChromeSource, /closeVisitedTab/);
+  assert.doesNotMatch(consoleRouteChromeSource, /<button[\s\S]*<\/Link>/);
+});
+
+test('topbar exposes a real command search entry backed by navigation links', () => {
+  assert.match(topbarSource, /CommandSearch/);
+  assert.match(topbarSource, /flattenNavigationLinks/);
+  assert.match(topbarSource, /搜索菜单、路由或模块/);
+  assert.match(topbarSource, /暂无匹配菜单/);
+  assert.match(topbarSource, /Escape/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

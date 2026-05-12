@@ -40,6 +40,7 @@ function SidebarNavItem({ item, pathname }: { item: NavigationLink; pathname: st
   const Icon = item.icon;
   const isActive = !item.external && item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`));
   const hasClickableRoute = item.href !== '#';
+  const childIndentClass = item.level === 2 ? 'pl-7 text-[13px]' : item.level > 2 ? 'pl-10 text-[12px]' : '';
   const content = (
     <>
       <Icon className="size-4" />
@@ -54,7 +55,8 @@ function SidebarNavItem({ item, pathname }: { item: NavigationLink; pathname: st
           aria-current={isActive ? 'page' : undefined}
           className={cn(
             'flex min-h-10 items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors',
-            item.level > 1 && 'min-h-9 pl-7 text-[13px]',
+            item.level > 1 && 'min-h-9',
+            childIndentClass,
             isActive
               ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
               : 'text-slate-700 hover:border-slate-200/70 hover:bg-white/70 hover:text-blue-700',
@@ -70,7 +72,7 @@ function SidebarNavItem({ item, pathname }: { item: NavigationLink; pathname: st
         <div
           className={cn(
             'mt-2 flex min-h-8 items-center gap-3 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground',
-            item.level > 1 && 'pl-7',
+            childIndentClass,
           )}
           title={item.description}
         >

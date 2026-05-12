@@ -8,6 +8,8 @@ const menuDetailSourcePath = join(process.cwd(), 'src/components/menus/menu-deta
 const menuCreateSourcePath = join(process.cwd(), 'src/components/menus/menu-create-content.tsx');
 const menuEditSourcePath = join(process.cwd(), 'src/components/menus/menu-edit-content.tsx');
 const menuNavigationSource = readFileSync(join(process.cwd(), 'src/components/layout/menu-navigation.ts'), 'utf8');
+const sidebarSource = readFileSync(join(process.cwd(), 'src/components/layout/sidebar.tsx'), 'utf8');
+const mobileNavSource = readFileSync(join(process.cwd(), 'src/components/layout/mobile-nav.tsx'), 'utf8');
 const sharedTypesSource = readFileSync(join(process.cwd(), '../../packages/shared-types/src/index.ts'), 'utf8');
 
 test('menu center route-level pages exist for list, create, detail, and edit', () => {
@@ -110,6 +112,29 @@ test('authorized navigation keeps external and redirect menu entries clickable',
   assert.match(menuNavigationSource, /if \(menu\.is_external && menu\.external_url\) return menu\.external_url/);
   assert.match(menuNavigationSource, /if \(menu\.redirect_path\) return menu\.redirect_path/);
   assert.match(menuNavigationSource, /menu\.type === 'DIRECTORY' && children\.length === 0 && href === '#'/);
+});
+
+test('authorized navigation maps new business-domain menu codes to icons', () => {
+  for (const code of [
+    'agent_platform',
+    'customer_delivery',
+    'channel_operations',
+    'external_access',
+    'observability_center',
+    'platform_usage',
+    'runtime_workflows',
+    'settings_notification_policy',
+  ]) {
+    assert.match(menuNavigationSource, new RegExp(`${code}:`));
+  }
+});
+
+test('sidebar and mobile navigation support deep menu trees', () => {
+  assert.match(sidebarSource, /item\.level > 2/);
+  assert.match(sidebarSource, /pathname\.startsWith/);
+  assert.doesNotMatch(mobileNavSource, /flattenNavigationLinks\(buildNavigationLinks/);
+  assert.match(mobileNavSource, /function buildMobileNavigationLevels/);
+  assert.match(mobileNavSource, /while \(currentItems\.length > 0\)/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

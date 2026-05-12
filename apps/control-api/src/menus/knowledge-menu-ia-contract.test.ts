@@ -5,8 +5,11 @@ import test from 'node:test';
 
 const seedText = readFileSync(join(process.cwd(), 'prisma/seed.ts'), 'utf8');
 
-test('knowledge create edit and dynamic operation routes stay route-level pages outside menu seed', () => {
+test('knowledge menu seed exposes static operation pages and excludes dynamic pages', () => {
+  assert.match(seedText, /path: '\/knowledge\/activity'/);
+  assert.match(seedText, /path: '\/knowledge\/health'/);
   assert.doesNotMatch(seedText, /path: '\/knowledge\/create'/);
+  assert.doesNotMatch(seedText, /path: '\/knowledge\/\[id\]/);
   assert.doesNotMatch(seedText, /path: '\/knowledge\/\[id\]\/edit'/);
   assert.doesNotMatch(seedText, /path: '\/knowledge\/\[id\]\/documents'/);
   assert.doesNotMatch(seedText, /path: '\/knowledge\/\[id\]\/upload'/);

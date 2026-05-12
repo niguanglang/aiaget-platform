@@ -32,3 +32,8 @@ test('default menu seed exposes focused security center pages', () => {
   assert.match(seedText, /code: 'security_recovery'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/recovery'/);
   assert.match(seedText, /code: 'security_archives'[\s\S]*parentCode: 'security_center'[\s\S]*path: '\/security\/archives'/);
 });
+
+test('billing invoice seed is idempotent by subscription period', () => {
+  assert.match(seedText, /tenantId_subscriptionId_periodStart_periodEnd/);
+  assert.doesNotMatch(seedText, /billingInvoice\.upsert\(\{[\s\S]*?where: \{[\s\S]*?tenantId_invoiceNo/);
+});

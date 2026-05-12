@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import 'reflect-metadata';
 
-import { HttpPluginSandboxExecutor } from './plugin-sandbox-executor';
+import { HttpPluginSandboxExecutor, RuntimePluginSandboxExecutor } from './plugin-sandbox-executor';
+
+test('RuntimePluginSandboxExecutor exposes resolvable constructor metadata for Nest startup', () => {
+  const selfDeclaredDependencies = Reflect.getMetadata('self:paramtypes', RuntimePluginSandboxExecutor) as Array<{
+    index: number;
+    param: unknown;
+  }> | undefined;
+
+  assert.deepEqual(selfDeclaredDependencies?.find((dependency) => dependency.index === 0), {
+    index: 0,
+    param: HttpPluginSandboxExecutor,
+  });
+});
 
 test('HttpPluginSandboxExecutor is disabled when remote executor URL is not configured', async () => {
   const originalUrl = process.env.PLUGIN_SANDBOX_EXECUTOR_URL;

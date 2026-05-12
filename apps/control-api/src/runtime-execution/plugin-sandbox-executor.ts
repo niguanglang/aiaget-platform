@@ -101,6 +101,7 @@ export class HttpPluginSandboxExecutor implements PluginSandboxExecutor {
 @Injectable()
 export class RuntimePluginSandboxExecutor implements PluginSandboxExecutor {
   constructor(
+    @Inject(HttpPluginSandboxExecutor)
     private readonly defaultExecutor: HttpPluginSandboxExecutor,
     @Optional() @Inject(PLUGIN_SANDBOX_EXECUTOR) private readonly overrideExecutor: PluginSandboxExecutor | null = null,
   ) {}

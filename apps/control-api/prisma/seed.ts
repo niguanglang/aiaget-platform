@@ -2524,9 +2524,11 @@ async function seedBillingCommercialization(tenantId: string, operatorId: string
   ]) {
     await prisma.billingInvoice.upsert({
       where: {
-        tenantId_invoiceNo: {
+        tenantId_subscriptionId_periodStart_periodEnd: {
           tenantId,
-          invoiceNo: invoice.invoiceNo,
+          subscriptionId: subscription.id,
+          periodStart: invoice.periodStart,
+          periodEnd: invoice.periodEnd,
         },
       },
       create: {
@@ -2550,6 +2552,7 @@ async function seedBillingCommercialization(tenantId: string, operatorId: string
       },
       update: {
         subscriptionId: subscription.id,
+        invoiceNo: invoice.invoiceNo,
         status: invoice.status,
         currency: businessPlan.currency,
         subtotalAmount: invoice.subtotalAmount,

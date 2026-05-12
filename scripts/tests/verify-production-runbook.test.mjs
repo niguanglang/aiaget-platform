@@ -10,6 +10,7 @@ const completeRunbook = `
 ## 2. 环境校验
 pnpm validate:prod-env
 pnpm verify:prod-template
+node scripts/production-dependency-probe.mjs --env-file .env.production --json
 
 ## 3. 数据库迁移与 Seed
 pnpm --filter @aiaget/control-api prisma:deploy
@@ -67,6 +68,7 @@ test('collectProductionRunbookIssues reports missing release safety sections', (
       'Runbook must include 观测与 Trace',
       'Runbook must include 回滚',
       'Runbook must mention pnpm verify:prod-template',
+      'Runbook must mention production-dependency-probe.mjs',
       'Runbook must mention prisma:deploy',
       'Runbook must mention agent-runtime-worker',
       'Runbook must mention --profile temporal-worker',

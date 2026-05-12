@@ -36,6 +36,13 @@ docker compose -f deploy/docker-compose.production.yml --env-file /secure/path/.
 
 `validate-production-env.mjs` 会拒绝 `runtime_first`、`control_first`、`local` 和 `temporal_first`。这些模式只适合开发、兼容或单实例演示；生产验收必须让 Runtime 和 Temporal 失败显性暴露，不能静默回落到 Control API 或本地后台任务。
 
+外部依赖只读探针不会启动容器，也不会创建数据库、桶、索引、collection、workflow 或插件。它只连接 `.env.production` 中已经批准的地址并输出脱敏 JSON 证据：
+
+```bash
+node scripts/production-dependency-probe.mjs --env-file .env.production --json
+pnpm probe:prod-deps
+```
+
 ## 3. 数据库迁移与 Seed
 
 迁移前先做数据库备份。迁移命令只连接现有 PostgreSQL，不创建数据库容器：
@@ -107,6 +114,12 @@ node scripts/production-smoke.mjs \
   --web https://console.example.com
 ```
 
+外部依赖 smoke：
+
+```bash
+node scripts/production-dependency-probe.mjs --env-file .env.production --json
+```
+
 如果要同时执行登录后的核心业务只读探针，提供管理员账号：
 
 ```bash
@@ -145,6 +158,16 @@ node scripts/production-smoke.mjs \
 - `GET /api/v1/runtime/health`
 - `GET /runtime/health`
 - `GET /login`
+
+依赖探针必须覆盖并留档：
+
+- PostgreSQL TCP 连接。
+- MinIO/S3 HTTP 健康端点。
+- Qdrant HTTP readyz。
+- OpenSearch HTTP cluster health。
+- Temporal TCP 连接。
+- OpenTelemetry Collector OTLP HTTP 端点。
+- 已配置时的插件签名验证器和插件沙箱执行器 HTTP 端点。
 
 ## 7. 业务 Smoke
 

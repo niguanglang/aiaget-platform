@@ -38,6 +38,17 @@ node scripts/verify-trace-propagation.mjs \
 
 The probe connects only to already-running endpoints. It does not start services and it uses a deterministic Runtime request without model provider credentials.
 
+## Production Dependency Probe
+
+`production-dependency-probe.mjs` checks approved external dependencies from an env file. It performs read-only TCP or HTTP probes for PostgreSQL, MinIO/S3, Qdrant, OpenSearch, Temporal, OpenTelemetry Collector, and optional plugin signature / sandbox services. It does not create databases, buckets, indexes, collections, workflows, plugins, containers, or middleware.
+
+```bash
+node scripts/production-dependency-probe.mjs --env-file .env.production --json
+pnpm probe:prod-deps
+```
+
+Use the JSON output as redacted delivery evidence. Passwords, tokens, API keys and secrets are not printed.
+
 ## Production Smoke Probe
 
 `production-smoke.mjs` checks already-running production application endpoints:

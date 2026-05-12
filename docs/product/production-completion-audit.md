@@ -34,7 +34,7 @@
 | 插件生态 | 已完成 | Manifest 校验、HTTP/HTTPS 与 S3/MinIO 私有对象存储包来源、包完整性、签名适配、Tool Gateway 绑定、Hook 入队与恢复 | 插件自定义代码沙箱属于后续 P1/P2 增强 |
 | 全渠道发布 | 已完成 | 渠道配置、灰度、门禁、自动推进、回滚、自愈、投递审计和验签 | 企业微信/钉钉/飞书真实凭证联调需目标环境执行 |
 | 成本与额度 | 已完成 | 套餐、订阅、账单、调账、用量 Rollup、额度强执行 | 真实商业计费规则可继续按客户合同扩展 |
-| 生产部署与验收 | 已完成代码阶段 | P0-12 Runbook、生产模板校验、fallback 严格模式门禁、生产落地中心、人工验收记录、代码型插件 Hook 沙箱执行器验收项 | 真实发布、备份恢复、业务 Smoke 只能在目标环境执行 |
+| 生产部署与验收 | 已完成代码阶段 | P0-12 Runbook、生产模板校验、fallback 严格模式门禁、外部依赖只读探针、生产落地中心、人工验收记录、代码型插件 Hook 沙箱执行器验收项 | 真实发布、备份恢复、业务 Smoke 只能在目标环境执行 |
 
 ## 已执行验收命令
 
@@ -77,9 +77,10 @@ pnpm build:prod
 1. `.env.production` 写入真实密钥和外部服务地址。
 2. 对用户批准的 PostgreSQL 执行备份、迁移、恢复演练。
 3. 启动应用服务镜像并执行 `production-smoke.mjs`。
-4. 使用真实模型 Key、真实 MinIO 桶、真实 Qdrant/OpenSearch、真实 Temporal、真实 OTEL Collector 做联调。
-5. 使用真实渠道凭证完成企业微信、钉钉、飞书、Slack 或 Webhook 回调验签。
-6. 记录 git commit、镜像 tag、部署时间、操作者、smoke 输出和风险项。
+4. 执行 `production-dependency-probe.mjs` 并留存脱敏 JSON 证据。
+5. 使用真实模型 Key、真实 MinIO 桶、真实 Qdrant/OpenSearch、真实 Temporal、真实 OTEL Collector 做联调。
+6. 使用真实渠道凭证完成企业微信、钉钉、飞书、Slack 或 Webhook 回调验签。
+7. 记录 git commit、镜像 tag、部署时间、操作者、smoke 输出和风险项。
 
 ## 结论
 

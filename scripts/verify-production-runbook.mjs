@@ -15,6 +15,7 @@ const requiredSections = [
 const requiredMentions = [
   'pnpm validate:prod-env',
   'pnpm verify:prod-template',
+  'production-dependency-probe.mjs',
   'prisma:deploy',
   'agent-runtime-worker',
   '--profile temporal-worker',

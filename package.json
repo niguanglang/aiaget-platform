@@ -14,6 +14,7 @@
     "validate:prod-env": "node scripts/validate-production-env.mjs .env.production",
     "verify:sdk-release": "pnpm --filter @aiaget/external-api-sdk test && pnpm --filter @aiaget/external-api-sdk typecheck:examples && pnpm --filter @aiaget/external-api-sdk pack:check && node --test scripts/tests/validate-external-sdk-package.test.mjs",
     "verify:prod-runbook": "node scripts/verify-production-runbook.mjs",
+    "probe:prod-deps": "node scripts/production-dependency-probe.mjs --env-file .env.production --json",
     "test": "pnpm --filter @aiaget/shared-types build && node --test scripts/tests/*.test.mjs && pnpm --filter @aiaget/control-api test && pnpm --filter @aiaget/web test:ia",
     "typecheck": "pnpm --filter @aiaget/shared-types build && pnpm -r --if-present typecheck",
     "verify:observability-template": "node scripts/verify-observability-template.mjs",

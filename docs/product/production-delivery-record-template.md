@@ -67,7 +67,24 @@
 - [ ] 日志、截图、交付附件未包含明文密钥。
 - [ ] API Key、模型 Key、对象存储密钥在前端和接口返回中保持脱敏。
 
-## 4. 数据库迁移与 Seed
+## 4. 外部依赖只读探针
+
+```bash
+node scripts/production-dependency-probe.mjs --env-file .env.production --json
+```
+
+| 依赖 | 结果 | 证据摘要 |
+| --- | --- | --- |
+| PostgreSQL TCP |  |  |
+| MinIO/S3 HTTP |  |  |
+| Qdrant HTTP |  |  |
+| OpenSearch HTTP |  |  |
+| Temporal TCP |  |  |
+| OpenTelemetry Collector HTTP |  |  |
+| 插件签名验证器 HTTP |  |  |
+| 插件沙箱执行器 HTTP |  |  |
+
+## 5. 数据库迁移与 Seed
 
 | 项目 | 结果 |
 | --- | --- |
@@ -91,7 +108,7 @@
 
 ```
 
-## 5. 备份与恢复演练
+## 6. 备份与恢复演练
 
 | 项目 | 内容 |
 | --- | --- |
@@ -116,7 +133,7 @@
 - [ ] 会话、运行轨迹、平台事件、用量和计费数据可查询。
 - [ ] 审计、安全审批、资源授权和系统设置可查询。
 
-## 6. 应用启动记录
+## 7. 应用启动记录
 
 启动命令：
 
@@ -143,7 +160,7 @@ docker compose -f deploy/docker-compose.production.yml --env-file .env.productio
 - [ ] 后台任务只在一个 Control API 实例启用。
 - [ ] 未启动未经批准的中间件容器。
 
-## 7. 健康检查与 Smoke
+## 8. 健康检查与 Smoke
 
 基础 Smoke 命令：
 
@@ -194,7 +211,7 @@ Smoke 输出摘要：
 - [ ] 会话测试可返回 Runtime Trace ID。
 - [ ] 监控、安全、计费、渠道、插件、系统设置入口可访问。
 
-## 8. 观测与 Trace 验收
+## 9. 观测与 Trace 验收
 
 Trace 探针命令：
 
@@ -219,7 +236,7 @@ node scripts/verify-trace-propagation.mjs \
 
 ```
 
-## 9. 生产落地中心验收
+## 10. 生产落地中心验收
 
 关联页面：
 
@@ -243,7 +260,7 @@ node scripts/verify-trace-propagation.mjs \
 
 ```
 
-## 10. 回滚预案与执行判断
+## 11. 回滚预案与执行判断
 
 回滚镜像 Tag：
 
@@ -273,14 +290,14 @@ AIAGET_IMAGE_TAG=<previous-tag> docker compose -f deploy/docker-compose.producti
 
 ```
 
-## 11. 已知风险与后续事项
+## 12. 已知风险与后续事项
 
 | 优先级 | 风险 / 事项 | 负责人 | 计划完成时间 | 状态 |
 | --- | --- | --- | --- | --- |
 | P1 |  |  |  |  |
 | P2 |  |  |  |  |
 
-## 12. 交付签署
+## 13. 交付签署
 
 | 角色 | 姓名 | 结论 | 时间 |
 | --- | --- | --- | --- |

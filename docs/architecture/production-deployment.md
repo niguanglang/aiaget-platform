@@ -71,20 +71,26 @@ Runtime still has local fallback behavior for development and compatibility mode
    node scripts/verify-observability-template.mjs
    ```
 
-5. Build application artifacts locally if needed:
+5. Probe approved external dependencies without creating resources:
+
+   ```bash
+   node scripts/production-dependency-probe.mjs --env-file .env.production --json
+   ```
+
+6. Build application artifacts locally if needed:
 
    ```bash
    pnpm build:prod
    python3 -m compileall apps/agent-runtime/app
    ```
 
-6. Apply database migrations from a controlled deployment host:
+7. Apply database migrations from a controlled deployment host:
 
    ```bash
    pnpm --filter @aiaget/control-api prisma:deploy
    ```
 
-7. Start application services only after the operator approves the deployment action. Production Temporal workflow execution requires the worker profile:
+8. Start application services only after the operator approves the deployment action. Production Temporal workflow execution requires the worker profile:
 
    ```bash
    docker compose -f deploy/docker-compose.production.yml --env-file .env.production --profile temporal-worker up -d
@@ -99,7 +105,7 @@ GET /runtime/health
 GET /login
 ```
 
-The Compose template includes container health checks for these application endpoints. It does not check external PostgreSQL, MinIO, Qdrant, OpenSearch, or Temporal readiness; those should be monitored by the operator's existing infrastructure.
+The Compose template includes container health checks for these application endpoints. External PostgreSQL, MinIO, Qdrant, OpenSearch, Temporal, OTEL, plugin verifier, and plugin sandbox readiness are checked by `scripts/production-dependency-probe.mjs` and should also be monitored by the operator's existing infrastructure.
 
 ## Observability Closure
 

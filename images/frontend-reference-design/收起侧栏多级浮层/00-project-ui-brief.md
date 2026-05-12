@@ -1,0 +1,21 @@
+# Project UI Brief
+
+- Page: 收起侧栏多级浮层
+- Route: /console-shell
+- Feature goal: 若依风格控制台收起侧栏多级菜单浮层
+- Target users: 企业后台管理员、运营人员、Agent 平台配置人员
+- Permissions: 由 `currentUser.menus` 和 `currentUser.user.permissions` 生成授权菜单，前端只展示已授权入口
+- APIs/services: 无新增接口；复用 AuthProvider 当前用户上下文与 `buildNavigationLinks`
+- Entities/fields/statuses:
+  - `NavigationLink`: `id`、`title`、`href`、`external`、`icon`、`description`、`level`、`affix`、`hideBreadcrumb`、`children`
+  - 菜单状态：展开侧栏、收起侧栏、当前路由激活、子菜单浮层打开、外链跳转
+- Existing components/design system:
+  - `Sidebar`、`MobileNav`、`Topbar`、`ConsoleRouteChrome`
+  - `Button`、Tailwind CSS、lucide-react 图标
+  - 现有玻璃质感背景、细边框、轻阴影、蓝色激活态
+- Required states:
+  - 展开态：递归树形导航、父级路由和展开按钮为兄弟控件
+  - 收起态：一级图标导航，hover/focus 打开右侧浮层，支持多级菜单
+  - 空权限：由 `buildNavigationLinks` fallback 控制
+  - 外链：保留 `target="_blank"` 与 `rel="noreferrer"`
+  - 键盘：`Escape` 关闭浮层，`ArrowRight` 打开浮层

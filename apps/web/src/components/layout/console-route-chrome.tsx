@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { buildNavigationLinks, flattenNavigationLinks, type NavigationLink } from '@/components/layout/menu-navigation';
+import { buildNavigationLinks } from '@/components/layout/menu-navigation';
+import { findActivePath } from '@/components/layout/navigation-utils';
 import { cn } from '@/lib/utils';
 
 const MAX_VISITED_TABS = 10;
@@ -110,33 +111,4 @@ function createDashboardTab(): VisitedTab {
     title: '工作台',
     affix: true,
   };
-}
-
-function findActivePath(items: NavigationLink[], pathname: string): NavigationLink[] {
-  for (const item of items) {
-    if (!isNavigationItemActive(item, pathname)) continue;
-    const childPath = findActivePath(item.children, pathname);
-    return [item, ...childPath];
-  }
-
-  return [];
-}
-
-function isNavigationItemActive(item: NavigationLink, pathname: string): boolean {
-  if (item.external) return false;
-
-  if (item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`))) {
-    return true;
-  }
-
-  return item.children.some((child) => isNavigationItemActive(child, pathname));
-}
-
-export function searchNavigationItems(items: NavigationLink[], keyword: string) {
-  const normalizedKeyword = keyword.trim().toLowerCase();
-  const flatItems = flattenNavigationLinks(items).filter((item) => item.href !== '#');
-  if (!normalizedKeyword) return flatItems.slice(0, 8);
-  return flatItems
-    .filter((item) => `${item.title} ${item.href} ${item.description}`.toLowerCase().includes(normalizedKeyword))
-    .slice(0, 12);
 }

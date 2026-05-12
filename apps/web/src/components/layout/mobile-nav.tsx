@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { buildNavigationLinks, type NavigationLink } from '@/components/layout/menu-navigation';
+import { buildMobileNavigationLevels, findActivePathIds, isNavigationItemActive } from '@/components/layout/navigation-utils';
 import { cn } from '@/lib/utils';
 
 export function MobileNav() {
@@ -73,40 +74,4 @@ export function MobileNav() {
       ))}
     </div>
   );
-}
-
-function buildMobileNavigationLevels(items: NavigationLink[], pathIds: string[]): NavigationLink[][] {
-  const levels: NavigationLink[][] = [];
-  let currentItems = items;
-  let levelIndex = 0;
-
-  while (currentItems.length > 0) {
-    levels.push(currentItems);
-    const selectedItem = currentItems.find((item) => item.id === pathIds[levelIndex]);
-    if (!selectedItem || selectedItem.children.length === 0) break;
-    currentItems = selectedItem.children;
-    levelIndex += 1;
-  }
-
-  return levels;
-}
-
-function isNavigationItemActive(item: NavigationLink, pathname: string): boolean {
-  if (item.external) return false;
-
-  if (item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`))) {
-    return true;
-  }
-
-  return item.children.some((child) => isNavigationItemActive(child, pathname));
-}
-
-function findActivePathIds(items: NavigationLink[], pathname: string): string[] {
-  for (const item of items) {
-    if (!isNavigationItemActive(item, pathname)) continue;
-    const childPath = findActivePathIds(item.children, pathname);
-    return [item.id, ...childPath];
-  }
-
-  return [];
 }

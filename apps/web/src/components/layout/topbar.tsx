@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { buildNavigationLinks, flattenNavigationLinks, type NavigationLink } from '@/components/layout/menu-navigation';
+import { buildNavigationLinks, type NavigationLink } from '@/components/layout/menu-navigation';
+import { searchNavigationItems } from '@/components/layout/navigation-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -149,12 +150,3 @@ function CommandSearch({ navigation }: { navigation: NavigationLink[] }) {
 }
 
 const searchResultClassName = cn('flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-blue-50');
-
-function searchNavigationItems(items: NavigationLink[], keyword: string) {
-  const normalizedKeyword = keyword.trim().toLowerCase();
-  const flatItems = flattenNavigationLinks(items).filter((item) => item.href !== '#');
-  if (!normalizedKeyword) return flatItems.slice(0, 8);
-  return flatItems
-    .filter((item) => `${item.title} ${item.href} ${item.description}`.toLowerCase().includes(normalizedKeyword))
-    .slice(0, 12);
-}

@@ -14,6 +14,7 @@ const consoleShellSource = readFileSync(join(process.cwd(), 'src/components/layo
 const consoleRouteChromeSource = readFileSync(join(process.cwd(), 'src/components/layout/console-route-chrome.tsx'), 'utf8');
 const topbarSource = readFileSync(join(process.cwd(), 'src/components/layout/topbar.tsx'), 'utf8');
 const sharedTypesSource = readFileSync(join(process.cwd(), '../../packages/shared-types/src/index.ts'), 'utf8');
+const navigationUtilsSourcePath = join(process.cwd(), 'src/components/layout/navigation-utils.ts');
 
 test('menu center route-level pages exist for list, create, detail, and edit', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/menus/page.tsx')));
@@ -136,8 +137,11 @@ test('sidebar and mobile navigation support deep menu trees', () => {
   assert.match(sidebarSource, /item\.level > 2/);
   assert.match(sidebarSource, /pathname\.startsWith/);
   assert.doesNotMatch(mobileNavSource, /flattenNavigationLinks\(buildNavigationLinks/);
-  assert.match(mobileNavSource, /function buildMobileNavigationLevels/);
-  assert.match(mobileNavSource, /while \(currentItems\.length > 0\)/);
+  assert.match(mobileNavSource, /buildMobileNavigationLevels/);
+
+  const navigationUtilsSource = readFileSync(navigationUtilsSourcePath, 'utf8');
+  assert.match(navigationUtilsSource, /export function buildMobileNavigationLevels/);
+  assert.match(navigationUtilsSource, /while \(currentItems\.length > 0\)/);
 });
 
 test('desktop sidebar follows RuoYi-style collapse and expandable menu behavior', () => {
@@ -163,6 +167,18 @@ test('desktop sidebar keeps routed menu links and expand buttons as sibling cont
   assert.doesNotMatch(routedLinkBranch, /<button[\s\S]*<\/Link>/);
 });
 
+test('collapsed desktop sidebar exposes child menus as a flyout instead of expanding the whole sidebar', () => {
+  const collapsedChildBranch = sidebarSource.slice(sidebarSource.indexOf('isCollapsed && hasChildren'), sidebarSource.indexOf(') : hasClickableRoute && hasChildren'));
+
+  assert.ok(collapsedChildBranch.length > 0);
+  assert.match(sidebarSource, /collapsedFlyout/);
+  assert.match(sidebarSource, /onMouseEnter/);
+  assert.match(sidebarSource, /onMouseLeave/);
+  assert.match(sidebarSource, /role="menu"/);
+  assert.match(sidebarSource, /aria-label="收起侧栏子菜单"/);
+  assert.doesNotMatch(collapsedChildBranch, /onExpandSidebar\(\)/);
+});
+
 test('mobile navigation treats directory nodes as drilldown buttons instead of hash links', () => {
   assert.match(mobileNavSource, /onDrilldown/);
   assert.match(mobileNavSource, /item\.href === '#'/);
@@ -184,10 +200,37 @@ test('console shell owns breadcrumbs, visited tabs, and persisted sidebar collap
 
 test('topbar exposes a real command search entry backed by navigation links', () => {
   assert.match(topbarSource, /CommandSearch/);
-  assert.match(topbarSource, /flattenNavigationLinks/);
+  assert.match(topbarSource, /searchNavigationItems/);
   assert.match(topbarSource, /搜索菜单、路由或模块/);
   assert.match(topbarSource, /暂无匹配菜单/);
   assert.match(topbarSource, /Escape/);
+});
+
+test('sidebar, mobile, topbar, and route chrome share navigation lookup utilities', () => {
+  assert.ok(existsSync(navigationUtilsSourcePath));
+
+  const navigationUtilsSource = readFileSync(navigationUtilsSourcePath, 'utf8');
+
+  assert.match(navigationUtilsSource, /export function isNavigationItemActive/);
+  assert.match(navigationUtilsSource, /export function findActivePathIds/);
+  assert.match(navigationUtilsSource, /export function findActivePath/);
+  assert.match(navigationUtilsSource, /export function searchNavigationItems/);
+
+  for (const source of [sidebarSource, mobileNavSource, topbarSource, consoleRouteChromeSource]) {
+    assert.match(source, /@\/components\/layout\/navigation-utils/);
+  }
+
+  for (const source of [sidebarSource, mobileNavSource, consoleRouteChromeSource]) {
+    assert.doesNotMatch(source, /function isNavigationItemActive/);
+  }
+
+  for (const source of [sidebarSource, mobileNavSource]) {
+    assert.doesNotMatch(source, /function findActivePathIds/);
+  }
+
+  assert.doesNotMatch(consoleRouteChromeSource, /function findActivePath/);
+  assert.doesNotMatch(topbarSource, /function searchNavigationItems/);
+  assert.doesNotMatch(consoleRouteChromeSource, /export function searchNavigationItems/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

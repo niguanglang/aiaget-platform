@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { buildNavigationLinks, type NavigationLink } from '@/components/layout/menu-navigation';
+import { findActivePathIds, isNavigationItemActive } from '@/components/layout/navigation-utils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ export function Sidebar({
   const activePathIds = useMemo(() => findActivePathIds(navigation, pathname), [navigation, pathname]);
   const activePathKey = activePathIds.join('/');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(activePathIds));
+  const [collapsedFlyout, setCollapsedFlyout] = useState<string | null>(null);
 
   useEffect(() => {
     const nextActivePathIds = activePathKey.split('/').filter(Boolean);
@@ -81,14 +83,15 @@ export function Sidebar({
           {isCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
         </Button>
       </div>
-      <nav className={cn('grid flex-1 content-start gap-1 overflow-y-auto pb-4 pt-4', isCollapsed ? 'px-2' : 'px-3')}>
+      <nav className={cn('grid flex-1 content-start gap-1 pb-4 pt-4', isCollapsed ? 'overflow-visible px-2' : 'overflow-y-auto px-3')}>
         {navigation.map((item) => (
           <SidebarNavItem
+            collapsedFlyout={collapsedFlyout}
             expandedIds={expandedIds}
             isCollapsed={isCollapsed}
             item={item}
             key={item.id}
-            onExpandSidebar={onToggleCollapsed}
+            onSetCollapsedFlyout={setCollapsedFlyout}
             onToggleExpanded={handleToggleExpanded}
             pathname={pathname}
           />
@@ -99,17 +102,19 @@ export function Sidebar({
 }
 
 function SidebarNavItem({
+  collapsedFlyout,
   expandedIds,
   isCollapsed,
   item,
-  onExpandSidebar,
+  onSetCollapsedFlyout,
   onToggleExpanded,
   pathname,
 }: {
+  collapsedFlyout: string | null;
   expandedIds: Set<string>;
   isCollapsed: boolean;
   item: NavigationLink;
-  onExpandSidebar: () => void;
+  onSetCollapsedFlyout: (itemId: string | null) => void;
   onToggleExpanded: (itemId: string) => void;
   pathname: string;
 }) {
@@ -171,19 +176,41 @@ function SidebarNavItem({
   return (
     <div>
       {isCollapsed && hasChildren ? (
-        <button
-          aria-expanded={isExpanded}
-          aria-label={`展开${item.title}`}
-          className={rowClassName}
-          onClick={() => {
-            onExpandSidebar();
-            onToggleExpanded(item.id);
+        <div
+          className="relative"
+          onFocus={() => onSetCollapsedFlyout(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              onSetCollapsedFlyout(null);
+            }
+            if (event.key === 'ArrowRight') {
+              onSetCollapsedFlyout(item.id);
+            }
           }}
-          title={item.title}
-          type="button"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              onSetCollapsedFlyout(null);
+            }
+          }}
+          onMouseEnter={() => onSetCollapsedFlyout(item.id)}
+          onMouseLeave={() => onSetCollapsedFlyout(null)}
         >
-          {content}
-        </button>
+          <button
+            aria-controls={`collapsed-menu-${item.id}`}
+            aria-expanded={collapsedFlyout === item.id}
+            aria-haspopup="menu"
+            aria-label={`打开${item.title}子菜单`}
+            className={rowClassName}
+            onClick={() => onSetCollapsedFlyout(collapsedFlyout === item.id ? null : item.id)}
+            title={item.title}
+            type="button"
+          >
+            {content}
+          </button>
+          {collapsedFlyout === item.id ? (
+            <CollapsedFlyoutMenu item={item} onClose={() => onSetCollapsedFlyout(null)} pathname={pathname} sidebarTitle={sidebarNavTitle(item.title)} />
+          ) : null}
+        </div>
       ) : hasClickableRoute && hasChildren ? (
         <div className={routedRowClassName}>
           <Link
@@ -234,10 +261,95 @@ function SidebarNavItem({
               isCollapsed={isCollapsed}
               item={child}
               key={child.id}
-              onExpandSidebar={onExpandSidebar}
+              collapsedFlyout={collapsedFlyout}
+              onSetCollapsedFlyout={onSetCollapsedFlyout}
               onToggleExpanded={onToggleExpanded}
               pathname={pathname}
             />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CollapsedFlyoutMenu({
+  item,
+  onClose,
+  pathname,
+  sidebarTitle,
+}: {
+  item: NavigationLink;
+  onClose: () => void;
+  pathname: string;
+  sidebarTitle: string;
+}) {
+  return (
+    <div
+      aria-label="收起侧栏子菜单"
+      className="absolute left-full top-0 z-50 min-w-56 rounded-lg border border-white/80 bg-white/95 p-2 shadow-[0_18px_55px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+      id={`collapsed-menu-${item.id}`}
+      role="menu"
+    >
+      <div className="mb-1 border-b border-slate-100 px-3 pb-2 pt-1 text-sm font-semibold text-slate-900">{sidebarTitle}</div>
+      <div className="grid gap-1">
+        {item.children.map((child) => (
+          <CollapsedFlyoutMenuItem item={child} key={child.id} onClose={onClose} pathname={pathname} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CollapsedFlyoutMenuItem({ item, onClose, pathname }: { item: NavigationLink; onClose: () => void; pathname: string }) {
+  const Icon = item.icon;
+  const hasChildren = item.children.length > 0;
+  const isActive = isNavigationItemActive(item, pathname);
+  const isExactActive = !item.external && item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const itemClassName = cn(
+    'group/flyout flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors',
+    isExactActive
+      ? 'bg-blue-50 text-blue-700'
+      : isActive
+        ? 'text-blue-700 hover:bg-slate-50'
+        : 'text-slate-700 hover:bg-slate-50 hover:text-blue-700',
+  );
+  const content = (
+    <>
+      <Icon className="size-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+      {hasChildren ? <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover/flyout:text-blue-700" /> : null}
+    </>
+  );
+
+  return (
+    <div className="group/collapsed-flyout relative">
+      {item.href !== '#' ? (
+        <Link
+          aria-current={isExactActive ? 'page' : undefined}
+          className={itemClassName}
+          href={item.href}
+          onClick={onClose}
+          rel={item.external ? 'noreferrer' : undefined}
+          role="menuitem"
+          target={item.external ? '_blank' : undefined}
+          title={item.description}
+        >
+          {content}
+        </Link>
+      ) : (
+        <button aria-haspopup={hasChildren ? 'menu' : undefined} className={itemClassName} role="menuitem" title={item.description} type="button">
+          {content}
+        </button>
+      )}
+      {hasChildren ? (
+        <div
+          aria-label={`${item.title}下级菜单`}
+          className="invisible absolute left-full top-0 z-50 min-w-56 rounded-lg border border-white/80 bg-white/95 p-2 opacity-0 shadow-[0_18px_55px_rgba(15,23,42,0.16)] backdrop-blur-xl transition group-hover/collapsed-flyout:visible group-hover/collapsed-flyout:opacity-100 group-focus-within/collapsed-flyout:visible group-focus-within/collapsed-flyout:opacity-100"
+          role="menu"
+        >
+          {item.children.map((child) => (
+            <CollapsedFlyoutMenuItem item={child} key={child.id} onClose={onClose} pathname={pathname} />
           ))}
         </div>
       ) : null}
@@ -258,24 +370,4 @@ function sidebarNavTitle(title: string) {
   };
 
   return labels[title] ?? title;
-}
-
-function isNavigationItemActive(item: NavigationLink, pathname: string): boolean {
-  if (item.external) return false;
-
-  if (item.href !== '#' && (pathname === item.href || pathname.startsWith(`${item.href}/`))) {
-    return true;
-  }
-
-  return item.children.some((child) => isNavigationItemActive(child, pathname));
-}
-
-function findActivePathIds(items: NavigationLink[], pathname: string): string[] {
-  for (const item of items) {
-    if (!isNavigationItemActive(item, pathname)) continue;
-    const childPath = findActivePathIds(item.children, pathname);
-    return [item.id, ...childPath];
-  }
-
-  return [];
 }

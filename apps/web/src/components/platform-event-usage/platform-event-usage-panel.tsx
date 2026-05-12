@@ -344,7 +344,7 @@ export function PlatformEventUsagePanel({
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="ready">M64</StatusBadge>
+              <StatusBadge tone="ready">平台事件</StatusBadge>
               <StatusBadge tone="healthy">统一底座</StatusBadge>
               <StatusBadge tone="planned">监控 / 审计 / 成本</StatusBadge>
             </div>
@@ -1207,7 +1207,7 @@ function UsageAlertNotificationTaskCard({
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M72</StatusBadge>
+            <StatusBadge tone="ready">自动重试</StatusBadge>
             <StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>
               {overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}
             </StatusBadge>

@@ -39,7 +39,7 @@ export function ChannelReleaseContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布治理"
-        description="发布治理总览只保留关键指标、调度概览和治理模块入口；流水线、门禁、自动推进、自愈、调度和报告进入独立子页面。"
+        description="查看发布关键指标、调度概览和治理模块入口，覆盖流水线、门禁、自动推进、自愈和治理报表。"
         refreshing={overviewQuery.isFetching || schedulerQuery.isFetching}
         subtitle="/channels/release"
         title="发布治理总览"

@@ -108,8 +108,8 @@ export function PlatformUsageOverviewContent() {
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <MonitorCenterBackground />
       <PlatformUsageHeader
-        badge="M64"
-        description="统一查看平台事件、用量账本、关系链路和 Rollup 汇总；详情、告警、通知和任务已拆到独立页面。"
+        badge="平台事件"
+        description="统一查看平台事件、用量账本、关系链路、Rollup、告警、通知和任务。"
         refreshing={overviewQuery.isFetching || eventsQuery.isFetching || trendsQuery.isFetching || ledgerQuery.isFetching}
         title="平台事件与用量底座"
         onRefresh={() => {

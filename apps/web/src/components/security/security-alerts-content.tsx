@@ -423,7 +423,7 @@ export function SecurityAlertsContent() {
             </Button>
           </>
         }
-        badge="闭环"
+        badge="告警"
         description="集中查看审批工作台、运营告警、通知审计和 SLA 超时风险；审批事项可在右侧详情中查看来源、时间线并直接处理。"
         title="告警运营"
       />
@@ -472,7 +472,7 @@ export function SecurityAlertsContent() {
           </div>
         ) : (
           <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-            当前导出治理指标处于正常范围，若发生新的导出风险，运营告警会在下方进入通知和处置闭环。
+            当前导出治理指标处于正常范围，新的导出风险会进入通知和处置列表。
           </div>
         )}
       </Card>
@@ -790,7 +790,7 @@ export function SecurityAlertsContent() {
             title="SLA 死信通知"
           />
           <SlaDeadLetterListCard
-            description="死信处置视图展示最近处置、处置事件和处置时间，不在本页承载完整处理表单。"
+            description="展示最近处置、处置事件和处置时间。"
             emptyDescription="当前没有需要展示的 SLA 死信处置记录。"
             emptyTitle="暂无死信处置"
             isError={slaDeadLetterQuery.isError}

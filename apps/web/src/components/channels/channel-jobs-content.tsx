@@ -34,7 +34,7 @@ export function ChannelJobsContent() {
       activeRoute="jobs"
       badge="发布任务"
       buildMetrics={(input) => buildJobMetrics(input.items, input.total)}
-      description="跟踪渠道发布、推送和回调相关任务的任务进度、重试次数和关联渠道。完整排障信息和任务操作进入独立详情页。"
+      description="跟踪渠道发布、推送和回调任务的进度、重试次数、关联渠道和更新时间。"
       emptyDescription="当前没有发布任务。触发渠道发布、模板同步或补偿发送后，任务会出现在这里。"
       emptyTitle="暂无发布任务"
       errorMessage="发布任务列表加载失败。"
@@ -72,12 +72,14 @@ export function ChannelJobsContent() {
           }
           title={item.title ?? item.job_no ?? item.id}
           actions={
-            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
-              <Link href={`/channels/jobs/${encodeURIComponent(item.id)}`}>
-                <Eye className="size-4" />
-                查看详情
-              </Link>
-            </Button>
+            permissions.canView ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/channels/jobs/${encodeURIComponent(item.id)}`}>
+                  <Eye className="size-4" />
+                  查看详情
+                </Link>
+              </Button>
+            ) : null
           }
           onToggle={onToggle}
         />

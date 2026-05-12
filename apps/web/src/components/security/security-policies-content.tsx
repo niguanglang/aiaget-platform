@@ -128,16 +128,18 @@ export function SecurityPoliciesContent() {
                 void evaluationsQuery.refetch();
               }}
             />
-            <Button asChild disabled={!canWrite}>
-              <Link href="/security">
-                <ArrowRight className="size-4" />
-                新建或编辑策略
-              </Link>
-            </Button>
+            {canWrite ? (
+              <Button asChild>
+                <Link href="/security">
+                  <ArrowRight className="size-4" />
+                  新建或编辑策略
+                </Link>
+              </Button>
+            ) : null}
           </>
         }
         badge="ABAC"
-        description="按策略状态、效果和资源类型维护访问边界，列表页只保留策略治理、启停入口和最近评估日志。"
+        description="按策略状态、效果、资源类型、优先级和最近评估记录维护访问边界。"
         title="策略治理"
       />
 

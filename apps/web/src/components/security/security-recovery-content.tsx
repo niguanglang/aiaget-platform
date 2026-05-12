@@ -515,7 +515,7 @@ export function SecurityRecoveryContent() {
             <Archive className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">归档审批</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">自愈恢复审计归档和归档删除审批，用于保留恢复闭环证据。</p>
+          <p className="mt-1 text-sm text-muted-foreground">自愈恢复审计归档、归档删除审批和恢复审计证据。</p>
           <div className="mt-4 grid gap-4 md:grid-cols-4">
             <MetricCard helper="对象存储归档" label="归档文件" value={formatNumber(archivesQuery.data?.summary.archive_count)} />
             <MetricCard helper="归档体积" label="归档大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes)} />
@@ -609,7 +609,7 @@ function recoverySuggestionConfirmLabel(action: SecurityOperationAlertNotificati
 }
 
 function recoverySuggestionConfirmBody(target: RecoverySuggestionActionTarget) {
-  return `确认${recoveryActionLabel(target.action)}自愈建议「${target.suggestion.title}」？该动作会写入恢复审计，并刷新安全中心任务恢复闭环。`;
+  return `确认${recoveryActionLabel(target.action)}自愈建议「${target.suggestion.title}」？该动作会写入恢复审计，并刷新安全中心任务恢复状态。`;
 }
 
 function recoveryStatusLabel(status: SecurityOperationAlertNotificationTaskRecoveryStatus) {

@@ -62,7 +62,7 @@ export function ChannelTemplateEditContent({ templateId }: { templateId: string 
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="编辑消息模板"
-        description="编辑消息模板的归属供应商、模板内容、变量映射和第三方模板编号。列表页只保留概览，完整表单在独立编辑页维护。"
+        description="维护归属供应商、模板内容、变量映射和第三方模板编号。"
         permissions={permissions}
         refreshing={templateQuery.isFetching || providersQuery.isFetching || updateMutation.isPending}
         subtitle="/channels/templates/:templateId/edit"

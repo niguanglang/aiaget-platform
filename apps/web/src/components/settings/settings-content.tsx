@@ -341,7 +341,7 @@ export function SettingsContent() {
             <DetailRow label="权限状态" value={canManageSettings ? '当前用户可管理系统参数' : '当前用户仅可查看系统参数'} />
             <DetailRow label="最近更新" value={settingsOverview?.last_updated_at ? formatDateTime(settingsOverview.last_updated_at) : '暂无'} />
             <DetailRow label="分类数量" value={`${settingsOverview?.category_count ?? 0} 类`} />
-            <DetailRow label="通知策略" value="已拆分到独立配置页" />
+            <DetailRow label="通知策略" value="可配置告警首发、重试和审计" />
           </div>
           <Button asChild className="mt-4 w-full" variant="outline">
             <Link href="/settings/notification-policy">
@@ -401,11 +401,7 @@ function ConfigurationEntryCard({ allowed, entry }: { allowed: boolean; entry: C
               <ArrowRight className="size-4" />
             </Link>
           </Button>
-        ) : (
-          <Button disabled size="sm" variant="outline">
-            打开
-          </Button>
-        )}
+        ) : null}
       </div>
     </Card>
   );

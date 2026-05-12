@@ -87,7 +87,7 @@ export function SecurityEventsContent() {
           }} />
         }
         badge="Trace"
-        description="检索拒绝事件、审批导出事件和安全策略命中记录，列表只保留核心字段，完整请求上下文进入独立详情页。"
+        description="检索拒绝事件、审批导出事件、安全策略命中、Trace 和请求主体。"
         title="安全事件"
       />
 

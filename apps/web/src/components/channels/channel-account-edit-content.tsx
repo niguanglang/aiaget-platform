@@ -58,7 +58,7 @@ export function ChannelAccountEditContent({ accountId }: { accountId: string }) 
       <ChannelFocusedHeader
         activeRoute="accounts"
         badge="编辑账号凭据"
-        description="编辑账号凭据的外部账号、密钥、状态和扩展配置。列表页只保留账号概览，完整表单在独立编辑页维护。"
+        description="维护外部账号、密钥、状态、运行环境和扩展配置。"
         permissions={permissions}
         refreshing={accountQuery.isFetching || providersQuery.isFetching || updateMutation.isPending}
         subtitle="/channels/accounts/:accountId/edit"

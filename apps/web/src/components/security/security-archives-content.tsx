@@ -441,7 +441,7 @@ export function SecurityArchivesContent() {
               <Trash2 className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">删除审批</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">只展示当前归档来源的删除审批队列，审批处理继续在审批中心闭环。</p>
+            <p className="mt-1 text-sm text-muted-foreground">当前归档来源、删除审批、申请人和处理状态。</p>
           </div>
           {!canViewApprovals ? (
             <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看删除审批" />

@@ -132,7 +132,7 @@ export function ChannelTemplatesContent() {
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="消息模板"
-        description="管理渠道消息模板的编码、类型、语言和版本。列表页只暴露核心模板字段，新增与编辑进入独立表单页。"
+        description="管理渠道消息模板的编码、类型、语言、版本、适用目标和启停状态。"
         permissions={permissions}
         refreshing={templatesQuery.isFetching}
         subtitle="/channels/templates"
@@ -140,21 +140,16 @@ export function ChannelTemplatesContent() {
         onRefresh={() => void templatesQuery.refetch()}
       />
 
-      <div className="flex flex-wrap justify-end gap-2">
-        {permissions.canManage ? (
+      {permissions.canManage ? (
+        <div className="flex flex-wrap justify-end gap-2">
           <Button asChild>
             <Link href="/channels/templates/create">
               <Plus className="size-4" />
               新建消息模板
             </Link>
           </Button>
-        ) : (
-          <Button disabled type="button">
-            <Plus className="size-4" />
-            新建消息模板
-          </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       <ChannelAlert message={actionNotice} tone="ready" />
       <ChannelAlert message={actionError ?? (templatesQuery.isError ? '消息模板列表加载失败。' : null)} tone="error" />
@@ -171,7 +166,7 @@ export function ChannelTemplatesContent() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-sm font-semibold">消息模板列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">只保留模板编码、类型、语言和版本，完整内容结构进入独立表单。</p>
+                <p className="mt-1 text-sm text-muted-foreground">模板编码、类型、语言、版本、状态和目标渠道。</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <div className="relative min-w-56 flex-1 sm:flex-none">
@@ -243,12 +238,7 @@ export function ChannelTemplatesContent() {
                                 编辑模板
                               </Link>
                             </Button>
-                          ) : (
-                            <Button disabled size="sm" type="button" variant="outline">
-                              <Edit className="size-4" />
-                              编辑模板
-                            </Button>
-                          )}
+                          ) : null}
                           {item.status === 'ACTIVE' ? (
                             <Button
                               disabled={!permissions.canDisable || templateStatusMutation.isPending}

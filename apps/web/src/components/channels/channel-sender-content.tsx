@@ -167,7 +167,7 @@ export function ChannelSenderContent() {
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
                   <h2 className="text-sm font-semibold">主动回复投递列表</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">列表只保留核心识别字段，完整请求、响应和重试链路进入独立详情页。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">投递标识、状态、平台、响应、重试次数和最近更新时间。</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <select className="h-10 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setStatus(event.target.value)} value={status}>

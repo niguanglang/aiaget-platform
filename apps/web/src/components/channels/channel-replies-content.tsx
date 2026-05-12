@@ -32,7 +32,7 @@ export function ChannelRepliesContent() {
       activeRoute="replies"
       badge="回复记录"
       buildMetrics={(input) => buildReplyMetrics(input.items, input.total)}
-      description="查看入站消息回复链路的状态、平台、会话摘要和 Trace 覆盖情况。完整消息链路进入独立详情页。"
+      description="查看入站消息回复链路的状态、平台、会话摘要、投递关联和 Trace 覆盖情况。"
       emptyDescription="当前没有回复记录。外部平台回调触发 Agent 并产生回复后，会在这里形成链路记录。"
       emptyTitle="暂无回复记录"
       errorMessage="回复记录列表加载失败。"
@@ -69,12 +69,14 @@ export function ChannelRepliesContent() {
           }
           title={item.reply_id ?? item.external_message_id ?? item.id}
           actions={
-            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
-              <Link href={`/channels/replies/${encodeURIComponent(item.id)}`}>
-                <Eye className="size-4" />
-                查看详情
-              </Link>
-            </Button>
+            permissions.canView ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/channels/replies/${encodeURIComponent(item.id)}`}>
+                  <Eye className="size-4" />
+                  查看详情
+                </Link>
+              </Button>
+            ) : null
           }
           onToggle={onToggle}
         />

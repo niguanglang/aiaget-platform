@@ -133,12 +133,7 @@ export function ChannelRouteRulesContent() {
                     编辑规则
                   </Link>
                 </Button>
-              ) : (
-                <Button disabled size="sm" type="button" variant="outline">
-                  <Edit className="size-4" />
-                  编辑规则
-                </Button>
-              )}
+              ) : null}
               {item.status === 'ACTIVE' ? (
                 <Button
                   disabled={!permissions.canDisable || routeRuleStatusMutation.isPending}
@@ -203,17 +198,14 @@ export function ChannelRouteRulesContent() {
 function RouteRuleCreateButton() {
   const permissions = useChannelOperationPermissions();
 
-  return permissions.canManage ? (
+  if (!permissions.canManage) return null;
+
+  return (
     <Button asChild>
       <Link href="/channels/route-rules/create">
         <Plus className="size-4" />
         新建路由规则
       </Link>
-    </Button>
-  ) : (
-    <Button disabled type="button">
-      <Plus className="size-4" />
-      新建路由规则
     </Button>
   );
 }

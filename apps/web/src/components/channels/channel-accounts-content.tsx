@@ -106,12 +106,7 @@ export function ChannelAccountsContent() {
               新建账号凭据
             </Link>
           </Button>
-        ) : (
-          <Button disabled type="button">
-            <Plus className="size-4" />
-            新建账号凭据
-          </Button>
-        )
+        ) : null
       }
       listQuery={listChannelAccounts}
       queryKey={accountsQueryKey}
@@ -152,12 +147,7 @@ export function ChannelAccountsContent() {
                     编辑账号
                   </Link>
                 </Button>
-              ) : (
-                <Button disabled size="sm" type="button" variant="outline">
-                  <Edit className="size-4" />
-                  编辑账号
-                </Button>
-              )}
+              ) : null}
               {item.status === 'ACTIVE' ? (
                 <Button
                   disabled={!permissions.canDisable || accountStatusMutation.isPending}

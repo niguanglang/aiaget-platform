@@ -194,7 +194,7 @@ export function ChannelOperationsListPage<TItem>({
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-sm font-semibold">{title}列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">只保留核心字段，低频操作和次要信息收进单行详情。</p>
+                <p className="mt-1 text-sm text-muted-foreground">核心识别字段、状态、关键指标和单条记录操作。</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <div className="relative min-w-56 flex-1 sm:flex-none">

@@ -129,7 +129,7 @@ export function ChannelProvidersContent() {
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="渠道提供方"
-        description="集中治理企业微信、钉钉、飞书、Slack、自定义 Webhook 等渠道提供方。列表只展示平台适配和健康状态，新增与编辑进入独立表单页。"
+        description="管理企业微信、钉钉、飞书、Slack、自定义 Webhook 等渠道提供方的适配状态、账号数量和健康指标。"
         permissions={permissions}
         refreshing={providersQuery.isFetching}
         subtitle="/channels/providers"
@@ -137,21 +137,16 @@ export function ChannelProvidersContent() {
         onRefresh={() => void providersQuery.refetch()}
       />
 
-      <div className="flex flex-wrap justify-end gap-2">
-        {permissions.canManage ? (
+      {permissions.canManage ? (
+        <div className="flex flex-wrap justify-end gap-2">
           <Button asChild>
             <Link href="/channels/providers/create">
               <Plus className="size-4" />
               新建提供方
             </Link>
           </Button>
-        ) : (
-          <Button disabled type="button">
-            <Plus className="size-4" />
-            新建提供方
-          </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       <ChannelAlert message={actionNotice} tone="ready" />
       <ChannelAlert message={actionError ?? (providersQuery.isError ? '渠道提供方列表加载失败。' : null)} tone="error" />
@@ -168,7 +163,7 @@ export function ChannelProvidersContent() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-sm font-semibold">渠道提供方列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">只保留名称、编码、状态、平台类型和关键健康指标，完整配置进入独立表单。</p>
+                <p className="mt-1 text-sm text-muted-foreground">名称、编码、状态、平台类型、账号数量和健康指标。</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Input
@@ -319,12 +314,7 @@ function ProviderListRow({
               编辑配置
             </Link>
           </Button>
-        ) : (
-          <Button disabled size="sm" type="button" variant="outline">
-            <Edit className="size-4" />
-            编辑配置
-          </Button>
-        )}
+        ) : null}
         {item.status === 'ACTIVE' ? (
           <Button disabled={!canDisable || statusChanging} onClick={onDisable} size="sm" type="button" variant="outline">
             <PowerOff className="size-4" />

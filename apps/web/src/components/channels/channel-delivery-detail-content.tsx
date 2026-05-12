@@ -36,7 +36,7 @@ export function ChannelDeliveryDetailContent({ deliveryId }: { deliveryId: strin
       <ChannelFocusedHeader
         activeRoute="deliveries"
         badge="投递详情"
-        description="查看单条渠道投递的请求信息、响应信息、错误原因和链路信息，列表页只保留投递概览。"
+        description="查看单条渠道投递的请求信息、响应信息、错误原因和链路信息。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
         subtitle="/channels/deliveries/:deliveryId"

@@ -32,7 +32,7 @@ export function ChannelDeliveriesContent() {
       activeRoute="deliveries"
       badge="投递记录"
       buildMetrics={(input) => buildDeliveryMetrics(input.items, input.total)}
-      description="查看渠道投递记录的响应状态、耗时、重试次数和目标摘要。完整排障信息进入独立详情页。"
+      description="查看渠道投递记录的响应状态、耗时、重试次数、目标摘要和 Trace 信息。"
       emptyDescription="当前没有投递记录。渠道完成一次外部发送或回调后，投递记录会出现在这里。"
       emptyTitle="暂无投递记录"
       errorMessage="投递记录列表加载失败。"
@@ -70,12 +70,14 @@ export function ChannelDeliveriesContent() {
           }
           title={item.delivery_id ?? item.id}
           actions={
-            <Button asChild disabled={!permissions.canView} size="sm" variant="outline">
-              <Link href={`/channels/deliveries/${encodeURIComponent(item.id)}`}>
-                <Eye className="size-4" />
-                查看详情
-              </Link>
-            </Button>
+            permissions.canView ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/channels/deliveries/${encodeURIComponent(item.id)}`}>
+                  <Eye className="size-4" />
+                  查看详情
+                </Link>
+              </Button>
+            ) : null
           }
           onToggle={onToggle}
         />

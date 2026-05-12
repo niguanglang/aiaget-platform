@@ -342,7 +342,7 @@ export function PlatformEventDetailPanel({ detail, loading }: { detail: Platform
             { label: '用量数量', value: `${detail.linked_usage_count} 条` },
           ]} />
           <div className="flex flex-wrap gap-2">
-            <Button asChild disabled={!detail.trace_id} type="button" variant="outline"><Link href={detail.trace_id ? `/monitor/traces/${detail.trace_id}` : '#'}>查看 Trace</Link></Button>
+            {detail.trace_id ? <Button asChild type="button" variant="outline"><Link href={`/monitor/traces/${detail.trace_id}`}>查看 Trace</Link></Button> : null}
             <Button asChild type="button" variant="outline"><Link href={`/monitor/platform-usage?event_type=${encodeURIComponent(detail.event_type)}`}>同类事件</Link></Button>
           </div>
           {detail.summary ? <div className="rounded-md border bg-slate-50/70 p-3 text-sm leading-6 text-muted-foreground">{detail.summary}</div> : null}
@@ -531,7 +531,7 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">M72</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">扫描失败或部分成功的告警通知投递，满足退避时间和最大重试次数后自动追加重试投递事件。</p></div>
+        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">自动重试</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">扫描失败或部分成功的告警通知投递，满足退避时间和最大重试次数后自动追加重试投递事件。</p></div>
         <Button disabled={loading || running} onClick={onRunAutoRetry} type="button" variant="outline"><RefreshCw className={cn('size-4', running && 'animate-spin')} />{running ? '扫描中' : '立即扫描重试'}</Button>
       </div>
       {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-md border bg-muted/30" key={index} />)}</div> : (

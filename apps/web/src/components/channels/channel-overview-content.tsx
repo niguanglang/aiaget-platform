@@ -214,10 +214,10 @@ export function ChannelOverviewContent() {
       </section>
 
       <section className="grid gap-4">
-        <div>
-          <h2 className="text-base font-semibold">运营入口</h2>
-          <p className="mt-1 text-sm text-muted-foreground">根页只保留导航和摘要，完整列表、详情和操作工作台在子页面中完成。</p>
-        </div>
+          <div>
+            <h2 className="text-base font-semibold">运营入口</h2>
+          <p className="mt-1 text-sm text-muted-foreground">发布渠道、提供方、账号凭据、任务、投递和回复入口。</p>
+          </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {navigationItems.map((item) => (
             <NavigationCard key={item.href} item={item} />

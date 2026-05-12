@@ -22,8 +22,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/index.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:examples": "tsc -p tsconfig.examples.json --noEmit",
     "prepack": "pnpm build",
-    "pack:check": "pnpm typecheck && pnpm build && npm pack --dry-run"
+    "pack:check": "pnpm test && pnpm typecheck && pnpm typecheck:examples && pnpm build && npm pack --dry-run"
   }
 }

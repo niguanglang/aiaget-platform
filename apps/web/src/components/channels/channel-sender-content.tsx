@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChannelCallbackProvider, ChannelSenderDeliveryListItem } from '@aiaget/shared-types';
+import type { ChannelCallbackProvider, ChannelSenderDeliveryListItem, ChannelSenderProviderApi } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, RotateCcw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -354,8 +354,8 @@ function senderModeLabel(mode: ChannelSenderDeliveryListItem['sender_mode']) {
   return '已跳过';
 }
 
-function providerApiLabel(value: string) {
-  const labels: Record<string, string> = {
+function providerApiLabel(value: ChannelSenderProviderApi) {
+  const labels: Record<ChannelSenderProviderApi, string> = {
     WECHAT_WORK_MESSAGE_SEND: '企业微信消息发送',
     DINGTALK_SESSION_WEBHOOK: '钉钉会话 Webhook',
     FEISHU_BOT_WEBHOOK: '飞书机器人 Webhook',

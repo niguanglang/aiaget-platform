@@ -29,7 +29,7 @@
 | 权限与安全中心 | 已完成 | RBAC、ABAC、DataScope、Resource ACL、SecurityPolicy、统一审批工作台已落地 | 企业可按实际组织继续扩展策略模板 |
 | 存储与知识库增强 | 已完成 | MinIO 文件管理、Qdrant/OpenSearch 后端、后台任务、恢复重试、召回隔离测试 | 外部存储和搜索服务 SLA 由部署方验收 |
 | Runtime / Temporal / Tool Gateway | 已完成 | Runtime 执行下沉、工作流恢复、Tool Gateway 审批/限流/审计边界 | Temporal 外部服务可用性需在生产环境演练 |
-| 外部 API Key / Webhook / SDK | 已完成 | 外部调用、幂等、Webhook 投递、重试、SDK 文档与打包检查 | SDK 发布到包仓库属于发布流程，不是代码阻塞 |
+| 外部 API Key / Webhook / SDK | 已完成 | 外部调用、幂等、Webhook 投递、重试、SDK 行为测试、示例类型检查、文档与打包检查 | SDK 发布到包仓库属于发布流程，不是代码阻塞；本地流程不执行 npm publish |
 | 多 Agent 协作 | 已完成 | 团队编排、Supervisor、预算、子事件、报告、归档、审批和 Trace 图谱 | 真实生产团队任务 smoke 按 Runbook 执行 |
 | 插件生态 | 已完成 | Manifest 校验、包完整性、签名适配、Tool Gateway 绑定、Hook 入队与恢复 | 插件自定义代码沙箱属于后续 P1/P2 增强 |
 | 全渠道发布 | 已完成 | 渠道配置、灰度、门禁、自动推进、回滚、自愈、投递审计和验签 | 企业微信/钉钉/飞书真实凭证联调需目标环境执行 |
@@ -49,6 +49,16 @@ pnpm --filter @aiaget/web lint
 pnpm --filter @aiaget/web build
 python3 -m compileall apps/agent-runtime/app
 git diff --check
+```
+
+SDK 发布质量门禁专项覆盖：
+
+```bash
+pnpm --filter @aiaget/external-api-sdk test
+pnpm --filter @aiaget/external-api-sdk typecheck:examples
+pnpm --filter @aiaget/external-api-sdk pack:check
+node --test scripts/tests/validate-external-sdk-package.test.mjs
+pnpm verify:sdk-release
 ```
 
 本轮生产落地中心专项还执行通过：

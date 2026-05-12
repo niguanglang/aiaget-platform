@@ -135,6 +135,7 @@ node scripts/production-smoke.mjs \
 - `GET /api/v1/tools`
 - `GET /api/v1/conversations`
 - `GET /api/v1/monitor/overview`
+- `GET /api/v1/monitor/observability?window=24h`
 - `GET /api/v1/runtime/workflows/status`
 - `GET /api/v1/security-center/overview`
 - `GET /api/v1/billing/overview`
@@ -161,6 +162,7 @@ node scripts/production-smoke.mjs \
 - 工具中心能查看 HTTP 工具和调用日志。
 - 会话中心能发起测试会话，Runtime 返回 trace id。
 - 监控中心能查看平台事件、运行轨迹和可恢复工作流。
+- 监控中心 `/monitor/observability` 能查看 24h 可观测性质量，生产落地项 `observability-trace-quality` 的人工验收记录需包含 Trace 覆盖率、孤立事件、错误链路和慢链路证据。
 - 安全中心能查看安全事件、审批、恢复和归档。
 - 计费中心能查看套餐、订阅、额度策略、账单、调账；额度硬阈值接口返回 allow/block。
 - 渠道中心和 API Key 中心能查看外部调用、Webhook 投递、渠道发布和失败恢复入口。
@@ -185,9 +187,8 @@ node scripts/verify-trace-propagation.mjs \
 - Control API 响应头保留 `x-trace-id` 和 `traceparent`。
 - Runtime 响应体 `trace_id` 与探针一致。
 - 监控中心能按 trace id 查到相关平台事件。
-- OpenTelemetry Collector 能接收 trace、metric、log。
-- Prometheus 可见 collector metrics。
-- Grafana 数据源包含 Prometheus 和 Loki。
+- `/monitor/observability` 能展示 Trace 覆盖率、孤立事件、错误链路和慢链路，且 `GET /api/v1/monitor/observability?window=24h` 已被登录态 production smoke 覆盖。
+- OpenTelemetry Collector、Prometheus、Grafana 和 Loki 由运维批准的外部平台负责；本 Runbook 不启动 Collector，不启动观测中间件，也不新增本地采集容器。
 
 ## 9. 回滚
 
@@ -229,6 +230,7 @@ git diff --check
 - 备份文件路径和恢复演练结果。
 - smoke 命令输出。
 - 生产落地中心 `/settings/production-readiness` 人工验收结论和验收记录 ID。
+- `/monitor/observability` 的 24h 可观测性证据：Trace 覆盖率、孤立事件、错误链路和慢链路，并关联 `observability-trace-quality` 验收项。
 - 客户成功计划、客户成功行动、续约机会列表、机会分析页的人工验收截图或记录链接。
 - 使用 `docs/product/production-delivery-record-template.md` 填写生产交付记录并归档。
 - 已知风险和后续 P1/P2 事项。

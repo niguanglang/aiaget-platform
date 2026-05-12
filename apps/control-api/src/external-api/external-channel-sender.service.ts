@@ -7,6 +7,7 @@ import type {
   ChannelSenderDeliveryListItem,
   ChannelSenderDeliveryStatus,
   ChannelSenderPolicy,
+  ChannelSenderProviderApi,
   ChannelSenderTaskRunResult,
   ListChannelSenderDeliveriesResult,
   PublishChannelType,
@@ -83,15 +84,6 @@ interface DispatchPlan {
 }
 
 type ChannelSenderMode = 'NATIVE_API' | 'WEBHOOK' | 'SKIPPED';
-type ChannelSenderProviderApi =
-  | 'WECHAT_WORK_MESSAGE_SEND'
-  | 'DINGTALK_SESSION_WEBHOOK'
-  | 'FEISHU_BOT_WEBHOOK'
-  | 'FEISHU_IM_MESSAGE'
-  | 'SLACK_INCOMING_WEBHOOK'
-  | 'SLACK_CHAT_POST_MESSAGE'
-  | 'CUSTOM_WEBHOOK';
-
 export interface ListChannelSenderDeliveriesQuery {
   channel_id?: string;
   status?: string;

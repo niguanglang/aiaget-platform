@@ -1287,6 +1287,104 @@ test('runPluginHookExecution blocks custom code hook when sandbox executor is no
   assert.equal((events[0]?.payloadJson?.sandbox_policy as { entry?: string } | undefined)?.entry, 'dist/index.js');
 });
 
+test('runPluginHookExecution executes custom code hook through configured remote sandbox executor', async () => {
+  const events: Array<{ eventType: string; status: string; payloadJson?: Record<string, unknown> }> = [];
+  const sandboxExecutions: Array<Record<string, unknown>> = [];
+  const prisma = {
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        resourceId: 'hook-1',
+        traceId: 'trace-1',
+        requestId: 'request-1',
+        payloadJson: {
+          plugin_id: 'plugin-1',
+          hook_id: 'hook-1',
+          hook_code: 'custom.entry',
+          payload: { id: 'payload-1' },
+          execution_boundary: 'PLUGIN_SANDBOX_POLICY_GATED',
+          sandbox_policy: {
+            status: 'DECLARED',
+            isolation: 'REMOTE',
+            network: 'DENY',
+            filesystem: 'NONE',
+            timeout_ms: 5000,
+            memory_mb: 128,
+            entry: 'dist/index.js',
+          },
+          sandbox_risk_level: 'MEDIUM',
+          sandbox_violations: [],
+        },
+      }),
+    },
+    user: {
+      findFirst: async () => ({
+        id: 'user-1',
+        tenantId: 'tenant-1',
+        departmentId: null,
+        email: 'operator@example.test',
+        userRoles: [],
+      }),
+    },
+    pluginHook: {
+      findFirst: async () => ({
+        id: 'hook-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        code: 'custom.entry',
+        status: 'ACTIVE',
+        configJson: {},
+      }),
+    },
+    tool: {
+      findFirst: async () => {
+        throw new Error('remote sandbox hook should not query Tool Gateway tool');
+      },
+    },
+  };
+  const service = createRuntimeExecutionService({
+    prisma,
+    pluginSandboxExecutor: {
+      isConfigured: () => true,
+      execute: async (input: Record<string, unknown>) => {
+        sandboxExecutions.push(input);
+        return {
+          status: 'SUCCESS',
+          latency_ms: 42,
+          output_preview: 'sandbox ok',
+          output: { ok: true },
+        };
+      },
+    },
+    platformEvents: {
+      recordEvent: async (event: { eventType: string; status: string; payloadJson?: Record<string, unknown> }) => {
+        events.push(event);
+      },
+      recordUsage: async () => undefined,
+    },
+  });
+
+  const result = await service.runPluginHookExecution({
+    event_id: 'event-1',
+    plugin_id: 'plugin-1',
+    hook_id: 'hook-1',
+    workflow_id: 'plugin-hook-event-1',
+    run_id: 'run-1',
+  });
+
+  assert.equal(result.status, 'SUCCESS');
+  assert.equal(result.execution_boundary, 'PLUGIN_SANDBOX_REMOTE_EXECUTOR');
+  assert.equal(sandboxExecutions.length, 1);
+  assert.equal(sandboxExecutions[0]?.entry, 'dist/index.js');
+  assert.deepEqual(sandboxExecutions[0]?.payload, { id: 'payload-1' });
+  assert.deepEqual(events.map((event) => event.eventType), ['workflow.plugin_hook_execution.finished']);
+  assert.equal(events[0]?.payloadJson?.execution_boundary, 'PLUGIN_SANDBOX_REMOTE_EXECUTOR');
+  assert.equal(events[0]?.payloadJson?.sandbox_latency_ms, 42);
+  assert.equal(events[0]?.payloadJson?.output_preview, 'sandbox ok');
+});
+
 test('runtime internal permission denial is projected as a security access event', async () => {
   const events: Array<{ eventType: string; resourceType: string; traceId?: string | null; requestId?: string | null; summary?: string | null }> = [];
   const service = createRuntimeExecutionService({
@@ -1378,6 +1476,7 @@ function createRuntimeExecutionService(input: {
   releaseSelfHealingWorkflow?: Record<string, unknown>;
   pluginRollbackWorkflow?: Record<string, unknown>;
   pluginHookWorkflow?: Record<string, unknown>;
+  pluginSandboxExecutor?: Record<string, unknown>;
 }) {
   return new RuntimeExecutionServiceCtor(
     input.prisma as never,
@@ -1393,6 +1492,7 @@ function createRuntimeExecutionService(input: {
     input.releaseSelfHealingWorkflow as never ?? null as never,
     input.pluginRollbackWorkflow as never ?? null as never,
     input.pluginHookWorkflow as never ?? null as never,
+    input.pluginSandboxExecutor as never ?? null as never,
   );
 }
 

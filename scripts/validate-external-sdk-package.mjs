@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +8,7 @@ const REQUIRED_PACKAGE_FIELDS = ['name', 'version', 'description', 'license', 't
 export async function collectExternalSdkPackageIssues(packageJsonPath = 'packages/external-api-sdk/package.json') {
   const packageText = await readFile(packageJsonPath, 'utf8');
   const packageJson = JSON.parse(packageText);
+  const packageDir = path.dirname(packageJsonPath);
   const issues = [];
 
   for (const field of REQUIRED_PACKAGE_FIELDS) {
@@ -40,9 +42,15 @@ export async function collectExternalSdkPackageIssues(packageJsonPath = 'package
   }
 
   const scripts = packageJson.scripts ?? {};
-  for (const scriptName of ['build', 'typecheck', 'prepack', 'pack:check']) {
+  for (const scriptName of ['build', 'typecheck', 'test', 'typecheck:examples', 'prepack', 'pack:check']) {
     if (!hasValue(scripts[scriptName])) {
       issues.push(`package.json scripts must include ${scriptName}`);
+    }
+  }
+
+  for (const examplePath of ['examples/idempotency-chat.ts', 'examples/webhook-verify.ts']) {
+    if (!(await fileExists(path.join(packageDir, examplePath)))) {
+      issues.push(`SDK example is missing: ${examplePath}`);
     }
   }
 
@@ -103,6 +111,15 @@ function hasValue(value) {
   if (Array.isArray(value)) return value.length > 0;
   if (value && typeof value === 'object') return Object.keys(value).length > 0;
   return typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+async function fileExists(filePath) {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const currentFilePath = fileURLToPath(import.meta.url);

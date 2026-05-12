@@ -80,11 +80,11 @@ PLUGIN_SIGNATURE_LOCAL_ALGORITHM=RSA-SHA256
 ## P0 边界
 
 - 本轮不引入真实 Sigstore/PGP SDK、不新增对象存储表、不启动容器或中间件。
-- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook 沙箱审计快照持久化、Hook Runtime 执行、Hook 失败恢复和代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件；完整 Sigstore/PGP 信任链 verifier、真正插件代码沙箱属于后续增强。
-- Hook 不执行第三方任意代码；当前执行目标限定为 Manifest 同步生成的 Tool Center 工具，并复用 Tool Gateway 的审批、限流、安全策略和审计边界。代码型 Hook 即使已声明 sandbox，也必须等待真实沙箱执行器接入；未接入时 Runtime 记录 `workflow.plugin_hook_execution.sandbox_blocked`。
+- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook 沙箱审计快照持久化、Hook Runtime 执行、Hook 失败恢复、代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件，以及可选远程沙箱执行器契约；完整 Sigstore/PGP 信任链 verifier 和本项目内置代码沙箱服务属于后续增强。
+- Hook 默认不执行第三方任意代码；Manifest 同步生成的 Tool Center 工具继续复用 Tool Gateway 的审批、限流、安全策略和审计边界。代码型 Hook 即使已声明 sandbox，也只有在显式配置 `PLUGIN_SANDBOX_EXECUTOR_URL` 指向外部已批准沙箱执行器时才会进入远程执行；未配置时 Runtime 记录 `workflow.plugin_hook_execution.sandbox_blocked`。
 
 ## 下一批文件边界
 
 - 内置签名验证实现：`apps/control-api/src/plugins/` 已支持本地公钥 detached signature verifier；后续可在现有 `PluginPackageSignatureVerifier` 接口下继续增加 Sigstore/PGP SDK 信任链适配。
-- 插件代码沙箱：如果后续允许插件包内自定义代码运行，需要独立沙箱进程、资源限制、网络白名单和签名策略；不得在 Control API 进程内执行。
-- Hook 执行增强：当前 Hook 已通过 Runtime/Temporal 触发生成工具调用；后续可扩展为插件沙箱 Worker，但仍必须复用安全中心审批、Tool Gateway 风险策略和统一事件用量契约。
+- 插件代码沙箱：如果后续允许插件包内自定义代码运行，需要独立沙箱进程、资源限制、网络白名单和签名策略；不得在 Control API 进程内执行。当前只提供 `REMOTE` 外部执行器 HTTP 契约。
+- Hook 执行增强：当前 Hook 已通过 Runtime/Temporal 触发生成工具调用，代码型 Hook 可选委托外部远程沙箱；后续如扩展为插件沙箱 Worker，仍必须复用安全中心审批、Tool Gateway 风险策略和统一事件用量契约。

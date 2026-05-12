@@ -381,6 +381,8 @@ test('sender list route links to delivery detail instead of embedding the detail
   assert.match(senderSource, /平台 API/);
   assert.match(senderSource, /senderModeLabel\(item\.sender_mode\)/);
   assert.match(senderSource, /providerApiLabel\(item\.provider_api\)/);
+  assert.match(senderSource, /ChannelSenderProviderApi/);
+  assert.match(senderSource, /Record<ChannelSenderProviderApi, string>/);
   assert.match(senderSource, /原生 API/);
   assert.match(senderSource, /Webhook/);
   assert.doesNotMatch(senderSource, /\bselectedDeliveryId\b/);
@@ -397,6 +399,8 @@ test('sender list route links to delivery detail instead of embedding the detail
   assert.match(detailSource, /平台 API/);
   assert.match(detailSource, /senderModeLabel\(item\.sender_mode\)/);
   assert.match(detailSource, /providerApiLabel\(item\.provider_api\)/);
+  assert.match(detailSource, /ChannelSenderProviderApi/);
+  assert.match(detailSource, /Record<ChannelSenderProviderApi, string>/);
   assert.match(detailSource, /原生 API/);
   assert.match(detailSource, /Webhook/);
   assert.match(detailSource, /请求头/);

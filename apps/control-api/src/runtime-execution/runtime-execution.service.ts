@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimeWorkflowBackend, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType, type TestToolResult } from '@aiaget/shared-types';
+import { expandPermissionCodes, hasPermission, type ConversationReferenceItem, type DataScopeResourceType, type RuntimePluginHookExecutionResult, type RuntimeWorkflowBackend, type RuntimeWorkflowRecoverableTaskItem, type RuntimeWorkflowRetryResult, type RuntimeWorkflowStatusOverview, type RuntimeWorkflowTaskType, type TestToolResult } from '@aiaget/shared-types';
 
 import { AgentTeamsService } from '../agent-teams/agent-teams.service';
 import { buildTraceparent, createSpanId, type TraceContext } from '../common/tracing/trace-context';
@@ -25,6 +25,7 @@ import type { RuntimePluginRollbackDto } from './dto/runtime-plugin-rollback.dto
 import type { RuntimeAgentTeamRunDto } from './dto/runtime-agent-team-run.dto';
 import type { RuntimeRetrieveDto } from './dto/runtime-retrieve.dto';
 import type { RuntimeToolCallDto } from './dto/runtime-tool-call.dto';
+import { RuntimePluginSandboxExecutor } from './plugin-sandbox-executor';
 import { normalizeWorkflowBackend, normalizeWorkflowMode, resolveWorkflowBackendStatus } from './runtime-workflow-status';
 
 export interface RuntimeToolCallSummary {
@@ -55,6 +56,7 @@ export class RuntimeExecutionService {
     @Optional() @Inject(ChannelReleaseSelfHealingWorkflowService) private readonly releaseSelfHealingWorkflow: ChannelReleaseSelfHealingWorkflowService | null = null,
     @Optional() @Inject(PluginRollbackWorkflowService) private readonly pluginRollbackWorkflow: PluginRollbackWorkflowService | null = null,
     @Optional() @Inject(PluginHookWorkflowService) private readonly pluginHookWorkflow: PluginHookWorkflowService | null = null,
+    @Optional() @Inject(RuntimePluginSandboxExecutor) private readonly pluginSandboxExecutor: RuntimePluginSandboxExecutor | null = null,
   ) {}
 
   async retrieve(dto: RuntimeRetrieveDto) {
@@ -972,7 +974,7 @@ export class RuntimeExecutionService {
     };
   }
 
-  async runPluginHookExecution(dto: RuntimePluginHookExecutionDto) {
+  async runPluginHookExecution(dto: RuntimePluginHookExecutionDto): Promise<RuntimePluginHookExecutionResult> {
     const event = await this.prisma.platformEvent.findFirst({
       where: {
         id: dto.event_id,
@@ -1009,6 +1011,10 @@ export class RuntimeExecutionService {
     const sandboxEntry = stringValue(sandboxPolicy?.entry);
     if (!toolCode) {
       if (sandboxEntry) {
+        if (this.pluginSandboxExecutor?.isConfigured()) {
+          return this.executePluginHookInSandbox(dto, event, hook, user, payload, hookConfig, sandboxPolicy ?? {}, sandboxEntry);
+        }
+
         const errorMessage = 'Plugin sandbox executor is not configured';
         await this.recordWorkflowEvent({
           tenantId: event.tenantId,
@@ -1145,10 +1151,96 @@ export class RuntimeExecutionService {
       event_id: dto.event_id,
       plugin_id: dto.plugin_id,
       hook_id: dto.hook_id,
+      execution_boundary: 'TOOL_GATEWAY',
       tool_id: tool.id,
+      tool_code: tool.code,
       status,
       approval_request_id: result.approval_request_id ?? null,
+      latency_ms: result.latency_ms ?? 0,
+      response_status: result.response_status ?? null,
+      output_preview: createOutputPreview(result.response_body),
       error_message: result.error_message ?? null,
+    };
+  }
+
+  private async executePluginHookInSandbox(
+    dto: RuntimePluginHookExecutionDto,
+    event: { tenantId: string; requestId?: string | null; traceId?: string | null },
+    hook: { code: string },
+    _user: AuthenticatedUser,
+    payload: Record<string, unknown> | null,
+    hookConfig: Record<string, unknown> | null,
+    sandboxPolicy: Record<string, unknown>,
+    sandboxEntry: string,
+  ): Promise<RuntimePluginHookExecutionResult> {
+    const result = await this.pluginSandboxExecutor!.execute({
+      tenantId: event.tenantId,
+      pluginId: dto.plugin_id,
+      hookId: dto.hook_id,
+      hookCode: hook.code,
+      eventId: dto.event_id,
+      entry: sandboxEntry,
+      payload: jsonObjectOrNull(payload?.payload) ?? {},
+      sandboxPolicy,
+      requestId: event.requestId ?? null,
+      traceId: event.traceId ?? null,
+    });
+    const status = result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+    const errorMessage = result.error_message ?? null;
+
+    await this.recordWorkflowEvent({
+      tenantId: event.tenantId,
+      resourceType: 'PLUGIN_HOOK',
+      resourceId: dto.hook_id,
+      taskId: dto.event_id,
+      requestId: event.requestId ?? null,
+      traceId: event.traceId ?? null,
+      eventType: status === 'SUCCESS'
+        ? 'workflow.plugin_hook_execution.finished'
+        : 'workflow.plugin_hook_execution.failed',
+      status,
+      severity: status === 'FAILED' ? 'ERROR' : 'INFO',
+      summary: `插件 Hook ${hook.code} 已通过远程沙箱执行器执行：${status}。`,
+      payloadJson: {
+        event_id: dto.event_id,
+        plugin_id: dto.plugin_id,
+        hook_id: dto.hook_id,
+        hook_code: hook.code,
+        tool_id: null,
+        tool_code: null,
+        workflow_id: dto.workflow_id ?? null,
+        workflow_run_id: dto.run_id ?? null,
+        status,
+        approval_request_id: null,
+        error_message: errorMessage,
+        execution_boundary: 'PLUGIN_SANDBOX_REMOTE_EXECUTOR',
+        sandbox_policy: toInputJsonValue(sandboxPolicy),
+        sandbox_risk_level: stringValue(payload?.sandbox_risk_level) ?? stringValue(hookConfig?.sandbox_risk_level),
+        sandbox_violations: Array.isArray(payload?.sandbox_violations)
+          ? payload.sandbox_violations
+          : Array.isArray(hookConfig?.sandbox_violations)
+            ? hookConfig.sandbox_violations
+            : [],
+        sandbox_latency_ms: result.latency_ms,
+        output_preview: result.output_preview ?? createOutputPreview(result.output),
+      },
+      sourceSystem: 'runtime_workflow',
+      sourceId: dto.event_id,
+    });
+
+    return {
+      event_id: dto.event_id,
+      plugin_id: dto.plugin_id,
+      hook_id: dto.hook_id,
+      status,
+      execution_boundary: 'PLUGIN_SANDBOX_REMOTE_EXECUTOR',
+      tool_id: null,
+      tool_code: null,
+      approval_request_id: null,
+      latency_ms: result.latency_ms,
+      response_status: null,
+      output_preview: result.output_preview ?? createOutputPreview(result.output),
+      error_message: errorMessage,
     };
   }
 

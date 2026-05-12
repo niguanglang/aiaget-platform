@@ -1315,6 +1315,43 @@ export interface PluginSandboxPolicyAudit {
   violations: string[];
 }
 
+export type PluginSandboxExecutionStatus = 'SUCCESS' | 'FAILED';
+
+export interface PluginSandboxExecutionRequest {
+  tenant_id: string;
+  plugin_id: string;
+  hook_id: string;
+  hook_code: string;
+  event_id: string;
+  entry: string;
+  payload: Record<string, unknown>;
+  sandbox_policy: PluginSandboxPolicyPreview | Record<string, unknown>;
+}
+
+export interface PluginSandboxExecutionResponse {
+  status: PluginSandboxExecutionStatus;
+  latency_ms?: number | null;
+  output_preview?: string | null;
+  output?: unknown;
+  error_message?: string | null;
+  message?: string | null;
+}
+
+export interface RuntimePluginHookExecutionResult {
+  event_id: string;
+  plugin_id: string;
+  hook_id: string;
+  status: PluginSandboxExecutionStatus | 'APPROVAL_REQUIRED';
+  execution_boundary: 'TOOL_GATEWAY' | 'PLUGIN_SANDBOX_REMOTE_EXECUTOR';
+  tool_id?: string | null;
+  tool_code?: string | null;
+  approval_request_id?: string | null;
+  latency_ms: number;
+  response_status?: number | null;
+  output_preview?: string | null;
+  error_message?: string | null;
+}
+
 export interface PluginManifestValidationResult {
   status: PluginManifestValidationStatus;
   can_install: boolean;
@@ -4618,6 +4655,14 @@ export interface UpdateChannelSenderPolicyInput {
 
 export type ChannelSenderDeliveryStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'RETRYING';
 export type ChannelSenderMode = 'NATIVE_API' | 'WEBHOOK' | 'SKIPPED';
+export type ChannelSenderProviderApi =
+  | 'WECHAT_WORK_MESSAGE_SEND'
+  | 'DINGTALK_SESSION_WEBHOOK'
+  | 'FEISHU_BOT_WEBHOOK'
+  | 'FEISHU_IM_MESSAGE'
+  | 'SLACK_INCOMING_WEBHOOK'
+  | 'SLACK_CHAT_POST_MESSAGE'
+  | 'CUSTOM_WEBHOOK';
 
 export interface ChannelSenderDeliveryListItem {
   id: string;
@@ -4631,7 +4676,7 @@ export interface ChannelSenderDeliveryListItem {
   agent_name: string | null;
   provider: ChannelCallbackProvider;
   sender_mode: ChannelSenderMode;
-  provider_api: string;
+  provider_api: ChannelSenderProviderApi;
   target: string | null;
   status: ChannelSenderDeliveryStatus;
   response_status: number | null;

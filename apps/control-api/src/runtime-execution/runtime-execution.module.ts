@@ -9,6 +9,7 @@ import { PluginsModule } from '../plugins/plugins.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ToolsModule } from '../tools/tools.module';
 import { RuntimeExecutionController } from './runtime-execution.controller';
+import { HttpPluginSandboxExecutor, RuntimePluginSandboxExecutor } from './plugin-sandbox-executor';
 import { RuntimeExecutionService } from './runtime-execution.service';
 import { RuntimeInternalGuard } from './runtime-internal.guard';
 import { RuntimeWorkflowController } from './runtime-workflow.controller';
@@ -16,7 +17,7 @@ import { RuntimeWorkflowController } from './runtime-workflow.controller';
 @Module({
   imports: [AuthModule, PrismaModule, KnowledgeModule, ToolsModule, AgentTeamsModule, ChannelsModule, PluginsModule, PlatformEventsModule],
   controllers: [RuntimeExecutionController, RuntimeWorkflowController],
-  providers: [RuntimeExecutionService, RuntimeInternalGuard],
+  providers: [HttpPluginSandboxExecutor, RuntimePluginSandboxExecutor, RuntimeExecutionService, RuntimeInternalGuard],
   exports: [RuntimeExecutionService],
 })
 export class RuntimeExecutionModule {}

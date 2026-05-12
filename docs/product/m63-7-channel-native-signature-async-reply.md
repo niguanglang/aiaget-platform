@@ -115,7 +115,7 @@ XML / text 回调会进入统一 callback controller，不再被 JSON parser 拦
 - 首次接收成功的 `channel.callback.received` 会写入同一 `dedupeKey`。
 - 窗口内重复请求会被拒绝，并记录 `channel.callback.replay_blocked`，不会创建重复 `channel_reply`、会话或 Agent 运行。
 
-### 快速 ACK / 异步执行骨架
+### 快速 ACK / 异步执行与主动回复
 
 默认同步执行并返回 Agent 回复。
 
@@ -147,17 +147,17 @@ XML / text 回调会进入统一 callback controller，不再被 JSON parser 拦
    - `channel_callback_messages`
    - `channel_callback_tokens`
 
-当前异步骨架还没有实现各 IM 平台“主动发送消息” API，后台执行结果会进入平台会话、事件和用量账本。后续可以在 Tool Gateway 或 Channel Sender 中补齐主动回复。
+主动回复缺口已由后续 Channel Sender 收口：异步执行完成后会按渠道发送回原始会话或 fallback webhook，并记录 Sender 投递、重试和审计事件。M63-8 落地发送网关，M171 进一步补齐 `sender_mode`、`provider_api` 和脱敏观测字段，确保主动回复链路可以按平台 API 排障。
 
 ## 验证
 
 - `pnpm --filter @aiaget/control-api typecheck`
+- `pnpm --filter @aiaget/control-api exec tsx --test src/external-api/external-channel-security.test.ts`
+- `pnpm --filter @aiaget/control-api exec tsx --test src/external-api/external-channel-sender.service.test.ts`
 
-## 后续建议
+## 后续关联
 
-M63-8 可以做“Channel Sender 主动回复网关”：
+- M63-8：Channel Sender 主动回复网关，覆盖企业微信、钉钉、飞书、Slack 和自定义 Webhook 主动发送。
+- M171：Channel Native Sender Observability，明确原生 API / webhook fallback 的观测字段和敏感信息边界。
 
-1. 新增渠道发送器接口。
-2. 企业微信、钉钉、飞书分别实现主动发送文本消息。
-3. 异步执行完成后投递到原始会话。
-4. 记录发送日志、重试、失败告警。
+因此本页中的 raw body、原生验签、解密、快速 ACK 是回调入口能力；主动回复发送、投递审计和重试能力以 Channel Sender 文档为准。

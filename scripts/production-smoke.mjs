@@ -37,6 +37,7 @@ export function buildAuthenticatedSmokeChecks(controlApiBaseUrl) {
     { label: 'Tool list', url: appendPath(controlApiBaseUrl, '/api/v1/tools?page=1&page_size=1', '/tools') },
     { label: 'Conversation list', url: appendPath(controlApiBaseUrl, '/api/v1/conversations?page=1&page_size=1', '/conversations') },
     { label: 'Monitor overview', url: appendPath(controlApiBaseUrl, '/api/v1/monitor/overview?window=24h', '/monitor/overview') },
+    { label: 'Monitor observability quality', url: appendPath(controlApiBaseUrl, '/api/v1/monitor/observability?window=24h', '/monitor/observability') },
     { label: 'Runtime workflow status', url: appendPath(controlApiBaseUrl, '/api/v1/runtime/workflows/status', '/runtime/workflows/status') },
     { label: 'Security overview', url: appendPath(controlApiBaseUrl, '/api/v1/security-center/overview', '/security-center/overview') },
     { label: 'Billing overview', url: appendPath(controlApiBaseUrl, '/api/v1/billing/overview?window=30d', '/billing/overview') },

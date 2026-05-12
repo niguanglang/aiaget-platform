@@ -19,7 +19,9 @@ import { createAiagetExternalApiClient } from '@aiaget/external-api-sdk';
 SDK 已按可发布 npm 包整理，运行时不依赖 monorepo workspace 包。发布前执行：
 
 ```bash
+pnpm --filter @aiaget/external-api-sdk test
 pnpm --filter @aiaget/external-api-sdk typecheck
+pnpm --filter @aiaget/external-api-sdk typecheck:examples
 pnpm --filter @aiaget/external-api-sdk build
 pnpm --filter @aiaget/external-api-sdk pack:check
 ```
@@ -96,6 +98,17 @@ const isValid = await verifyAiagetWebhookSignature({
   body: rawBody,
 });
 ```
+
+## 示例
+
+```text
+examples/basic-chat.ts
+examples/stream-chat.ts
+examples/idempotency-chat.ts
+examples/webhook-verify.ts
+```
+
+示例文件参与 `typecheck:examples`，其中 `idempotency-chat.ts` 演示 `idempotency_key` 透传，`webhook-verify.ts` 演示原始 body 与签名 header 校验。
 
 ## 权限要求
 

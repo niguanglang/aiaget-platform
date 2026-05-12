@@ -127,6 +127,7 @@ test('buildAuthenticatedSmokeChecks covers core business read endpoints', () => 
       'Tool list',
       'Conversation list',
       'Monitor overview',
+      'Monitor observability quality',
       'Runtime workflow status',
       'Security overview',
       'Billing overview',
@@ -165,6 +166,10 @@ test('buildAuthenticatedSmokeChecks covers core business read endpoints', () => 
   assert.equal(
     checks.find((check) => check.label === 'Customer success opportunity analytics')?.url,
     'https://api.example.com/api/v1/customer-success-opportunities/analytics',
+  );
+  assert.equal(
+    checks.find((check) => check.label === 'Monitor observability quality')?.url,
+    'https://api.example.com/api/v1/monitor/observability?window=24h',
   );
   assert.equal(checks.at(-1)?.url, 'https://api.example.com/api/v1/departments/overview');
 });

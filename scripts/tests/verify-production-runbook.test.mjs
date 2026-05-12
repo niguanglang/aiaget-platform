@@ -31,6 +31,12 @@ GET /runtime/health
 
 ## 8. 观测与 Trace
 node scripts/verify-trace-propagation.mjs
+/monitor/observability
+observability-trace-quality
+Trace 覆盖率
+孤立事件
+错误链路
+慢链路
 
 ## 9. 回滚
 docker compose -f deploy/docker-compose.production.yml --env-file .env.production down
@@ -62,6 +68,12 @@ test('collectProductionRunbookIssues reports missing release safety sections', (
       'Runbook must mention prisma:deploy',
       'Runbook must mention production-smoke.mjs',
       'Runbook must mention verify-trace-propagation.mjs',
+      'Runbook must mention /monitor/observability',
+      'Runbook must mention observability-trace-quality',
+      'Runbook must mention Trace 覆盖率',
+      'Runbook must mention 孤立事件',
+      'Runbook must mention 错误链路',
+      'Runbook must mention 慢链路',
       'Runbook must mention /settings/production-readiness',
       'Runbook must mention /customer-success-plans',
       'Runbook must mention /customer-success-actions',

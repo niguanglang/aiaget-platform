@@ -130,12 +130,10 @@ export function ModelsContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">模型中心</StatusBadge>
             <StatusBadge tone="healthy">供应商列表</StatusBadge>
-            <StatusBadge tone="planned">详情页配置</StatusBadge>
+            <StatusBadge tone="planned">模型配置</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">模型中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于查询供应商、识别状态和进入详情。模型配置、接口密钥、成本规则、兼容性测试和调用日志在供应商详情页维护。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">供应商、模型数量、接口密钥、能力标签和最近调用。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -144,12 +142,7 @@ export function ModelsContent() {
               新建供应商
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建供应商
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -176,7 +169,7 @@ export function ModelsContent() {
               <div>
                 <h2 className="text-sm font-semibold">供应商列表</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  搜索、筛选、分页和单条操作；完整配置请进入详情页。
+                  名称、类型、状态、模型数量、密钥数量和最近调用。
                 </p>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -253,7 +246,7 @@ export function ModelsContent() {
                 </Button>
               ) : null
             }
-            description="创建 OpenAI 兼容供应商后，在详情页添加模型、脱敏密钥、成本规则和兼容性测试。"
+            description="创建供应商后可添加模型、脱敏密钥、成本规则和兼容性测试。"
             title="暂无模型供应商"
           />
         ) : (

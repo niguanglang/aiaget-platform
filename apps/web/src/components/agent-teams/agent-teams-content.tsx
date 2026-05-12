@@ -96,10 +96,10 @@ export function AgentTeamsContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">Agent 团队</StatusBadge>
             <StatusBadge tone="healthy">列表总览</StatusBadge>
-            <StatusBadge tone="planned">IA 拆分</StatusBadge>
+            <StatusBadge tone="planned">运行记录</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">Agent 协作中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查询、筛选和进入团队详情。成员、运行、接力、反馈和报告归档已拆到独立页面。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队状态、协作模式、接力策略、成员数量和最近运行。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -108,12 +108,14 @@ export function AgentTeamsContent() {
               报告归档
             </Link>
           </Button>
-          <Button asChild aria-disabled={!canManage} className={!canManage ? 'pointer-events-none opacity-60' : undefined}>
-            <Link href="/agent-teams/create">
-              <Plus className="size-4" />
-              新建协作团队
-            </Link>
-          </Button>
+          {canManage ? (
+            <Button asChild>
+              <Link href="/agent-teams/create">
+                <Plus className="size-4" />
+                新建协作团队
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -209,8 +211,12 @@ export function AgentTeamsContent() {
                         <Button asChild size="sm" title="详情" variant="outline"><Link href={`/agent-teams/${team.id}`}><Eye className="size-4" /></Link></Button>
                         <Button asChild size="sm" title="成员" variant="outline"><Link href={`/agent-teams/${team.id}/members`}><UsersRound className="size-4" /></Link></Button>
                         <Button asChild size="sm" title="运行记录" variant="outline"><Link href={`/agent-teams/${team.id}/runs`}><ListChecks className="size-4" /></Link></Button>
-                        <Button asChild aria-disabled={!canManage} className={!canManage ? 'pointer-events-none opacity-60' : undefined} size="sm" title="编辑" variant="outline"><Link href={`/agent-teams/${team.id}/edit`}><Edit className="size-4" /></Link></Button>
-                        <Button disabled={!canManage} onClick={() => setDeleteTarget(team)} size="sm" title="删除" variant="destructive"><Trash2 className="size-4" /></Button>
+                        {canManage ? (
+                          <>
+                            <Button asChild size="sm" title="编辑" variant="outline"><Link href={`/agent-teams/${team.id}/edit`}><Edit className="size-4" /></Link></Button>
+                            <Button onClick={() => setDeleteTarget(team)} size="sm" title="删除" variant="destructive"><Trash2 className="size-4" /></Button>
+                          </>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

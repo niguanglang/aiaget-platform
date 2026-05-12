@@ -123,11 +123,11 @@ export function MonitorContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M09</StatusBadge>
-            <StatusBadge tone="ready">M22</StatusBadge>
-            <StatusBadge tone="ready">M46</StatusBadge>
+            <StatusBadge tone="ready">事件流</StatusBadge>
+            <StatusBadge tone="ready">Trace</StatusBadge>
+            <StatusBadge tone="ready">可观测性</StatusBadge>
             <StatusBadge tone="healthy">真实监控</StatusBadge>
-            <StatusBadge tone="planned">独立下钻</StatusBadge>
+            <StatusBadge tone="planned">运行步骤</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">监控中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -152,7 +152,7 @@ export function MonitorContent() {
           <div>
             <div className="text-sm font-semibold">旧 Trace 链接已兼容</div>
             <p className="mt-1 break-all text-sm text-muted-foreground">
-              当前链接带有 trace_id={legacyTraceId}，Trace 链路已迁移到独立页面。
+              当前链接带有 trace_id={legacyTraceId}，可直接打开 Trace 详情。
             </p>
           </div>
           <Button asChild type="button" variant="outline">
@@ -288,7 +288,7 @@ function PlatformUsageEntryCard() {
             平台事件与用量底座
           </div>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            平台事件、用量账本、Rollup、异常检测、通知审计和重试任务已拆到独立页面，监控首页只保留入口。
+            平台事件、用量账本、Rollup、异常检测、通知审计和重试任务。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -379,7 +379,7 @@ function EventListCard({
           <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-sm font-semibold">统一事件流</h2>
-              <p className="mt-1 text-sm text-muted-foreground">列表只负责筛选和导航，事件详情与 Trace 时间线已拆到独立页面。</p>
+              <p className="mt-1 text-sm text-muted-foreground">追踪 ID、模块、来源、状态、延迟、词元、成本和步骤。</p>
             </div>
             <div className="text-sm text-muted-foreground">
               显示 {events.length} / {eventsTotal}
@@ -521,7 +521,7 @@ function RunStepSummaryCard({ loading, summary }: { loading: boolean; summary: M
           <Activity className="size-4 text-primary" />
           运行步骤观测
         </div>
-        <StatusBadge tone="healthy">M22</StatusBadge>
+        <StatusBadge tone="healthy">运行步骤</StatusBadge>
       </div>
 
       {loading ? (

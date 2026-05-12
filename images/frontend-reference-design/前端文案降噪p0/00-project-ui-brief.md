@@ -1,0 +1,36 @@
+# Project UI Brief
+
+- Page: 前端文案降噪P0
+- Route: /dashboard
+- Feature goal: 清理开发痕迹、IA解释文案和占位按钮
+- Scope:
+  - `/data-scopes`
+  - `/agent-teams`
+  - `/models`
+  - `/tools`
+  - `/prompts`
+  - `/knowledge`
+  - `/conversations`
+  - `/monitor`
+  - `/billing`
+  - `/api-keys`
+  - `/menus`
+- APIs/services: 不新增接口；保留现有 `useQuery`、`useMutation`、权限判断、列表查询、刷新和路由入口。
+- Entities/fields/statuses:
+  - 角色数据范围、资源范围、命中对象
+  - Agent 团队、协作模式、运行记录
+  - 模型供应商、模型数量、密钥、能力
+  - HTTP 工具、风险、鉴权、调用统计
+  - 提示词模板、变量、版本、测试记录
+  - 知识库、文档、切片、处理任务
+  - 会话线程、运行状态、反馈
+  - 监控事件、Trace、运行步骤
+  - 成本趋势、额度风险、账单摘要
+  - API Key、外部调用、Webhook
+  - 菜单树、路由、权限标识
+- Existing components/design system: `Button`、`Card`、`MetricCard`、`StatusBadge`、`EmptyState`、现有列表和详情入口。
+- Required states: loading、empty、error、permission-denied、read-only、confirm。
+- Copy rules:
+  - 不展示 `Mxx` 里程碑编号。
+  - 不展示“列表页用于 / 已拆到独立页面 / 独立页面维护”等内部 IA 说明。
+  - 无权限的新建操作不渲染禁用占位按钮，用只读提示或隐藏入口表达权限状态。

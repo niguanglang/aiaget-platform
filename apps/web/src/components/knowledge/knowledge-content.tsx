@@ -137,14 +137,12 @@ export function KnowledgeContent() {
       <motion.section animate={{ opacity: 1, y: 0 }} className="flex flex-col justify-between gap-4 md:flex-row md:items-start" initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.32, ease: 'easeOut' }}>
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M48</StatusBadge>
+            <StatusBadge tone="ready">知识库</StatusBadge>
             <StatusBadge tone="healthy">目录列表</StatusBadge>
-            <StatusBadge tone="planned">活动 / 健康独立页</StatusBadge>
+            <StatusBadge tone="planned">处理活动</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">知识库中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页只负责查询、筛选、概览和进入详情；文档处理活动与后端能力健康已拆到独立页面。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">知识库状态、可见范围、文档数量、切片数量和失败任务。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild className="w-full md:w-auto" variant="outline">
@@ -160,12 +158,7 @@ export function KnowledgeContent() {
                 新建知识库
               </Link>
             </Button>
-          ) : (
-            <Button className="w-full md:w-auto" disabled variant="default">
-              <Plus className="size-4" />
-              新建知识库
-            </Button>
-          )}
+          ) : null}
         </div>
       </motion.section>
 
@@ -240,14 +233,9 @@ export function KnowledgeContent() {
                       新建知识库
                     </Link>
                   </Button>
-                ) : (
-                  <Button disabled variant="default">
-                    <Plus className="size-4" />
-                    新建知识库
-                  </Button>
-                )
+                ) : null
               }
-              description="创建知识库后，可在详情页上传文档、重建索引并运行检索测试。"
+              description="创建知识库后可上传文档、重建索引并运行检索测试。"
               title="暂无知识库"
             />
           ) : (
@@ -283,12 +271,10 @@ export function KnowledgeContent() {
                                 <Edit className="size-4" />
                               </Link>
                             </Button>
-                          ) : (
-                            <Button disabled size="sm" title="编辑" variant="outline">
-                              <Edit className="size-4" />
-                            </Button>
-                          )}
-                          <Button disabled={!canWrite} onClick={() => setDeleteTarget(base)} size="sm" title="删除" variant="outline"><Trash2 className="size-4" /></Button>
+                          ) : null}
+                          {canWrite ? (
+                            <Button onClick={() => setDeleteTarget(base)} size="sm" title="删除" variant="outline"><Trash2 className="size-4" /></Button>
+                          ) : null}
                         </div>
                       </td>
                     </motion.tr>

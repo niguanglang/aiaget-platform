@@ -168,12 +168,7 @@ export function MenuContent() {
               新建菜单
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建菜单
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -397,28 +392,24 @@ function MenuTable({
                           <Plus className="size-4" />
                         </Link>
                       </Button>
-                    ) : (
-                      <Button disabled size="sm" title="新建子节点" variant="outline">
-                        <Plus className="size-4" />
-                      </Button>
-                    )}
+                    ) : null}
                     {canWrite ? (
                       <Button asChild size="sm" title="编辑" variant="outline">
                         <Link href={`/menus/${menu.id}/edit`}>
                           <Edit className="size-4" />
                         </Link>
                       </Button>
-                    ) : (
-                      <Button disabled size="sm" title="编辑" variant="outline">
-                        <Edit className="size-4" />
-                      </Button>
-                    )}
-                    <Button disabled={!canWrite || pending} onClick={() => onToggle(menu)} size="sm" title={menu.enabled ? '停用' : '启用'} variant="outline">
-                      <Power className="size-4" />
-                    </Button>
-                    <Button disabled={!canWrite} onClick={() => onDelete(menu)} size="sm" title="删除" variant="outline">
-                      <Trash2 className="size-4" />
-                    </Button>
+                    ) : null}
+                    {canWrite ? (
+                      <>
+                        <Button disabled={pending} onClick={() => onToggle(menu)} size="sm" title={menu.enabled ? '停用' : '启用'} variant="outline">
+                          <Power className="size-4" />
+                        </Button>
+                        <Button onClick={() => onDelete(menu)} size="sm" title="删除" variant="outline">
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </td>
               </motion.tr>

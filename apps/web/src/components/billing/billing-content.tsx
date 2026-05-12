@@ -81,7 +81,7 @@ export function BillingContent() {
       <BillingWorkspaceHeader
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         badge="成本中心"
-        description="成本总览只保留查询、概览、近期摘要和入口；配置、调账、发票、订阅和用量明细在独立页面处理。"
+        description="成本趋势、额度风险、账单摘要、订阅状态和用量入口。"
         onWindowChange={setWindowValue}
         title="成本总览"
         windowValue={windowValue}

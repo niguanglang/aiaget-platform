@@ -211,14 +211,12 @@ export function ApiKeyContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M50</StatusBadge>
+            <StatusBadge tone="ready">API Key</StatusBadge>
             <StatusBadge tone="healthy">外部调用</StatusBadge>
             <StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '可管理' : '仅查看'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">API Key 管理中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            管理外部服务端、自动化任务和集成系统使用的受控 Agent 调用密钥。创建、观测和 Webhook 排障已拆分为独立页面，避免在列表页丢失关键状态。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">外部调用密钥、授权 Agent、额度、IP 白名单、Webhook 和调用观测。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button">

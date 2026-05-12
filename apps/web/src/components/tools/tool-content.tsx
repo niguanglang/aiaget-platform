@@ -137,12 +137,10 @@ export function ToolContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">工具中心</StatusBadge>
             <StatusBadge tone="healthy">HTTP 工具</StatusBadge>
-            <StatusBadge tone="planned">详情页测试</StatusBadge>
+            <StatusBadge tone="planned">调用日志</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">工具中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于查询工具、识别状态和执行单条治理操作。完整 HTTP 配置、输入输出结构、测试、调用日志和智能体引用在工具详情页维护。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">HTTP 工具、鉴权方式、风险等级、调用统计和智能体引用。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -151,12 +149,7 @@ export function ToolContent() {
               新建工具
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建工具
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -183,7 +176,7 @@ export function ToolContent() {
               <div>
                 <h2 className="text-sm font-semibold">工具清单</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  搜索、筛选、复制、启停工具，并进入详情页查看完整配置与调用记录。
+                  名称、方法、鉴权、风险、状态、今日调用和最近调用。
                 </p>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -260,7 +253,7 @@ export function ToolContent() {
                 </Button>
               ) : null
             }
-            description="先创建一个 HTTP 工具，再进入详情页配置结构、鉴权策略和测试输入。"
+            description="先创建一个 HTTP 工具，再配置结构、鉴权策略和测试输入。"
             title="暂无工具"
           />
         ) : (

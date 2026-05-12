@@ -108,12 +108,10 @@ export function ConversationContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">会话中心</StatusBadge>
             <StatusBadge tone="healthy">真实会话</StatusBadge>
-            <StatusBadge tone="planned">详情页对话</StatusBadge>
+            <StatusBadge tone="planned">运行证据</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">会话中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于浏览租户会话线程、筛选智能体和归档会话。继续对话、运行轨迹、工具调用、引用来源和反馈在会话详情页完成。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">会话线程、智能体、消息数量、运行状态、反馈和归档状态。</p>
         </div>
         {canWrite && agents.length > 0 ? (
           <Button asChild className="w-full md:w-auto">
@@ -122,12 +120,7 @@ export function ConversationContent() {
               新建会话
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建会话
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -154,7 +147,7 @@ export function ConversationContent() {
               <div>
                 <h2 className="text-sm font-semibold">会话线程</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  搜索、筛选、归档会话，并进入详情页继续对话与查看完整运行证据。
+                  标题、智能体、消息数量、最近运行、反馈数量和更新时间。
                 </p>
               </div>
               <div className="text-sm text-muted-foreground">

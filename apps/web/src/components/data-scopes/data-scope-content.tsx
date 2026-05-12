@@ -96,13 +96,13 @@ export function DataScopeContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M35</StatusBadge>
+            <StatusBadge tone="ready">角色范围</StatusBadge>
             <StatusBadge tone="healthy">数据权限</StatusBadge>
             <StatusBadge tone="mock">RBAC + ABAC</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">数据权限中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            按角色查看 Agent、知识库、工具、模型、会话和审计等资源的数据范围，详情与配置在独立页面完成。
+            角色、资源类型、数据范围、命中对象和状态。
           </p>
         </div>
       </motion.section>
@@ -125,16 +125,14 @@ export function DataScopeContent() {
                   详情
                 </Link>
               </Button>
-              <Button asChild disabled={!canWrite || role.code === 'tenant_admin'} size="sm">
-                <Link
-                  aria-disabled={!canWrite || role.code === 'tenant_admin'}
-                  className={!canWrite || role.code === 'tenant_admin' ? 'pointer-events-none opacity-60' : undefined}
-                  href={`/data-scopes/roles/${role.id}/edit`}
-                >
-                  <Edit3 className="size-4" />
-                  编辑
-                </Link>
-              </Button>
+              {canWrite && role.code !== 'tenant_admin' ? (
+                <Button asChild size="sm">
+                  <Link href={`/data-scopes/roles/${role.id}/edit`}>
+                    <Edit3 className="size-4" />
+                    编辑
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           )}
           keyword={roleKeyword}
@@ -260,16 +258,14 @@ export function DataScopeContent() {
                               详情
                             </Link>
                           </Button>
-                          <Button asChild disabled={!canWrite || scope.role_code === 'tenant_admin'} size="sm">
-                            <Link
-                              aria-disabled={!canWrite || scope.role_code === 'tenant_admin'}
-                              className={!canWrite || scope.role_code === 'tenant_admin' ? 'pointer-events-none opacity-60' : undefined}
-                              href={`/data-scopes/roles/${scope.role_id}/edit`}
-                            >
-                              <Edit3 className="size-4" />
-                              编辑
-                            </Link>
-                          </Button>
+                          {canWrite && scope.role_code !== 'tenant_admin' ? (
+                            <Button asChild size="sm">
+                              <Link href={`/data-scopes/roles/${scope.role_id}/edit`}>
+                                <Edit3 className="size-4" />
+                                编辑
+                              </Link>
+                            </Button>
+                          ) : null}
                         </div>
                       </td>
                     </motion.tr>
@@ -289,7 +285,7 @@ export function DataScopeContent() {
           <div>
             <h2 className="text-sm font-semibold">角色覆盖摘要</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              当前筛选命中 {scopesByRole.size} 个角色；进入详情可查看完整资源矩阵，进入编辑可调整范围并预览影响。
+              当前筛选命中 {scopesByRole.size} 个角色，支持查看资源矩阵、调整范围并预览影响。
             </p>
           </div>
         </div>

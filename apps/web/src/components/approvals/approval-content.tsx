@@ -53,7 +53,7 @@ export function ApprovalContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">审批工作台</StatusBadge>
-            <StatusBadge tone="planned">列表与处理已拆分</StatusBadge>
+            <StatusBadge tone="planned">待办摘要</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -86,7 +86,7 @@ export function ApprovalContent() {
 
       <section className="grid gap-4 lg:grid-cols-3">
         <ApprovalEntryCard
-          description="处理需要人工放行的测试调用和运行时工具调用，查看请求上下文、响应和执行状态。"
+          description="测试调用和运行时工具调用。"
           href="/approvals/tools"
           icon={<Wrench className="size-5" />}
           pending={toolOverviewQuery.data?.pending_count ?? 0}
@@ -94,7 +94,7 @@ export function ApprovalContent() {
           title="高危工具审批"
         />
         <ApprovalEntryCard
-          description="审核通知策略、SLA 和重试策略等高影响系统设置快照，批准后才会生效。"
+          description="通知策略、SLA 和重试策略变更。"
           href="/approvals/notification-policy"
           icon={<Settings2 className="size-5" />}
           pending={notificationOverviewQuery.data?.pending_count ?? 0}
@@ -102,7 +102,7 @@ export function ApprovalContent() {
           title="通知策略审批"
         />
         <ApprovalEntryCard
-          description="汇总审计归档、告警归档、自愈审计归档和 Agent 团队报告归档删除审批入口。"
+          description="审计、告警、自愈和报告归档删除。"
           href="/approvals/archive-deletions"
           icon={<Archive className="size-5" />}
           pending={archivePending}
@@ -115,9 +115,7 @@ export function ApprovalContent() {
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
             <h2 className="text-sm font-semibold">审计与追踪入口</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              审批审计仍保持独立页面，集中查询审批事件、导出和归档记录。
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">审批事件、导出和归档记录。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">

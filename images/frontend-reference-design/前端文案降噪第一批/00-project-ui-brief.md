@@ -1,0 +1,34 @@
+# Project UI Brief
+
+- Page: 前端文案降噪第一批
+- Route: /dashboard
+- Feature goal: 去除后台页面介绍型和 AI 味说明文案
+- Scope:
+  - `/`
+  - `/login`
+  - `/dashboard`
+  - `/menus`
+  - `/roles`
+  - `/users`
+  - `/audit`
+  - `/approvals`
+  - `/security`
+- Target users: 平台管理员、租户管理员、审计员、安全管理员、普通控制台用户
+- APIs/services: 不新增接口；保留现有 `useQuery`、权限判断、列表查询、刷新和操作入口
+- Data entities/fields:
+  - Dashboard monitor/audit overview
+  - Menu tree/list
+  - Role list/overview
+  - User list/departments/roles
+  - Audit event overview/list
+  - Approval overview
+  - Security overview/policy/approval/task overview
+- Existing components/design system:
+  - `Button`、`Card`、`MetricCard`、`StatusBadge`、`EmptyState`
+  - 现有 Dashboard/菜单/角色/用户/审计/审批/安全页面布局
+- Required copy states:
+  - 标题保留业务名
+  - 副标题只保留数据口径，不写产品介绍
+  - EmptyState 描述控制在短句
+  - 高危确认弹窗仍保留影响说明
+  - API 文档页不纳入本批降噪

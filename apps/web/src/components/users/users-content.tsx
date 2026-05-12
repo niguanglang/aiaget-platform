@@ -117,9 +117,7 @@ export function UsersContent() {
             </StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">用户管理中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于查询用户、识别状态和执行删除操作。完整信息、部门归属和角色绑定在详情、创建、编辑页维护。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">租户用户、部门归属和角色绑定。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageUsers ? (
@@ -160,7 +158,7 @@ export function UsersContent() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold">用户清单</h2>
-            <p className="mt-1 text-sm text-muted-foreground">搜索、筛选、查看、编辑、软删除租户用户。</p>
+            <p className="mt-1 text-sm text-muted-foreground">名称、邮箱、部门、状态和角色。</p>
           </div>
           <div className="grid gap-2 md:grid-cols-[1fr_140px_180px_auto]">
             <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
@@ -209,7 +207,7 @@ export function UsersContent() {
                 </Button>
               ) : null
             }
-            description="新建租户用户，或调整搜索、状态和部门筛选。"
+            description="当前筛选无结果。"
             title="暂无用户"
           />
         ) : (

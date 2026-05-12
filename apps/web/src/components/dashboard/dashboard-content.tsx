@@ -146,16 +146,12 @@ export function DashboardContent() {
         transition={{ duration: 0.28, ease: 'easeOut' }}
       >
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            早上好，{currentUser?.user.name ?? 'Admin'}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            欢迎使用 AI Agent 平台，以下是系统运行概览
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">系统概览</h1>
+          <p className="mt-2 text-sm text-muted-foreground">当前账号：{currentUser?.user.name ?? 'Admin'}</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <StatusBadge tone="ready">M12</StatusBadge>
-            <StatusBadge tone="ready">M23</StatusBadge>
-            <StatusBadge tone="healthy">步骤态势</StatusBadge>
+            <StatusBadge tone="ready">监控</StatusBadge>
+            <StatusBadge tone="ready">审计</StatusBadge>
+            <StatusBadge tone="healthy">运行步骤</StatusBadge>
             <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
               <span className="size-2 rounded-full bg-emerald-500" />
               数据实时更新
@@ -231,10 +227,6 @@ export function DashboardContent() {
         />
         <RecentAlertsCard incidents={incidents} loading={isInitialLoading} />
       </section>
-
-      <footer className="relative z-10 py-4 text-center text-xs text-muted-foreground">
-        © 2026 AIAget 平台。保留所有权利。
-      </footer>
     </main>
   );
 }

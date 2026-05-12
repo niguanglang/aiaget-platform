@@ -36,10 +36,10 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const featureCards = [
-  { icon: ShieldCheck, label: '安全可信' },
-  { icon: UsersRound, label: '多智能体协作' },
+  { icon: ShieldCheck, label: '安全策略' },
+  { icon: UsersRound, label: '协作任务' },
   { icon: BadgeCheck, label: '权限审计' },
-  { icon: Server, label: '私有化部署' },
+  { icon: Server, label: '运行监控' },
 ];
 
 function LoginFormFallback() {
@@ -280,10 +280,10 @@ function DesktopLoginLayout() {
 
           <div className="absolute left-[7.1%] top-[19.4%] max-w-[52%]">
             <h1 className="whitespace-nowrap text-[4.3cqw] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)]">
-              让企业智能体安全协同
+              企业智能体控制台
             </h1>
             <p className="mt-[1.3cqw] text-[1.72cqw] font-medium leading-[1.55] tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)]">
-              统一身份认证 · 工作流编排 · 数据权限治理
+              身份认证 · 权限审计 · 运行监控
             </p>
           </div>
 
@@ -329,10 +329,10 @@ function MobileLoginLayout() {
           <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
             <div>
               <h1 className="max-w-[12ch] text-[clamp(2rem,9vw,3.75rem)] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)] sm:max-w-none">
-                让企业智能体安全协同
+                企业智能体控制台
               </h1>
               <p className="mt-3 max-w-[42rem] text-sm font-medium leading-7 tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)] sm:mt-4 sm:text-base">
-                统一身份认证 · 工作流编排 · 数据权限治理
+                身份认证 · 权限审计 · 运行监控
               </p>
             </div>
 

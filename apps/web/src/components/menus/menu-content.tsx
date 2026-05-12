@@ -154,14 +154,12 @@ export function MenuContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M31</StatusBadge>
-            <StatusBadge tone="healthy">动态导航</StatusBadge>
-            <StatusBadge tone="planned">菜单定义</StatusBadge>
+            <StatusBadge tone="ready">目录</StatusBadge>
+            <StatusBadge tone="healthy">页面</StatusBadge>
+            <StatusBadge tone="planned">按钮</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">菜单中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            维护控制台目录、页面和按钮节点。角色菜单授权已移动到角色权限中心，当前页面只负责菜单定义。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">控制台目录、页面和按钮节点。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -190,27 +188,13 @@ export function MenuContent() {
         </div>
       ) : null}
 
-      <Card className="border-blue-100 bg-blue-50/55 p-4">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-          <div>
-            <div className="text-sm font-semibold text-blue-900">角色菜单授权已迁移</div>
-            <p className="mt-1 text-sm leading-6 text-blue-800/80">
-              菜单中心只维护节点定义、路由和权限标识；给角色分配菜单入口请前往角色权限中心处理。
-            </p>
-          </div>
-          <StatusBadge tone="healthy">职责已拆分</StatusBadge>
-        </div>
-      </Card>
-
       <Card className="min-w-0">
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">菜单树表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  多级菜单树形表格用于查询和进入详情，层级路径帮助定位深层目录、页面和按钮节点。
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">名称、路由、权限标识和状态。</p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {menus.length} / {hasActiveFilters ? menusQuery.data?.total ?? 0 : totalTreeNodes}
@@ -278,7 +262,7 @@ export function MenuContent() {
                 </Button>
               ) : null
             }
-            description="当前筛选条件没有匹配节点，清空筛选或创建新的菜单。"
+            description="当前筛选无结果。"
             title="暂无菜单节点"
           />
         ) : (

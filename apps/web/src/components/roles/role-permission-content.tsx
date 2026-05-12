@@ -147,14 +147,12 @@ export function RolePermissionContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">角色中心</StatusBadge>
-            <StatusBadge tone="healthy">列表职责</StatusBadge>
-            <StatusBadge tone="planned">授权独立配置</StatusBadge>
+            <StatusBadge tone="ready">角色</StatusBadge>
+            <StatusBadge tone="healthy">权限</StatusBadge>
+            <StatusBadge tone="planned">菜单</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">角色权限中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于查询角色、识别状态和执行单条生命周期操作。完整详情、接口权限矩阵和菜单授权矩阵进入独立页面维护。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">角色状态、用户绑定、接口权限和菜单授权。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -194,9 +192,7 @@ export function RolePermissionContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">角色清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  搜索、筛选、启停角色，并进入详情页或独立配置页维护授权。
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">名称、状态、用户数和授权数量。</p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {roles.length} / {total}
@@ -248,7 +244,7 @@ export function RolePermissionContent() {
                 </Button>
               ) : null
             }
-            description="当前筛选条件没有匹配角色，可以清空筛选或新建自定义角色。"
+            description="当前筛选无结果。"
             title="暂无角色"
           />
         ) : (

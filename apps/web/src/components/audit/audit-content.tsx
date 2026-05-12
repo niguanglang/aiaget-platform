@@ -88,14 +88,12 @@ export function AuditContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M10</StatusBadge>
-            <StatusBadge tone="healthy">真实审计</StatusBadge>
-            <StatusBadge tone="planned">计费追踪</StatusBadge>
+            <StatusBadge tone="ready">登录</StatusBadge>
+            <StatusBadge tone="healthy">操作</StatusBadge>
+            <StatusBadge tone="planned">计费</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审计中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合登录、写操作、审批审计和计费事件，支持按调账单号、机会名、客户名和链路 ID 追踪成交入账上下文。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">登录、操作、审批和计费事件。</p>
         </div>
         <Button
           onClick={() => {
@@ -154,9 +152,7 @@ export function AuditContent() {
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
                   <h2 className="text-sm font-semibold">统一审计事件流</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    统一查看登录尝试、写操作、审批审计和计费调账事件，筛选来源、状态和窗口后进入事件详情页查看上下文。
-                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">来源、状态、用户、模块和链路 ID。</p>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   显示 {events.length} / {eventsQuery.data?.total ?? 0}
@@ -357,9 +353,7 @@ function ApprovalAuditBridgeCard({
             <StatusBadge tone="planned">审批审计联动</StatusBadge>
           </div>
           <h2 className="mt-3 text-sm font-semibold">审批审计风险入口</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            审计中心已纳入审批审计来源，可从这里查看审批风险概况并跳转到全局检索与导出页面。
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">审批事件、失败数和 Trace 覆盖。</p>
         </div>
 
         {loading ? (

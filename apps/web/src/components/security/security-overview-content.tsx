@@ -29,35 +29,35 @@ import {
 const entryCards = [
   {
     title: '策略治理',
-    description: '维护安全策略、启停访问边界，并查看最近策略评估。',
+    description: '安全策略、访问边界和评估记录。',
     href: '/security/policies',
     icon: ShieldCheck,
     badge: 'ABAC',
   },
   {
     title: '安全事件',
-    description: '追踪拒绝、审计失败、监控异常和 Trace 关联事件。',
+    description: '拒绝、失败、异常和 Trace 事件。',
     href: '/security/events',
     icon: FileWarning,
     badge: 'Trace',
   },
   {
     title: '告警运营',
-    description: '查看审批待办、运营告警、通知审计和 SLA 风险。',
+    description: '审批待办、运营告警和 SLA 风险。',
     href: '/security/alerts',
     icon: BellRing,
-    badge: '闭环',
+    badge: '告警',
   },
   {
     title: '自愈恢复',
-    description: '观察通知任务健康度、自动重试和恢复审计建议。',
+    description: '通知任务、自动重试和恢复审计。',
     href: '/security/recovery',
     icon: Wrench,
     badge: '任务',
   },
   {
     title: '归档治理',
-    description: '治理告警通知、自愈审计与 SLA 死信归档删除审批。',
+    description: '告警、自愈和死信归档删除。',
     href: '/security/archives',
     icon: Archive,
     badge: '归档',
@@ -114,9 +114,7 @@ export function SecurityOverviewContent() {
             <StatusBadge tone="healthy">治理入口</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">安全治理总览</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            汇总安全态势、待办和风险信号，并引导进入策略治理、安全事件、告警运营、自愈恢复和归档治理工作台。
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">安全态势、待办、风险和归档。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -145,11 +143,7 @@ export function SecurityOverviewContent() {
       {hasError ? <PageError>安全治理总览部分数据加载失败，可刷新重试或进入对应子页面查看。</PageError> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          helper="安全中心综合态势"
-          label="治理评分"
-          value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'}
-        />
+        <MetricCard helper="综合评分" label="治理评分" value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'} />
         <MetricCard helper="当前参与匹配" label="生效策略" value={formatNumber(policyOverview?.active)} />
         <MetricCard helper="审批工作台待处理" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
         <MetricCard
@@ -167,7 +161,7 @@ export function SecurityOverviewContent() {
                 <ClipboardCheck className="size-4 text-muted-foreground" />
                 <h2 className="text-sm font-semibold">待办与运营摘要</h2>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">只展示治理入口需要的轻量聚合，不嵌入审批列表或告警工作台。</p>
+              <p className="mt-1 text-sm text-muted-foreground">审批、告警、通知任务和调度状态。</p>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/security/alerts">
@@ -198,7 +192,7 @@ export function SecurityOverviewContent() {
                 <FileWarning className="size-4 text-muted-foreground" />
                 <h2 className="text-sm font-semibold">风险摘要</h2>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">展示安全中心风险信号和自愈建议，详情进入对应职责页处理。</p>
+              <p className="mt-1 text-sm text-muted-foreground">风险信号和恢复建议。</p>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/security/events">
@@ -211,7 +205,7 @@ export function SecurityOverviewContent() {
           {securityOverviewQuery.isLoading ? (
             <LoadingRows count={3} />
           ) : risks.length === 0 && suggestions.length === 0 ? (
-            <EmptyState className="px-0 py-8" description="当前暂无需要在总览突出展示的风险信号。" title="暂无风险" />
+            <EmptyState className="px-0 py-8" description="当前没有风险信号。" title="暂无风险" />
           ) : (
             <div className="mt-4 grid gap-3">
               {risks.slice(0, 3).map((risk) => (

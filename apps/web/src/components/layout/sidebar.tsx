@@ -19,7 +19,10 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { currentUser } = useAuth();
-  const navigation = buildNavigationLinks(currentUser?.menus, currentUser?.user.permissions ?? []);
+  const navigation = useMemo(
+    () => buildNavigationLinks(currentUser?.menus, currentUser?.user.permissions ?? []),
+    [currentUser?.menus, currentUser?.user.permissions],
+  );
   const activePathIds = useMemo(() => findActivePathIds(navigation, pathname), [navigation, pathname]);
   const activePathKey = activePathIds.join('/');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(activePathIds));
@@ -117,16 +120,29 @@ function SidebarNavItem({
   const isExpanded = expandedIds.has(item.id);
   const hasClickableRoute = item.href !== '#';
   const childIndentClass = item.level === 2 ? 'pl-7 text-[13px]' : item.level > 2 ? 'pl-10 text-[12px]' : '';
-  const rowClassName = cn(
-    'group flex min-h-10 w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium transition-colors',
-    item.level > 1 && 'min-h-9',
-    !isCollapsed && childIndentClass,
-    isCollapsed && 'justify-center px-0',
+  const rowStateClassName = cn(
     isExactActive
       ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
       : isActive
         ? 'text-blue-700 hover:border-slate-200/70 hover:bg-white/70'
         : 'text-slate-700 hover:border-slate-200/70 hover:bg-white/70 hover:text-blue-700',
+  );
+  const rowClassName = cn(
+    'group flex min-h-10 w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium transition-colors',
+    item.level > 1 && 'min-h-9',
+    !isCollapsed && childIndentClass,
+    isCollapsed && 'justify-center px-0',
+    rowStateClassName,
+  );
+  const routedRowClassName = cn(
+    'group flex min-h-10 w-full items-center gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium transition-colors',
+    item.level > 1 && 'min-h-9',
+    !isCollapsed && childIndentClass,
+    rowStateClassName,
+  );
+  const linkRowClassName = cn(
+    'flex min-w-0 flex-1 items-center gap-3 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 focus-visible:ring-offset-2',
+    isCollapsed && 'justify-center',
   );
 
   if (isCollapsed && item.level > 1) {
@@ -142,13 +158,10 @@ function SidebarNavItem({
 
   const chevron = hasChildren && !isCollapsed ? (
     <button
+      aria-expanded={isExpanded}
       aria-label={isExpanded ? '收起子菜单' : '展开子菜单'}
       className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition hover:bg-slate-100 hover:text-slate-900"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onToggleExpanded(item.id);
-      }}
+      onClick={() => onToggleExpanded(item.id)}
       type="button"
     >
       {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -159,6 +172,7 @@ function SidebarNavItem({
     <div>
       {isCollapsed && hasChildren ? (
         <button
+          aria-expanded={isExpanded}
           aria-label={`展开${item.title}`}
           className={rowClassName}
           onClick={() => {
@@ -170,6 +184,20 @@ function SidebarNavItem({
         >
           {content}
         </button>
+      ) : hasClickableRoute && hasChildren ? (
+        <div className={routedRowClassName}>
+          <Link
+            aria-current={isExactActive ? 'page' : undefined}
+            className={linkRowClassName}
+            href={item.href}
+            rel={item.external ? 'noreferrer' : undefined}
+            target={item.external ? '_blank' : undefined}
+            title={item.description}
+          >
+            {content}
+          </Link>
+          {chevron}
+        </div>
       ) : hasClickableRoute ? (
         <Link
           aria-current={isExactActive ? 'page' : undefined}
@@ -180,7 +208,6 @@ function SidebarNavItem({
           title={isCollapsed ? item.title : item.description}
         >
           {content}
-          {chevron}
         </Link>
       ) : (
         <button

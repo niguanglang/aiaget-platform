@@ -140,12 +140,24 @@ test('sidebar and mobile navigation support deep menu trees', () => {
 test('desktop sidebar follows RuoYi-style collapse and expandable menu behavior', () => {
   assert.match(sidebarSource, /isCollapsed/);
   assert.match(sidebarSource, /onToggleCollapsed/);
+  assert.match(sidebarSource, /useMemo\(\s*\(\) => buildNavigationLinks/);
   assert.match(sidebarSource, /expandedIds/);
   assert.match(sidebarSource, /ChevronDown/);
   assert.match(sidebarSource, /ChevronRight/);
   assert.match(sidebarSource, /findActivePathIds/);
   assert.match(sidebarSource, /w-\[72px\]/);
   assert.match(sidebarSource, /w-\[240px\]/);
+});
+
+test('desktop sidebar keeps routed menu links and expand buttons as sibling controls', () => {
+  const routedLinkBranch = sidebarSource.slice(sidebarSource.indexOf(') : hasClickableRoute ? ('), sidebarSource.indexOf(') : (', sidebarSource.indexOf(') : hasClickableRoute ? (')));
+
+  assert.ok(routedLinkBranch.length > 0);
+  assert.match(sidebarSource, /routedRowClassName/);
+  assert.match(sidebarSource, /linkRowClassName/);
+  assert.match(sidebarSource, /aria-expanded=\{isExpanded\}/);
+  assert.doesNotMatch(routedLinkBranch, /\{chevron\}/);
+  assert.doesNotMatch(routedLinkBranch, /<button[\s\S]*<\/Link>/);
 });
 
 test('menu dedicated pages own detail, create, and edit API workflows', () => {

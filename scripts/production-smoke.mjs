@@ -57,6 +57,44 @@ export function buildAuthenticatedSmokeChecks(controlApiBaseUrl) {
   ];
 }
 
+export function buildDeepAuthenticatedSmokeChecks(controlApiBaseUrl) {
+  return [
+    {
+      label: 'Plugin manifest precheck rejects incomplete custom package',
+      method: 'POST',
+      url: appendPath(controlApiBaseUrl, '/api/v1/plugins/manifest/validate', '/plugins/manifest/validate'),
+      expect: 'manifest-validation-failed',
+      body: {
+        code: 'aiaget-plugin-smoke',
+        source_type: 'CUSTOM',
+        manifest_json: {
+          schema_version: '1.0',
+          code: 'aiaget-plugin-smoke',
+          version: '0.0.0-smoke',
+          package: {
+            source_url: 'minio://aiaget-plugin-smoke/incomplete-plugin.tgz',
+          },
+          permissions: ['plugin:smoke:view'],
+          tools: [
+            {
+              code: 'smoke-check',
+              name: '生产 Smoke 校验',
+              method: 'POST',
+              url: 'https://example.invalid/smoke',
+            },
+          ],
+        },
+      },
+    },
+    {
+      label: 'Production readiness contains plugin sandbox executor gate',
+      method: 'GET',
+      url: appendPath(controlApiBaseUrl, '/api/v1/system-settings/production-readiness', '/system-settings/production-readiness'),
+      expect: 'production-readiness-plugin-sandbox-gate',
+    },
+  ];
+}
+
 export function collectProductionSmokeIssues(results) {
   const issues = [];
 
@@ -67,6 +105,7 @@ export function collectProductionSmokeIssues(results) {
   if (results.authenticatedChecks) {
     for (const check of results.authenticatedChecks) {
       checkHttpResult(issues, check.label, check.result);
+      checkExpectationResult(issues, check.label, check.expect, check.result);
     }
   }
 
@@ -104,6 +143,38 @@ function checkHttpResult(issues, label, result) {
   if (!result.ok) {
     issues.push(`${label} returned HTTP ${result.status}`);
   }
+}
+
+function checkExpectationResult(issues, label, expectation, result) {
+  if (!expectation || !result || result.error || !result.ok) return;
+
+  if (expectation === 'manifest-validation-failed') {
+    const errorCodes = Array.isArray(result.body?.errors)
+      ? result.body.errors.map((issue) => issue?.code).filter(Boolean)
+      : [];
+    const failed = result.body?.status === 'FAILED'
+      && result.body?.can_install === false
+      && errorCodes.includes('PACKAGE_SHA256_REQUIRED')
+      && errorCodes.includes('PACKAGE_SIGNATURE_REQUIRED');
+    if (!failed) {
+      issues.push(`${label} expected manifest validation to fail safely`);
+    }
+    return;
+  }
+
+  if (expectation === 'production-readiness-plugin-sandbox-gate') {
+    if (!hasReadinessItem(result.body, 'plugin-sandbox-executor')) {
+      issues.push(`${label} did not include plugin-sandbox-executor readiness item`);
+    }
+  }
+}
+
+function hasReadinessItem(body, itemId) {
+  const categories = Array.isArray(body?.categories) ? body.categories : [];
+  return categories.some((category) => {
+    const items = Array.isArray(category?.items) ? category.items : [];
+    return items.some((item) => item?.id === itemId);
+  });
 }
 
 function appendPath(baseUrl, expectedPath, existingPrefixPath) {
@@ -183,11 +254,18 @@ async function login(controlApiBaseUrl, credentials) {
 
 async function fetchAuthenticatedCheck(check, token) {
   try {
+    const method = check.method ?? 'GET';
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept: 'application/json',
+    };
+    if (check.body) {
+      headers['content-type'] = 'application/json';
+    }
     const response = await fetch(check.url, {
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: 'application/json',
-      },
+      method,
+      headers,
+      body: check.body ? JSON.stringify(check.body) : undefined,
     });
     const text = await response.text();
     return {
@@ -226,9 +304,14 @@ async function runCli() {
   if (credentials) {
     const token = await login(controlApi, credentials);
     results.authenticatedChecks = [];
-    for (const check of buildAuthenticatedSmokeChecks(controlApi)) {
+    const authenticatedChecks = buildAuthenticatedSmokeChecks(controlApi);
+    if (args.has('deep')) {
+      authenticatedChecks.push(...buildDeepAuthenticatedSmokeChecks(controlApi));
+    }
+    for (const check of authenticatedChecks) {
       results.authenticatedChecks.push({
         label: check.label,
+        expect: check.expect,
         result: await fetchAuthenticatedCheck(check, token),
       });
     }

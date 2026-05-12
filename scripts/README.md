@@ -49,6 +49,8 @@ node scripts/production-smoke.mjs \
 
 It verifies Control API health, Runtime health through Control API, Runtime direct health, and the Web console login page. It does not start containers or touch middleware.
 
+Provide admin credentials to run authenticated read probes. Add `--deep` to append production-closure probes for plugin manifest precheck and the production readiness plugin sandbox gate. The deep mode does not install plugins or start infrastructure; the manifest probe expects an incomplete custom plugin package to be rejected by `/plugins/manifest/validate` and may leave a failed precheck audit event.
+
 ## Production Runbook Validation
 
 `verify-production-runbook.mjs` checks that the P0-12 release runbook keeps the required release safety sections and commands.

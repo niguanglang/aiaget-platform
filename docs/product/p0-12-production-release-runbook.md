@@ -117,6 +117,19 @@ node scripts/production-smoke.mjs \
 
 也可以直接让脚本读取环境变量 `DEFAULT_TENANT_CODE`、`DEFAULT_ADMIN_EMAIL`、`DEFAULT_ADMIN_PASSWORD`。
 
+如果要在发布前额外验证插件生态和生产就绪闭环，可以追加 `--deep`。深度探针仍然只连接已运行服务，不启动容器、不创建中间件、不安装插件；其中插件 Manifest 探针会调用预检接口并期望自定义插件因缺少 sha256 和签名而被安全拒绝，后端可能按审计策略记录一次失败预检事件：
+
+```bash
+node scripts/production-smoke.mjs \
+  --control-api https://api.example.com/api/v1 \
+  --runtime https://runtime.example.com/runtime \
+  --web https://console.example.com \
+  --tenant-code "$DEFAULT_TENANT_CODE" \
+  --email "$DEFAULT_ADMIN_EMAIL" \
+  --password "$DEFAULT_ADMIN_PASSWORD" \
+  --deep
+```
+
 必须返回健康的端点：
 
 - `GET /api/v1/health`
@@ -154,6 +167,11 @@ node scripts/production-smoke.mjs \
 - `GET /api/v1/menus/tree`
 - `GET /api/v1/roles/overview`
 - `GET /api/v1/departments/overview`
+
+追加 `--deep` 后还会执行：
+
+- `POST /api/v1/plugins/manifest/validate`，校验不完整自定义插件包会被安全拒绝。
+- `GET /api/v1/system-settings/production-readiness`，校验返回项包含 `plugin-sandbox-executor` 沙箱执行器门禁。
 
 使用管理员账号登录控制台后，还需要按最小业务链路人工确认页面可用性：
 

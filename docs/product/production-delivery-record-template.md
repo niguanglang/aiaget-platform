@@ -166,6 +166,19 @@ node scripts/production-smoke.mjs \
   --password "$DEFAULT_ADMIN_PASSWORD"
 ```
 
+深度 Smoke 命令，发布前用于验证插件 Manifest 预检和生产就绪沙箱门禁；该命令不安装插件、不启动基础设施，Manifest 失败预检可能写入审计事件：
+
+```bash
+node scripts/production-smoke.mjs \
+  --control-api https://api.example.com/api/v1 \
+  --runtime https://runtime.example.com/runtime \
+  --web https://console.example.com \
+  --tenant-code "$DEFAULT_TENANT_CODE" \
+  --email "$DEFAULT_ADMIN_EMAIL" \
+  --password "$DEFAULT_ADMIN_PASSWORD" \
+  --deep
+```
+
 Smoke 输出摘要：
 
 ```text

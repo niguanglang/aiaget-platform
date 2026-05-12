@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildAuthenticatedSmokeChecks,
+  buildDeepAuthenticatedSmokeChecks,
   collectProductionSmokeIssues,
   resolveProductionSmokeCredentials,
   resolveProductionSmokeUrls,
@@ -172,6 +173,159 @@ test('buildAuthenticatedSmokeChecks covers core business read endpoints', () => 
     'https://api.example.com/api/v1/monitor/observability?window=24h',
   );
   assert.equal(checks.at(-1)?.url, 'https://api.example.com/api/v1/departments/overview');
+});
+
+test('buildDeepAuthenticatedSmokeChecks adds safe production closure probes', () => {
+  const checks = buildDeepAuthenticatedSmokeChecks('https://api.example.com/api/v1');
+
+  assert.deepEqual(
+    checks.map((check) => [check.label, check.method, check.url]),
+    [
+      [
+        'Plugin manifest precheck rejects incomplete custom package',
+        'POST',
+        'https://api.example.com/api/v1/plugins/manifest/validate',
+      ],
+      [
+        'Production readiness contains plugin sandbox executor gate',
+        'GET',
+        'https://api.example.com/api/v1/system-settings/production-readiness',
+      ],
+    ],
+  );
+  assert.equal(
+    checks[0]?.body?.manifest_json?.package?.source_url,
+    'minio://aiaget-plugin-smoke/incomplete-plugin.tgz',
+  );
+});
+
+test('collectProductionSmokeIssues accepts successful deep authenticated smoke checks', () => {
+  assert.deepEqual(
+    collectProductionSmokeIssues({
+      controlHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'control-api', status: 'healthy' },
+      },
+      runtimeProxyHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      runtimeHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      webLogin: {
+        ok: true,
+        status: 200,
+        body: null,
+      },
+      authenticatedChecks: [
+        {
+          label: 'Plugin manifest precheck rejects incomplete custom package',
+          expect: 'manifest-validation-failed',
+          result: {
+            ok: true,
+            status: 200,
+            body: {
+              status: 'FAILED',
+              can_install: false,
+              errors: [
+                { code: 'PACKAGE_SHA256_REQUIRED' },
+                { code: 'PACKAGE_SIGNATURE_REQUIRED' },
+              ],
+            },
+          },
+        },
+        {
+          label: 'Production readiness contains plugin sandbox executor gate',
+          expect: 'production-readiness-plugin-sandbox-gate',
+          result: {
+            ok: true,
+            status: 200,
+            body: {
+              categories: [
+                {
+                  category: 'THIRD_PARTY',
+                  items: [
+                    {
+                      id: 'plugin-sandbox-executor',
+                      status: 'READY',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    }),
+    [],
+  );
+});
+
+test('collectProductionSmokeIssues reports failed deep authenticated smoke expectations', () => {
+  assert.deepEqual(
+    collectProductionSmokeIssues({
+      controlHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'control-api', status: 'healthy' },
+      },
+      runtimeProxyHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      runtimeHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      webLogin: {
+        ok: true,
+        status: 200,
+        body: null,
+      },
+      authenticatedChecks: [
+        {
+          label: 'Plugin manifest precheck rejects incomplete custom package',
+          expect: 'manifest-validation-failed',
+          result: {
+            ok: true,
+            status: 200,
+            body: {
+              status: 'PASSED',
+              can_install: true,
+              errors: [],
+            },
+          },
+        },
+        {
+          label: 'Production readiness contains plugin sandbox executor gate',
+          expect: 'production-readiness-plugin-sandbox-gate',
+          result: {
+            ok: true,
+            status: 200,
+            body: {
+              categories: [
+                {
+                  category: 'THIRD_PARTY',
+                  items: [{ id: 'plugin-ecosystem', status: 'MANUAL' }],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    }),
+    [
+      'Plugin manifest precheck rejects incomplete custom package expected manifest validation to fail safely',
+      'Production readiness contains plugin sandbox executor gate did not include plugin-sandbox-executor readiness item',
+    ],
+  );
 });
 
 test('collectProductionSmokeIssues reports unhealthy services and failed HTTP responses', () => {

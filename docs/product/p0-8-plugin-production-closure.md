@@ -79,8 +79,8 @@ PLUGIN_SIGNATURE_LOCAL_ALGORITHM=RSA-SHA256
 ## P0 边界
 
 - 本轮不引入真实 Sigstore/PGP SDK、不新增对象存储表、不启动容器或中间件。
-- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook Runtime 执行和 Hook 失败恢复；完整 Sigstore/PGP 信任链 verifier、真正插件代码沙箱属于后续增强。
-- Hook 不执行第三方任意代码；当前执行目标限定为 Manifest 同步生成的 Tool Center 工具，并复用 Tool Gateway 的审批、限流、安全策略和审计边界。
+- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook Runtime 执行、Hook 失败恢复和代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件；完整 Sigstore/PGP 信任链 verifier、真正插件代码沙箱属于后续增强。
+- Hook 不执行第三方任意代码；当前执行目标限定为 Manifest 同步生成的 Tool Center 工具，并复用 Tool Gateway 的审批、限流、安全策略和审计边界。代码型 Hook 即使已声明 sandbox，也必须等待真实沙箱执行器接入；未接入时 Runtime 记录 `workflow.plugin_hook_execution.sandbox_blocked`。
 
 ## 下一批文件边界
 

@@ -1179,6 +1179,114 @@ test('runPluginHookExecution fails audibly when generated plugin hook tool code 
   assert.equal(events[0]?.payloadJson?.error_message, 'Plugin hook generated tool code is missing');
 });
 
+test('runPluginHookExecution blocks custom code hook when sandbox executor is not configured', async () => {
+  const events: Array<{ eventType: string; status: string; payloadJson?: Record<string, unknown> }> = [];
+  const toolExecutions: string[] = [];
+  const prisma = {
+    platformEvent: {
+      findFirst: async () => ({
+        id: 'event-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        resourceId: 'hook-1',
+        traceId: 'trace-1',
+        requestId: 'request-1',
+        payloadJson: {
+          plugin_id: 'plugin-1',
+          hook_id: 'hook-1',
+          hook_code: 'custom.entry',
+          payload: { id: 'payload-1' },
+          execution_boundary: 'PLUGIN_SANDBOX_POLICY_GATED',
+          sandbox_policy: {
+            status: 'DECLARED',
+            isolation: 'PROCESS',
+            network: 'DENY',
+            filesystem: 'NONE',
+            timeout_ms: 5000,
+            memory_mb: 128,
+            entry: 'dist/index.js',
+          },
+          sandbox_risk_level: 'LOW',
+          sandbox_violations: [],
+        },
+      }),
+    },
+    user: {
+      findFirst: async () => ({
+        id: 'user-1',
+        tenantId: 'tenant-1',
+        departmentId: null,
+        email: 'operator@example.test',
+        userRoles: [],
+      }),
+    },
+    pluginHook: {
+      findFirst: async () => ({
+        id: 'hook-1',
+        tenantId: 'tenant-1',
+        pluginId: 'plugin-1',
+        code: 'custom.entry',
+        status: 'ACTIVE',
+        configJson: {
+          sandbox_policy: {
+            status: 'DECLARED',
+            isolation: 'PROCESS',
+            network: 'DENY',
+            filesystem: 'NONE',
+            timeout_ms: 5000,
+            memory_mb: 128,
+            entry: 'dist/index.js',
+          },
+        },
+      }),
+    },
+    tool: {
+      findFirst: async () => {
+        throw new Error('sandboxed custom code hook should not fall back to Tool Gateway lookup');
+      },
+    },
+  };
+  const service = createRuntimeExecutionService({
+    prisma,
+    toolsService: {
+      execute: async (_user: unknown, toolId: string) => {
+        toolExecutions.push(toolId);
+        return {
+          status: 'SUCCESS',
+          approval_request_id: null,
+          latency_ms: 0,
+          response_status: 200,
+          error_message: null,
+          response_body: null,
+        };
+      },
+    },
+    platformEvents: {
+      recordEvent: async (event: { eventType: string; status: string; payloadJson?: Record<string, unknown> }) => {
+        events.push(event);
+      },
+      recordUsage: async () => undefined,
+    },
+  });
+
+  await assert.rejects(
+    () => service.runPluginHookExecution({
+      event_id: 'event-1',
+      plugin_id: 'plugin-1',
+      hook_id: 'hook-1',
+      workflow_id: 'plugin-hook-event-1',
+      run_id: 'run-1',
+    }),
+    /Plugin sandbox executor is not configured/,
+  );
+
+  assert.deepEqual(toolExecutions, []);
+  assert.deepEqual(events.map((event) => event.eventType), ['workflow.plugin_hook_execution.sandbox_blocked']);
+  assert.equal(events[0]?.status, 'FAILED');
+  assert.equal(events[0]?.payloadJson?.execution_boundary, 'PLUGIN_SANDBOX_EXECUTOR_NOT_CONFIGURED');
+  assert.equal((events[0]?.payloadJson?.sandbox_policy as { entry?: string } | undefined)?.entry, 'dist/index.js');
+});
+
 test('runtime internal permission denial is projected as a security access event', async () => {
   const events: Array<{ eventType: string; resourceType: string; traceId?: string | null; requestId?: string | null; summary?: string | null }> = [];
   const service = createRuntimeExecutionService({

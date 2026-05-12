@@ -1004,7 +1004,50 @@ export class RuntimeExecutionService {
     const hookConfig = jsonObjectOrNull(hook.configJson);
     const toolCode = stringValue(hookConfig?.generated_tool_code)
       ?? stringValue(payload?.generated_tool_code);
+    const sandboxPolicy = jsonObjectOrNull(payload?.sandbox_policy)
+      ?? jsonObjectOrNull(hookConfig?.sandbox_policy);
+    const sandboxEntry = stringValue(sandboxPolicy?.entry);
     if (!toolCode) {
+      if (sandboxEntry) {
+        const errorMessage = 'Plugin sandbox executor is not configured';
+        await this.recordWorkflowEvent({
+          tenantId: event.tenantId,
+          resourceType: 'PLUGIN_HOOK',
+          resourceId: dto.hook_id,
+          taskId: dto.event_id,
+          requestId: event.requestId ?? null,
+          traceId: event.traceId ?? null,
+          eventType: 'workflow.plugin_hook_execution.sandbox_blocked',
+          status: 'FAILED',
+          severity: 'ERROR',
+          summary: `插件 Hook ${hook.code} 执行失败：未配置插件沙箱执行器。`,
+          payloadJson: {
+            event_id: dto.event_id,
+            plugin_id: dto.plugin_id,
+            hook_id: dto.hook_id,
+            hook_code: hook.code,
+            tool_id: null,
+            tool_code: null,
+            workflow_id: dto.workflow_id ?? null,
+            workflow_run_id: dto.run_id ?? null,
+            status: 'FAILED',
+            approval_request_id: null,
+            error_message: errorMessage,
+            execution_boundary: 'PLUGIN_SANDBOX_EXECUTOR_NOT_CONFIGURED',
+            sandbox_policy: toInputJsonValue(sandboxPolicy),
+            sandbox_risk_level: stringValue(payload?.sandbox_risk_level) ?? stringValue(hookConfig?.sandbox_risk_level),
+            sandbox_violations: Array.isArray(payload?.sandbox_violations)
+              ? payload.sandbox_violations
+              : Array.isArray(hookConfig?.sandbox_violations)
+                ? hookConfig.sandbox_violations
+                : [],
+          },
+          sourceSystem: 'runtime_workflow',
+          sourceId: dto.event_id,
+        });
+        throw new BadRequestException(errorMessage);
+      }
+
       const errorMessage = 'Plugin hook generated tool code is missing';
       await this.recordWorkflowEvent({
         tenantId: event.tenantId,
@@ -2115,6 +2158,11 @@ function createOutputPreview(value: unknown) {
 
 function jsonObjectOrNull(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function toInputJsonValue(value: unknown): Prisma.InputJsonValue | null {
+  if (value === undefined || value === null) return null;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function stringValue(value: unknown) {

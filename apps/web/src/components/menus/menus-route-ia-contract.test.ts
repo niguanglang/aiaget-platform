@@ -137,6 +137,17 @@ test('sidebar and mobile navigation support deep menu trees', () => {
   assert.match(mobileNavSource, /while \(currentItems\.length > 0\)/);
 });
 
+test('desktop sidebar follows RuoYi-style collapse and expandable menu behavior', () => {
+  assert.match(sidebarSource, /isCollapsed/);
+  assert.match(sidebarSource, /onToggleCollapsed/);
+  assert.match(sidebarSource, /expandedIds/);
+  assert.match(sidebarSource, /ChevronDown/);
+  assert.match(sidebarSource, /ChevronRight/);
+  assert.match(sidebarSource, /findActivePathIds/);
+  assert.match(sidebarSource, /w-\[72px\]/);
+  assert.match(sidebarSource, /w-\[240px\]/);
+});
+
 test('menu dedicated pages own detail, create, and edit API workflows', () => {
   assert.ok(existsSync(menuDetailSourcePath));
   assert.ok(existsSync(menuCreateSourcePath));

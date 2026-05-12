@@ -20,7 +20,7 @@
 | P0-6 生产可观测性部署闭环 | 已完成 | 否 | 已补 OTEL exporter env、operator 托管 Prometheus/Grafana/Loki/Collector 最小模板、离线模板校验、trace id 贯通探针和失败验证 Runbook；仍不在应用 compose 中启动中间件容器 | 上线时由运维接入真实 collector/dashboard 并运行探针 |
 | P0-7 多 Agent 协作生产验收 | 已完成 | 否 | Runtime 编排、Supervisor、预算、步骤子事件、报告导出/归档、安全审批与通知/SLA 分类链路已落地；团队运行启动、完成、失败、等待人工、handoff、用量和成本均进入统一事件/用量底座；失败的 AgentTeamRun 已纳入 Runtime 工作流恢复列表和重试入口，重试会先重置 FAILED run 后再重新派发，恢复路径已闭合；重复恢复回调已做步骤指纹幂等和平台事件 `dedupeKey` 复用；运行详情深链页已独立承载时间线、Trace、接力、反馈、报告动作、成员内部事件、知识引用、工具调用和模型调用；单步骤详情页和单个子事件深链已支持 `eventType` / `eventId` 定位；运行内 Trace 图谱已展示 `trace_id`、`span_id`、`parent_span_id` 关系、根节点和孤立节点；生产模板 `AGENT_TEAM_WORKFLOW_MODE` 已改为 `temporal_first`，旧 `runtime_first/runtime_only` 会兼容归一到 `temporal_first` | 纳入 P0-12 最终 smoke test，真实发布时按 Runbook 演练 |
 | P0-8 插件生态生产闭环 | 已完成 | 否 | 已补 Manifest 静态校验、自定义插件来源/sha256/签名存在性门禁、真实包下载与 sha256 计算、外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、前端完整性预检门禁、Tool Gateway 绑定预览、升级/回滚控制面闭环、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook 沙箱审计快照持久化、Hook Runtime 执行、Hook 失败恢复、安装失败事件、卸载权限闭环和代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件；签名存在且策略要求验签时，未配置或不可用 verifier 必须阻断安装，metadata-only 仅用于审计展示，不计为验签通过；Hook 执行限定为 Manifest 生成工具并复用 Tool Gateway 审批/限流/安全/审计边界；完整 Sigstore/PGP SDK 信任链 verifier 和插件包代码沙箱留到后续增强 | 纳入 P0-12 最终 smoke test；如后续允许插件包自定义代码运行，需要单独接插件沙箱和资源隔离 |
-| P0-9 全渠道发布生产闭环 | 已完成 | 否 | 投递审计凭据脱敏、外网回调强制验签、异步 ACK 持久化、调度锁与重复扫描治理、渠道 workflow 失败恢复均已完成；后续只剩端到端发布演练 | 纳入 P0-12 最终 smoke test |
+| P0-9 全渠道发布生产闭环 | 已完成 | 否 | 投递审计凭据脱敏、外网回调强制验签、渠道回调 10 分钟重放窗口防护、异步 ACK 持久化、调度锁与重复扫描治理、渠道 workflow 失败恢复均已完成；后续只剩端到端发布演练 | 纳入 P0-12 最终 smoke test |
 | P0-10 复杂计费与额度强执行 | 已完成 | 否 | 套餐、订阅、账单、额度、调账和用量 Rollup 已有；额度强执行已从抽象 `COST/TOKEN/API_CALL/MODEL_CALL/AGENT_RUN/STORAGE_GB` 映射到 Runtime、团队、渠道、知识库、工具、插件、存储、外部 Agent/Channel 请求和外部 Webhook 投递等具体 `platform_usage_event` 指标；外部 API chat/continue/stream/channel 热路径已在非幂等回放执行前接入 `API_CALL` quota，成功请求写 billable external request usage，Webhook 完成通知写 `webhook_deliveries` 用量，硬阈值阻断时写 `billing.quota.blocked`；API Key 日额度使用条件更新预占，分钟限流已改为 PostgreSQL 共享窗口计数，多实例部署不再依赖进程内 Map | 纳入 P0-12 最终 smoke test |
 | P0-11 知识库生产增强 | 已完成 | 否 | workflow 模式配置、恢复重试回到 Runtime/Temporal、搜索后端禁用 fallback、删除/归档知识库召回隔离和端到端回归测试均已完成 | 纳入 P0-12 最终 smoke test |
 | P0-12 生产验收与发布 Runbook | 已完成 | 否 | 已补生产 smoke 脚本、Runbook 校验脚本、迁移/seed、备份恢复、回滚、健康检查、业务 Smoke、Trace 验收和交付记录清单；实际发布仍需运维在目标环境执行 | 发布时按 Runbook 执行并留存输出 |
@@ -50,6 +50,7 @@
 | P0-9C 投递审计凭据脱敏 | 已完成 | `external-channel-sender.service.ts`、`channel-audit-redaction.ts`、渠道审计输出 | URL query、Header、Body、响应摘要、Webhook token 存储和返回均脱敏，已脱敏审计凭据不再用于重试 |
 | P0-9D 外网回调强制验签 | 已完成 | `external-channel-callback.service.ts`、渠道配置校验 | Slack 原生签名强制校验；配置了签名/secret/encrypt key 的渠道回调不能静默跳过验签 |
 | P0-9E 渠道 workflow 失败恢复 | 已完成 | `runtime-execution`、`channels` workflow 服务、监控入口 | 自动推进/自愈失败可在监控中心查看并重放；知识库任务恢复要求 `knowledge:base:manage`，渠道发布/自愈恢复要求 `channel:publish:deploy` |
+| P0-9F 渠道回调重放防护 | 已完成 | `external-channel-callback.service.ts`、`platform_event.dedupeKey` | 签名或外部消息 ID 构造 10 分钟重放窗口幂等键；重复回调在创建回复、会话和 Agent 运行前被拒绝，并写 `channel.callback.replay_blocked` |
 
 ## P0-11 知识库生产增强拆分
 

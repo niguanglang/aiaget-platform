@@ -106,6 +106,15 @@ XML / text 回调会进入统一 callback controller，不再被 JSON parser 拦
 - 可选 `x-aiaget-timestamp`
 - raw body 签名校验
 
+### 回调重放防护
+
+签名校验通过后，控制面会在创建回调回复和会话前做 10 分钟重放窗口检查：
+
+- 优先使用平台原生签名或 `x-aiaget-signature` 构造 `channel_callback_replay:<channel_id>:<signature>`。
+- 没有签名上下文时，使用 provider、渠道 ID 和外部事件 / 消息 ID 构造幂等键。
+- 首次接收成功的 `channel.callback.received` 会写入同一 `dedupeKey`。
+- 窗口内重复请求会被拒绝，并记录 `channel.callback.replay_blocked`，不会创建重复 `channel_reply`、会话或 Agent 运行。
+
 ### 快速 ACK / 异步执行骨架
 
 默认同步执行并返回 Agent 回复。

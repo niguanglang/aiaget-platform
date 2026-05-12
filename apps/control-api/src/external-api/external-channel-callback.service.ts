@@ -37,6 +37,7 @@ const callbackChannelTypes = new Set<PublishChannelType>([
 
 const DEFAULT_PENDING_ASYNC_CALLBACK_REPLY_LIMIT = 20;
 const MAX_PENDING_ASYNC_CALLBACK_REPLY_LIMIT = 100;
+const CALLBACK_REPLAY_WINDOW_MINUTES = 10;
 
 const channelInclude = {
   agent: true,
@@ -154,6 +155,7 @@ export class ExternalChannelCallbackService {
 
     this.ensureCallbackAvailable(channel);
     this.verifySignatureIfRequired(channel, request, normalizedBody);
+    const replayDedupeKey = await this.ensureNotReplayedCallback(provider, channel, request, normalizedBody);
 
     const challengeResponse = buildChallengeResponse(provider, normalizedBody);
     if (challengeResponse) {
@@ -189,6 +191,7 @@ export class ExternalChannelCallbackService {
       status: 'SUCCESS',
       severity: 'INFO',
       summary: `收到${callbackProviderLabel(provider)}渠道回调`,
+      dedupeKey: replayDedupeKey,
     });
 
     if (!parsed.text) {
@@ -674,6 +677,59 @@ export class ExternalChannelCallbackService {
     }
   }
 
+  private async ensureNotReplayedCallback(
+    provider: ChannelCallbackProvider,
+    channel: ChannelRecord,
+    request: RequestWithContext,
+    body: unknown,
+  ) {
+    const replayKey = buildCallbackReplayDedupeKey(provider, channel.id, request, body);
+    if (!replayKey) return null;
+
+    const windowStart = new Date(Date.now() - CALLBACK_REPLAY_WINDOW_MINUTES * 60_000);
+    const existing = await this.prisma.platformEvent.findFirst({
+      where: {
+        tenantId: channel.tenantId,
+        dedupeKey: replayKey,
+        occurredAt: {
+          gte: windowStart,
+        },
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+    });
+    if (existing) {
+      await this.platformEvents.recordEvent({
+        tenantId: channel.tenantId,
+        actorType: 'CHANNEL',
+        resourceType: 'CHANNEL',
+        resourceId: channel.id,
+        agentId: channel.agentId,
+        channelId: channel.id,
+        requestId: request.requestId ?? null,
+        traceId: request.traceId ?? null,
+        eventSource: 'CHANNEL_CALLBACK',
+        eventType: 'channel.callback.replay_blocked',
+        status: 'FAILED',
+        severity: 'WARN',
+        billable: false,
+        summary: `拒绝重复的${callbackProviderLabel(provider)}渠道回调。`,
+        payloadJson: {
+          provider,
+          replay_window_minutes: CALLBACK_REPLAY_WINDOW_MINUTES,
+          replay_key: replayKey,
+        },
+        sourceSystem: 'channel_callback',
+        sourceId: channel.id,
+        dedupeKey: replayKey.replace('channel_callback_replay:', 'channel_callback_replay_blocked:'),
+      });
+      throw new UnauthorizedException('Channel callback replayed');
+    }
+
+    return replayKey;
+  }
+
   private verifyWechatWorkSignature(channel: ChannelRecord, request: RequestWithContext, encrypted: string) {
     const credential = readChannelCredential(channel);
     const token = credential.wechat_work_token ?? readConfigString(channel.config, 'wechat_work_token');
@@ -896,6 +952,7 @@ export class ExternalChannelCallbackService {
       runId?: string | null;
       traceId?: string | null;
       payload?: Record<string, unknown>;
+      dedupeKey?: string | null;
     },
   ) {
     return this.platformEvents.recordEvent({
@@ -929,6 +986,7 @@ export class ExternalChannelCallbackService {
       },
       sourceSystem: 'channel_callback',
       sourceId: message.externalMessageId ?? channel.id,
+      dedupeKey: input.dedupeKey ?? null,
     });
   }
 
@@ -1043,6 +1101,44 @@ function normalizeProvider(channel: string): ChannelCallbackProvider {
   }
 
   return 'CUSTOM_WEBHOOK';
+}
+
+function buildCallbackReplayDedupeKey(
+  provider: ChannelCallbackProvider,
+  channelId: string,
+  request: RequestWithContext,
+  body: unknown,
+) {
+  const signature = pickFirstString(
+    request.headers['x-aiaget-signature'],
+    request.headers['x-slack-signature'],
+    request.headers['x-lark-signature'],
+    request.headers['x-dingtalk-signature'],
+    request.headers.sign,
+    request.query.sign,
+    request.query.msg_signature,
+    request.query.signature,
+  );
+  if (signature) {
+    return `channel_callback_replay:${channelId}:${signature}`;
+  }
+
+  const record = typeof body === 'string' ? parseBodyText(body) : asRecord(body);
+  const externalId = pickFirstString(
+    record.event_id,
+    record.message_id,
+    record.messageId,
+    record.id,
+    nested(record, 'header.event_id'),
+    nested(record, 'event.message.message_id'),
+    nested(record, 'event.client_msg_id'),
+    nested(record, 'event.ts'),
+    record.MsgId,
+    record.msg_id,
+  );
+  if (!externalId) return null;
+
+  return `channel_callback_replay:${channelId}:${provider}:${externalId}`;
 }
 
 function parseCallbackMessage(provider: ChannelCallbackProvider, body: unknown): ParsedCallbackMessage {

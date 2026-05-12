@@ -442,6 +442,53 @@ test('rejects Slack callback when configured native signature is invalid', async
   );
 });
 
+test('rejects repeated signed callbacks before creating reply records', async () => {
+  const secret = 'callback-signing-secret';
+  const channel = buildChannel({
+    channel: 'CUSTOM_WEBHOOK',
+    secretEncrypted: encryptSecret(secret),
+  });
+  const body = { event: 'message.received', message: 'hello', id: 'msg-replay-1' };
+  const rawBody = JSON.stringify(body);
+  const signature = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`;
+  const { service, replyCreates, recordedEvents } = await createCallbackService(channel);
+
+  await service.handle(
+    buildRequest({
+      rawBody,
+      headers: {
+        'x-aiaget-signature': signature,
+      },
+    }),
+    channelId,
+    body,
+  );
+
+  await assert.rejects(
+    () => service.handle(
+      buildRequest({
+        rawBody,
+        headers: {
+          'x-aiaget-signature': signature,
+        },
+      }),
+      channelId,
+      body,
+    ),
+    (error) => {
+      assert.ok(error instanceof UnauthorizedException);
+      assert.match(error.message, /replayed/i);
+      return true;
+    },
+  );
+
+  assert.equal(replyCreates.length, 1);
+  assert.ok(recordedEvents.some((event) => event.eventType === 'channel.callback.received' && event.dedupeKey === `channel_callback_replay:${channelId}:${signature}`));
+  const blockedEvent = recordedEvents.find((event) => event.eventType === 'channel.callback.replay_blocked');
+  assert.ok(blockedEvent);
+  assert.equal(blockedEvent.dedupeKey, `channel_callback_replay_blocked:${channelId}:${signature}`);
+});
+
 test('async ACK persists the callback reply and schedules the durable reply scanner', async () => {
   const secret = 'callback-signing-secret';
   const channel = buildChannel({
@@ -516,10 +563,18 @@ async function createCallbackService(channel: Record<string, unknown>, options: 
   const replyFindManyInputs: Array<Record<string, unknown>> = [];
   const conversationCreates: Array<{ message: string; title?: string }> = [];
   const replySends: Array<Record<string, unknown>> = [];
+  const recordedEvents: Array<Record<string, unknown>> = [];
   const prisma = {
     agentPublishChannel: {
       findFirst: async () => channel,
       update: async () => ({}),
+    },
+    platformEvent: {
+      findFirst: async (input: { where?: { dedupeKey?: string | null } }) => (
+        input.where?.dedupeKey && recordedEvents.some((event) => event.dedupeKey === input.where?.dedupeKey)
+          ? { id: 'existing-replay-event-1', dedupeKey: input.where.dedupeKey }
+          : null
+      ),
     },
     user: {
       findFirst: async () => ({
@@ -552,7 +607,10 @@ async function createCallbackService(channel: Record<string, unknown>, options: 
     },
   };
   const platformEvents = {
-    recordEvent: async () => ({ id: 'event-1' }),
+    recordEvent: async (input: Record<string, unknown>) => {
+      recordedEvents.push(input);
+      return { id: `event-${recordedEvents.length}`, ...input };
+    },
     recordUsage: async () => ({}),
   };
   const rolloutGate = {
@@ -571,6 +629,7 @@ async function createCallbackService(channel: Record<string, unknown>, options: 
     replyFindManyInputs,
     conversationCreates,
     replySends,
+    recordedEvents,
     service: new ExternalChannelCallbackService(
       prisma as never,
       conversations as never,

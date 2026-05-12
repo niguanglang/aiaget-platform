@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createHash, createPublicKey, verify } from 'node:crypto';
+import { Readable } from 'node:stream';
 
 import type {
   PluginPackageIntegrityResult,
@@ -20,6 +22,14 @@ export interface PluginPackageDownloadResult {
 
 export interface PluginPackageDownloader {
   download(sourceUrl: string): Promise<PluginPackageDownloadResult>;
+}
+
+interface S3CompatibleClient {
+  send(command: GetObjectCommand): Promise<{
+    Body?: unknown;
+    ContentLength?: number;
+    ContentType?: string;
+  }>;
 }
 
 export interface VerifyPluginPackageInput {
@@ -47,7 +57,7 @@ export interface PluginPackageSignatureVerifier {
 @Injectable()
 export class PluginPackageIntegrityService {
   constructor(
-    private readonly downloader: PluginPackageDownloader = new HttpPluginPackageDownloader(),
+    private readonly downloader: PluginPackageDownloader = new PluginPackageSourceDownloader(),
     private readonly signatureVerifier: PluginPackageSignatureVerifier = createDefaultPluginPackageSignatureVerifier(),
   ) {}
 
@@ -393,6 +403,49 @@ function buildIntegrityErrorMessage(
   return null;
 }
 
+export class PluginPackageSourceDownloader implements PluginPackageDownloader {
+  constructor(
+    private readonly httpDownloader: PluginPackageDownloader = new HttpPluginPackageDownloader(),
+    private readonly objectStorageDownloader: PluginPackageDownloader | null = null,
+  ) {}
+
+  async download(sourceUrl: string): Promise<PluginPackageDownloadResult> {
+    const protocol = readSourceProtocol(sourceUrl);
+    if (protocol === 's3:' || protocol === 'minio:') {
+      return (this.objectStorageDownloader ?? new ObjectStoragePluginPackageDownloader()).download(sourceUrl);
+    }
+    return this.httpDownloader.download(sourceUrl);
+  }
+}
+
+export class ObjectStoragePluginPackageDownloader implements PluginPackageDownloader {
+  constructor(private readonly client: S3CompatibleClient = createObjectStorageClient()) {}
+
+  async download(sourceUrl: string): Promise<PluginPackageDownloadResult> {
+    const parsed = parseObjectStorageUrl(sourceUrl);
+    const response = await this.client.send(new GetObjectCommand({
+      Bucket: parsed.bucket,
+      Key: parsed.key,
+    }));
+
+    if (response.ContentLength && response.ContentLength > DEFAULT_MAX_PACKAGE_BYTES) {
+      throw new BadRequestException(`插件包超过 ${DEFAULT_MAX_PACKAGE_BYTES} 字节限制。`);
+    }
+
+    const bytes = await bodyToBuffer(response.Body);
+    if (bytes.byteLength > DEFAULT_MAX_PACKAGE_BYTES) {
+      throw new BadRequestException(`插件包超过 ${DEFAULT_MAX_PACKAGE_BYTES} 字节限制。`);
+    }
+
+    return {
+      bytes,
+      finalUrl: sourceUrl,
+      contentLength: response.ContentLength ?? bytes.byteLength,
+      contentType: response.ContentType ?? null,
+    };
+  }
+}
+
 class HttpPluginPackageDownloader implements PluginPackageDownloader {
   async download(sourceUrl: string): Promise<PluginPackageDownloadResult> {
     const parsed = parseHttpUrl(sourceUrl);
@@ -430,6 +483,103 @@ class HttpPluginPackageDownloader implements PluginPackageDownloader {
       clearTimeout(timeout);
     }
   }
+}
+
+function createObjectStorageClient(): S3CompatibleClient {
+  const endpoint = process.env.PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT?.trim() || process.env.MINIO_ENDPOINT?.trim();
+  const accessKeyId = process.env.PLUGIN_PACKAGE_OBJECT_STORAGE_ACCESS_KEY?.trim() || process.env.MINIO_ROOT_USER?.trim();
+  const secretAccessKey = process.env.PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY?.trim() || process.env.MINIO_ROOT_PASSWORD?.trim();
+  const region = process.env.PLUGIN_PACKAGE_OBJECT_STORAGE_REGION?.trim() || process.env.MINIO_REGION?.trim() || 'us-east-1';
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new BadRequestException('对象存储插件包来源需要配置 PLUGIN_PACKAGE_OBJECT_STORAGE_* 或复用 MINIO_* 连接参数。');
+  }
+
+  return new S3Client({
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+    endpoint,
+    forcePathStyle: true,
+    region,
+  });
+}
+
+function readSourceProtocol(sourceUrl: string) {
+  try {
+    return new URL(sourceUrl).protocol;
+  } catch {
+    return null;
+  }
+}
+
+function parseObjectStorageUrl(sourceUrl: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch {
+    throw new BadRequestException('插件包对象存储来源不是有效 URL。');
+  }
+
+  if (parsed.protocol !== 's3:' && parsed.protocol !== 'minio:') {
+    throw new BadRequestException('插件包对象存储来源仅支持 s3:// 或 minio://。');
+  }
+
+  const bucket = parsed.hostname;
+  const key = parsed.pathname.replace(/^\/+/, '');
+  if (!bucket || !key) {
+    throw new BadRequestException('插件包对象存储来源必须包含 bucket 和 object key。');
+  }
+
+  return { bucket, key };
+}
+
+async function bodyToBuffer(body: unknown): Promise<Buffer> {
+  if (!body) {
+    throw new BadRequestException('插件包对象存储响应缺少文件内容。');
+  }
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body);
+  if (typeof body === 'string') return Buffer.from(body);
+  if (body instanceof Readable) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+  if (isAsyncIterable(body)) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+  if (isReadableStream(body)) {
+    const reader = body.getReader();
+    const chunks: Buffer[] = [];
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return Buffer.concat(chunks);
+  }
+
+  throw new BadRequestException('插件包对象存储响应文件内容格式不受支持。');
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<Buffer | Uint8Array | string> {
+  return Boolean(value && typeof value === 'object' && Symbol.asyncIterator in value);
+}
+
+function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
+  return Boolean(value && typeof value === 'object' && 'getReader' in value && typeof (value as { getReader?: unknown }).getReader === 'function');
 }
 
 function parseHttpUrl(sourceUrl: string) {

@@ -50,6 +50,10 @@ const validEnv = {
   MINIO_ROOT_PASSWORD: 'MinioSecretValue2026',
   MINIO_BUCKET: 'aiaget-files',
   MINIO_REGION: 'us-east-1',
+  PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT: 'http://minio.example.com:9000',
+  PLUGIN_PACKAGE_OBJECT_STORAGE_ACCESS_KEY: 'plugin-package-reader',
+  PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY: 'PluginPackageReaderSecret2026',
+  PLUGIN_PACKAGE_OBJECT_STORAGE_REGION: 'us-east-1',
   QDRANT_URL: 'http://qdrant.example.com:6333',
   QDRANT_API_KEY: 'qdrant-secret',
   QDRANT_COLLECTION_PREFIX: 'aiaget',
@@ -171,6 +175,22 @@ test('collectProductionEnvIssues requires search backend URLs when enabled', () 
   assert.deepEqual(collectProductionEnvIssues(env), [
     'QDRANT_URL is required when QDRANT_ENABLED=true',
     'OPENSEARCH_URL is required when OPENSEARCH_ENABLED=true',
+  ]);
+});
+
+test('collectProductionEnvIssues rejects incomplete plugin package object storage override', () => {
+  const env = {
+    ...validEnv,
+    PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT: 'http://plugin-packages.example.com:9000',
+  };
+  delete env.PLUGIN_PACKAGE_OBJECT_STORAGE_ACCESS_KEY;
+  delete env.PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY;
+  delete env.PLUGIN_PACKAGE_OBJECT_STORAGE_REGION;
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'PLUGIN_PACKAGE_OBJECT_STORAGE_ACCESS_KEY is required when PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT is set',
+    'PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY is required when PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT is set',
+    'PLUGIN_PACKAGE_OBJECT_STORAGE_REGION is required when PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT is set',
   ]);
 });
 

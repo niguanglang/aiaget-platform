@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
-import { PluginPackageIntegrityService } from './plugin-package-integrity.service';
+import { ObjectStoragePluginPackageDownloader, PluginPackageIntegrityService } from './plugin-package-integrity.service';
 
 test('verifies plugin package sha256 from downloaded package bytes', async () => {
   const packageBytes = Buffer.from('plugin-package-content');
@@ -25,6 +25,31 @@ test('verifies plugin package sha256 from downloaded package bytes', async () =>
   assert.equal(result.actual_sha256, expectedSha256);
   assert.equal(result.package_size_bytes, packageBytes.length);
   assert.equal(result.verified, true);
+});
+
+test('downloads plugin package bytes from configured object storage sources', async () => {
+  const packageBytes = Buffer.from('object-storage-plugin-package-content');
+  const commands: unknown[] = [];
+  const downloader = new ObjectStoragePluginPackageDownloader({
+    send: async (command: unknown) => {
+      commands.push(command);
+      return {
+        Body: packageBytes,
+        ContentLength: packageBytes.length,
+        ContentType: 'application/gzip',
+      };
+    },
+  });
+
+  const result = await downloader.download('minio://plugin-bucket/releases/ticket-suite-1.2.0.tgz');
+
+  assert.deepEqual(result.bytes, packageBytes);
+  assert.equal(result.finalUrl, 'minio://plugin-bucket/releases/ticket-suite-1.2.0.tgz');
+  assert.equal(result.contentLength, packageBytes.length);
+  assert.equal(result.contentType, 'application/gzip');
+  assert.equal(commands.length, 1);
+  assert.equal((commands[0] as { input: { Bucket: string } }).input.Bucket, 'plugin-bucket');
+  assert.equal((commands[0] as { input: { Key: string } }).input.Key, 'releases/ticket-suite-1.2.0.tgz');
 });
 
 test('fails plugin package integrity when downloaded sha256 mismatches manifest metadata', async () => {

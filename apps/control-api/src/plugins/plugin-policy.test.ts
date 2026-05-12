@@ -88,7 +88,7 @@ test('blocks custom plugin manifests without package source integrity metadata',
   );
 });
 
-test('blocks custom plugin manifests with unsupported object storage package sources', () => {
+test('allows custom plugin manifests with object storage package sources', () => {
   for (const sourceUrl of ['s3://plugin-bucket/ticket-suite-1.2.0.tgz', 'minio://plugin-bucket/ticket-suite-1.2.0.tgz']) {
     const validation = validatePluginManifestInput({
       code: 'ticket-suite',
@@ -114,21 +114,14 @@ test('blocks custom plugin manifests with unsupported object storage package sou
       },
     });
 
-    assert.equal(validation.status, 'FAILED');
-    assert.equal(validation.can_install, false);
+    assert.equal(validation.status, 'PASSED');
+    assert.equal(validation.can_install, true);
     assert.equal(validation.package_source, sourceUrl);
-    assert.deepEqual(
-      validation.errors.map((issue) => [issue.code, issue.path, issue.message]),
-      [[
-        'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
-        'package.source_url',
-        '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
-      ]],
-    );
+    assert.deepEqual(validation.errors, []);
   }
 });
 
-test('blocks market plugin manifests with unsupported object storage package sources before downloader', () => {
+test('allows market plugin manifests with object storage package sources before downloader', () => {
   const validation = validatePluginManifestInput({
     code: 'ticket-suite',
     source_type: 'MARKET',
@@ -152,16 +145,10 @@ test('blocks market plugin manifests with unsupported object storage package sou
     },
   });
 
-  assert.equal(validation.status, 'FAILED');
-  assert.equal(validation.can_install, false);
-  assert.deepEqual(
-    validation.errors.map((issue) => [issue.code, issue.path, issue.message]),
-    [[
-      'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
-      'package.source_url',
-      '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
-    ]],
-  );
+  assert.equal(validation.status, 'PASSED');
+  assert.equal(validation.can_install, true);
+  assert.equal(validation.package_source, 's3://plugin-bucket/ticket-suite-1.2.0.tgz');
+  assert.deepEqual(validation.errors, []);
 });
 
 test('previews plugin tool center binding for valid custom manifests', () => {

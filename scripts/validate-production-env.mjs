@@ -69,6 +69,7 @@ const urlKeys = [
   'RUNTIME_CONTROL_API_BASE_URL',
   'MINIO_ENDPOINT',
   'MINIO_CONSOLE',
+  'PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT',
   'QDRANT_URL',
   'OPENSEARCH_URL',
   'OTEL_EXPORTER_OTLP_ENDPOINT',
@@ -89,6 +90,7 @@ const productionSecretKeys = [
   'RUNTIME_INTERNAL_TOKEN',
   'POSTGRES_PASSWORD',
   'MINIO_ROOT_PASSWORD',
+  'PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY',
 ];
 const workflowModeKeys = [
   'CHANNEL_RELEASE_WORKFLOW_MODE',
@@ -181,6 +183,18 @@ export function collectProductionEnvIssues(env) {
 
   if (env.OPENSEARCH_ENABLED !== 'false' && !hasValue(env.OPENSEARCH_URL)) {
     issues.push('OPENSEARCH_URL is required when OPENSEARCH_ENABLED=true');
+  }
+
+  if (hasValue(env.PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT)) {
+    for (const key of [
+      'PLUGIN_PACKAGE_OBJECT_STORAGE_ACCESS_KEY',
+      'PLUGIN_PACKAGE_OBJECT_STORAGE_SECRET_KEY',
+      'PLUGIN_PACKAGE_OBJECT_STORAGE_REGION',
+    ]) {
+      if (!hasValue(env[key])) {
+        issues.push(`${key} is required when PLUGIN_PACKAGE_OBJECT_STORAGE_ENDPOINT is set`);
+      }
+    }
   }
 
   if (hasValue(env.KNOWLEDGE_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.KNOWLEDGE_WORKFLOW_MODE)) {

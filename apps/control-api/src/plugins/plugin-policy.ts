@@ -114,7 +114,7 @@ export function validatePluginManifestInput(input: CreatePluginInstallationInput
       'PACKAGE_SOURCE_PROTOCOL_UNSUPPORTED',
       'ERROR',
       'package.source_url',
-      '插件安装包来源当前仅支持 HTTP/HTTPS；对象存储 s3:// 和 minio:// 暂未接入下载器。',
+      '插件安装包来源仅支持 HTTP/HTTPS、s3:// 或 minio://。',
     ));
   }
 
@@ -515,7 +515,7 @@ function normalizePackageSource(value: string | null) {
 function isSupportedPackageSource(value: string) {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 's3:' || parsed.protocol === 'minio:';
   } catch {
     return false;
   }

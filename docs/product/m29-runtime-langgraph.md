@@ -82,6 +82,8 @@ Environment variable:
 AGENT_RUNTIME_EXECUTION_MODE=runtime_first
 ```
 
+该示例保留开发期的回退行为。生产发布必须使用 `AGENT_RUNTIME_EXECUTION_MODE=runtime_only`，由 `validate-production-env.mjs` 阻断 `runtime_first` 和 `control_first`。
+
 Supported modes:
 
 ```text

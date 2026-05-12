@@ -4,13 +4,15 @@ Local development, maintenance, and delivery scripts live here.
 
 ## Production Environment Validation
 
-`validate-production-env.mjs` checks a production env file before Compose or application startup. It fails on missing required values, placeholder secrets, weak production secrets, invalid URLs, invalid ports, and unsupported workflow/runtime modes.
+`validate-production-env.mjs` checks a production env file before Compose or application startup. It fails on missing required values, placeholder secrets, weak production secrets, invalid URLs, invalid ports, unsupported workflow/runtime modes, and production fallback modes.
 
 ```bash
 node scripts/validate-production-env.mjs .env.production
 ```
 
 The script is intentionally local and dependency-free. It does not connect to external services and does not start containers.
+
+Production validation is intentionally stricter than local development. Agent execution must use `AGENT_RUNTIME_EXECUTION_MODE=runtime_only`, every workflow mode must use `temporal`, and Runtime must set `RUNTIME_TEMPORAL_ENABLED=true`. `runtime_first`, `control_first`, `local`, and `temporal_first` remain useful development or compatibility modes, but they are rejected by the production gate because they allow local fallback execution.
 
 Optional plugin package signature verification is configured through `PLUGIN_SIGNATURE_VERIFIER_URL`, `PLUGIN_SIGNATURE_VERIFIER_TOKEN`, and `PLUGIN_SIGNATURE_VERIFIER_TIMEOUT_MS`. Production validation only checks environment shape; the verifier endpoint itself should be tested by the deployment runbook against an already-running enterprise verifier service.
 

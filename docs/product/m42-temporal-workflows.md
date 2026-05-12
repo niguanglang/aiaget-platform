@@ -100,6 +100,8 @@ RUNTIME_BASE_URL=http://localhost:8000
 RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 ```
 
+该示例用于本地开发。生产发布必须使用 `KNOWLEDGE_WORKFLOW_MODE=temporal`，并由生产环境校验拒绝 `local` 和 `temporal_first`。
+
 Runtime：
 
 ```text
@@ -110,6 +112,8 @@ RUNTIME_TEMPORAL_ADDRESS=localhost:7233
 RUNTIME_TEMPORAL_NAMESPACE=default
 RUNTIME_TEMPORAL_TASK_QUEUE=aiaget-knowledge-tasks
 ```
+
+本地可关闭 Temporal 以验证 fallback 边界；生产发布必须设置 `RUNTIME_TEMPORAL_ENABLED=true`。
 
 ## Worker 启动
 

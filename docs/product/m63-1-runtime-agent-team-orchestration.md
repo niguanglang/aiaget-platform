@@ -378,6 +378,8 @@ Control API 新增环境变量：
 AGENT_TEAM_WORKFLOW_MODE=temporal_first
 ```
 
+该示例用于兼容部署或开发验证。生产发布模板和生产环境校验使用 `AGENT_TEAM_WORKFLOW_MODE=temporal`。
+
 可选值：
 
 ```text
@@ -398,7 +400,7 @@ runtime_first / runtime_only：
 历史生产模板值，当前会归一为 temporal_first，避免多 Agent 团队工作流被误判为 local。
 ```
 
-生产模板默认使用 `temporal_first`。如果目标环境暂未启用 Temporal，Runtime workflow endpoint 可以返回 `LOCAL_FALLBACK`，Control API 会按本地兜底闭环继续回写运行台账。
+当前生产模板默认使用 `temporal`。如果目标环境暂未启用 Temporal，生产环境校验会失败；`temporal_first` 只用于兼容或演示场景，Runtime workflow endpoint 可以返回 `LOCAL_FALLBACK`，Control API 会按本地兜底闭环继续回写运行台账。
 
 ### 工作流恢复
 

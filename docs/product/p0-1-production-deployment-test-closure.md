@@ -29,6 +29,7 @@
 - `deploy/docker-compose.production.yml` 默认只启动 Web、Control API、Runtime。
 - Temporal Worker 通过 `temporal-worker` profile 手动启用。
 - Prometheus、Grafana、Loki、OpenTelemetry Collector 留到后续可观测性部署里程碑，并需要单独确认中间件动作。
+- 生产模板默认使用严格 Runtime/Temporal 执行模式，`validate-production-env.mjs` 会拒绝可本地兜底的 `runtime_first`、`control_first`、`local` 和 `temporal_first`。
 
 ## 验证命令
 

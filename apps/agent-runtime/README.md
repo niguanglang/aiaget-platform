@@ -31,7 +31,7 @@ If `langgraph` is not installed in a local development environment, Runtime fall
 
 ## Temporal workflow boundary
 
-Knowledge document processing, channel release automation, and channel release self-healing can be dispatched through Runtime workflow endpoints. By default `RUNTIME_TEMPORAL_ENABLED=false`, so the endpoint schedules a local Runtime fallback task and calls the matching Control API internal adapter in the background. When Temporal is explicitly enabled, the endpoint starts a Temporal workflow and a separate worker executes the activity.
+Knowledge document processing, channel release automation, and channel release self-healing can be dispatched through Runtime workflow endpoints. In local development, `RUNTIME_TEMPORAL_ENABLED=false` schedules a local Runtime fallback task and calls the matching Control API internal adapter in the background. Production deployment uses strict Temporal execution: `RUNTIME_TEMPORAL_ENABLED=true`, workflow modes set to `temporal`, and a separate worker process executes the activity.
 
 Runtime environment:
 

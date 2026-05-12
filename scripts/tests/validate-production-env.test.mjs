@@ -16,13 +16,13 @@ const validEnv = {
   RUNTIME_PORT: '8000',
   RUNTIME_BASE_URL: 'http://agent-runtime:8000',
   CONTROL_API_INTERNAL_BASE_URL: 'http://control-api:3001',
-  AGENT_RUNTIME_EXECUTION_MODE: 'runtime_first',
-  KNOWLEDGE_WORKFLOW_MODE: 'temporal_first',
-  AGENT_TEAM_WORKFLOW_MODE: 'temporal_first',
-  CHANNEL_RELEASE_WORKFLOW_MODE: 'runtime_first',
-  CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: 'runtime_first',
-  PLUGIN_ROLLBACK_WORKFLOW_MODE: 'temporal_first',
-  PLUGIN_HOOK_WORKFLOW_MODE: 'temporal_first',
+  AGENT_RUNTIME_EXECUTION_MODE: 'runtime_only',
+  KNOWLEDGE_WORKFLOW_MODE: 'temporal',
+  AGENT_TEAM_WORKFLOW_MODE: 'temporal',
+  CHANNEL_RELEASE_WORKFLOW_MODE: 'temporal',
+  CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: 'temporal',
+  PLUGIN_ROLLBACK_WORKFLOW_MODE: 'temporal',
+  PLUGIN_HOOK_WORKFLOW_MODE: 'temporal',
   JWT_ACCESS_TOKEN_SECRET: 'prod-access-token-secret-prod-access-token-secret',
   JWT_REFRESH_TOKEN_SECRET: 'prod-refresh-token-secret-prod-refresh-token-secret',
   SECRET_ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef',
@@ -34,7 +34,7 @@ const validEnv = {
   RUNTIME_CORS_ORIGIN: 'https://console.example.com',
   RUNTIME_CONTROL_API_BASE_URL: 'http://control-api:3001',
   RUNTIME_INTERNAL_TOKEN: 'runtime-internal-token-runtime-internal-token',
-  RUNTIME_TEMPORAL_ENABLED: 'false',
+  RUNTIME_TEMPORAL_ENABLED: 'true',
   RUNTIME_TEMPORAL_ADDRESS: 'temporal:7233',
   RUNTIME_TEMPORAL_NAMESPACE: 'default',
   RUNTIME_TEMPORAL_TASK_QUEUE: 'aiaget-production',
@@ -103,6 +103,23 @@ test('collectProductionEnvIssues rejects missing required values', () => {
   ]);
 });
 
+test('collectProductionEnvIssues requires all strict production workflow mode values', () => {
+  const env = { ...validEnv };
+  delete env.AGENT_TEAM_WORKFLOW_MODE;
+  delete env.CHANNEL_RELEASE_WORKFLOW_MODE;
+  delete env.CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE;
+  delete env.PLUGIN_ROLLBACK_WORKFLOW_MODE;
+  delete env.PLUGIN_HOOK_WORKFLOW_MODE;
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'AGENT_TEAM_WORKFLOW_MODE is required',
+    'CHANNEL_RELEASE_WORKFLOW_MODE is required',
+    'CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE is required',
+    'PLUGIN_ROLLBACK_WORKFLOW_MODE is required',
+    'PLUGIN_HOOK_WORKFLOW_MODE is required',
+  ]);
+});
+
 test('collectProductionEnvIssues rejects placeholder and weak secrets', () => {
   const env = {
     ...validEnv,
@@ -129,6 +146,17 @@ test('collectProductionEnvIssues validates modes and URL-shaped values', () => {
   ]);
 });
 
+test('collectProductionEnvIssues rejects production agent runtime fallback modes', () => {
+  const env = {
+    ...validEnv,
+    AGENT_RUNTIME_EXECUTION_MODE: 'runtime_first',
+  };
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'AGENT_RUNTIME_EXECUTION_MODE must be runtime_only for production; runtime_first/control_first allow fallback execution',
+  ]);
+});
+
 test('collectProductionEnvIssues rejects legacy knowledge workflow runtime modes', () => {
   const env = {
     ...validEnv,
@@ -148,6 +176,38 @@ test('collectProductionEnvIssues rejects legacy agent team workflow runtime mode
 
   assert.deepEqual(collectProductionEnvIssues(env), [
     'AGENT_TEAM_WORKFLOW_MODE must be one of local, temporal_first, temporal',
+  ]);
+});
+
+test('collectProductionEnvIssues rejects production workflow fallback modes', () => {
+  const env = {
+    ...validEnv,
+    KNOWLEDGE_WORKFLOW_MODE: 'temporal_first',
+    AGENT_TEAM_WORKFLOW_MODE: 'local',
+    CHANNEL_RELEASE_WORKFLOW_MODE: 'temporal_first',
+    CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE: 'local',
+    PLUGIN_ROLLBACK_WORKFLOW_MODE: 'temporal_first',
+    PLUGIN_HOOK_WORKFLOW_MODE: 'local',
+  };
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'CHANNEL_RELEASE_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+    'CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+    'PLUGIN_ROLLBACK_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+    'PLUGIN_HOOK_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+    'KNOWLEDGE_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+    'AGENT_TEAM_WORKFLOW_MODE must be temporal for production; local/temporal_first allow local fallback',
+  ]);
+});
+
+test('collectProductionEnvIssues requires Runtime Temporal execution for production workflows', () => {
+  const env = {
+    ...validEnv,
+    RUNTIME_TEMPORAL_ENABLED: 'false',
+  };
+
+  assert.deepEqual(collectProductionEnvIssues(env), [
+    'RUNTIME_TEMPORAL_ENABLED must be true when production workflow modes require temporal',
   ]);
 });
 
@@ -194,32 +254,38 @@ test('collectProductionEnvIssues rejects incomplete plugin package object storag
   ]);
 });
 
-test('production env template uses a recognized knowledge workflow mode', () => {
+test('production env template uses strict runtime and workflow modes', () => {
   const template = parseEnvText(readFileSync(new URL('../../.env.production.example', import.meta.url), 'utf8'));
 
-  assert.ok(['local', 'temporal_first', 'temporal'].includes(template.KNOWLEDGE_WORKFLOW_MODE));
+  assert.equal(template.AGENT_RUNTIME_EXECUTION_MODE, 'runtime_only');
+  assert.equal(template.KNOWLEDGE_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.AGENT_TEAM_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.CHANNEL_RELEASE_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.PLUGIN_ROLLBACK_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.PLUGIN_HOOK_WORKFLOW_MODE, 'temporal');
+  assert.equal(template.RUNTIME_TEMPORAL_ENABLED, 'true');
 });
 
-test('production env template uses a recognized agent team workflow mode', () => {
-  const template = parseEnvText(readFileSync(new URL('../../.env.production.example', import.meta.url), 'utf8'));
-
-  assert.ok(['local', 'temporal_first', 'temporal'].includes(template.AGENT_TEAM_WORKFLOW_MODE));
-});
-
-test('production compose default uses a recognized knowledge workflow mode', () => {
+test('production compose defaults use strict runtime and workflow modes', () => {
   const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
+  const runtimeMatch = compose.match(/AGENT_RUNTIME_EXECUTION_MODE:\s*\$\{AGENT_RUNTIME_EXECUTION_MODE:-([^}]+)}/);
   const match = compose.match(/KNOWLEDGE_WORKFLOW_MODE:\s*\$\{KNOWLEDGE_WORKFLOW_MODE:-([^}]+)}/);
+  const agentTeamMatch = compose.match(/AGENT_TEAM_WORKFLOW_MODE:\s*\$\{AGENT_TEAM_WORKFLOW_MODE:-([^}]+)}/);
+  const channelMatch = compose.match(/CHANNEL_RELEASE_WORKFLOW_MODE:\s*\$\{CHANNEL_RELEASE_WORKFLOW_MODE:-([^}]+)}/);
+  const selfHealingMatch = compose.match(/CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE:\s*\$\{CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE:-([^}]+)}/);
+  const rollbackMatch = compose.match(/PLUGIN_ROLLBACK_WORKFLOW_MODE:\s*\$\{PLUGIN_ROLLBACK_WORKFLOW_MODE:-([^}]+)}/);
+  const hookMatch = compose.match(/PLUGIN_HOOK_WORKFLOW_MODE:\s*\$\{PLUGIN_HOOK_WORKFLOW_MODE:-([^}]+)}/);
+  const temporalEnabledMatch = compose.match(/RUNTIME_TEMPORAL_ENABLED:\s*\$\{RUNTIME_TEMPORAL_ENABLED:-([^}]+)}/);
 
-  assert.ok(match);
-  assert.ok(['local', 'temporal_first', 'temporal'].includes(match[1] ?? ''));
-});
-
-test('production compose default uses a recognized agent team workflow mode', () => {
-  const compose = readFileSync(new URL('../../deploy/docker-compose.production.yml', import.meta.url), 'utf8');
-  const match = compose.match(/AGENT_TEAM_WORKFLOW_MODE:\s*\$\{AGENT_TEAM_WORKFLOW_MODE:-([^}]+)}/);
-
-  assert.ok(match);
-  assert.ok(['local', 'temporal_first', 'temporal'].includes(match[1] ?? ''));
+  assert.equal(runtimeMatch?.[1], 'runtime_only');
+  assert.equal(match?.[1], 'temporal');
+  assert.equal(agentTeamMatch?.[1], 'temporal');
+  assert.equal(channelMatch?.[1], 'temporal');
+  assert.equal(selfHealingMatch?.[1], 'temporal');
+  assert.equal(rollbackMatch?.[1], 'temporal');
+  assert.equal(hookMatch?.[1], 'temporal');
+  assert.equal(temporalEnabledMatch?.[1], 'true');
 });
 
 test('production compose does not require disabled search backend URLs during interpolation', () => {

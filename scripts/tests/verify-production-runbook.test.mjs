@@ -21,6 +21,8 @@ pg_restore
 
 ## 5. 应用启动
 docker compose -f deploy/docker-compose.production.yml --env-file .env.production up -d
+agent-runtime-worker
+--profile temporal-worker
 
 ## 6. 健康检查
 node scripts/production-smoke.mjs
@@ -66,6 +68,8 @@ test('collectProductionRunbookIssues reports missing release safety sections', (
       'Runbook must include 回滚',
       'Runbook must mention pnpm verify:prod-template',
       'Runbook must mention prisma:deploy',
+      'Runbook must mention agent-runtime-worker',
+      'Runbook must mention --profile temporal-worker',
       'Runbook must mention production-smoke.mjs',
       'Runbook must mention verify-trace-propagation.mjs',
       'Runbook must mention /monitor/observability',

@@ -80,6 +80,8 @@ RUNTIME_INTERNAL_TOKEN=change-me-runtime-internal-token
 AGENT_RUNTIME_EXECUTION_MODE=runtime_first
 ```
 
+该示例用于本地开发或兼容发布。生产发布必须改为 `AGENT_RUNTIME_EXECUTION_MODE=runtime_only`，不允许 Runtime 失败后回退到 Control API 模型调用。
+
 执行模式：
 
 ```text

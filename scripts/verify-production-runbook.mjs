@@ -16,6 +16,8 @@ const requiredMentions = [
   'pnpm validate:prod-env',
   'pnpm verify:prod-template',
   'prisma:deploy',
+  'agent-runtime-worker',
+  '--profile temporal-worker',
   'production-smoke.mjs',
   'verify-trace-propagation.mjs',
   '/monitor/observability',

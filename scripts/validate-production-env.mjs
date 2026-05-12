@@ -14,6 +14,11 @@ const requiredKeys = [
   'CONTROL_API_INTERNAL_BASE_URL',
   'AGENT_RUNTIME_EXECUTION_MODE',
   'KNOWLEDGE_WORKFLOW_MODE',
+  'AGENT_TEAM_WORKFLOW_MODE',
+  'CHANNEL_RELEASE_WORKFLOW_MODE',
+  'CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE',
+  'PLUGIN_ROLLBACK_WORKFLOW_MODE',
+  'PLUGIN_HOOK_WORKFLOW_MODE',
   'JWT_ACCESS_TOKEN_SECRET',
   'JWT_REFRESH_TOKEN_SECRET',
   'SECRET_ENCRYPTION_KEY',
@@ -98,6 +103,11 @@ const workflowModeKeys = [
   'PLUGIN_ROLLBACK_WORKFLOW_MODE',
   'PLUGIN_HOOK_WORKFLOW_MODE',
 ];
+const temporalWorkflowModeKeys = [
+  ...workflowModeKeys,
+  'KNOWLEDGE_WORKFLOW_MODE',
+  'AGENT_TEAM_WORKFLOW_MODE',
+];
 
 const placeholderFragments = [
   'change-me',
@@ -155,8 +165,11 @@ export function collectProductionEnvIssues(env) {
     issues.push('NODE_ENV should be production for production deployment');
   }
 
-  if (hasValue(env.AGENT_RUNTIME_EXECUTION_MODE) && !['runtime_first', 'runtime_only', 'control_first'].includes(env.AGENT_RUNTIME_EXECUTION_MODE)) {
+  const agentRuntimeExecutionModes = ['runtime_first', 'runtime_only', 'control_first'];
+  if (hasValue(env.AGENT_RUNTIME_EXECUTION_MODE) && !agentRuntimeExecutionModes.includes(env.AGENT_RUNTIME_EXECUTION_MODE)) {
     issues.push('AGENT_RUNTIME_EXECUTION_MODE must be one of runtime_first, runtime_only, control_first');
+  } else if (hasValue(env.AGENT_RUNTIME_EXECUTION_MODE) && env.AGENT_RUNTIME_EXECUTION_MODE !== 'runtime_only') {
+    issues.push('AGENT_RUNTIME_EXECUTION_MODE must be runtime_only for production; runtime_first/control_first allow fallback execution');
   }
 
   for (const key of workflowModeKeys) {
@@ -167,6 +180,10 @@ export function collectProductionEnvIssues(env) {
 
   if (hasValue(env.RUNTIME_TEMPORAL_ENABLED) && !['true', 'false'].includes(env.RUNTIME_TEMPORAL_ENABLED)) {
     issues.push('RUNTIME_TEMPORAL_ENABLED must be true or false');
+  }
+
+  if (hasValue(env.RUNTIME_TEMPORAL_ENABLED) && env.RUNTIME_TEMPORAL_ENABLED !== 'true') {
+    issues.push('RUNTIME_TEMPORAL_ENABLED must be true when production workflow modes require temporal');
   }
 
   if (hasValue(env.QDRANT_ENABLED) && !['true', 'false'].includes(env.QDRANT_ENABLED)) {
@@ -197,12 +214,22 @@ export function collectProductionEnvIssues(env) {
     }
   }
 
-  if (hasValue(env.KNOWLEDGE_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.KNOWLEDGE_WORKFLOW_MODE)) {
+  const temporalWorkflowModes = ['local', 'temporal_first', 'temporal'];
+  if (hasValue(env.KNOWLEDGE_WORKFLOW_MODE) && !temporalWorkflowModes.includes(env.KNOWLEDGE_WORKFLOW_MODE)) {
     issues.push('KNOWLEDGE_WORKFLOW_MODE must be one of local, temporal_first, temporal');
   }
 
-  if (hasValue(env.AGENT_TEAM_WORKFLOW_MODE) && !['local', 'temporal_first', 'temporal'].includes(env.AGENT_TEAM_WORKFLOW_MODE)) {
+  if (hasValue(env.AGENT_TEAM_WORKFLOW_MODE) && !temporalWorkflowModes.includes(env.AGENT_TEAM_WORKFLOW_MODE)) {
     issues.push('AGENT_TEAM_WORKFLOW_MODE must be one of local, temporal_first, temporal');
+  }
+
+  for (const key of temporalWorkflowModeKeys) {
+    const supportedModes = workflowModeKeys.includes(key)
+      ? ['local', 'runtime_first', 'runtime_only', 'temporal_first', 'temporal']
+      : temporalWorkflowModes;
+    if (hasValue(env[key]) && supportedModes.includes(env[key]) && env[key] !== 'temporal') {
+      issues.push(`${key} must be temporal for production; local/temporal_first allow local fallback`);
+    }
   }
 
   if (hasValue(env.OTEL_EXPORTER_OTLP_PROTOCOL) && !['http/protobuf', 'grpc'].includes(env.OTEL_EXPORTER_OTLP_PROTOCOL)) {

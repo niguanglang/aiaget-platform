@@ -8,7 +8,7 @@ This baseline turns the current application services into a repeatable private-d
 web                  Next.js standalone console
 control-api          NestJS control plane
 agent-runtime        FastAPI runtime for Agent execution and workflow dispatch
-agent-runtime-worker Optional Temporal worker profile, disabled by default
+agent-runtime-worker Temporal worker, enabled with the temporal-worker profile in production
 ```
 
 The production Compose file is:
@@ -32,10 +32,10 @@ PostgreSQL    metadata, tenant data, audit, usage, billing
 MinIO/S3      file storage and archive objects
 Qdrant        vector search
 OpenSearch    keyword search
-Temporal      optional durable workflow backend
+Temporal      durable workflow backend
 ```
 
-Runtime has local fallback behavior when Temporal is disabled. For multi-instance production deployments, use Temporal for workflow execution and enable the `temporal-worker` profile.
+Runtime still has local fallback behavior for development and compatibility modes. For production deployments, the validation gate requires strict remote execution: `AGENT_RUNTIME_EXECUTION_MODE=runtime_only`, every `*_WORKFLOW_MODE=temporal`, and `RUNTIME_TEMPORAL_ENABLED=true`. Enable the `temporal-worker` profile only after the external Temporal service has been approved and verified.
 
 ## Release Flow
 
@@ -44,6 +44,19 @@ Runtime has local fallback behavior when Temporal is disabled. For multi-instanc
 
    ```bash
    node scripts/validate-production-env.mjs .env.production
+   ```
+
+   This check rejects local fallback modes. Production `.env` files must use:
+
+   ```text
+   AGENT_RUNTIME_EXECUTION_MODE=runtime_only
+   KNOWLEDGE_WORKFLOW_MODE=temporal
+   AGENT_TEAM_WORKFLOW_MODE=temporal
+   CHANNEL_RELEASE_WORKFLOW_MODE=temporal
+   CHANNEL_RELEASE_SELF_HEALING_WORKFLOW_MODE=temporal
+   PLUGIN_ROLLBACK_WORKFLOW_MODE=temporal
+   PLUGIN_HOOK_WORKFLOW_MODE=temporal
+   RUNTIME_TEMPORAL_ENABLED=true
    ```
 
 3. Validate Compose rendering without starting containers:
@@ -71,10 +84,10 @@ Runtime has local fallback behavior when Temporal is disabled. For multi-instanc
    pnpm --filter @aiaget/control-api prisma:deploy
    ```
 
-7. Start application services only after the operator approves the deployment action:
+7. Start application services only after the operator approves the deployment action. Production Temporal workflow execution requires the worker profile:
 
    ```bash
-   docker compose -f deploy/docker-compose.production.yml --env-file .env.production up -d
+   docker compose -f deploy/docker-compose.production.yml --env-file .env.production --profile temporal-worker up -d
    ```
 
 ## Health Checks

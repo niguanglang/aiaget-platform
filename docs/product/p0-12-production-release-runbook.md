@@ -143,6 +143,11 @@ node scripts/production-smoke.mjs \
 - `GET /api/v1/plugins/overview`
 - `GET /api/v1/storage/settings`
 - `GET /api/v1/system-settings/overview`
+- `GET /api/v1/system-settings/production-readiness`
+- `GET /api/v1/customer-success-plans`
+- `GET /api/v1/customer-success-actions`
+- `GET /api/v1/customer-success-opportunities`
+- `GET /api/v1/customer-success-opportunities/analytics`
 - `GET /api/v1/menus/tree`
 - `GET /api/v1/roles/overview`
 - `GET /api/v1/departments/overview`
@@ -159,6 +164,11 @@ node scripts/production-smoke.mjs \
 - 安全中心能查看安全事件、审批、恢复和归档。
 - 计费中心能查看套餐、订阅、额度策略、账单、调账；额度硬阈值接口返回 allow/block。
 - 渠道中心和 API Key 中心能查看外部调用、Webhook 投递、渠道发布和失败恢复入口。
+- 生产落地中心 `/settings/production-readiness` 能查看环境配置、迁移、备份、Smoke、Trace 和回滚验收项。
+- 客户成功计划中心 `/customer-success-plans` 能查看计划列表、详情和来源资源关系。
+- 客户成功行动中心 `/customer-success-actions` 能查看行动列表、详情、阻塞风险和完成证据。
+- 客户成功续约机会中心 `/customer-success-opportunities` 能查看机会列表、详情、阶段、金额、概率和来源链路。
+- 机会分析页 `/customer-success-opportunities/analytics` 能查看漏斗、类型分布、风险分布和 Top 机会。
 
 ## 8. 观测与 Trace
 
@@ -218,4 +228,7 @@ git diff --check
 - 数据库迁移版本。
 - 备份文件路径和恢复演练结果。
 - smoke 命令输出。
+- 生产落地中心 `/settings/production-readiness` 人工验收结论和验收记录 ID。
+- 客户成功计划、客户成功行动、续约机会列表、机会分析页的人工验收截图或记录链接。
+- 使用 `docs/product/production-delivery-record-template.md` 填写生产交付记录并归档。
 - 已知风险和后续 P1/P2 事项。

@@ -135,12 +135,37 @@ test('buildAuthenticatedSmokeChecks covers core business read endpoints', () => 
       'Plugin overview',
       'Storage settings',
       'System settings overview',
+      'Production readiness',
+      'Customer success plan list',
+      'Customer success action list',
+      'Customer success opportunity list',
+      'Customer success opportunity analytics',
       'Menu tree',
       'Role overview',
       'Department overview',
     ],
   );
   assert.equal(checks[0]?.url, 'https://api.example.com/api/v1/auth/me');
+  assert.equal(
+    checks.find((check) => check.label === 'Production readiness')?.url,
+    'https://api.example.com/api/v1/system-settings/production-readiness',
+  );
+  assert.equal(
+    checks.find((check) => check.label === 'Customer success plan list')?.url,
+    'https://api.example.com/api/v1/customer-success-plans?page=1&page_size=1',
+  );
+  assert.equal(
+    checks.find((check) => check.label === 'Customer success action list')?.url,
+    'https://api.example.com/api/v1/customer-success-actions?page=1&page_size=1',
+  );
+  assert.equal(
+    checks.find((check) => check.label === 'Customer success opportunity list')?.url,
+    'https://api.example.com/api/v1/customer-success-opportunities?page=1&page_size=1',
+  );
+  assert.equal(
+    checks.find((check) => check.label === 'Customer success opportunity analytics')?.url,
+    'https://api.example.com/api/v1/customer-success-opportunities/analytics',
+  );
   assert.equal(checks.at(-1)?.url, 'https://api.example.com/api/v1/departments/overview');
 });
 

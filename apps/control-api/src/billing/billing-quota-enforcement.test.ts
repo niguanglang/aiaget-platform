@@ -129,12 +129,16 @@ test('enforceQuota aggregates token and API call usage from concrete platform me
     }) as never,
     { recordEvent: async () => ({ id: 'event-1' }) } as never,
   );
+  const callAggregateWheres: AggregateWhere[] = [];
   const callService = new BillingService(
     buildPrisma({
       policy: buildPolicy('API_CALL', 'BLOCK'),
-      aggregate: async (where) => metricIn(where, ['external_agent_requests', 'api_key_requests', 'channel_external_requests', 'tool_calls'])
-        ? { _sum: { amount: 0, quantity: 201 } }
-        : { _sum: { amount: 0, quantity: 0 } },
+      aggregate: async (where) => {
+        callAggregateWheres.push(where);
+        return metricIn(where, ['external_agent_requests', 'api_key_requests', 'channel_external_requests', 'tool_calls'])
+          ? { _sum: { amount: 0, quantity: 201 } }
+          : { _sum: { amount: 0, quantity: 0 } };
+      },
     }) as never,
     { recordEvent: async () => ({ id: 'event-1' }) } as never,
   );
@@ -155,6 +159,7 @@ test('enforceQuota aggregates token and API call usage from concrete platform me
   assert.equal(tokenResult.block, true);
   assert.equal(callResult.current_usage, 201);
   assert.equal(callResult.block, true);
+  assert.ok(callAggregateWheres.some((where) => metricIn(where, ['webhook_deliveries'])));
 });
 
 test('enforceQuota uses call counts for model calls and agent runs instead of summing tokens', async () => {

@@ -25,6 +25,7 @@
 10. 受控 Hook 入队：新增 `PluginHookExecutionService`，在安装实例处于可运行状态且 Hook 为 `ACTIVE` 时写入 `plugin.hook.execution.queued`、`PENDING` 平台事件；事件 payload 保存 Hook 元信息、入参 payload 和控制面事件边界标识，前端绑定页通过确认弹窗触发入队。
 11. Hook Runtime 执行闭环：新增 `PluginHookWorkflowService` 和 Runtime `/runtime/workflows/plugin-hooks/start`，Hook 事件会进入 Temporal/local fallback 工作流；Runtime 回调 `/runtime/internal/plugin-hooks/run` 会加载队列事件和 Hook 配置，解析生成工具编码，通过 `ToolsService.execute(..., triggerSource: 'RUNTIME')` 进入 Tool Gateway 审批、限流、安全策略和调用日志边界。
 12. Hook 恢复闭环：`workflow.plugin_hook_execution.failed` / `dispatch_failed` 已纳入 `/runtime/workflows/status` 可恢复任务和 `/runtime/workflows/retry` 重试入口；恢复时重新派发 `PluginHookWorkflowService.dispatchHookExecution`，权限沿用 `plugin:center:manage`。
+13. Hook 沙箱审计快照持久化：安装、升级和回滚同步 Hook 时，会把 Manifest 级 `sandbox_policy`、`sandbox_risk_level`、`sandbox_violations` 写入 `plugin_hook.config_json`，保证 Runtime 对历史队列事件和 Hook 配置 fallback 使用同一沙箱边界。
 
 ## 外部验签服务契约
 
@@ -79,7 +80,7 @@ PLUGIN_SIGNATURE_LOCAL_ALGORITHM=RSA-SHA256
 ## P0 边界
 
 - 本轮不引入真实 Sigstore/PGP SDK、不新增对象存储表、不启动容器或中间件。
-- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook Runtime 执行、Hook 失败恢复和代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件；完整 Sigstore/PGP 信任链 verifier、真正插件代码沙箱属于后续增强。
+- 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook 沙箱审计快照持久化、Hook Runtime 执行、Hook 失败恢复和代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件；完整 Sigstore/PGP 信任链 verifier、真正插件代码沙箱属于后续增强。
 - Hook 不执行第三方任意代码；当前执行目标限定为 Manifest 同步生成的 Tool Center 工具，并复用 Tool Gateway 的审批、限流、安全策略和审计边界。代码型 Hook 即使已声明 sandbox，也必须等待真实沙箱执行器接入；未接入时 Runtime 记录 `workflow.plugin_hook_execution.sandbox_blocked`。
 
 ## 下一批文件边界

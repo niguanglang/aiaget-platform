@@ -30,7 +30,7 @@ import { PlatformEventsService } from '../platform-events/platform-events.servic
 import { PrismaService } from '../prisma/prisma.service';
 import { PluginPackageIntegrityService } from './plugin-package-integrity.service';
 import { PluginRollbackWorkflowService, type PluginRollbackWorkflowDispatchResult } from './plugin-rollback-workflow.service';
-import { buildPluginGeneratedCodes, buildPluginManifestPolicy, validatePluginManifestInput } from './plugin-policy';
+import { auditSandboxPolicyForHookExecution, buildPluginGeneratedCodes, buildPluginManifestPolicy, validatePluginManifestInput } from './plugin-policy';
 
 type PluginRecord = Prisma.PluginGetPayload<{
   include: {
@@ -1333,6 +1333,14 @@ export class PluginsService {
     const toolCodes = new Set(manifest.tools.map((tool) => tool.code));
     const generatedToolCodes = new Set(manifest.tools.map((tool) => buildPluginToolCode(manifest.code, tool.code)));
     const fallbackToolCode = manifest.tools.length === 1 ? manifest.tools[0]?.code ?? null : null;
+    const sandboxAudit = auditSandboxPolicyForHookExecution(manifest.raw);
+    const sandboxConfig = sandboxAudit.policy.status === 'NOT_REQUIRED'
+      ? {}
+      : {
+        sandbox_policy: sandboxAudit.policy,
+        sandbox_risk_level: sandboxAudit.risk_level,
+        sandbox_violations: sandboxAudit.violations,
+      };
 
     for (const hook of manifest.hooks) {
       const generatedToolCode = hook.generatedToolCode && generatedToolCodes.has(hook.generatedToolCode)
@@ -1344,6 +1352,7 @@ export class PluginsService {
             : null;
       const hookConfig = {
         ...(hook.configJson ?? {}),
+        ...sandboxConfig,
         ...(generatedToolCode ? { generated_tool_code: generatedToolCode } : {}),
       };
       await this.prisma.pluginHook.upsert({

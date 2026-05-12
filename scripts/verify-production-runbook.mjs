@@ -18,6 +18,12 @@ const requiredMentions = [
   'prisma:deploy',
   'production-smoke.mjs',
   'verify-trace-propagation.mjs',
+  '/settings/production-readiness',
+  '/customer-success-plans',
+  '/customer-success-actions',
+  '/customer-success-opportunities',
+  '/customer-success-opportunities/analytics',
+  'production-delivery-record-template.md',
 ];
 
 export function collectProductionRunbookIssues(text) {

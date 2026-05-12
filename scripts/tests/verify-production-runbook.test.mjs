@@ -36,6 +36,12 @@ node scripts/verify-trace-propagation.mjs
 docker compose -f deploy/docker-compose.production.yml --env-file .env.production down
 
 ## 10. 交付验收
+人工验收 /settings/production-readiness
+人工验收 客户成功计划 /customer-success-plans
+人工验收 客户成功行动 /customer-success-actions
+人工验收 续约机会 /customer-success-opportunities
+人工验收 机会分析 /customer-success-opportunities/analytics
+留档 docs/product/production-delivery-record-template.md
 `;
 
 test('collectProductionRunbookIssues accepts a complete P0-12 runbook', () => {
@@ -56,6 +62,12 @@ test('collectProductionRunbookIssues reports missing release safety sections', (
       'Runbook must mention prisma:deploy',
       'Runbook must mention production-smoke.mjs',
       'Runbook must mention verify-trace-propagation.mjs',
+      'Runbook must mention /settings/production-readiness',
+      'Runbook must mention /customer-success-plans',
+      'Runbook must mention /customer-success-actions',
+      'Runbook must mention /customer-success-opportunities',
+      'Runbook must mention /customer-success-opportunities/analytics',
+      'Runbook must mention production-delivery-record-template.md',
     ],
   );
 });

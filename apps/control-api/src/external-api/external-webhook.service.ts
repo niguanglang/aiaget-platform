@@ -14,6 +14,7 @@ import type {
 
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { decryptSecret } from '../models/model-secrets';
+import { PlatformEventsService } from '../platform-events/platform-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ExternalApiPrincipal } from './external-api-key.service';
 
@@ -24,7 +25,10 @@ const DELIVERY_LIST_LIMIT = 30;
 
 @Injectable()
 export class ExternalWebhookService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PlatformEventsService) private readonly platformEvents: PlatformEventsService,
+  ) {}
 
   async notifyRunCompleted(principal: ExternalApiPrincipal, result: ExternalAgentChatResponse) {
     if (!principal.key.webhookEnabled || !principal.key.webhookUrl || !isEventEnabled(principal.key.webhookEvents, RUN_COMPLETED_EVENT)) {
@@ -230,6 +234,28 @@ export class ExternalWebhookService {
         },
       }),
     ]);
+
+    await this.platformEvents.recordUsage({
+      tenantId: input.principal.user.tenantId,
+      departmentId: input.principal.user.departmentId ?? null,
+      userId: input.principal.user.id,
+      subjectType: 'API_KEY',
+      subjectId: input.apiKeyId,
+      resourceType: 'WEBHOOK',
+      resourceId: input.apiKeyId,
+      metricType: 'webhook_deliveries',
+      unit: 'delivery',
+      quantity: 1,
+      amount: 0,
+      currency: 'USD',
+      billable: true,
+      costSource: 'external_webhook',
+      traceId: payload.trace_id ?? input.principal.user.traceId ?? null,
+      requestId: input.principal.user.requestId ?? null,
+      sourceSystem: 'external_webhook',
+      sourceId: deliveryId,
+      occurredAt: finishedAt,
+    });
 
     return mapDeliveryDetail(updated);
   }

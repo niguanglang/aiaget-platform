@@ -1126,7 +1126,7 @@ test('rollback dispatches plugin rollback workflow after control-plane snapshot 
   }
 });
 
-test('rollback manifest sync prunes removed plugin hooks menus and tools while wiring hook generated tool code', async () => {
+test('rollback manifest sync prunes removed plugin hooks menus and tools while wiring hook generated tool code and sandbox audit', async () => {
   const calls: Array<{ data?: Record<string, unknown>; model: string; op: string; where?: Record<string, unknown> }> = [];
   const recordedEvents: unknown[] = [];
   const rollbackManifest = {
@@ -1135,6 +1135,17 @@ test('rollback manifest sync prunes removed plugin hooks menus and tools while w
     version: '1.1.0',
     provider: '内部插件',
     risk_level: 'MEDIUM',
+    runtime: {
+      type: 'code',
+      entry: 'dist/index.js',
+    },
+    sandbox: {
+      isolation: 'PROCESS',
+      network: 'DENY',
+      filesystem: 'READONLY',
+      timeout_ms: 5000,
+      memory_mb: 128,
+    },
     permissions: ['plugin:ticket:view'],
     menus: [
       {
@@ -1313,7 +1324,19 @@ test('rollback manifest sync prunes removed plugin hooks menus and tools while w
     });
 
     const hookCreate = calls.find((call) => call.model === 'pluginHook' && call.op === 'upsert' && call.data?.code === 'ticket_created');
-    assert.equal((hookCreate?.data?.configJson as { generated_tool_code?: string } | undefined)?.generated_tool_code, 'plugin_tool_ticket-suite_create_ticket');
+    const hookConfig = hookCreate?.data?.configJson as {
+      generated_tool_code?: string;
+      sandbox_policy?: { entry?: string; isolation?: string; network?: string; status?: string };
+      sandbox_risk_level?: string;
+      sandbox_violations?: string[];
+    } | undefined;
+    assert.equal(hookConfig?.generated_tool_code, 'plugin_tool_ticket-suite_create_ticket');
+    assert.equal(hookConfig?.sandbox_policy?.status, 'DECLARED');
+    assert.equal(hookConfig?.sandbox_policy?.entry, 'dist/index.js');
+    assert.equal(hookConfig?.sandbox_policy?.isolation, 'PROCESS');
+    assert.equal(hookConfig?.sandbox_policy?.network, 'DENY');
+    assert.equal(hookConfig?.sandbox_risk_level, 'LOW');
+    assert.deepEqual(hookConfig?.sandbox_violations, []);
     assert.ok(calls.some((call) => call.model === 'pluginHook' && call.op === 'updateMany' && (call.where?.code as { notIn?: string[] } | undefined)?.notIn?.includes('ticket_created')));
     assert.ok(calls.some((call) => call.model === 'pluginMenuBinding' && call.op === 'updateMany' && (call.where?.menuId as { notIn?: string[] } | undefined)?.notIn?.includes('menu-plugin_ticket-suite_dashboard')));
     assert.ok(calls.some((call) => call.model === 'menu' && call.op === 'updateMany' && (call.where?.code as { startsWith?: string; notIn?: string[] } | undefined)?.startsWith === 'plugin_ticket-suite_' && (call.where?.code as { notIn?: string[] } | undefined)?.notIn?.includes('plugin_ticket-suite_dashboard')));

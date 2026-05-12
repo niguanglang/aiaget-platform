@@ -45,6 +45,11 @@ export function buildAuthenticatedSmokeChecks(controlApiBaseUrl) {
     { label: 'Plugin overview', url: appendPath(controlApiBaseUrl, '/api/v1/plugins/overview', '/plugins/overview') },
     { label: 'Storage settings', url: appendPath(controlApiBaseUrl, '/api/v1/storage/settings', '/storage/settings') },
     { label: 'System settings overview', url: appendPath(controlApiBaseUrl, '/api/v1/system-settings/overview', '/system-settings/overview') },
+    { label: 'Production readiness', url: appendPath(controlApiBaseUrl, '/api/v1/system-settings/production-readiness', '/system-settings/production-readiness') },
+    { label: 'Customer success plan list', url: appendPath(controlApiBaseUrl, '/api/v1/customer-success-plans?page=1&page_size=1', '/customer-success-plans') },
+    { label: 'Customer success action list', url: appendPath(controlApiBaseUrl, '/api/v1/customer-success-actions?page=1&page_size=1', '/customer-success-actions') },
+    { label: 'Customer success opportunity list', url: appendPath(controlApiBaseUrl, '/api/v1/customer-success-opportunities?page=1&page_size=1', '/customer-success-opportunities') },
+    { label: 'Customer success opportunity analytics', url: appendPath(controlApiBaseUrl, '/api/v1/customer-success-opportunities/analytics', '/customer-success-opportunities/analytics') },
     { label: 'Menu tree', url: appendPath(controlApiBaseUrl, '/api/v1/menus/tree', '/menus/tree') },
     { label: 'Role overview', url: appendPath(controlApiBaseUrl, '/api/v1/roles/overview', '/roles/overview') },
     { label: 'Department overview', url: appendPath(controlApiBaseUrl, '/api/v1/departments/overview', '/departments/overview') },
@@ -102,16 +107,18 @@ function checkHttpResult(issues, label, result) {
 
 function appendPath(baseUrl, expectedPath, existingPrefixPath) {
   const url = new URL(baseUrl);
+  const [expectedPathname, expectedSearch = ''] = expectedPath.split('?');
   const cleanPath = url.pathname.replace(/\/$/, '');
   if (!cleanPath || cleanPath === '/') {
-    url.pathname = expectedPath;
+    url.pathname = expectedPathname;
   } else if (cleanPath.endsWith(existingPrefixPath)) {
-    url.pathname = `${cleanPath.slice(0, -existingPrefixPath.length)}${expectedPath}`;
-  } else if (expectedPath.startsWith(cleanPath)) {
-    url.pathname = expectedPath;
+    url.pathname = `${cleanPath.slice(0, -existingPrefixPath.length)}${expectedPathname}`;
+  } else if (expectedPathname.startsWith(cleanPath)) {
+    url.pathname = expectedPathname;
   } else {
-    url.pathname = `${cleanPath}${expectedPath}`;
+    url.pathname = `${cleanPath}${expectedPathname}`;
   }
+  url.search = expectedSearch;
   return url.toString();
 }
 

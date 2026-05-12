@@ -87,6 +87,76 @@ test('production readiness overview includes observability trace quality evidenc
   assert.ok(traceQualityItem.evidence.some((evidence) => evidence.includes('/monitor/observability')));
 });
 
+test('production readiness overview blocks custom code plugin hooks without sandbox executor', async () => {
+  const { SystemSettingsService } = await import('./system-settings.service');
+  const previousExecutorUrl = process.env.PLUGIN_SANDBOX_EXECUTOR_URL;
+  delete process.env.PLUGIN_SANDBOX_EXECUTOR_URL;
+  const service = new SystemSettingsService(buildPrisma({
+    counts: {
+      customCodePluginHook: 2,
+    },
+  }) as never);
+
+  try {
+    const overview = await service.getProductionReadinessOverview(buildUser());
+    const pluginSandboxItem = overview.categories
+      .flatMap((category) => category.items)
+      .find((item) => item.id === 'plugin-sandbox-executor');
+
+    assert.equal(pluginSandboxItem?.status, 'BLOCKED');
+    assert.equal(pluginSandboxItem?.severity, 'HIGH');
+    assert.equal(pluginSandboxItem?.action_href, '/plugins/security');
+    assert.ok(pluginSandboxItem?.evidence.some((evidence) => evidence.includes('代码型插件 Hook 2 个')));
+    assert.ok(pluginSandboxItem?.evidence.some((evidence) => evidence.includes('PLUGIN_SANDBOX_EXECUTOR_URL 未配置')));
+  } finally {
+    restoreEnv('PLUGIN_SANDBOX_EXECUTOR_URL', previousExecutorUrl);
+  }
+});
+
+test('production readiness overview marks custom code plugin sandbox executor as manual when configured', async () => {
+  const { SystemSettingsService } = await import('./system-settings.service');
+  const previousExecutorUrl = process.env.PLUGIN_SANDBOX_EXECUTOR_URL;
+  process.env.PLUGIN_SANDBOX_EXECUTOR_URL = 'https://sandbox.example.com/execute';
+  const service = new SystemSettingsService(buildPrisma({
+    counts: {
+      customCodePluginHook: 1,
+    },
+  }) as never);
+
+  try {
+    const overview = await service.getProductionReadinessOverview(buildUser());
+    const pluginSandboxItem = overview.categories
+      .flatMap((category) => category.items)
+      .find((item) => item.id === 'plugin-sandbox-executor');
+
+    assert.equal(pluginSandboxItem?.status, 'MANUAL');
+    assert.equal(pluginSandboxItem?.severity, 'HIGH');
+    assert.ok(pluginSandboxItem?.evidence.some((evidence) => evidence.includes('PLUGIN_SANDBOX_EXECUTOR_URL 已配置')));
+  } finally {
+    restoreEnv('PLUGIN_SANDBOX_EXECUTOR_URL', previousExecutorUrl);
+  }
+});
+
+test('production readiness overview keeps plugin sandbox executor ready when no custom code hooks exist', async () => {
+  const { SystemSettingsService } = await import('./system-settings.service');
+  const previousExecutorUrl = process.env.PLUGIN_SANDBOX_EXECUTOR_URL;
+  delete process.env.PLUGIN_SANDBOX_EXECUTOR_URL;
+  const service = new SystemSettingsService(buildPrisma() as never);
+
+  try {
+    const overview = await service.getProductionReadinessOverview(buildUser());
+    const pluginSandboxItem = overview.categories
+      .flatMap((category) => category.items)
+      .find((item) => item.id === 'plugin-sandbox-executor');
+
+    assert.equal(pluginSandboxItem?.status, 'READY');
+    assert.equal(pluginSandboxItem?.severity, 'MEDIUM');
+    assert.ok(pluginSandboxItem?.evidence.some((evidence) => evidence.includes('当前未发现代码型插件 Hook')));
+  } finally {
+    restoreEnv('PLUGIN_SANDBOX_EXECUTOR_URL', previousExecutorUrl);
+  }
+});
+
 test('production readiness overview attaches latest manual acceptance evidence per checklist item', async () => {
   const { SystemSettingsService } = await import('./system-settings.service');
   const prisma = buildPrisma({
@@ -183,6 +253,7 @@ function buildPrisma(
     failedKnowledgeTask: 0,
     qdrantSegment: 0,
     opensearchSegment: 0,
+    customCodePluginHook: 0,
     ...input.counts,
   };
 
@@ -221,6 +292,9 @@ function buildPrisma(
         return 0;
       },
     },
+    pluginHook: {
+      count: async () => counts.customCodePluginHook,
+    },
     approvalAuditEvent: {
       findMany: async () => input.readinessEvents ?? [],
       create: async (args: { data: Record<string, unknown> }) => {
@@ -234,6 +308,15 @@ function buildPrisma(
       },
     },
   };
+}
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
 }
 
 function buildReadinessEvent(input: {
@@ -276,4 +359,5 @@ type CountKey =
   | 'pendingKnowledgeTask'
   | 'failedKnowledgeTask'
   | 'qdrantSegment'
-  | 'opensearchSegment';
+  | 'opensearchSegment'
+  | 'customCodePluginHook';

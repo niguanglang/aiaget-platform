@@ -103,6 +103,7 @@ PLUGIN_PACKAGE_OBJECT_STORAGE_REGION=us-east-1
 ## P0 边界
 
 - 本轮不引入真实 Sigstore/PGP SDK、不新增对象存储表、不启动容器或中间件；对象存储插件包来源只复用已批准的外部 S3/MinIO 服务。
+- 生产落地中心会检查代码型插件 Hook 与 `PLUGIN_SANDBOX_EXECUTOR_URL` 的关系：存在代码型 Hook 且未配置远程沙箱执行器时，检查项为 `BLOCKED`；未发现代码型 Hook 时为 `READY`；已配置执行器时仍需人工验收隔离、超时、网络和审计证据。
 - 当前 P0 校验已经覆盖控制面静态门禁、真实包下载、sha256 计算、企业外部在线 verifier 强制验签门禁、本地公钥 detached signature verifier、安装前 Tool Gateway 绑定预览、控制面版本回滚、Runtime/Temporal 回滚派发、受控 Hook 入队、Hook 沙箱审计快照持久化、Hook Runtime 执行、Hook 失败恢复、代码型 Hook 的 Runtime 沙箱执行器未配置阻断事件，以及可选远程沙箱执行器契约；完整 Sigstore/PGP 信任链 verifier 和本项目内置代码沙箱服务属于后续增强。
 - Hook 默认不执行第三方任意代码；Manifest 同步生成的 Tool Center 工具继续复用 Tool Gateway 的审批、限流、安全策略和审计边界。代码型 Hook 即使已声明 sandbox，也只有在显式配置 `PLUGIN_SANDBOX_EXECUTOR_URL` 指向外部已批准沙箱执行器时才会进入远程执行；未配置时 Runtime 记录 `workflow.plugin_hook_execution.sandbox_blocked`。
 

@@ -188,6 +188,7 @@ export class SystemSettingsService {
       failedKnowledgeTasks,
       qdrantSegments,
       openSearchSegments,
+      customCodePluginHooks,
     ] = await Promise.all([
       this.prisma.modelProvider.count({
         where: {
@@ -262,6 +263,16 @@ export class SystemSettingsService {
           metadata: {
             path: ['keyword_backend'],
             equals: 'OPENSEARCH',
+          },
+        },
+      }),
+      this.prisma.pluginHook.count({
+        where: {
+          tenantId: currentUser.tenantId,
+          deletedAt: null,
+          configJson: {
+            path: ['sandbox_policy', 'entry'],
+            not: Prisma.DbNull,
           },
         },
       }),
@@ -434,6 +445,33 @@ export class SystemSettingsService {
         action_label: '打开插件中心',
         action_href: '/plugins',
         evidence: ['插件安装已具备后端 manifest 和包完整性预检，需要真实插件包人工验收。'],
+        acceptance: null,
+      },
+      {
+        id: 'plugin-sandbox-executor',
+        category: 'THIRD_PARTY',
+        title: '代码型插件 Hook 沙箱执行器',
+        description: '确认代码型插件 Hook 只会在批准的远程沙箱执行器中运行，未配置时保持阻断并审计。',
+        status: customCodePluginHooks > 0
+          ? process.env.PLUGIN_SANDBOX_EXECUTOR_URL
+            ? 'MANUAL'
+            : 'BLOCKED'
+          : 'READY',
+        severity: customCodePluginHooks > 0 ? 'HIGH' : 'MEDIUM',
+        owner: '安全管理员',
+        action_label: '打开插件安全',
+        action_href: '/plugins/security',
+        evidence: customCodePluginHooks > 0
+          ? [
+            `代码型插件 Hook ${customCodePluginHooks} 个。`,
+            process.env.PLUGIN_SANDBOX_EXECUTOR_URL
+              ? 'PLUGIN_SANDBOX_EXECUTOR_URL 已配置，仍需在目标环境人工验证远程沙箱隔离、超时、网络和审计。'
+              : 'PLUGIN_SANDBOX_EXECUTOR_URL 未配置，Runtime 会阻断代码型 Hook 并记录 sandbox_blocked 事件。',
+          ]
+          : [
+            '当前未发现代码型插件 Hook。',
+            '未配置 PLUGIN_SANDBOX_EXECUTOR_URL 时，后续新增代码型 Hook 会在 Runtime 边界被阻断。',
+          ],
         acceptance: null,
       },
       {

@@ -102,6 +102,9 @@ export function collectProductionSmokeIssues(results) {
   checkHealthResult(issues, 'Control API runtime proxy', results.runtimeProxyHealth);
   checkHealthResult(issues, 'Runtime health', results.runtimeHealth);
   checkHttpResult(issues, 'Web console login', results.webLogin);
+  if (results.requireAuthenticatedChecks && !results.authenticatedChecks) {
+    issues.push('Authenticated smoke checks were required but credentials were not provided');
+  }
   if (results.authenticatedChecks) {
     for (const check of results.authenticatedChecks) {
       checkHttpResult(issues, check.label, check.result);
@@ -110,6 +113,47 @@ export function collectProductionSmokeIssues(results) {
   }
 
   return issues;
+}
+
+export function collectProductionSmokeOutput(results) {
+  const issues = collectProductionSmokeIssues(results);
+  return {
+    generated_at: results.generatedAt ?? new Date().toISOString(),
+    urls: results.urls ?? null,
+    summary: {
+      status: issues.length > 0 ? 'FAILED' : 'PASSED',
+      issue_count: issues.length,
+      authenticated_check_count: results.authenticatedChecks?.length ?? 0,
+      deep: Boolean(results.deep),
+      require_authenticated_checks: Boolean(results.requireAuthenticatedChecks),
+    },
+    issues,
+    endpoints: {
+      control_health: summarizeResult(results.controlHealth),
+      runtime_proxy_health: summarizeResult(results.runtimeProxyHealth),
+      runtime_health: summarizeResult(results.runtimeHealth),
+      web_login: summarizeResult(results.webLogin),
+    },
+    authenticated_checks: (results.authenticatedChecks ?? []).map((check) => ({
+      label: check.label,
+      method: check.method ?? 'GET',
+      url: check.url,
+      expect: check.expect ?? null,
+      ok: Boolean(check.result?.ok),
+      status: check.result?.status ?? 0,
+      error: check.result?.error ?? null,
+      body: redactSensitiveValue(check.result?.body ?? null),
+    })),
+  };
+}
+
+function summarizeResult(result) {
+  return {
+    ok: Boolean(result?.ok),
+    status: result?.status ?? 0,
+    error: result?.error ?? null,
+    body: redactSensitiveValue(result?.body ?? null),
+  };
 }
 
 function checkHealthResult(issues, label, result) {
@@ -311,13 +355,26 @@ async function runCli() {
     for (const check of authenticatedChecks) {
       results.authenticatedChecks.push({
         label: check.label,
+        method: check.method ?? 'GET',
+        url: check.url,
         expect: check.expect,
         result: await fetchAuthenticatedCheck(check, token),
       });
     }
   }
+  results.deep = args.has('deep');
+  results.requireAuthenticatedChecks = args.has('require-auth');
+  results.urls = urls;
 
   const issues = collectProductionSmokeIssues(results);
+
+  if (args.has('json')) {
+    console.log(JSON.stringify(collectProductionSmokeOutput(results), null, 2));
+    if (issues.length > 0) {
+      process.exitCode = 1;
+    }
+    return;
+  }
 
   if (issues.length > 0) {
     console.error('Production smoke validation failed:');
@@ -343,6 +400,32 @@ function safeJson(text) {
   } catch {
     return null;
   }
+}
+
+function redactSensitiveValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSensitiveValue(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      isSensitiveKey(key) ? '[REDACTED]' : redactSensitiveValue(entry),
+    ]),
+  );
+}
+
+function isSensitiveKey(key) {
+  const normalized = key.toLowerCase();
+  return normalized.includes('token')
+    || normalized.includes('secret')
+    || normalized.includes('password')
+    || normalized.includes('authorization')
+    || normalized.includes('api_key')
+    || normalized.includes('apikey');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

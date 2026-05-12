@@ -5,6 +5,7 @@ import {
   buildAuthenticatedSmokeChecks,
   buildDeepAuthenticatedSmokeChecks,
   collectProductionSmokeIssues,
+  collectProductionSmokeOutput,
   resolveProductionSmokeCredentials,
   resolveProductionSmokeUrls,
 } from '../production-smoke.mjs';
@@ -107,6 +108,15 @@ test('resolveProductionSmokeCredentials reads explicit credentials before enviro
 test('resolveProductionSmokeCredentials disables authenticated probes when credentials are incomplete', () => {
   assert.equal(
     resolveProductionSmokeCredentials(new Map([['email', 'oss-admin-7f4c2a@local.invalid']]), {
+      DEFAULT_TENANT_CODE: 'default',
+    }),
+    null,
+  );
+});
+
+test('resolveProductionSmokeCredentials reports an issue when authenticated probes are required', () => {
+  assert.equal(
+    resolveProductionSmokeCredentials(new Map([['require-auth', 'true']]), {
       DEFAULT_TENANT_CODE: 'default',
     }),
     null,
@@ -359,4 +369,92 @@ test('collectProductionSmokeIssues reports unhealthy services and failed HTTP re
       'Web console login returned HTTP 404',
     ],
   );
+});
+
+test('collectProductionSmokeIssues reports missing authenticated checks when required', () => {
+  assert.deepEqual(
+    collectProductionSmokeIssues({
+      requireAuthenticatedChecks: true,
+      controlHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'control-api', status: 'healthy' },
+      },
+      runtimeProxyHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      runtimeHealth: {
+        ok: true,
+        status: 200,
+        body: { service: 'agent-runtime', status: 'healthy' },
+      },
+      webLogin: {
+        ok: true,
+        status: 200,
+        body: null,
+      },
+    }),
+    ['Authenticated smoke checks were required but credentials were not provided'],
+  );
+});
+
+test('collectProductionSmokeOutput returns a redacted JSON evidence payload', () => {
+  const output = collectProductionSmokeOutput({
+    generatedAt: '2026-05-12T00:00:00.000Z',
+    deep: true,
+    requireAuthenticatedChecks: true,
+    urls: {
+      controlHealth: 'https://api.example.com/api/v1/health',
+      runtimeProxyHealth: 'https://api.example.com/api/v1/runtime/health',
+      runtimeHealth: 'https://runtime.example.com/runtime/health',
+      webLogin: 'https://console.example.com/login',
+    },
+    controlHealth: {
+      ok: true,
+      status: 200,
+      body: { status: 'healthy' },
+    },
+    runtimeProxyHealth: {
+      ok: true,
+      status: 200,
+      body: { status: 'healthy' },
+    },
+    runtimeHealth: {
+      ok: true,
+      status: 200,
+      body: { status: 'healthy' },
+    },
+    webLogin: {
+      ok: true,
+      status: 200,
+      body: null,
+    },
+    authenticatedChecks: [
+      {
+        label: 'Auth current user',
+        method: 'GET',
+        url: 'https://api.example.com/api/v1/auth/me',
+        result: {
+          ok: true,
+          status: 200,
+          body: {
+            email: 'oss-admin-7f4c2a@local.invalid',
+            accessToken: 'should-not-leak',
+          },
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(output.summary, {
+    status: 'PASSED',
+    issue_count: 0,
+    authenticated_check_count: 1,
+    deep: true,
+    require_authenticated_checks: true,
+  });
+  assert.equal(output.authenticated_checks[0]?.body.email, 'oss-admin-7f4c2a@local.invalid');
+  assert.equal(output.authenticated_checks[0]?.body.accessToken, '[REDACTED]');
 });

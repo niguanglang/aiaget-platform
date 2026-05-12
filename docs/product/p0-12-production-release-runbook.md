@@ -112,7 +112,8 @@ node scripts/production-smoke.mjs \
   --web https://console.example.com \
   --tenant-code "$DEFAULT_TENANT_CODE" \
   --email "$DEFAULT_ADMIN_EMAIL" \
-  --password "$DEFAULT_ADMIN_PASSWORD"
+  --password "$DEFAULT_ADMIN_PASSWORD" \
+  --require-auth
 ```
 
 也可以直接让脚本读取环境变量 `DEFAULT_TENANT_CODE`、`DEFAULT_ADMIN_EMAIL`、`DEFAULT_ADMIN_PASSWORD`。
@@ -127,8 +128,12 @@ node scripts/production-smoke.mjs \
   --tenant-code "$DEFAULT_TENANT_CODE" \
   --email "$DEFAULT_ADMIN_EMAIL" \
   --password "$DEFAULT_ADMIN_PASSWORD" \
-  --deep
+  --require-auth \
+  --deep \
+  --json
 ```
+
+`--require-auth` 用于生产发布验收，缺少登录凭据时直接失败；`--json` 输出脱敏证据，可附到交付记录。`--json` 不会输出 access token、password、secret 或 API Key 明文。
 
 必须返回健康的端点：
 
@@ -233,7 +238,7 @@ AIAGET_IMAGE_TAG=<previous-tag> docker compose -f deploy/docker-compose.producti
 
 ```bash
 node --test scripts/tests/*.test.mjs
-pnpm --filter @aiaget/control-api exec tsx --test src/billing/billing-quota-enforcement.test.ts src/conversations/conversations-runtime-projection.test.ts src/runtime-execution/runtime-execution.service.test.ts src/knowledge/knowledge-e2e.test.ts src/knowledge/knowledge-retrieval.test.ts src/knowledge/search-backends.test.ts
+pnpm --filter @aiaget/control-api test
 pnpm --filter @aiaget/control-api typecheck
 pnpm --filter @aiaget/web typecheck
 pnpm --filter @aiaget/web lint

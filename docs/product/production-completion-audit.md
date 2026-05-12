@@ -42,7 +42,7 @@
 
 ```bash
 node --test scripts/tests/*.test.mjs
-pnpm --filter @aiaget/control-api exec tsx --test src/billing/billing-quota-enforcement.test.ts src/conversations/conversations-runtime-projection.test.ts src/runtime-execution/runtime-execution.service.test.ts src/knowledge/knowledge-e2e.test.ts src/knowledge/knowledge-retrieval.test.ts src/knowledge/search-backends.test.ts
+pnpm --filter @aiaget/control-api test
 pnpm --filter @aiaget/control-api typecheck
 pnpm --filter @aiaget/web typecheck
 pnpm --filter @aiaget/web lint

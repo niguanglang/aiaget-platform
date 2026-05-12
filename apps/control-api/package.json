@@ -13,6 +13,7 @@
     "prisma:seed": "set -a && . ../../.env && set +a && tsx prisma/seed.ts",
     "prisma:validate": "set -a && . ../../.env && set +a && prisma validate",
     "start": "node dist/main.js",
+    "test": "node ../../scripts/run-control-api-tests.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

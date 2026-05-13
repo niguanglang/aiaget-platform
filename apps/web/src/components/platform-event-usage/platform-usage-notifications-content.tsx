@@ -48,7 +48,7 @@ export function PlatformUsageNotificationsContent() {
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="通知审计"
-        description="统一查看告警通知投递结果、Webhook 响应和失败重试链路。"
+        description="告警通知投递结果、Webhook 响应和失败重试链路。"
         refreshing={notificationsQuery.isFetching}
         title="告警通知投递审计"
         onRefresh={() => void notificationsQuery.refetch()}

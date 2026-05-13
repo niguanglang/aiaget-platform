@@ -156,7 +156,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
                 <Activity className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">Trace 关联</h2>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">从团队详情进入最新运行的链路追踪，完整步骤图谱仍由运行详情页承载。</p>
+              <p className="mt-2 text-sm text-muted-foreground">最新运行 Trace 与请求上下文。</p>
             </div>
             {latestRun?.trace_id ? (
               <Button asChild size="sm" variant="outline">

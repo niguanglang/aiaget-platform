@@ -39,7 +39,7 @@ export function ChannelReleaseContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布治理"
-        description="查看发布关键指标、调度概览和治理模块入口，覆盖流水线、门禁、自动推进、自愈和治理报表。"
+        description="发布关键指标、调度概览和治理模块入口。"
         refreshing={overviewQuery.isFetching || schedulerQuery.isFetching}
         subtitle="/channels/release"
         title="发布治理总览"
@@ -59,12 +59,12 @@ export function ChannelReleaseContent() {
         <>
           <ChannelMetricGrid loading={overviewQuery.isLoading || schedulerQuery.isLoading} metrics={metrics} />
           <section className="grid gap-4 xl:grid-cols-3">
-            <ReleaseModuleEntry description="查看批次、灰度、全量、回滚与步骤状态。" href="/channels/release/pipeline" title="发布流水线" />
-            <ReleaseModuleEntry description="查看观测指标、放行率、阻断数和门禁策略。" href="/channels/release/gate" title="发布观测门禁" />
-            <ReleaseModuleEntry description="查看自动推进策略、频控和最近决策。" href="/channels/release/automation" title="自动推进" />
-            <ReleaseModuleEntry description="查看自愈策略、回滚建议和冷却状态。" href="/channels/release/self-healing" title="发布自愈" />
-            <ReleaseModuleEntry description="查看巡检状态、候选渠道和运行结果。" href="/channels/release/scheduler" title="发布巡检调度" />
-            <ReleaseModuleEntry description="查看复盘报告、风险建议和报告快照。" href="/channels/release/reports" title="发布复盘报告" />
+            <ReleaseModuleEntry href="/channels/release/pipeline" title="发布流水线" />
+            <ReleaseModuleEntry href="/channels/release/gate" title="发布观测门禁" />
+            <ReleaseModuleEntry href="/channels/release/automation" title="自动推进" />
+            <ReleaseModuleEntry href="/channels/release/self-healing" title="发布自愈" />
+            <ReleaseModuleEntry href="/channels/release/scheduler" title="发布巡检调度" />
+            <ReleaseModuleEntry href="/channels/release/reports" title="发布复盘报告" />
           </section>
           <ReleaseSchedulerSummaryCard overview={schedulerQuery.data} />
         </>

@@ -65,7 +65,7 @@ export function ChannelRouteRuleCreateContent() {
       <ChannelFocusedHeader
         activeRoute="route-rules"
         badge="新建路由规则"
-        description="配置渠道路由规则的匹配条件、优先级、关联对象和目标投递策略。新增表单独立于列表页，保存后返回路由规则列表。"
+        description="渠道路由规则匹配条件、优先级、关联对象和目标投递策略。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || accountsQuery.isFetching || agentsQuery.isFetching || createMutation.isPending}
         subtitle="/channels/route-rules/create"

@@ -65,8 +65,8 @@ export function BillingSubscriptionContent() {
       <BillingWorkspaceHeader
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         backHref="/billing"
-        badge="Subscription"
-        description="查看当前套餐、账期和套餐配置；套餐切换入口集中在此页面，避免总览页出现完整订阅编辑表单。"
+        badge="订阅"
+        description="套餐、账期与配置。"
         onWindowChange={setWindowValue}
         title="订阅与套餐配置"
         windowValue={windowValue}

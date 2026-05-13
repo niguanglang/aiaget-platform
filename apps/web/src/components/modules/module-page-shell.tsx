@@ -36,9 +36,9 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         <div className="border-b p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm font-semibold">列表视图设计</h2>
+              <h2 className="text-sm font-semibold">数据列表</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                搜索、筛选、分页、行操作和详情将在对应模块里接入真实接口。
+                搜索、筛选、分页与行操作。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -92,7 +92,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         </div>
 
         <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">详情页区块</h2>
+          <h2 className="text-sm font-semibold">信息分组</h2>
           <div className="mt-4 grid gap-2">
             {moduleSpec.detailSections.map((section) => (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm" key={section}>

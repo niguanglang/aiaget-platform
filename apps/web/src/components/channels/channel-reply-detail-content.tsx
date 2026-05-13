@@ -35,7 +35,7 @@ export function ChannelReplyDetailContent({ replyId }: { replyId: string }) {
       <ChannelFocusedHeader
         activeRoute="replies"
         badge="回复详情"
-        description="查看单条回复的消息链路、消息内容、原始载荷和处理时间，回复列表只承担检索与概览。"
+        description="回复消息链路、消息内容、原始载荷和处理时间。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
         subtitle="/channels/replies/:replyId"

@@ -68,7 +68,7 @@ export function ModelCostLogCard({ provider }: { provider: ModelProviderDetail }
         </div>
         {provider.call_logs.length === 0 ? (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            暂无调用日志。执行兼容性测试或 Agent 调用后会在这里展示。
+            暂无调用日志。
           </div>
         ) : (
           <div className="overflow-x-auto">

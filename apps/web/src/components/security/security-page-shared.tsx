@@ -22,7 +22,6 @@ export function SecurityWorkspaceHeader({
   actions,
   badge,
   badgeTone = 'ready',
-  description,
   title,
 }: {
   actions?: ReactNode;
@@ -45,7 +44,6 @@ export function SecurityWorkspaceHeader({
           <StatusBadge tone="healthy">中文职责页</StatusBadge>
         </div>
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </section>

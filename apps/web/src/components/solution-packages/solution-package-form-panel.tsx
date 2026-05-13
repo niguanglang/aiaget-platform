@@ -66,20 +66,20 @@ function defaults(solutionPackage?: SolutionPackageDetail | null): SolutionPacka
     business_objectives:
       solutionPackage?.business_objectives ??
       '让历史资料稳定检索，方案产出标准化，员工可以通过统一入口调用公司知识，并保留审核与复盘记录。',
-    scope_summary: solutionPackage?.scope_summary ?? '首期覆盖一个高价值岗位、一个知识库、一个 Agent 和一套样板成果验收口径。',
+    scope_summary: solutionPackage?.scope_summary ?? '首期覆盖一个高价值岗位、一个知识库、一个 Agent 和一套交付成果验收口径。',
     scenario_blueprint:
       solutionPackage?.scenario_blueprint ??
-      '客户分层 -> 六问判断 -> 岗位场景编排 -> Agent/Skill/知识库绑定 -> 样板成果输出 -> 验收复盘。',
+      '客户分层 -> 六问判断 -> 岗位场景编排 -> Agent/Skill/知识库绑定 -> 交付成果输出 -> 验收复盘。',
     delivery_roadmap:
       solutionPackage?.delivery_roadmap ??
-      '第 1 周完成资料盘点和权限边界；第 2 周完成场景配置和样板输出；第 3 周完成试点验收和扩展计划。',
+      '第 1 周完成资料盘点和权限边界；第 2 周完成场景配置和成果输出；第 3 周完成试点验收和扩展计划。',
     acceptance_plan:
       solutionPackage?.acceptance_plan ??
-      '验收材料包含样板成果、引用来源、风险提示、权限审计、运行日志和业务负责人复盘结论。',
+      '验收材料包含交付成果、引用来源、风险提示、权限审计、运行日志和业务负责人复盘结论。',
     roi_summary: solutionPackage?.roi_summary ?? '方案准备时间下降 40%，重复返工下降 30%，关键引用遗漏率低于 5%。',
     risk_mitigation: solutionPackage?.risk_mitigation ?? '先采用只读知识检索、人工审核和安全策略前置，避免高危工具直接进入生产流程。',
-    commercial_strategy: solutionPackage?.commercial_strategy ?? '先用小范围试点证明样板成果，再扩展到更多岗位、知识库和渠道。',
-    next_milestone: solutionPackage?.next_milestone ?? '完成客户资料清单确认，并安排样板方案评审会。',
+    commercial_strategy: solutionPackage?.commercial_strategy ?? '先用小范围试点证明交付成果，再扩展到更多岗位、知识库和渠道。',
+    next_milestone: solutionPackage?.next_milestone ?? '完成客户资料清单确认，并安排方案评审会。',
     package_score: solutionPackage?.package_score ?? 85,
     tags: solutionPackage?.tags.join(', ') ?? '',
     notes: solutionPackage?.notes ?? '',
@@ -267,7 +267,7 @@ export function SolutionPackageFormPanel({
             </SelectField>
           </div>
           <Field label="标签" message={form.formState.errors.tags?.message}>
-            <Input placeholder="用逗号分隔，例如：设计院, 试点, 样板验收" {...form.register('tags')} />
+            <Input placeholder="用逗号分隔，例如：设计院, 试点, 方案验收" {...form.register('tags')} />
           </Field>
           <LongField label="内部备注" message={form.formState.errors.notes?.message} register={form.register('notes')} rows={3} />
         </section>

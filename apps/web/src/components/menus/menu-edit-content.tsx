@@ -74,7 +74,7 @@ export function MenuEditContent({ menuId }: { menuId: string }) {
           </div>
           <h1 className="break-words text-2xl font-semibold">{menu ? `编辑 ${menu.name}` : '编辑菜单节点'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里编辑菜单的基础信息、路由、显示和权限控制。列表和详情页继续负责查询与浏览。
+            菜单名称、路由、显示状态与权限控制。
           </p>
         </div>
       </section>

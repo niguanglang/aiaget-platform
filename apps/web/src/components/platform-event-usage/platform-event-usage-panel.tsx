@@ -689,7 +689,7 @@ function UsageTrendCard({ loading, points }: { loading: boolean; points: Platfor
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量趋势...</div>
       ) : points.length === 0 ? (
-        <EmptyState description="当前窗口内没有可汇总的用量事件。" title="暂无趋势数据" />
+        <EmptyState description="暂无用量事件。" title="暂无趋势数据" />
       ) : (
         <div className="grid gap-4">
           <div className="flex h-48 items-end gap-2">
@@ -731,7 +731,7 @@ function RollupCard({ loading, items }: { loading: boolean; items: PlatformEvent
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载汇总批次...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有可用的汇总批次。" title="暂无汇总" />
+        <EmptyState description="暂无汇总批次。" title="暂无汇总" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 4).map((item) => (
@@ -785,9 +785,9 @@ function UsageAnomalyCard({
       {detecting ? (
         <div className="text-sm text-muted-foreground">正在检测用量异常...</div>
       ) : !overview ? (
-        <EmptyState description="点击顶部“检测异常”后，这里会显示当前窗口的异常信号。" title="尚未检测" />
+        <EmptyState description="等待检测。" title="尚未检测" />
       ) : overview.items.length === 0 ? (
-        <EmptyState description="当前窗口内没有发现成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
+        <EmptyState description="暂无成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -874,9 +874,7 @@ function UsageAlertLifecycleCard({
             <BellRing className="size-4 text-primary" />
             告警生命周期
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            将异常检测事件纳入确认、升级、关闭流程；通知目标为策略预览，生命周期动作会写入统一事件流。
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">确认、升级、关闭、通知。</p>
         </div>
         <StatusBadge tone={summary && summary.open_count + summary.escalated_count > 0 ? 'degraded' : 'healthy'}>
           {summary ? `${summary.open_count + summary.escalated_count} 个待处理` : '待加载'}
@@ -886,7 +884,7 @@ function UsageAlertLifecycleCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载告警队列...</div>
       ) : !overview || overview.items.length === 0 ? (
-        <EmptyState description="检测到用量异常后，会在这里形成可确认、升级、关闭的告警队列。" title="暂无用量告警" />
+        <EmptyState description="暂无待处理告警。" title="暂无用量告警" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -1054,9 +1052,7 @@ function UsageAlertNotificationAuditCard({
             <BellRing className="size-4 text-primary" />
             通知投递审计
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            统一查看告警通知投递结果，失败或部分成功的投递可以直接重试，重试链路会继续写入统一事件。
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">失败或部分成功可重试。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone={summary && summary.retryable_count > 0 ? 'degraded' : 'healthy'}>
@@ -1079,7 +1075,7 @@ function UsageAlertNotificationAuditCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div>
       ) : !overview || overview.items.length === 0 ? (
-        <EmptyState description="触发告警通知后，这里会展示投递状态、Webhook 响应和重试链路。" title="暂无投递记录" />
+        <EmptyState description="暂无投递记录。" title="暂无投递记录" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -1252,7 +1248,7 @@ function UsageAlertNotificationTaskCard({
           {!hasWork ? (
             <EmptyState
               className="rounded-md border bg-slate-50/60 p-5"
-              description="当前没有达到退避时间且未超过最大重试次数的告警通知投递。"
+              description="暂无待自动重试投递。"
               title="暂无待自动重试项"
             />
           ) : null}
@@ -1312,7 +1308,7 @@ function AlertNotificationTaskResultCard({
           <span className="text-sm font-semibold">自动重试</span>
           <StatusBadge tone="planned">暂无结果</StatusBadge>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">任务执行后会显示最近一次扫描和重试摘要。</p>
+        <p className="text-sm leading-6 text-muted-foreground">暂无扫描结果。</p>
       </div>
     );
   }
@@ -1365,7 +1361,7 @@ function RecentEventCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载平台事件...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口暂无平台事件。" title="暂无事件" />
+        <EmptyState description="暂无平台事件。" title="暂无事件" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">
@@ -1436,7 +1432,7 @@ function PlatformEventDetailCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
       ) : !detail ? (
-        <EmptyState description="选择一条平台事件后查看 Payload、关系链路和关联用量。" title="未选择事件" />
+        <EmptyState description="请选择平台事件。" title="未选择事件" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-2 text-sm md:grid-cols-2">
@@ -1468,7 +1464,7 @@ function PlatformEventDetailCard({
           <div className="grid gap-2">
             <div className="text-sm font-semibold">关联用量</div>
             {detail.usage_events.length === 0 ? (
-              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="当前事件没有直接关联的用量账本。" title="暂无关联用量" />
+              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无关联用量。" title="暂无关联用量" />
             ) : (
               <div className="grid gap-2">
                 {detail.usage_events.slice(0, 4).map((item) => (
@@ -1489,7 +1485,7 @@ function PlatformEventDetailCard({
           <div className="grid gap-2">
             <div className="text-sm font-semibold">事件关系</div>
             {detail.relations.length === 0 ? (
-              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="当前事件暂未建立父子、审批或用量关系。" title="暂无关系链路" />
+              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无父子、审批或用量关系。" title="暂无关系链路" />
             ) : (
               <div className="grid gap-2">
                 {detail.relations.slice(0, 4).map((item) => (
@@ -1526,7 +1522,7 @@ function RecentUsageCard({ loading, items }: { loading: boolean; items: Platform
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量账本...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有用量记录。" title="暂无用量" />
+        <EmptyState description="暂无用量记录。" title="暂无用量" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -1567,7 +1563,7 @@ function RecentRelationCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件关系...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有事件关系链路。" title="暂无关系" />
+        <EmptyState description="暂无事件关系。" title="暂无关系" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 8).map((item) => (
@@ -1600,7 +1596,7 @@ function RecentLedgerCard({ loading, items }: { loading: boolean; items: Platfor
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载账本明细...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有账本明细。" title="暂无明细" />
+        <EmptyState description="暂无账本明细。" title="暂无明细" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 6).map((item) => (

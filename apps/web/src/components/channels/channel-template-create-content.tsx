@@ -48,7 +48,7 @@ export function ChannelTemplateCreateContent() {
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="新建消息模板"
-        description="维护消息模板的编码、类型、语言、正文内容和内容结构。新增表单独立于列表页，保存后返回消息模板列表。"
+        description="消息模板编码、类型、语言、正文内容和内容结构。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || createMutation.isPending}
         subtitle="/channels/templates/create"

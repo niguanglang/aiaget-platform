@@ -202,7 +202,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
             <StatusBadge tone={canRun ? 'healthy' : 'degraded'}>{canRun ? '可启动' : '无运行权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{team.name} · 运行记录</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看团队运行摘要，发起新任务，并处理接力、反馈、报告导出和报告归档。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队运行摘要、接力、反馈、报告导出和报告归档。</p>
         </div>
         <Button asChild variant="outline"><Link href="/agent-teams/report-archives"><FileArchive className="size-4" />报告归档</Link></Button>
       </section>
@@ -323,7 +323,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                 </div>
               </div>
             </>
-          ) : <div className="rounded-lg border bg-background p-5 text-sm text-muted-foreground">选择一条运行查看详情。</div>}
+          ) : <div className="rounded-lg border bg-background p-5 text-sm text-muted-foreground">请选择运行记录。</div>}
         </aside>
       </section>
 

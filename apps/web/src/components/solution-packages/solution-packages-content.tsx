@@ -229,7 +229,7 @@ export function SolutionPackagesContent() {
                 </Button>
               ) : null
             }
-            description="先新建一个方案包，再在详情页查看完整交付路线图、验收、ROI、风险和关联资源。"
+            description="暂无交付路线图、验收、ROI、风险和关联资源。"
             title="暂无落地方案"
           />
         ) : (

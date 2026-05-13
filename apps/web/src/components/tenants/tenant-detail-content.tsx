@@ -47,12 +47,12 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">详情页</StatusBadge>
+            <StatusBadge tone="ready">租户档案</StatusBadge>
             {tenant ? <StatusBadge tone={tenantStatusTone(tenant.status)}>{tenantStatusLabel(tenant.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{tenant?.name ?? '租户详情'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看租户资料、租户编码和生命周期时间。资料修改在独立编辑页完成。
+            租户资料、租户编码与生命周期时间。
           </p>
         </div>
         {tenant ? (
@@ -100,7 +100,7 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
               </div>
               <div className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground">
                 <p>租户是当前控制台的数据隔离边界，业务表和配置读取都按租户上下文生效。</p>
-                <p>当前阶段不提供跨租户创建、删除和切换。编辑页仅维护租户名称和启停状态。</p>
+                <p>跨租户创建、删除和切换未开放。租户名称和启停状态可编辑。</p>
                 <p>如果租户被停用，依赖该租户上下文的用户和业务访问会受到后端权限策略限制。</p>
               </div>
             </Card>

@@ -111,7 +111,7 @@ export function ChannelReleasePipelineContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布流水线"
-        description="查看单个发布渠道的发布步骤、当前批次、最近批次，并管理轻量发布批次。"
+        description="发布步骤、当前批次、最近批次和轻量发布批次。"
         refreshing={overviewQuery.isFetching || pipelineQuery.isFetching || actionPending}
         subtitle="/channels/release/pipeline"
         title="发布流水线"
@@ -131,7 +131,7 @@ export function ChannelReleasePipelineContent() {
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="当前发布批次和整体更新时间。" title="流水线概览" />
+              <PanelTitle helper="发布批次和更新时间" title="流水线概览" />
               <div className="flex flex-wrap gap-2">
                 <Button
                   disabled={!permissions.canDeploy || !currentBatch || currentBatch.status === 'FULL' || actionPending}
@@ -164,7 +164,7 @@ export function ChannelReleasePipelineContent() {
           </Card>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="创建新的轻量发布批次，后续门禁、自动推进和复盘会围绕当前批次更新。" title="新建发布批次" />
+              <PanelTitle helper="轻量发布批次" title="新建发布批次" />
               <Button
                 disabled={!permissions.canManage || actionPending}
                 onClick={() => setReleasePipelineActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name, input: toBatchInput(batchForm), type: 'START' })}
@@ -215,7 +215,7 @@ export function ChannelReleasePipelineContent() {
             {!permissions.canManage ? <p className="text-xs text-muted-foreground">当前账号缺少 channel:publish:manage 权限，只能查看发布批次。</p> : null}
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="发布步骤按创建批次、审批、灰度、全量和回滚顺序展示。" title="发布步骤" />
+            <PanelTitle helper="批次、审批、灰度、全量和回滚" title="发布步骤" />
             <div className="grid gap-2">
               {pipeline.steps.map((step) => (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2" key={step.key}>
@@ -229,7 +229,7 @@ export function ChannelReleasePipelineContent() {
             </div>
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="最近批次用于回溯发布历史。" title="最近批次" />
+            <PanelTitle helper="发布批次历史" title="最近批次" />
             {pipeline.recent_batches.length === 0 ? <EmptyState description="当前渠道暂无历史批次。" title="暂无最近批次" /> : (
               <div className="grid gap-2">
                 {pipeline.recent_batches.map((batch) => (

@@ -31,7 +31,7 @@ export function KnowledgeActivityContent() {
           </div>
           <h1 className="text-2xl font-semibold">知识库处理活动</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            集中查看最近文档、后台任务和最近召回日志，避免在知识库目录页展开活动流。
+            最近文档、后台任务和召回日志。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

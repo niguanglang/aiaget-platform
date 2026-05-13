@@ -113,7 +113,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
   const metrics = [
     { label: '当前已选', value: `${draftMenuIds.length}`, helper: '导航入口' },
     { label: '菜单总数', value: `${flatTree.length}`, helper: `${menuTypeCounts.DIRECTORY} 个目录` },
-    { label: '页面菜单', value: `${menuTypeCounts.MENU}`, helper: '按钮权限请在角色权限配置页维护' },
+    { label: '页面菜单', value: `${menuTypeCounts.MENU}`, helper: '按钮权限单独授权' },
     { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '暂无', helper: role?.code ?? roleId },
   ];
 
@@ -136,7 +136,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
           </div>
           <h1 className="text-2xl font-semibold">菜单授权配置</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            为角色分配左侧导航入口。菜单定义仍在菜单中心维护，按钮权限请在角色权限配置页维护。
+            角色导航入口与菜单可见范围。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -172,7 +172,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
       ) : roleQuery.isLoading || menuTreeQuery.isLoading || roleBindingsQuery.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">正在加载菜单树...</Card>
       ) : flatTree.length === 0 ? (
-        <EmptyState description="菜单树为空，请先在菜单中心定义目录和页面菜单。" title="暂无菜单节点" />
+        <EmptyState description="菜单树为空。" title="暂无菜单节点" />
       ) : (
         <Card className="min-w-0">
           <div className="border-b p-4">

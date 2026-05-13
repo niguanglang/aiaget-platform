@@ -392,7 +392,7 @@ function ArchiveDeletionApprovalDetailPanel({
       </div>
 
       {!activeApproval ? (
-        <EmptyApprovalSelection description="从左侧选择一条归档删除审批查看详情。" title="未选择审批请求" />
+        <EmptyApprovalSelection description="选择一条归档删除审批。" title="未选择审批请求" />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -466,7 +466,7 @@ function ArchiveDeletionApprovalDetailPanel({
             <ApprovalAuditTimeline events={detail.audit_timeline} />
           ) : (
             <div className="rounded-md border bg-muted/15 px-3 py-3 text-sm text-muted-foreground">
-              当前来源仅提供列表级归档删除审批数据，可在对应来源页面查看完整审计上下文。
+              该来源暂未返回审计时间线。
             </div>
           )}
 

@@ -31,7 +31,7 @@ export function ModelProviderDetailHeader({
           </Link>
         </Button>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="ready">详情页</StatusBadge>
+          <StatusBadge tone="ready">供应商</StatusBadge>
           <StatusBadge tone={modelStatusTone(provider.status)}>
             {modelProviderStatusLabel(provider.status)}
           </StatusBadge>

@@ -284,9 +284,7 @@ export function DataScopeContent() {
           </span>
           <div>
             <h2 className="text-sm font-semibold">角色覆盖摘要</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              当前筛选命中 {scopesByRole.size} 个角色，支持查看资源矩阵、调整范围并预览影响。
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">筛选命中 {scopesByRole.size} 个角色。</p>
           </div>
         </div>
       </Card>

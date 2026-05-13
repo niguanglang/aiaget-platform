@@ -63,7 +63,6 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
             <StatusBadge tone={reviewRequired ? 'degraded' : 'planned'}>{reviewRequired ? '需要审核' : '无需审核'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{detail.name} · 安全审查</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">集中查看插件策略、风险检查、审核状态、启用准入和审计摘要。</p>
         </div>
         <PluginSectionNav active="security" pluginId={pluginId} />
       </section>
@@ -118,7 +117,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
 
           <DetailList title="风险列表" subtitle="需要安全审核或策略关注的风险项。">
             {detail.security_preview.risks.length === 0 ? (
-              <EmptyState className="p-6" description="当前安全预览没有风险项。" title="暂无风险" />
+              <EmptyState className="p-6" description="暂无记录。" title="暂无风险" />
             ) : (
               detail.security_preview.risks.map((risk) => (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" key={risk}>风险：{risk}</div>
@@ -130,7 +129,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
             {!canAudit ? (
               <EmptyState className="p-6" description="当前账号没有 plugin:center:audit 权限，审计详情已隐藏。" title="无审计权限" />
             ) : detail.audit_logs.length === 0 ? (
-              <EmptyState className="p-6" description="当前插件还没有审计记录。" title="暂无审计" />
+              <EmptyState className="p-6" description="暂无记录。" title="暂无审计" />
             ) : (
               detail.audit_logs.slice(0, 8).map((log) => (
                 <div className="rounded-md border bg-background p-3" key={log.id}>

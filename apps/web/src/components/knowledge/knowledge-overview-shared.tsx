@@ -47,7 +47,7 @@ export function KnowledgeActivityTimeline({ overview, loading, title, type }: { 
     <Card className="grid gap-4 p-5">
       <div>
         <div className="text-sm font-semibold">{title}</div>
-        <p className="mt-1 text-sm text-muted-foreground">活动页集中展示最近处理、任务和召回记录。</p>
+        <p className="mt-1 text-sm text-muted-foreground">最近处理、任务和召回记录。</p>
       </div>
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载活动记录...</div>

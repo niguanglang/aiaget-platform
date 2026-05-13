@@ -118,7 +118,7 @@ export function RoleScenariosContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">岗位场景编排</StatusBadge>
             <StatusBadge tone="mock">业务资产组合</StatusBadge>
-            <StatusBadge tone="planned">样板成果验收</StatusBadge>
+            <StatusBadge tone="planned">交付成果验收</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">岗位场景编排</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -223,7 +223,7 @@ export function RoleScenariosContent() {
                 </Button>
               ) : null
             }
-            description="先新建一个岗位场景包，再补充业务流程、样板成果、验收标准和关联资产。"
+            description="新建岗位场景包后补充业务流程、交付成果、验收标准和关联资产。"
             title="暂无岗位场景"
           />
         ) : (

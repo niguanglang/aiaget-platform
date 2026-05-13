@@ -111,13 +111,13 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">详情页</StatusBadge>
+            <StatusBadge tone="ready">角色档案</StatusBadge>
             {role ? <StatusBadge tone={roleStatusTone(role.status)}>{roleStatusLabel(role.status)}</StatusBadge> : null}
             {role?.is_system ? <StatusBadge tone="mock">系统角色</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{role?.name ?? '角色详情'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看角色基础信息、用户引用、菜单引用和权限编码。编辑、权限配置和菜单授权通过独立页面完成。
+            基础信息、用户引用、菜单引用与权限编码。
           </p>
         </div>
 

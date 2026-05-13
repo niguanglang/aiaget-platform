@@ -37,7 +37,7 @@ import { getBillingOverview } from '@/lib/api-client';
 
 const entryPages = [
   { href: '/billing/usage', title: '用量明细', description: '查看 Token、模型、供应商、API Key 和会话步骤成本。', icon: Coins },
-  { href: '/billing/quota-policy', title: '额度策略', description: '维护额度策略配置，并执行租户额度检查。', icon: Gauge },
+  { href: '/billing/quota-policy', title: '额度策略', description: '策略配置与额度检查。', icon: Gauge },
   { href: '/billing/invoices', title: '发票与账单', description: '查看账单记录、账单项和发票状态入口。', icon: ReceiptText },
   { href: '/billing/adjustments', title: '调账记录', description: '处理退款、折扣、补收和纠错审批记录。', icon: FileText },
   { href: '/billing/subscription', title: '订阅套餐', description: '查看当前套餐、账期和套餐配置入口。', icon: WalletCards },

@@ -68,15 +68,12 @@ export function ModelProviderEditContent({ providerId }: { providerId: string })
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">编辑页</StatusBadge>
+            <StatusBadge tone="ready">编辑中</StatusBadge>
             {provider ? <StatusBadge tone={modelStatusTone(provider.status)}>{modelProviderStatusLabel(provider.status)}</StatusBadge> : null}
             {provider ? <StatusBadge tone="planned">{modelProviderTypeLabel(provider.provider_type)}</StatusBadge> : null}
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{provider ? `编辑 ${provider.name}` : '编辑供应商'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里仅编辑供应商基础资料。模型配置、密钥、成本规则和调用测试仍在详情页管理。
-          </p>
         </div>
       </section>
 

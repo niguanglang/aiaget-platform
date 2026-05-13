@@ -142,7 +142,6 @@ export function KnowledgeContent() {
             <StatusBadge tone="planned">处理活动</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">知识库中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">知识库状态、可见范围、文档数量、切片数量和失败任务。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild className="w-full md:w-auto" variant="outline">
@@ -192,7 +191,7 @@ export function KnowledgeContent() {
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div>
                   <h2 className="text-sm font-semibold">知识库</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">搜索、筛选，并进入详情查看、编辑或删除知识库。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">名称、编码、状态、负责人和索引规模。</p>
                 </div>
                 <div className="text-sm text-muted-foreground">显示 {bases.length} / {basesQuery.data?.total ?? 0}</div>
               </div>
@@ -235,7 +234,7 @@ export function KnowledgeContent() {
                   </Button>
                 ) : null
               }
-              description="创建知识库后可上传文档、重建索引并运行检索测试。"
+              description="暂无记录。"
               title="暂无知识库"
             />
           ) : (

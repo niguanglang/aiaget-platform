@@ -38,7 +38,7 @@ const formSchema = z.object({
   business_goal: z.string().min(1, '请输入业务目标。'),
   workflow_summary: z.string().min(1, '请输入流程编排。'),
   expected_outcome: z.string().min(1, '请输入预期成果。'),
-  sample_deliverable: z.string().min(1, '请输入样板成果。'),
+  sample_deliverable: z.string().min(1, '请输入交付成果。'),
   acceptance_criteria: z.string().min(1, '请输入验收标准。'),
   roi_metric: z.string().min(1, '请输入 ROI 指标。'),
   impact_score: z.coerce.number().int().min(0, '最低 0 分。').max(100, '最高 100 分。').optional(),
@@ -65,10 +65,10 @@ function defaults(scenario?: RoleScenarioDetail | null): RoleScenarioFormValues 
     status: scenario?.status ?? 'DRAFT',
     priority: scenario?.priority ?? 'MEDIUM',
     pain_point: scenario?.pain_point ?? '岗位资料分散、流程动作难复用，AI 产出和业务验收之间缺少稳定连接。',
-    business_goal: scenario?.business_goal ?? '把岗位工作目标、业务流程、平台资产和验收口径整理成可演示、可复用的 AI 场景包。',
-    workflow_summary: scenario?.workflow_summary ?? '识别岗位痛点 -> 绑定 Agent/Skill/知识库/工具/提示词 -> 生成样板成果 -> 按验收标准试点。',
+    business_goal: scenario?.business_goal ?? '把岗位工作目标、业务流程、平台资产和验收口径整理成可复用的 AI 场景包。',
+    workflow_summary: scenario?.workflow_summary ?? '识别岗位痛点 -> 绑定 Agent/Skill/知识库/工具/提示词 -> 生成交付成果 -> 按验收标准试点。',
     expected_outcome: scenario?.expected_outcome ?? '形成可复用场景包，降低重复配置和交付返工。',
-    sample_deliverable: scenario?.sample_deliverable ?? '一份包含岗位画像、流程步骤、关联资产、样板成果和验收标准的交付说明。',
+    sample_deliverable: scenario?.sample_deliverable ?? '一份包含岗位画像、流程步骤、关联资产、交付成果和验收标准的交付说明。',
     acceptance_criteria: scenario?.acceptance_criteria ?? '场景包关联资产完整，输出格式稳定，业务负责人能按验收标准判断是否可试点。',
     roi_metric: scenario?.roi_metric ?? '交付准备时间下降、返工次数下降、验收通过率提升。',
     impact_score: scenario?.impact_score ?? 80,
@@ -160,7 +160,7 @@ export function RoleScenarioFormPanel({
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑岗位场景' : '新建岗位场景'}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护完整流程、样板成果、验收标准和平台资产绑定，列表页只展示摘要。
+              流程、交付成果、验收标准和平台资产绑定。
             </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -223,7 +223,7 @@ export function RoleScenarioFormPanel({
             <LongField label="业务目标" message={form.formState.errors.business_goal?.message} register={form.register('business_goal')} />
             <LongField label="流程编排" message={form.formState.errors.workflow_summary?.message} register={form.register('workflow_summary')} />
             <LongField label="预期成果" message={form.formState.errors.expected_outcome?.message} register={form.register('expected_outcome')} />
-            <LongField label="样板成果" message={form.formState.errors.sample_deliverable?.message} register={form.register('sample_deliverable')} />
+            <LongField label="交付成果" message={form.formState.errors.sample_deliverable?.message} register={form.register('sample_deliverable')} />
             <LongField label="验收标准" message={form.formState.errors.acceptance_criteria?.message} register={form.register('acceptance_criteria')} />
           </div>
           <LongField label="ROI 指标" message={form.formState.errors.roi_metric?.message} register={form.register('roi_metric')} />
@@ -274,7 +274,7 @@ export function RoleScenarioFormPanel({
         <section className="grid gap-4">
           <h3 className="text-sm font-semibold">补充信息</h3>
           <Field label="标签" message={form.formState.errors.tags?.message}>
-            <Input placeholder="用逗号分隔，例如：售前, 方案, 样板成果" {...form.register('tags')} />
+            <Input placeholder="用逗号分隔，例如：售前, 方案, 交付成果" {...form.register('tags')} />
           </Field>
           <LongField label="备注" message={form.formState.errors.notes?.message} register={form.register('notes')} />
         </section>

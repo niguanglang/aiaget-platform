@@ -163,7 +163,7 @@ export function ChannelProviderForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="维护渠道提供方的基础接入、鉴权与能力配置。"
+          description="基础接入、鉴权与能力配置。"
           title={isEditing ? '编辑渠道提供方' : '创建渠道提供方'}
         />
 
@@ -339,7 +339,7 @@ export function ChannelAccountForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="维护渠道账号的提供方归属、外部账号与密钥配置。"
+          description="提供方归属、外部账号与密钥配置。"
           title={isEditing ? '编辑渠道账号' : '创建渠道账号'}
         />
 

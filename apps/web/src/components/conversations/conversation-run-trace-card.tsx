@@ -18,7 +18,7 @@ export function ConversationRunTraceCard({ runs }: { runs: ConversationRunItem[]
     <Card className="grid gap-4 p-5">
       <h2 className="text-sm font-semibold">运行轨迹</h2>
       {runs.length === 0 ? (
-        <EmptyState description="发送消息后会在这里看到最近运行轨迹。" title="暂无运行记录" />
+        <EmptyState title="暂无运行记录" />
       ) : (
         <div className="grid max-h-[620px] gap-4 overflow-auto pr-1">
           {runs.map((run) => (

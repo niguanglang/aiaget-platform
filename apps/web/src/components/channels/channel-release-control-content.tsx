@@ -182,7 +182,7 @@ export function ChannelReleaseControlContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布控制"
-        description="集中管理单个发布渠道的审批要求、审批决策、灰度比例和回滚动作。"
+        description="发布渠道审批要求、审批决策、灰度比例和回滚动作。"
         refreshing={overviewQuery.isFetching || controlQuery.isFetching || actionPending}
         subtitle="/channels/release/control"
         title="发布控制"
@@ -202,7 +202,7 @@ export function ChannelReleaseControlContent() {
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="审批状态、灰度状态和回滚可用性会影响发布流水线和门禁推进。" title="控制状态" />
+              <PanelTitle helper="审批、灰度和回滚状态" title="控制状态" />
               <div className="flex flex-wrap gap-2">
                 <StatusBadge tone={approvalStatusTone(control.approval_status)}>{approvalStatusLabel(control.approval_status)}</StatusBadge>
                 <StatusBadge tone={rolloutStatusTone(control.rollout_status)}>{rolloutStatusLabel(control.rollout_status)}</StatusBadge>
@@ -227,7 +227,7 @@ export function ChannelReleaseControlContent() {
 
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="配置是否要求发布审批，以及默认审批说明。" title="审批配置" />
+              <PanelTitle helper="审批要求和默认说明" title="审批配置" />
               <Button
                 disabled={!permissions.canManage || controlMutation.isPending}
                 onClick={() => setReleaseControlActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name, input: toControlInput(controlForm), type: 'SAVE_CONTROL' })}
@@ -262,7 +262,7 @@ export function ChannelReleaseControlContent() {
 
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="申请审批和审批决策会写入发布任务、渠道事件和治理记录。" title="审批流转" />
+              <PanelTitle helper="申请、通过和拒绝" title="审批流转" />
               <div className="flex flex-wrap gap-2">
                 <Button
                   disabled={!permissions.canManage || !control.approval_required || requestApprovalMutation.isPending}
@@ -307,7 +307,7 @@ export function ChannelReleaseControlContent() {
 
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="灰度比例会影响发布流量放行范围；回滚会恢复最近稳定配置并关闭灰度。" title="灰度与回滚" />
+              <PanelTitle helper="灰度比例和稳定配置" title="灰度与回滚" />
               <div className="flex flex-wrap gap-2">
                 <Button
                   disabled={!permissions.canManage || rolloutMutation.isPending || (control.approval_required && control.approval_status !== 'APPROVED')}

@@ -131,7 +131,7 @@ export function RoleScenarioDetailContent({ scenarioId }: { scenarioId: string }
           <DetailSection title="业务目标" value={scenario.business_goal} />
           <DetailSection title="流程编排" value={scenario.workflow_summary} />
           <DetailSection title="预期成果" value={scenario.expected_outcome} />
-          <DetailSection title="样板成果" value={scenario.sample_deliverable} />
+          <DetailSection title="交付成果" value={scenario.sample_deliverable} />
           <DetailSection title="验收标准" value={scenario.acceptance_criteria} />
           <DetailSection title="ROI 指标" value={scenario.roi_metric} />
           {scenario.notes ? <DetailSection title="备注" value={scenario.notes} /> : null}

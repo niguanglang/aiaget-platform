@@ -94,7 +94,7 @@ export function RoleDirectoryList({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">筛选角色后进入详情或编辑页面。</p>
+            <p className="mt-1 text-sm text-muted-foreground">角色名称、编码和状态。</p>
           </div>
           <StatusBadge tone="planned">{roles.length}/{total}</StatusBadge>
         </div>
@@ -211,7 +211,7 @@ export function ScopeMatrix({
       <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-start">
         <div>
           <h2 className="text-sm font-semibold">资源范围矩阵</h2>
-          <p className="mt-1 text-sm text-muted-foreground">查看每类资源当前生效的数据范围。</p>
+          <p className="mt-1 text-sm text-muted-foreground">各类资源的生效范围。</p>
         </div>
         <StatusBadge tone="mock">{scopes.length} 项</StatusBadge>
       </div>
@@ -323,7 +323,7 @@ export function StaticPreviewSummary({ scopes }: { scopes: RoleDataScopeItem[] }
           <h2 className="text-sm font-semibold">只读预览摘要</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             当前角色共有 {activeScopes.length} 个启用资源范围，其中 {allScopes.length} 个全部范围、{customScopes.length} 个自定义范围。
-            如需按实时租户数据模拟命中部门与用户，请进入编辑页执行预览。
+            如需按实时租户数据计算部门与用户范围，请进入编辑页执行预览。
           </p>
         </div>
       </div>
@@ -360,14 +360,14 @@ export function ScopeEditor({
   const customDisabled = !scope || scope.scope_type !== 'CUSTOM';
 
   if (loading || !scope) {
-    return <Card className="min-w-0 p-4 text-sm text-muted-foreground">正在准备配置面板...</Card>;
+    return <Card className="min-w-0 p-4 text-sm text-muted-foreground">正在准备范围面板...</Card>;
   }
 
   return (
     <Card className="min-w-0 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">范围配置与预览</h2>
+          <h2 className="text-sm font-semibold">范围设置与预览</h2>
           <p className="mt-1 text-sm text-muted-foreground">{dataScopeResourceLabels[scope.resource_type]}</p>
         </div>
         <StatusBadge tone={dataScopeTypeTone(scope.scope_type)}>{dataScopeTypeLabels[scope.scope_type]}</StatusBadge>
@@ -481,7 +481,7 @@ export function PreviewPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold">生效预览</div>
-          <p className="mt-1 text-xs text-muted-foreground">按当前登录用户和租户数据模拟命中范围。</p>
+          <p className="mt-1 text-xs text-muted-foreground">按当前登录用户和租户数据计算命中范围。</p>
         </div>
         <Button disabled={pendingPreview} onClick={onPreview} size="sm" variant="outline">
           <Search className="size-4" />

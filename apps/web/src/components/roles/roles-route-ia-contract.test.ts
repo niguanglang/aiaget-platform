@@ -75,7 +75,7 @@ test('role menu authorization excludes button permission nodes from menu grants'
 
   assert.match(menusSource, /grantableTree/);
   assert.match(menusSource, /removeButtonMenuNodes/);
-  assert.match(menusSource, /按钮权限请在角色权限配置页维护/);
+  assert.match(menusSource, /按钮权限单独授权/);
   assert.doesNotMatch(menusSource, /按钮权限`/);
   assert.match(detailSource, /菜单入口/);
   assert.doesNotMatch(detailSource, /目录、菜单、按钮/);

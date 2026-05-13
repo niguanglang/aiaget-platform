@@ -119,12 +119,12 @@ export function DepartmentDetailContent({ departmentId }: { departmentId: string
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">详情页</StatusBadge>
+            <StatusBadge tone="ready">部门档案</StatusBadge>
             {department ? <StatusBadge tone={departmentStatusTone(department.status)}>{departmentStatusLabel(department.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{department?.name ?? '部门详情'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看部门负责人、成员、上下级关系和审计时间。编辑、启停和删除在详情页完成。
+            部门负责人、成员、上下级关系与审计时间。
           </p>
         </div>
 

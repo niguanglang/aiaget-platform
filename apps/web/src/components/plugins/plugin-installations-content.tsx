@@ -284,7 +284,6 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
             <StatusBadge tone={pluginRiskTone(detail.risk_level)}>{pluginRiskLabel(detail.risk_level)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{detail.name} · 租户安装</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">维护插件安装状态、运行状态、风险等级和配置 JSON；启停、升级、卸载在此页面完成。</p>
         </div>
         <PluginSectionNav active="installations" pluginId={pluginId} />
       </section>
@@ -303,7 +302,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
         <Card className="p-5">
           <div className="border-b pb-4">
             <h2 className="text-sm font-semibold">安装配置表单</h2>
-            <p className="mt-1 text-sm text-muted-foreground">修改基础信息、状态和配置 JSON。保存会调用当前插件安装配置 API。</p>
+            <p className="mt-1 text-sm text-muted-foreground">基础信息、状态和配置 JSON。</p>
           </div>
           <div className="mt-5 grid gap-5">
             <div className="grid gap-4 md:grid-cols-2">
@@ -416,7 +415,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
           <div className="grid gap-2">
             <div className="text-sm font-semibold">Manifest 差异</div>
             {!selectedCompareVersion ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-6" description="当前插件没有可用于对比的版本快照。" title="暂无版本快照" />
+              <EmptyState className="rounded-md border bg-muted/20 p-6" description="暂无记录。" title="暂无版本快照" />
             ) : versionCompareRows.length === 0 ? (
               <EmptyState className="rounded-md border bg-muted/20 p-6" description="当前版本与对比版本的 Manifest 摘要字段一致。" title="无 Manifest 差异" />
             ) : (

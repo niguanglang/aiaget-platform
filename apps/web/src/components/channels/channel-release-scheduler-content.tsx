@@ -40,7 +40,7 @@ export function ChannelReleaseSchedulerContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布巡检调度"
-        description="查看发布巡检调度状态、候选渠道、工作流模式和最近运行结果，并可手动运行发布巡检。"
+        description="发布巡检调度状态、候选渠道、工作流模式和最近运行结果。"
         refreshing={schedulerQuery.isFetching || runMutation.isPending}
         subtitle="/channels/release/scheduler"
         title="发布巡检调度"
@@ -50,7 +50,7 @@ export function ChannelReleaseSchedulerContent() {
       <ChannelAlert message={actionError ?? (schedulerQuery.isError ? '发布巡检调度加载失败。' : null)} tone="error" />
       <Card className="grid gap-4 p-5">
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <PanelTitle helper="手动运行会扫描自动推进和自愈候选渠道。" title="调度状态" />
+          <PanelTitle helper="自动推进和自愈候选扫描" title="调度状态" />
           <Button disabled={!permissions.canDeploy || runMutation.isPending} onClick={() => setReleaseSchedulerActionTarget('run-release-scheduler')} type="button" variant="outline">
             <Play className="size-4" />
             运行发布巡检
@@ -70,7 +70,7 @@ export function ChannelReleaseSchedulerContent() {
       {overview ? (
         <>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="调度扫描的候选渠道范围。" title="候选摘要" />
+            <PanelTitle helper="候选渠道范围" title="候选摘要" />
             <DetailGrid items={[
               { label: '总渠道', value: formatNumber(overview.summary.total_channels) },
               { label: '自动推进候选', value: formatNumber(overview.summary.automation_enabled_channel_count) },
@@ -80,7 +80,7 @@ export function ChannelReleaseSchedulerContent() {
             ]} />
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="最近一次调度运行结果。" title="最近运行" />
+            <PanelTitle helper="调度运行结果" title="最近运行" />
             {!overview.last_run ? <EmptyState description="当前没有调度运行记录。" title="暂无最近运行" /> : (
               <>
                 <DetailGrid items={[

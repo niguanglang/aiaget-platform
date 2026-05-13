@@ -35,7 +35,7 @@ test('role scenario detail owns workflow, deliverables, acceptance and linked as
   assert.match(detailSource, /getRoleScenario/);
   assert.match(detailSource, /业务痛点/);
   assert.match(detailSource, /流程编排/);
-  assert.match(detailSource, /样板成果/);
+  assert.match(detailSource, /交付成果/);
   assert.match(detailSource, /验收标准/);
   assert.match(detailSource, /ROI 指标/);
   assert.match(detailSource, /关联资产/);

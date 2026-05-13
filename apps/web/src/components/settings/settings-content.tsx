@@ -48,7 +48,7 @@ import {
 const configurationEntries: ConfigurationEntry[] = [
   {
     title: '租户资料',
-    description: '维护当前租户资料、启停状态和租户上下文治理边界。',
+    description: '租户资料、启停状态与数据隔离边界。',
     href: '/tenants',
     permission: 'system:tenant:view',
     permissionLabel: 'system:tenant:view',
@@ -80,7 +80,7 @@ const configurationEntries: ConfigurationEntry[] = [
   },
   {
     title: '角色权限',
-    description: '维护角色、权限编码、菜单授权和用户引用关系。',
+    description: '角色、权限编码、菜单授权和用户引用关系。',
     href: '/roles',
     permission: 'system:role:view',
     permissionLabel: 'system:role:view',
@@ -223,7 +223,7 @@ export function SettingsContent() {
           </div>
           <h1 className="text-2xl font-semibold">系统设置</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            集中查看系统参数、维护租户级运行配置，并从这里进入租户、用户、角色、API Key、安全策略和文件存储等专项配置页。
+            系统参数、租户配置、账号权限、API Key、安全策略与文件存储。
           </p>
         </div>
         <Button asChild variant="outline">

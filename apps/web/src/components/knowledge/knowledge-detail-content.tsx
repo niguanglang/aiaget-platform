@@ -42,7 +42,7 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 
     return [
       { label: '文档', value: `${base.document_count}`, helper: '进入文档管理' },
-      { label: '切片', value: `${base.segment_count}`, helper: '文档页查看' },
+      { label: '切片', value: `${base.segment_count}`, helper: '索引切片' },
       { label: '召回日志', value: `${base.recall_count}`, helper: '检索测试' },
       { label: '智能体', value: `${base.agent_reference_count}`, helper: '绑定引用' },
     ];
@@ -129,16 +129,13 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
             <SummaryTile label="失败任务" value={`${base.failed_task_count}`} />
             <SummaryTile label="更新时间" value={formatDateTime(base.updated_at)} />
           </div>
-          <p className="rounded-md border bg-muted/20 px-3 py-2 text-sm leading-6 text-muted-foreground">
-            该页面只展示知识库基础摘要和操作入口。文档、切片、任务、检索测试在独立职责页完成。
-          </p>
         </Card>
 
         <Card className="grid gap-4 p-5">
           <h2 className="text-sm font-semibold">操作入口</h2>
           <div className="grid gap-3 md:grid-cols-3">
             <OperationEntry
-              description="查看文档列表、文档详情、切片和处理任务。"
+              description="文档、切片、处理任务。"
               href={`/knowledge/${knowledgeId}/documents`}
               icon={FileText}
               title="文档管理"
@@ -150,7 +147,7 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
               title="上传文档"
             />
             <OperationEntry
-              description="运行混合检索测试，查看召回结果和日志。"
+              description="混合检索、召回结果、日志。"
               href={`/knowledge/${knowledgeId}/retrieval`}
               icon={Search}
               title="检索测试"

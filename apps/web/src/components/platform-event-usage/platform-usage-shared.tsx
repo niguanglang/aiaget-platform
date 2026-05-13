@@ -33,10 +33,10 @@ import { cn } from '@/lib/utils';
 export const platformUsageWindows: PlatformEventWindow[] = ['24h', '7d', '30d'];
 
 export const platformUsageSubnavItems = [
-  { description: '平台事件、用量趋势、账本和 Rollup 摘要', href: '/monitor/platform-usage', label: '底座总览' },
-  { description: '异常检测和告警确认、升级、关闭', href: '/monitor/platform-usage/alerts', label: '用量告警' },
-  { description: '告警通知投递结果和失败重试', href: '/monitor/platform-usage/notifications', label: '通知审计' },
-  { description: '自动重试任务、策略来源和最近结果', href: '/monitor/platform-usage/tasks', label: '重试任务' },
+  { href: '/monitor/platform-usage', label: '底座总览' },
+  { href: '/monitor/platform-usage/alerts', label: '用量告警' },
+  { href: '/monitor/platform-usage/notifications', label: '通知审计' },
+  { href: '/monitor/platform-usage/tasks', label: '重试任务' },
 ];
 
 export function parsePlatformUsageWindow(value: string | null): PlatformEventWindow {
@@ -46,14 +46,13 @@ export function parsePlatformUsageWindow(value: string | null): PlatformEventWin
 export function PlatformUsageHeader({
   badge,
   children,
-  description,
   refreshing,
   title,
   onRefresh,
 }: {
   badge: string;
   children?: ReactNode;
-  description: string;
+  description?: string;
   refreshing: boolean;
   title: string;
   onRefresh: () => void;
@@ -68,7 +67,6 @@ export function PlatformUsageHeader({
             <StatusBadge tone="planned">监控 / 审计 / 成本</StatusBadge>
           </div>
           <h1 className="mt-3 text-2xl font-semibold">{title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
         <Button disabled={refreshing} onClick={onRefresh} type="button" variant="outline">
           <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
@@ -86,7 +84,6 @@ export function PlatformUsageHeader({
               <div className="text-sm font-semibold">{item.label}</div>
               <ExternalLink className="size-4 text-muted-foreground" />
             </div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</div>
           </Link>
         ))}
       </nav>
@@ -226,7 +223,7 @@ export function UsageTrendCard({ loading, points }: { loading: boolean; points: 
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量趋势...</div>
       ) : points.length === 0 ? (
-        <EmptyState description="当前窗口内没有可汇总的用量事件。" title="暂无趋势数据" />
+        <EmptyState description="暂无用量事件。" title="暂无趋势数据" />
       ) : (
         <div className="grid gap-4">
           <div className="flex h-48 items-end gap-2">
@@ -259,7 +256,7 @@ export function RollupCard({ loading, items }: { loading: boolean; items: Platfo
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载汇总批次...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有可用的汇总批次。" title="暂无汇总" />
+        <EmptyState description="暂无汇总批次。" title="暂无汇总" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 4).map((item) => (
@@ -289,7 +286,7 @@ export function PlatformEventTable({ loading, items, total }: { loading: boolean
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载平台事件...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口暂无平台事件。" title="暂无事件" />
+        <EmptyState description="暂无平台事件。" title="暂无事件" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
@@ -328,7 +325,7 @@ export function PlatformEventDetailPanel({ detail, loading }: { detail: Platform
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
       ) : !detail ? (
-        <EmptyState description="当前平台事件不存在或已超出可查询范围。" title="未找到事件" />
+        <EmptyState description="事件不存在或已超出范围。" title="未找到事件" />
       ) : (
         <div className="grid gap-4">
           <DetailGrid items={[
@@ -362,7 +359,7 @@ export function UsageLedgerList({ items, loading, title = '用量账本' }: { it
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量账本...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有用量记录。" title="暂无用量" />
+        <EmptyState description="暂无用量记录。" title="暂无用量" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -387,7 +384,7 @@ export function RelationList({ loading, items }: { loading: boolean; items: Plat
     <Card className="grid gap-4 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold"><GitBranch className="size-4 text-primary" />事件关系</div>
       {loading ? <div className="text-sm text-muted-foreground">正在加载事件关系...</div> : items.length === 0 ? (
-        <EmptyState description="当前窗口没有事件关系链路。" title="暂无关系" />
+        <EmptyState description="暂无事件关系。" title="暂无关系" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 8).map((item) => (
@@ -413,9 +410,9 @@ export function UsageAnomalyCard({ detecting, overview }: { detecting: boolean; 
         <StatusBadge tone={usageAnomalySummaryTone(summary?.highest_severity ?? null)}>{detecting ? '检测中' : summary ? usageAnomalySeverityLabel(summary.highest_severity) : '未检测'}</StatusBadge>
       </div>
       {detecting ? <div className="text-sm text-muted-foreground">正在检测用量异常...</div> : !overview ? (
-        <EmptyState description="点击“检测异常”后，这里会显示当前窗口的异常信号。" title="尚未检测" />
+        <EmptyState description="等待检测。" title="尚未检测" />
       ) : overview.items.length === 0 ? (
-        <EmptyState description="当前窗口内没有发现成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
+        <EmptyState description="暂无成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
       ) : (
         <div className="grid gap-3">
           {overview.items.slice(0, 8).map((item) => <AnomalyRow item={item} key={item.id} />)}
@@ -463,8 +460,8 @@ export function UsageAlertList({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />告警生命周期</div><p className="mt-1 text-sm text-muted-foreground">异常检测事件在这里完成确认、升级、关闭和通知。</p></div>
-      {loading ? <div className="text-sm text-muted-foreground">正在加载告警队列...</div> : items.length === 0 ? <EmptyState description="检测到用量异常后，会在这里形成可处理的告警队列。" title="暂无用量告警" /> : (
+      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />告警生命周期</div><p className="mt-1 text-sm text-muted-foreground">确认、升级、关闭、通知。</p></div>
+      {loading ? <div className="text-sm text-muted-foreground">正在加载告警队列...</div> : items.length === 0 ? <EmptyState description="暂无待处理告警。" title="暂无用量告警" /> : (
         <div className="grid gap-3">
           {items.slice(0, 10).map((alert) => (
             <div className="rounded-md border bg-muted/20 px-3 py-3" key={alert.alert_id}>
@@ -502,8 +499,8 @@ export function UsageNotificationList({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />通知投递审计</div><p className="mt-1 text-sm text-muted-foreground">查看告警通知投递结果，失败或部分成功的投递可以直接重试。</p></div>
-      {loading ? <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div> : items.length === 0 ? <EmptyState description="触发告警通知后，这里会展示投递状态、Webhook 响应和重试链路。" title="暂无投递记录" /> : (
+      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />通知投递审计</div><p className="mt-1 text-sm text-muted-foreground">失败或部分成功可重试。</p></div>
+      {loading ? <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div> : items.length === 0 ? <EmptyState description="暂无投递记录。" title="暂无投递记录" /> : (
         <div className="grid gap-3">
           {items.slice(0, 12).map((item) => {
             const pending = retrying && pendingNotificationEventId === item.notification_event_id;
@@ -531,7 +528,7 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">自动重试</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">扫描失败或部分成功的告警通知投递，满足退避时间和最大重试次数后自动追加重试投递事件。</p></div>
+        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">自动重试</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">退避时间、最大重试次数、重试投递事件。</p></div>
         <Button disabled={loading || running} onClick={onRunAutoRetry} type="button" variant="outline"><RefreshCw className={cn('size-4', running && 'animate-spin')} />{running ? '扫描中' : '立即扫描重试'}</Button>
       </div>
       {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-md border bg-muted/30" key={index} />)}</div> : (
@@ -551,7 +548,7 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
 }
 
 function TaskResultCard({ result }: { result: PlatformUsageAlertNotificationTaskRunResult | null }) {
-  if (!result) return <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="任务执行后会显示最近一次扫描和重试摘要。" title="暂无执行结果" />;
+  if (!result) return <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无扫描结果。" title="暂无执行结果" />;
   return <Card className="border-slate-200/80 p-4"><div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm font-semibold">最近执行结果</span><StatusBadge tone={taskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge></div><DetailGrid items={[{ label: '扫描', value: `${result.scanned_count}` }, { label: '重试', value: `${result.retried_count}` }, { label: '成功', value: `${result.success_count}` }, { label: '失败', value: `${result.failed_count}` }, { label: '跳过', value: `${result.skipped_count}` }, { label: '完成时间', value: formatDateTime(result.finished_at) }]} />{result.error_message ? <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{result.error_message}</div> : null}</Card>;
 }
 

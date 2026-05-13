@@ -138,7 +138,7 @@ export function KnowledgeDocumentsContent({ knowledgeId }: { knowledgeId: string
           </>
         }
         base={base}
-        description="集中处理文档列表、选中文档详情、解析文本、切片和后台处理任务。"
+        description="文档、解析文本、切片和处理任务。"
         eyebrow="文档管理"
         title={`${base.name} / 文档管理`}
       />
@@ -283,7 +283,7 @@ function DocumentDetailCard({ document, loading }: { document: KnowledgeDocument
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载文档...</div>
       ) : !document ? (
-        <EmptyState description="选择一行文档，查看解析文本和切片。" title="未选择文档" />
+        <EmptyState description="请选择文档。" title="未选择文档" />
       ) : (
         <>
           <div className="grid gap-2 text-sm md:grid-cols-4">

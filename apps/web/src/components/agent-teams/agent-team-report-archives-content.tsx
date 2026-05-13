@@ -131,7 +131,7 @@ export function AgentTeamReportArchivesContent() {
             <StatusBadge tone={canReview ? 'healthy' : 'planned'}>{canReview ? '可审批' : '查看模式'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">Agent 团队报告归档</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">集中查看团队运行报告归档、下载链接、删除申请和审批处理。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队运行报告归档、下载链接、删除申请和审批处理。</p>
         </div>
       </section>
 

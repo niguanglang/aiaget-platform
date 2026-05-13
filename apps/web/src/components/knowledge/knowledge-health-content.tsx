@@ -34,7 +34,7 @@ export function KnowledgeHealthContent() {
           </div>
           <h1 className="text-2xl font-semibold">知识库能力健康</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            集中查看对象存储、向量库、关键词索引和后台任务健康，不再把后端实现状态塞进知识库目录页。
+            对象存储、向量库、关键词索引和后台任务健康概览。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

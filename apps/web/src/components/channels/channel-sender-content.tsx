@@ -120,7 +120,7 @@ export function ChannelSenderContent() {
       <ChannelFocusedHeader
         activeRoute="sender"
         badge="Sender 投递"
-        description="主动回复排障台，集中查看企业微信、钉钉、飞书、Slack 和自定义 Webhook 的请求响应、Trace 上下文和失败重试。"
+        description="企业微信、钉钉、飞书、Slack 和自定义 Webhook 的请求响应、Trace 上下文和失败重试。"
         permissions={permissions}
         refreshing={deliveriesQuery.isFetching || taskOverviewQuery.isFetching}
         subtitle="/channels/sender"

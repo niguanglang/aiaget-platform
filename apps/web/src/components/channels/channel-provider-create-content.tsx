@@ -38,7 +38,7 @@ export function ChannelProviderCreateContent() {
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="新建渠道提供方"
-        description="维护渠道提供方的基础接入、鉴权方式、能力列表和扩展配置。新增表单独立于列表页，保存后返回渠道提供方列表。"
+        description="渠道提供方基础接入、鉴权方式、能力列表和扩展配置。"
         permissions={permissions}
         refreshing={createMutation.isPending}
         subtitle="/channels/providers/create"

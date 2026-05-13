@@ -71,9 +71,6 @@ export function KnowledgeEditContent({ knowledgeId }: { knowledgeId: string }) {
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{base ? `编辑 ${base.name}` : '编辑知识库'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里仅编辑知识库基础资料。文档、切片、任务、召回日志、智能体引用和检索测试仍在详情页管理。
-          </p>
         </div>
       </section>
 

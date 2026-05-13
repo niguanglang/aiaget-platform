@@ -120,7 +120,7 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
               <Link href="/customer-success-opportunities">返回机会清单</Link>
             </Button>
           }
-          description="创建续约机会后，这里会展示阶段漏斗、加权金额、风险分布和近期关闭机会。"
+          description="暂无阶段漏斗、加权金额、风险分布和近期关闭机会。"
           title="暂无可分析的续约机会"
         />
       ) : null}

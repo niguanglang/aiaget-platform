@@ -34,7 +34,7 @@ export function ModelApiKeyCard({
       <div>
         <h2 className="text-sm font-semibold">接口密钥</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          密钥仅写入一次，详情页只显示脱敏内容和最近使用时间。
+          密钥仅写入一次，仅显示脱敏内容和最近使用时间。
         </p>
       </div>
 

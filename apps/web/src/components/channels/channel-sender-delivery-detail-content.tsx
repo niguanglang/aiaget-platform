@@ -64,7 +64,7 @@ export function ChannelSenderDeliveryDetailContent({ deliveryId }: { deliveryId:
       <ChannelFocusedHeader
         activeRoute="sender"
         badge="投递详情"
-        description="查看单条 Sender 投递的请求头、请求正文、平台响应、Trace 和重试入口，避免在投递列表中塞入完整排障详情。"
+        description="Sender 投递请求头、请求正文、平台响应、Trace 和重试入口。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
         subtitle="/channels/sender/deliveries/:deliveryId"

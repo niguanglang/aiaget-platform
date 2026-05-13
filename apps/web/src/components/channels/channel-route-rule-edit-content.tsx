@@ -82,7 +82,7 @@ export function ChannelRouteRuleEditContent({ routeRuleId }: { routeRuleId: stri
       <ChannelFocusedHeader
         activeRoute="route-rules"
         badge="编辑路由规则"
-        description="维护匹配配置、目标配置、优先级、兜底策略和启停状态。"
+        description="匹配条件、目标配置、优先级、兜底策略和启停状态。"
         permissions={permissions}
         refreshing={routeRuleQuery.isFetching || providersQuery.isFetching || accountsQuery.isFetching || agentsQuery.isFetching || updateMutation.isPending}
         subtitle="/channels/route-rules/:routeRuleId/edit"

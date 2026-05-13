@@ -79,7 +79,7 @@ export function ChannelJobDetailContent({ jobId }: { jobId: string }) {
       <ChannelFocusedHeader
         activeRoute="jobs"
         badge="发布任务详情"
-        description="查看发布任务的完整执行状态、任务时间线、关联对象、执行载荷、执行结果和失败处理入口，避免在发布任务列表中塞入排障详情。"
+        description="发布任务执行状态、时间线、关联对象、载荷、结果和失败处理入口。"
         permissions={permissions}
         refreshing={detailQuery.isFetching || cancelMutation.isPending || retryMutation.isPending}
         subtitle="/channels/jobs/:jobId"

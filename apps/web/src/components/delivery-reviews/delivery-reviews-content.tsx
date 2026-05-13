@@ -250,7 +250,7 @@ export function DeliveryReviewsContent() {
                 </Button>
               ) : null
             }
-            description="先新建一个验收复盘，再在详情页查看完整交付范围、问题、改进、扩展和可复用资产。"
+            description="暂无交付范围、问题改进、扩展机会和可复用资产。"
             title="暂无验收复盘"
           />
         ) : (

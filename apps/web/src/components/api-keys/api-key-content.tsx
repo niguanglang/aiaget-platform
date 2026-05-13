@@ -195,7 +195,7 @@ export function ApiKeyContent() {
 
     return {
       title: '确认轮换 API Key？',
-      body: `轮换「${target.apiKey.name}」会立即废弃旧密钥，并只在当前页面展示一次新密钥。`,
+      body: `轮换「${target.apiKey.name}」会立即废弃旧密钥。新密钥仅展示一次。`,
     };
   }
 

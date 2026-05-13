@@ -55,7 +55,7 @@ export function AgentTeamRunTraceGraph({
             <GitBranch className="size-4 text-primary" />
             <h2 className="text-sm font-semibold">运行内 Trace 图谱</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">基于当前团队运行台账里的 trace_id、span_id、parent_span_id 构建轻量关系视图，完整链路仍跳转监控中心。</p>
+          <p className="mt-1 text-sm text-muted-foreground">trace_id、span_id、parent_span_id 关系视图。</p>
         </div>
         {run.trace_id ? (
           <Button asChild size="sm" variant="outline">

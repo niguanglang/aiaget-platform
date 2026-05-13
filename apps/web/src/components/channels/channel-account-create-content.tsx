@@ -48,7 +48,7 @@ export function ChannelAccountCreateContent() {
       <ChannelFocusedHeader
         activeRoute="accounts"
         badge="新建账号凭据"
-        description="选择渠道提供方并维护外部账号、密钥和扩展配置。新增表单独立于列表页，保存后返回账号凭据列表。"
+        description="渠道提供方、外部账号、密钥和扩展配置。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || createMutation.isPending}
         subtitle="/channels/accounts/create"

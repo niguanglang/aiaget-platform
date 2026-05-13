@@ -44,7 +44,7 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
           </Button>
         }
         badge="事件详情"
-        description="查看单条安全事件的请求摘要、主体、资源、上下文、Trace 和匹配策略，不在事件列表页展开完整详情。"
+        description="请求摘要、主体、资源、上下文、Trace 和匹配策略。"
         title="安全事件详情"
       />
 

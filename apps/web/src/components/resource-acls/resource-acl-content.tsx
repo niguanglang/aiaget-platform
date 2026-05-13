@@ -411,7 +411,7 @@ function AclRuleTable({
             </Button>
           }
           className="py-12"
-          description="创建第一条对象级资源授权规则后会在这里展示。"
+          description="暂无对象级资源授权规则。"
           title="暂无资源授权"
         />
       ) : (

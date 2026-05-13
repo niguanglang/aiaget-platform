@@ -54,7 +54,7 @@ export function StorageSettingsContent() {
         }
         backHref="/storage"
         badge="存储设置"
-        description="集中查看 MinIO 连接、桶状态和访问密钥掩码，并在控制面完成桶验证或创建。"
+        description="MinIO 连接、桶状态、访问密钥与桶校验。"
         title="存储设置"
       />
 

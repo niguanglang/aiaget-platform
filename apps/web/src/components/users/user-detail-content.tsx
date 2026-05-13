@@ -62,12 +62,12 @@ export function UserDetailContent({ userId }: { userId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">详情页</StatusBadge>
+            <StatusBadge tone="ready">用户档案</StatusBadge>
             {user ? <StatusBadge tone={userStatusTone(user.status)}>{userStatusLabel(user.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{user?.name ?? '用户详情'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看用户账号、部门归属、角色绑定和登录时间。账号编辑和角色绑定在编辑页维护。
+            账号资料、组织归属、角色绑定与登录记录。
           </p>
         </div>
         {user ? (

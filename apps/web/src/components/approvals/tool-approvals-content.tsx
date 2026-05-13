@@ -341,7 +341,7 @@ function ToolApprovalDetailPanel({
       {loading ? (
         <div className="rounded-lg border bg-muted/20 px-4 py-8 text-sm text-muted-foreground">正在加载工具审批详情...</div>
       ) : !detail ? (
-        <EmptyApprovalSelection description="从左侧选择一条工具审批请求查看详情。" title="未选择审批请求" />
+        <EmptyApprovalSelection description="选择一条工具审批请求。" title="未选择审批请求" />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">

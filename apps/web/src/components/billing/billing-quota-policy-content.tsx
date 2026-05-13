@@ -135,8 +135,8 @@ export function BillingQuotaPolicyContent() {
           </>
         }
         backHref="/billing"
-        badge="Quota"
-        description="集中维护额度策略配置，并通过现有额度执行 API 检查租户月度成本策略是否触发预警、限流或阻断。"
+        badge="额度"
+        description="额度策略配置与执行检查。"
         onWindowChange={setWindowValue}
         title="额度策略配置与执行检查"
         windowValue={windowValue}
@@ -242,7 +242,7 @@ export function BillingQuotaPolicyContent() {
           body={
             quotaPolicyActionTarget.type === 'enforce' ? (
               <>
-                确认执行额度检查？系统会按租户月度成本策略计算是否触发预警、限流、审批或阻断，并刷新当前页面的额度决策结果。
+                确认执行额度检查？系统会计算预警、限流、审批或阻断结果。
               </>
             ) : (
               <>

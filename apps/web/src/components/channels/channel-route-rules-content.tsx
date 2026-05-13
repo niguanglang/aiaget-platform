@@ -83,8 +83,8 @@ export function ChannelRouteRulesContent() {
       actionNotice={actionNotice}
       badge="路由规则"
       buildMetrics={(input) => buildRouteRuleMetrics(input.items, input.total)}
-      description="维护入站和出站路由规则的优先级、匹配方式与目标类型。主列表按规则意图呈现，复杂匹配配置进入详情区域。"
-      emptyDescription="当前没有路由规则。配置入站或出站规则后，渠道回调和消息发送会按优先级匹配。"
+      description="入站和出站路由规则优先级、匹配方式与目标类型。"
+      emptyDescription="暂无路由规则。"
       emptyTitle="暂无路由规则"
       errorMessage="路由规则列表加载失败。"
       getItemId={(item) => item.id}

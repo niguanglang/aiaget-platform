@@ -136,7 +136,7 @@ export function ApiKeyCreateContent() {
             <StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '允许创建' : '只读'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">创建 API Key</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">配置调用范围、Agent 白名单、限流、额度、IP 白名单和 Webhook。创建成功后的明文密钥只在当前页面展示一次。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">配置调用范围、Agent 白名单、限流、额度、IP 白名单和 Webhook。明文密钥仅展示一次。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button" variant="outline"><a href="/api-keys">返回列表</a></Button>

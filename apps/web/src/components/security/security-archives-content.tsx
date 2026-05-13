@@ -314,7 +314,7 @@ export function SecurityArchivesContent() {
           </>
         }
         badge="归档"
-        description="集中治理告警通知归档、自愈审计归档和 SLA 死信归档，把归档文件、下载留痕和删除审批从安全总览中拆成独立职责页。"
+        description="告警通知、自愈审计、SLA 死信。"
         title="归档治理"
       />
 
@@ -386,9 +386,7 @@ export function SecurityArchivesContent() {
               <Archive className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">{activeMeta.label}</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {activeMeta.description} 申请删除会进入删除审批，不会直接清理对象存储文件。
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">删除申请进入审批。</p>
           </div>
           {!canViewApprovals ? (
             <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看归档文件" />
@@ -399,7 +397,7 @@ export function SecurityArchivesContent() {
           ) : activeArchivesQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : activeArchives.length === 0 ? (
-            <EmptyState description="当前来源暂无可治理的归档文件。" title="暂无归档文件" />
+            <EmptyState description="暂无归档文件。" title="暂无归档文件" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] border-collapse text-left text-sm">
@@ -441,7 +439,7 @@ export function SecurityArchivesContent() {
               <Trash2 className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">删除审批</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">当前归档来源、删除审批、申请人和处理状态。</p>
+            <p className="mt-1 text-sm text-muted-foreground">来源、申请人、处理状态。</p>
           </div>
           {!canViewApprovals ? (
             <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看删除审批" />
@@ -452,7 +450,7 @@ export function SecurityArchivesContent() {
           ) : activeApprovalsQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : activeApprovals.length === 0 ? (
-            <EmptyState description="当前来源暂无归档删除审批。" title="暂无删除审批" />
+            <EmptyState description="暂无归档删除审批。" title="暂无删除审批" />
           ) : (
             <div className="divide-y">
               {activeApprovals.map((approval) => (

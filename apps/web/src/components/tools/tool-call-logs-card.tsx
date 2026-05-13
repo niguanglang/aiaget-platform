@@ -23,7 +23,7 @@ export function ToolCallLogsCard({ logs }: { logs: ToolDetail['call_logs'] }) {
         <span className="text-xs text-muted-foreground">{logs.length} 条</span>
       </div>
       {logs.length === 0 ? (
-        <EmptyState description="运行测试后会在这里看到最新调用日志。" title="暂无调用日志" />
+        <EmptyState title="暂无调用日志" />
       ) : (
         <div className="grid max-h-[620px] gap-3 overflow-auto pr-1">
           {logs.map((log) => (

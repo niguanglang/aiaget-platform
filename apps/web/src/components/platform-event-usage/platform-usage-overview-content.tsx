@@ -109,7 +109,7 @@ export function PlatformUsageOverviewContent() {
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="平台事件"
-        description="统一查看平台事件、用量账本、关系链路、Rollup、告警、通知和任务。"
+        description="平台事件、用量账本、关系链路、Rollup、告警、通知和任务。"
         refreshing={overviewQuery.isFetching || eventsQuery.isFetching || trendsQuery.isFetching || ledgerQuery.isFetching}
         title="平台事件与用量底座"
         onRefresh={() => {

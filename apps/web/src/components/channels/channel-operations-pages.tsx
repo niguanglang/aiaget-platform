@@ -279,7 +279,6 @@ export function ChannelOperationsListPage<TItem>({
 export function ChannelFocusedHeader({
   activeRoute,
   badge,
-  description,
   permissions,
   refreshing,
   subtitle,
@@ -311,7 +310,6 @@ export function ChannelFocusedHeader({
           </div>
           <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
           <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={refreshing} onClick={onRefresh} type="button" variant="outline">

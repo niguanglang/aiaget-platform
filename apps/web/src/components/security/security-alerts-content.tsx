@@ -424,7 +424,7 @@ export function SecurityAlertsContent() {
           </>
         }
         badge="告警"
-        description="集中查看审批工作台、运营告警、通知审计和 SLA 超时风险；审批事项可在右侧详情中查看来源、时间线并直接处理。"
+        description="审批、告警、通知、SLA。"
         title="告警运营"
       />
 
@@ -449,9 +449,7 @@ export function SecurityAlertsContent() {
               <Download className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">审批工作台导出治理</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              最近 24 小时统一审批工作台导出行为，重点识别导出量偏高、高风险筛选和短时间重复导出。
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">最近 24 小时导出风险。</p>
           </div>
           <Button asChild size="sm" variant="outline">
             <Link href="/security/events?source=APPROVAL_WORKBENCH">
@@ -484,9 +482,7 @@ export function SecurityAlertsContent() {
               <ClipboardCheck className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">客户成功复盘归档删除运营</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              续约机会成交复盘报告归档删除审批，只展示审批运营指标和处置入口，报告正文和机会详情仍在客户成功模块查看。
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">成交复盘报告归档删除审批。</p>
           </div>
           <Button asChild size="sm" variant="outline">
             <Link href="/approvals/archive-deletions">
@@ -526,7 +522,7 @@ export function SecurityAlertsContent() {
               <ClipboardCheck className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">审批工作台</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">按审批类型、状态和风险域筛选安全高风险待办，选择记录后在右侧查看详情并处理。</p>
+            <p className="mt-1 text-sm text-muted-foreground">审批类型、状态、风险域。</p>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -577,7 +573,7 @@ export function SecurityAlertsContent() {
           ) : approvalItemsQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : approvalItems.length === 0 ? (
-            <EmptyState description="当前筛选下暂无审批记录。" title="暂无审批" />
+            <EmptyState description="暂无审批记录。" title="暂无审批" />
           ) : (
             <div className="divide-y">
               {approvalItems.map((item) => (
@@ -631,7 +627,7 @@ export function SecurityAlertsContent() {
           ) : securityOverviewQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : alerts.length === 0 ? (
-            <EmptyState className="px-0" description="当前暂无需要处理的运营告警。" title="暂无告警" />
+            <EmptyState className="px-0" description="暂无待处理告警。" title="暂无告警" />
           ) : (
             <div className="mt-4 grid gap-3">
               {alerts.map((alert) => (
@@ -652,7 +648,7 @@ export function SecurityAlertsContent() {
         <Card className="overflow-hidden">
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">通知审计</h2>
-            <p className="mt-1 text-sm text-muted-foreground">按状态、来源和关键词检索运营告警通知审计，当前筛选可导出 CSV 或创建对象存储归档。</p>
+            <p className="mt-1 text-sm text-muted-foreground">状态、来源、关键词。</p>
             <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
               通知审计字段账本：当前页 {formatNumber(notificationExportFieldLedgerCount)} 条通知带有字段账本，导出 CSV 已包含导出字段清单和通知归档筛选字段。
             </div>
@@ -705,7 +701,7 @@ export function SecurityAlertsContent() {
           ) : notificationQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : notifications.length === 0 ? (
-            <EmptyState description="当前筛选下暂无通知审计。" title="暂无通知" />
+            <EmptyState description="暂无通知审计。" title="暂无通知" />
           ) : (
             <div className="divide-y">
               {notifications.slice(0, 8).map((item) => (
@@ -750,7 +746,7 @@ export function SecurityAlertsContent() {
           ) : slaQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : slaItems.length === 0 ? (
-            <EmptyState description="当前暂无 SLA 告警。" title="暂无 SLA 告警" />
+            <EmptyState description="暂无 SLA 告警。" title="暂无 SLA 告警" />
           ) : (
             <div className="divide-y">
               {slaItems.slice(0, 8).map((item) => (
@@ -772,8 +768,8 @@ export function SecurityAlertsContent() {
 
         <section className="grid gap-4 xl:grid-cols-3">
           <SlaNotificationListCard
-            description="达到重试间隔且未超过最大重试次数的通知，保留来源、请求、Trace 和重放键用于追溯。"
-            emptyDescription="当前没有等待自动重试的 SLA 通知。"
+            description="重试间隔、次数、Trace、重放键。"
+            emptyDescription="暂无自动重试通知。"
             emptyTitle="暂无自动重试"
             isError={slaRetryQuery.isError}
             isLoading={slaRetryQuery.isLoading}
@@ -781,8 +777,8 @@ export function SecurityAlertsContent() {
             title="SLA 自动重试"
           />
           <SlaNotificationListCard
-            description="自动重试策略已识别的死信通知，仍以原始通知事件为审计主键。"
-            emptyDescription="当前没有进入死信状态的 SLA 通知。"
+            description="死信通知与原始通知事件。"
+            emptyDescription="暂无死信通知。"
             emptyTitle="暂无死信通知"
             isError={slaRetryQuery.isError}
             isLoading={slaRetryQuery.isLoading}
@@ -790,8 +786,8 @@ export function SecurityAlertsContent() {
             title="SLA 死信通知"
           />
           <SlaDeadLetterListCard
-            description="展示最近处置、处置事件和处置时间。"
-            emptyDescription="当前没有需要展示的 SLA 死信处置记录。"
+            description="最近处置、处置事件、处置时间。"
+            emptyDescription="暂无死信处置记录。"
             emptyTitle="暂无死信处置"
             isError={slaDeadLetterQuery.isError}
             isLoading={slaDeadLetterQuery.isLoading}
@@ -1085,17 +1081,17 @@ function ApprovalDetailPanel({
           <ClipboardCheck className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">审批详情</h2>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">查看来源扩展信息、审批时间线和处理意见。</p>
+        <p className="mt-1 text-sm text-muted-foreground">来源扩展、时间线、处理意见。</p>
       </div>
 
       {!selectedApprovalId ? (
-        <EmptyState description="从左侧审批队列选择一条记录后查看详情。" title="未选择审批" />
+        <EmptyState description="请选择审批记录。" title="未选择审批" />
       ) : isError ? (
         <div className="p-4"><PageError>审批详情加载失败。</PageError></div>
       ) : isLoading ? (
         <LoadingRows count={4} />
       ) : !detail ? (
-        <EmptyState description="当前审批记录不存在或已被移出筛选范围。" title="暂无详情" />
+        <EmptyState description="审批记录不存在或已移出筛选范围。" title="暂无详情" />
       ) : (
         <div className="grid gap-5 p-4">
           <section className="grid gap-3">
@@ -1139,7 +1135,7 @@ function ApprovalDetailPanel({
             <h3 className="text-sm font-semibold">审批时间线</h3>
             <div className="grid gap-2">
               {detail.timeline.length === 0 ? (
-                <EmptyState className="px-0 py-6" description="当前审批暂无时间线事件。" title="暂无时间线" />
+                <EmptyState className="px-0 py-6" description="暂无时间线事件。" title="暂无时间线" />
               ) : (
                 detail.timeline.map((event) => (
                   <div className="rounded-md border bg-background/80 p-3" key={event.id}>

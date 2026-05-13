@@ -99,7 +99,7 @@ export function TraceDetailPanel({ loading, trace, traceId }: { loading: boolean
   if (!traceId) {
     return (
       <Card className="grid gap-4 p-5">
-        <EmptyState description="打开一条带 Trace ID 的链路后，在这里查看完整时间线。" title="未选择 Trace" />
+        <EmptyState title="未选择 Trace" />
       </Card>
     );
   }

@@ -62,7 +62,7 @@ function formDefaults(assessment?: CustomerAssessmentDetail | null): CustomerAss
     business_goal: assessment?.business_goal ?? '客户希望通过 AI 降低关键业务环节的重复劳动和交付返工。',
     process_maturity: assessment?.process_maturity ?? '已有稳定流程，但流程节点和验收口径仍需进一步拆清。',
     data_asset_status: assessment?.data_asset_status ?? '已有可用文档、知识库或历史项目资料，需确认权限与质量。',
-    management_support: assessment?.management_support ?? '管理层关注 AI 落地，希望先看到可验收的样板成果。',
+    management_support: assessment?.management_support ?? '管理层关注 AI 落地，希望先看到可验收的交付成果。',
     budget_signal: assessment?.budget_signal ?? '预算信号待确认，需补齐采购范围、验收标准和排期。',
     customer_type_clarity: assessment?.six_question_scores.customer_type_clarity ?? 3,
     decision_intent: assessment?.six_question_scores.decision_intent ?? 3,
@@ -71,7 +71,7 @@ function formDefaults(assessment?: CustomerAssessmentDetail | null): CustomerAss
     data_assets: assessment?.six_question_scores.data_assets ?? 3,
     management_budget: assessment?.six_question_scores.management_budget ?? 3,
     risk_summary: assessment?.risk_summary ?? '需求边界、数据权限、验收口径和预算信号需要持续确认。',
-    next_action: assessment?.next_action ?? '安排一次六问澄清会，并准备一个可演示的样板场景。',
+    next_action: assessment?.next_action ?? '安排一次六问澄清会，并准备首个验收场景。',
     notes: assessment?.notes ?? '',
     owner_id: assessment?.owner?.id ?? '',
   };

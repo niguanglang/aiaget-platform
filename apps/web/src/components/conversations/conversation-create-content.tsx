@@ -69,16 +69,13 @@ export function ConversationCreateContent() {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">新增页</StatusBadge>
+            <StatusBadge tone="ready">新建</StatusBadge>
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可发起' : '只读权限'}</StatusBadge>
             <StatusBadge tone={agents.length > 0 ? 'healthy' : 'degraded'}>
               {agents.length > 0 ? '已有已发布智能体' : '无可用智能体'}
             </StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">新建会话</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            选择一个已发布智能体并发送首条消息。消息流、运行轨迹、引用来源、工具调用和反馈在会话详情页查看。
-          </p>
         </div>
       </section>
 

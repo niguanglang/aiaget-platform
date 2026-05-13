@@ -115,7 +115,7 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
           </div>
           <h1 className="text-2xl font-semibold">权限编码配置</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            为角色分配接口权限编码。保存后会影响后端 Guard 和前端按钮可见性，菜单入口授权请进入菜单授权页维护。
+            角色接口权限编码与按钮可见范围。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -147,7 +147,7 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
 
       {selectedRoleIsAdmin ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          租户管理员是内置全权限角色，权限由种子数据维护，当前页面仅展示不允许修改。
+          租户管理员为内置全权限角色，权限不可修改。
         </div>
       ) : null}
 

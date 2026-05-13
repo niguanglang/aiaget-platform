@@ -92,7 +92,7 @@ export function AgentTeamRunStepDetailContent({
           </div>
           <h1 className="break-words text-2xl font-semibold">{step.title}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看单个协作步骤的执行摘要、Trace 关联、成员内部事件、知识引用、工具调用和模型调用，支持通过查询参数定位到具体子事件。
+            执行摘要、Trace 关联、成员内部事件、知识引用、工具调用和模型调用。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -136,7 +136,7 @@ export function AgentTeamRunStepDetailContent({
               <h2 className="text-sm font-semibold">成员内部事件</h2>
             </div>
             {events.length === 0 ? (
-              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="Runtime 回写 RAG、工具和模型子事件后会在这里显示。" title="暂无子事件" />
+              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="暂无 RAG、工具和模型子事件。" title="暂无子事件" />
             ) : (
               <div className="mt-4 grid gap-3">
                 {events.map((event) => (
@@ -161,7 +161,7 @@ export function AgentTeamRunStepDetailContent({
             {selectedEvent ? (
               <SelectedStepEvent event={selectedEvent} />
             ) : (
-              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="从左侧选择成员内部事件、知识引用、工具调用或模型调用后查看完整字段。" title="请选择子事件" />
+              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="请选择成员内部事件、知识引用、工具调用或模型调用。" title="请选择子事件" />
             )}
           </section>
 

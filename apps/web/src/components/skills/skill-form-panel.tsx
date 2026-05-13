@@ -128,9 +128,6 @@ export function SkillFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑 Skill' : '新建 Skill'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              表单维护完整 SOP 字段，发布版本和 Agent 引用请在详情页处理。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

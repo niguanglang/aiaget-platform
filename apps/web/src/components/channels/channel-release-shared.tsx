@@ -25,14 +25,14 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/utils';
 
 export const releaseSubnavItems = [
-  { description: '发布治理入口和关键指标', href: '/channels/release', label: '治理总览' },
-  { description: '审批、灰度比例和回滚控制', href: '/channels/release/control', label: '发布控制' },
-  { description: '批次、灰度、全量和回滚步骤', href: '/channels/release/pipeline', label: '发布流水线' },
-  { description: '观测指标、放行率和门禁策略', href: '/channels/release/gate', label: '观测门禁' },
-  { description: '自动推进策略、运行状态和最近决策', href: '/channels/release/automation', label: '自动推进' },
-  { description: '异常自愈、回滚建议和冷却策略', href: '/channels/release/self-healing', label: '发布自愈' },
-  { description: '周期巡检、候选渠道和运行结果', href: '/channels/release/scheduler', label: '巡检调度' },
-  { description: '复盘报告、风险和快照留存', href: '/channels/release/reports', label: '复盘报告' },
+  { href: '/channels/release', label: '治理总览' },
+  { href: '/channels/release/control', label: '发布控制' },
+  { href: '/channels/release/pipeline', label: '发布流水线' },
+  { href: '/channels/release/gate', label: '观测门禁' },
+  { href: '/channels/release/automation', label: '自动推进' },
+  { href: '/channels/release/self-healing', label: '发布自愈' },
+  { href: '/channels/release/scheduler', label: '巡检调度' },
+  { href: '/channels/release/reports', label: '复盘报告' },
 ];
 
 export function ChannelReleaseHeader({
@@ -82,7 +82,6 @@ export function ChannelReleaseSubnav() {
           key={item.href}
         >
           <div className="text-sm font-semibold">{item.label}</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</div>
         </Link>
       ))}
     </nav>
@@ -100,9 +99,9 @@ export function ReleaseChannelPicker({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <PanelTitle helper="子页面按当前渠道加载发布治理数据。" title="治理渠道" />
+      <PanelTitle helper="" title="治理渠道" />
       {channels.length === 0 ? (
-        <EmptyState description="当前没有可治理的发布渠道。请先创建发布渠道。" title="暂无发布渠道" />
+        <EmptyState description="" title="暂无发布渠道" />
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {channels.map((channel) => (
@@ -133,19 +132,17 @@ export function ReleaseChannelPicker({
 export function ReleaseChannelEmpty({ title = '未选择渠道' }: { title?: string }) {
   return (
     <Card className="p-5">
-      <EmptyState description="先选择一个发布渠道查看当前模块。" title={title} />
+      <EmptyState description="" title={title} />
     </Card>
   );
 }
 
 export function ReleaseModuleEntry({
   action,
-  description,
   href,
   title,
 }: {
   action?: ReactNode;
-  description: string;
   href: string;
   title: string;
 }) {
@@ -153,7 +150,6 @@ export function ReleaseModuleEntry({
     <Card className="grid gap-3 p-5">
       <div>
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
@@ -168,9 +164,9 @@ export function ReleaseModuleEntry({
 export function ReleaseSchedulerSummaryCard({ overview }: { overview: ChannelReleaseSchedulerOverview | null | undefined }) {
   return (
     <Card className="grid gap-4 p-5">
-      <PanelTitle helper="完整巡检运行和触发操作位于巡检调度子页面。" title="发布巡检调度概览" />
+      <PanelTitle helper="" title="发布巡检调度概览" />
       {!overview ? (
-        <EmptyState description="发布巡检调度数据暂不可用。" title="暂无调度概览" />
+        <EmptyState description="" title="暂无调度概览" />
       ) : (
         <DetailGrid
           items={[
@@ -191,7 +187,7 @@ export function PanelTitle({ helper, title }: { helper: string; title: string })
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
+      {helper ? <p className="mt-1 text-sm text-muted-foreground">{helper}</p> : null}
     </div>
   );
 }

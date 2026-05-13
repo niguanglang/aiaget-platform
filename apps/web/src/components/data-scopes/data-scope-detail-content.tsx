@@ -46,7 +46,7 @@ export function DataScopeDetailContent({ roleId }: { roleId: string }) {
             <StatusBadge tone="planned">角色详情</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">角色数据范围详情</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看角色在各类资源上的数据范围、命中对象摘要和配置更新时间。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">各类资源的数据范围、命中对象和更新时间。</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline">

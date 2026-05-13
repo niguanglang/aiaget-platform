@@ -71,15 +71,12 @@ export function PromptEditContent({ promptId }: { promptId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">编辑页</StatusBadge>
+            <StatusBadge tone="ready">编辑中</StatusBadge>
             {prompt ? <StatusBadge tone={promptStatusTone(prompt.status)}>{promptStatusLabel(prompt.status)}</StatusBadge> : null}
             {prompt ? <StatusBadge tone="planned">{promptTypeLabel(prompt.type)}</StatusBadge> : null}
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{prompt ? `编辑 ${prompt.name}` : '编辑提示词'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里编辑提示词基础资料和正文内容。变量、版本、渲染测试、真实模型测试和引用记录仍在详情页管理。
-          </p>
         </div>
       </section>
 

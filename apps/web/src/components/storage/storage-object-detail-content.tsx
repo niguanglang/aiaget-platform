@@ -72,7 +72,7 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
         actions={<RefreshButton loading={objectQuery.isFetching} onClick={() => void objectQuery.refetch()} />}
         backHref="/storage"
         badge="对象详情"
-        description="查看单个 MinIO 对象的完整元数据，并在详情页完成复制路径、下载和删除确认。"
+        description="MinIO 元数据、路径复制、下载与删除确认。"
         title="对象详情"
       />
 
@@ -85,7 +85,7 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
         <Card className="p-6 text-sm text-muted-foreground">正在加载对象详情...</Card>
       ) : !object ? (
         <EmptyState
-          description="当前对象不存在或已被删除，可以返回列表重新筛选。"
+          description="对象不存在、已删除或无访问权限。"
           title="未找到对象"
         />
       ) : (

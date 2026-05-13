@@ -142,7 +142,7 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
             <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{team.name} · 成员管理</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">维护团队成员职责、执行顺序、是否必选和启停状态。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">成员职责、执行顺序、必选状态和启停状态。</p>
         </div>
         <Button disabled={!canManage} onClick={openCreateForm} type="button">
           <Plus className="size-4" />

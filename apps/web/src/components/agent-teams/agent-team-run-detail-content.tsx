@@ -156,7 +156,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             <StatusBadge tone={teamRunStatusTone(run.status)}>{teamRunStatusLabel(run.status)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{run.objective}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看单次团队协作的步骤时间线、接力记录、反馈记录、Trace 关联和报告动作。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">步骤时间线、接力记录、反馈记录、Trace 关联和报告动作。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -190,7 +190,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
                 <FileArchive className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">审计报告导出</h2>
               </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">导出当前运行的 CSV 审计报告，包含团队配置、运行摘要、成员步骤和运行内事件。</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">CSV 审计报告包含团队信息、运行摘要、成员步骤和运行内事件。</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ run, fileName: reportFileName(team.code, run) })} size="sm" type="button" variant="outline">
@@ -248,7 +248,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
               <h2 className="text-sm font-semibold">步骤时间线</h2>
             </div>
             {steps.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="Runtime 回写步骤后会在这里展示计划、成员执行、接力、校验和汇总。" title="暂无步骤" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" description="暂无计划、成员执行、接力、校验和汇总记录。" title="暂无步骤" />
             ) : (
               <div className="mt-5 grid gap-3">
                 {steps.map((step, index) => (
@@ -293,7 +293,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
               <h2 className="text-sm font-semibold">接力记录</h2>
             </div>
             {handoffs.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="自动接力、人工接力和审批决策会集中展示在这里。" title="暂无接力" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" description="暂无自动接力、人工接力和审批决策。" title="暂无接力" />
             ) : (
               <div className="mt-4 grid gap-3">
                 {handoffs.map((handoff) => (
@@ -396,7 +396,7 @@ function AgentTeamStepDrilldown({ runId, step, teamId }: { runId: string; step: 
     <div className="mt-4 grid gap-3 rounded-lg border bg-background/75 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone="ready">成员内部事件</StatusBadge>
-        <span className="text-xs text-muted-foreground">RAG、工具和模型调用会按 Runtime 回写数据展开。</span>
+        <span className="text-xs text-muted-foreground">RAG、工具和模型调用明细。</span>
       </div>
 
       {hasChildSteps ? (
@@ -526,7 +526,7 @@ function RunComparePanel({
       </div>
 
       {!previousRun || !previousMetrics ? (
-        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="当前运行之前没有可用于对比的团队运行，后续再次执行后会自动展示差异。" title="暂无上一轮可对比" />
+        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="暂无可对比的上一轮团队运行。" title="暂无上一轮可对比" />
       ) : (
         <div className="mt-5 grid gap-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

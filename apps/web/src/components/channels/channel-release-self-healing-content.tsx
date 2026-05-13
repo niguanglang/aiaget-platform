@@ -91,7 +91,7 @@ export function ChannelReleaseSelfHealingContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布自愈"
-        description="查看自愈结论、回滚建议、异常指标和自愈策略，并可手动运行自愈。"
+        description="自愈结论、回滚建议、异常指标和自愈策略。"
         refreshing={overviewQuery.isFetching || selfHealingQuery.isFetching || runMutation.isPending || policyMutation.isPending}
         subtitle="/channels/release/self-healing"
         title="发布自愈"
@@ -111,7 +111,7 @@ export function ChannelReleaseSelfHealingContent() {
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <PanelTitle helper="根据错误请求和放行率判断是否需要回滚或继续观察。" title="自愈结论" />
+              <PanelTitle helper="错误请求、放行率和回滚条件" title="自愈结论" />
               <Button
                 disabled={!permissions.canDeploy || runMutation.isPending}
                 onClick={() => setReleaseSelfHealingActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name })}
@@ -134,7 +134,7 @@ export function ChannelReleaseSelfHealingContent() {
             ]} />
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="观测窗口内的错误请求和门禁指标。" title="自愈指标" />
+            <PanelTitle helper="错误请求和门禁指标" title="自愈指标" />
             <DetailGrid items={[
               { label: '评估数', value: formatNumber(evaluation.metrics.evaluated_count) },
               { label: '放行率', value: formatPercent(evaluation.metrics.allowed_rate) },
@@ -144,7 +144,7 @@ export function ChannelReleaseSelfHealingContent() {
           </Card>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="配置自愈开关、演练模式、回滚阈值、观测窗口和冷却时间。" title="自愈策略配置" />
+              <PanelTitle helper="自愈开关、演练模式、回滚阈值、观测窗口和冷却时间" title="自愈策略配置" />
               <Button
                 disabled={!permissions.canManage || policyMutation.isPending}
                 onClick={() => setReleaseSelfHealingPolicyActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name, input: selfHealingPolicyForm })}
@@ -166,7 +166,7 @@ export function ChannelReleaseSelfHealingContent() {
             {!permissions.canManage ? <p className="text-xs text-muted-foreground">当前账号缺少 channel:publish:manage 权限，只能查看自愈策略。</p> : null}
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="最近一次自愈执行的 Runtime / Temporal 追踪标识。" title="最近自愈运行" />
+            <PanelTitle helper="Runtime / Temporal 追踪标识" title="最近自愈运行" />
             {!selfHealing.last_run ? <EmptyState description="当前没有自愈运行记录。" title="暂无最近运行" /> : (
               <DetailGrid items={[
                 { label: '运行 ID', value: selfHealing.last_run.run_id },

@@ -130,7 +130,6 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
       <Card className="overflow-hidden">
         <div className="border-b p-5">
           <h2 className="text-sm font-semibold">Manifest 与安装摘要</h2>
-          <p className="mt-1 text-sm text-muted-foreground">插件声明、安装状态、权限、Hook 和菜单绑定摘要。</p>
         </div>
         <div className="grid gap-4 p-5">
           <div className="grid gap-3 md:grid-cols-3">
@@ -152,7 +151,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           <section className="grid gap-4 xl:grid-cols-2">
             <DetailList title="权限预览" subtitle="插件声明的权限编码会进入角色、资源授权和安全策略校验。">
               {detail.permission_preview.length === 0 ? (
-                <EmptyState className="p-6" description="当前插件没有声明额外权限。" title="暂无权限声明" />
+                <EmptyState className="p-6" description="暂无记录。" title="暂无权限声明" />
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {detail.permission_preview.map((permission) => (
@@ -176,7 +175,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           <section className="grid gap-4 xl:grid-cols-2">
             <DetailList title="菜单摘要" subtitle="完整菜单绑定编辑在绑定配置页完成。">
               {detail.menu_bindings.length === 0 ? (
-                <EmptyState className="p-6" description="当前插件没有菜单绑定。" title="暂无菜单绑定" />
+                <EmptyState className="p-6" description="暂无记录。" title="暂无菜单绑定" />
               ) : (
                 detail.menu_bindings.slice(0, 4).map((binding) => (
                   <div className="rounded-md border bg-background p-3" key={binding.id}>
@@ -189,7 +188,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
 
             <DetailList title="Hook 摘要" subtitle="完整 Hook 配置在绑定配置页完成。">
               {detail.hooks.length === 0 ? (
-                <EmptyState className="p-6" description="当前插件没有 Hook 绑定。" title="暂无 Hook" />
+                <EmptyState className="p-6" description="暂无记录。" title="暂无 Hook" />
               ) : (
                 detail.hooks.slice(0, 4).map((hook) => (
                   <div className="rounded-md border bg-background p-3" key={hook.id}>
@@ -210,7 +209,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
             {!canAudit ? (
               <EmptyState className="p-6" description="当前账号没有 plugin:center:audit 权限，审计详情已隐藏。" title="无审计权限" />
             ) : detail.audit_logs.length === 0 ? (
-              <EmptyState className="p-6" description="当前插件还没有审计记录。" title="暂无审计" />
+              <EmptyState className="p-6" description="暂无记录。" title="暂无审计" />
             ) : (
               detail.audit_logs.slice(0, 5).map((log) => (
                 <div className="rounded-md border bg-background p-3" key={log.id}>

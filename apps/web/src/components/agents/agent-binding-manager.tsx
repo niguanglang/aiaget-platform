@@ -354,7 +354,7 @@ export function AgentBindingManager({
     <section className="grid gap-4 xl:grid-cols-2">
       <BindingCard
         count={agent.bindings.models.length}
-        description="先选择模型供应商，再绑定当前可用模型。"
+        description="按供应商绑定可用模型。"
         icon={Bot}
         title="模型绑定"
       >

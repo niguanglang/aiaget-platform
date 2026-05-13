@@ -87,14 +87,11 @@ export function AgentEditContent({ agentId }: { agentId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">编辑页</StatusBadge>
+            <StatusBadge tone="ready">编辑中</StatusBadge>
             {agent ? <StatusBadge tone={agentStatusTone(agent.status)}>{agentStatusLabel(agent.status)}</StatusBadge> : null}
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{agent ? `编辑 ${agent.name}` : '编辑智能体'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            修改基础资料和运行默认值。资源绑定、版本、发布和测试仍在详情页处理。
-          </p>
         </div>
       </section>
 

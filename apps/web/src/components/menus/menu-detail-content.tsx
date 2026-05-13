@@ -120,7 +120,7 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">详情页</StatusBadge>
+            <StatusBadge tone="ready">菜单档案</StatusBadge>
             <StatusBadge tone={menuTypeTone(menu.type)}>{menuTypeLabel(menu.type)}</StatusBadge>
             <StatusBadge tone={booleanTone(menu.enabled)}>{booleanLabel(menu.enabled, '已启用', '已停用')}</StatusBadge>
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
@@ -128,7 +128,7 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           <h1 className="break-words text-2xl font-semibold">{menu.name}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{menu.code}</p>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            菜单详情页查看基础信息、路由、显示和权限控制，以及直接子节点和角色引用。
+            基础信息、路由、显示状态、权限控制、子节点与角色引用。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -262,16 +262,16 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           )}
         </InfoCard>
 
-        <InfoCard title="操作预览">
+        <InfoCard title="快捷操作">
           <div className="grid gap-2 text-sm text-muted-foreground">
-            <p>查看、编辑、新建子节点、启停和删除都从详情页发起。</p>
-            <p>删除仍保留后端依赖校验体验，菜单中心不改写拒绝逻辑。</p>
+            <p>支持编辑、新建子节点、启停和删除。</p>
+            <p>删除前会校验子节点和角色引用。</p>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link href={`/menus/${menu.id}`}>
                 <Eye className="size-4" />
-                当前详情
+                菜单档案
               </Link>
             </Button>
           </div>

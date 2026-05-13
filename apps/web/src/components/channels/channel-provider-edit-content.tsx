@@ -54,7 +54,7 @@ export function ChannelProviderEditContent({ providerId }: { providerId: string 
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="编辑渠道提供方"
-        description="维护接入端点、回调地址、鉴权方式、能力列表和扩展配置。"
+        description="接入端点、回调地址、鉴权方式、能力列表和扩展配置。"
         permissions={permissions}
         refreshing={providerQuery.isFetching || updateMutation.isPending}
         subtitle="/channels/providers/:providerId/edit"

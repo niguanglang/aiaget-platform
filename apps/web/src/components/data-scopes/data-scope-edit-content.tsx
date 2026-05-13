@@ -159,7 +159,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
             <StatusBadge tone="planned">角色编辑</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">编辑角色数据范围</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">配置每类资源的数据范围，保存前可按当前租户数据执行生效预览。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">资源数据范围和生效预览。</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline">
@@ -181,7 +181,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
 
       {isTenantAdmin ? (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          租户管理员的数据权限由种子数据维护，默认拥有全部资源范围，当前页面仅可查看和预览。
+          租户管理员默认拥有全部资源范围，仅支持预览。
         </div>
       ) : null}
       {!canWrite && !isTenantAdmin ? (

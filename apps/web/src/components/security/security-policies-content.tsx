@@ -282,7 +282,7 @@ export function SecurityPoliciesContent() {
             <FileSearch className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">评估日志</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">最近策略评估结果，便于从列表页确认命中趋势。</p>
+          <p className="mt-1 text-sm text-muted-foreground">最近策略评估结果与命中趋势。</p>
           {evaluationsQuery.isError ? (
             <PageError>评估日志加载失败。</PageError>
           ) : evaluationsQuery.isLoading ? (

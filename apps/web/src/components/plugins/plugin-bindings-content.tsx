@@ -170,7 +170,6 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
             <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{detail.name} · 菜单绑定与 Hook 配置</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">维护插件向控制台注入的菜单绑定和控制面 Hook 配置。</p>
         </div>
         <PluginSectionNav active="bindings" pluginId={pluginId} />
       </section>
@@ -196,7 +195,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
       <section className="grid gap-4 xl:grid-cols-2">
         <DetailList title="菜单绑定" subtitle="控制插件向控制台注入的菜单入口、可见性和启停状态。">
           {detail.menu_bindings.length === 0 ? (
-            <EmptyState className="p-6" description="当前插件没有菜单绑定。" title="暂无菜单注入" />
+            <EmptyState className="p-6" description="暂无记录。" title="暂无菜单注入" />
           ) : (
             detail.menu_bindings.map((binding) => (
               <div className="rounded-lg border bg-background p-3" key={binding.id}>
@@ -227,7 +226,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
 
         <DetailList title="Hook 绑定" subtitle="控制插件接入控制面事件或网关扩展点。">
           {detail.hooks.length === 0 ? (
-            <EmptyState className="p-6" description="当前插件没有 Hook 绑定。" title="暂无 Hook" />
+            <EmptyState className="p-6" description="暂无记录。" title="暂无 Hook" />
           ) : (
             detail.hooks.map((hook) => (
               <div className="rounded-lg border bg-background p-3" key={hook.id}>

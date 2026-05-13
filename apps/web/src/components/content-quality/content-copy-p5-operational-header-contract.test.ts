@@ -34,6 +34,17 @@ const operationalListPages = [
   'src/components/channels/channel-operations-pages.tsx',
 ];
 
+const visibleOperationalCopyFiles = [
+  'src/app/page.tsx',
+  'src/app/login/page.tsx',
+  'src/app/(console)/api-reference/page.tsx',
+  'src/components/agents/agents-content.tsx',
+  'src/components/layout/sidebar.tsx',
+  'src/components/modules/module-page-shell.tsx',
+  'src/components/platform-event-usage/platform-event-usage-panel.tsx',
+  'src/components/platform-event-usage/platform-usage-alerts-content.tsx',
+];
+
 const marketingHeaderPatterns = [
   /将岗位目标、业务流程/,
   /组合为可复用/,
@@ -74,12 +85,48 @@ const marketingHeaderPatterns = [
   /独立表单维护/,
 ];
 
+const remainingVisibleCopyPatterns = [
+  /智能体、知识库、工具、模型和审计入口/,
+  /面向企业外部系统的 Agent 调用文档/,
+  /这里记录当前真实可用/,
+  /外部系统可以直接使用/,
+  /包文档和发布前校验入口/,
+  /查看安装方式/,
+  /查看 SDK 能力/,
+  /发布或交付 SDK 前执行/,
+  /外部系统应保存响应中的 conversation_id/,
+  /后续同一业务上下文/,
+  /都会返回 conversation_id、run_id 和 trace_id/,
+  /这些接口用于控制台内管理/,
+  /智能体增删改查/,
+  /版本化发布/,
+  /搜索、筛选、创建、编辑、删除/,
+  /新建智能体，或调整关键词/,
+  /企业智能体控制台/,
+  /统一底座/,
+  /监控 \/ 审计 \/ 成本/,
+  /统一平台事件与用量底座/,
+  /异常检测、Rollup 重建、告警确认/,
+  /<Button disabled>\{moduleSpec\.primaryAction\}<\/Button>/,
+  /moduleSpec\.rowActions\.map/,
+];
+
 test('p5 operational list pages avoid marketing-style header copy', () => {
   for (const file of operationalListPages) {
     const source = readFileSync(join(process.cwd(), file), 'utf8');
 
     for (const pattern of marketingHeaderPatterns) {
       assert.doesNotMatch(source, pattern, `${file} still exposes marketing-style header copy: ${pattern}`);
+    }
+  }
+});
+
+test('p5 visible console pages avoid descriptive filler and placeholder actions', () => {
+  for (const file of visibleOperationalCopyFiles) {
+    const source = readFileSync(join(process.cwd(), file), 'utf8');
+
+    for (const pattern of remainingVisibleCopyPatterns) {
+      assert.doesNotMatch(source, pattern, `${file} still exposes visible filler or placeholder action: ${pattern}`);
     }
   }
 });

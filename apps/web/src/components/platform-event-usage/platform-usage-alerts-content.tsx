@@ -119,7 +119,6 @@ export function PlatformUsageAlertsContent() {
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="用量告警"
-        description="异常检测、Rollup 重建、告警确认、升级、关闭和通知集中在独立治理页处理。"
         refreshing={overviewQuery.isFetching || alertsQuery.isFetching}
         title="用量告警"
         onRefresh={() => {

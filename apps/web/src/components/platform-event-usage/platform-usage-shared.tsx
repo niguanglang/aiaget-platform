@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 export const platformUsageWindows: PlatformEventWindow[] = ['24h', '7d', '30d'];
 
 export const platformUsageSubnavItems = [
-  { href: '/monitor/platform-usage', label: '底座总览' },
+  { href: '/monitor/platform-usage', label: '事件总览' },
   { href: '/monitor/platform-usage/alerts', label: '用量告警' },
   { href: '/monitor/platform-usage/notifications', label: '通知审计' },
   { href: '/monitor/platform-usage/tasks', label: '重试任务' },
@@ -63,8 +63,8 @@ export function PlatformUsageHeader({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">{badge}</StatusBadge>
-            <StatusBadge tone="healthy">统一事件</StatusBadge>
-            <StatusBadge tone="planned">监控 / 审计 / 成本</StatusBadge>
+            <StatusBadge tone="healthy">平台事件</StatusBadge>
+            <StatusBadge tone="planned">用量</StatusBadge>
           </div>
           <h1 className="mt-3 text-2xl font-semibold">{title}</h1>
         </div>

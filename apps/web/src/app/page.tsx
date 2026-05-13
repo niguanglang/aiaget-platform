@@ -14,7 +14,6 @@ export default function HomePage() {
           ))}
         </div>
         <h1 className="text-3xl font-semibold tracking-normal">企业智能体平台</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">智能体、知识库、工具、模型和审计入口。</p>
         <div className="mt-6 flex gap-3">
           <Button asChild>
             <Link href="/login">登录</Link>

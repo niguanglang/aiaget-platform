@@ -44,19 +44,19 @@ const sdkResources = [
     title: 'SDK 包文档',
     path: 'packages/external-api-sdk/README.md',
     href: 'https://gitee.com/yufei_4/aiagent/blob/master/packages/external-api-sdk/README.md',
-    description: '查看安装方式、客户端初始化、非流式调用、流式调用和 Webhook 签名校验。',
+    meta: '安装与调用',
   },
   {
     title: '接口集成文档',
     path: 'docs/api/external-api-sdk.md',
     href: 'https://gitee.com/yufei_4/aiagent/blob/master/docs/api/external-api-sdk.md',
-    description: '查看 SDK 能力、发布形态、错误处理和企业集成建议。',
+    meta: '接口与错误码',
   },
   {
     title: '发布前校验',
     path: 'pnpm --filter @aiaget/external-api-sdk pack:check',
     href: 'https://gitee.com/yufei_4/aiagent/blob/master/packages/external-api-sdk/package.json',
-    description: '发布或交付 SDK 前执行 typecheck、build 和 pack 检查。',
+    meta: 'typecheck / build / pack',
   },
 ];
 
@@ -193,27 +193,27 @@ data: {"type":"done","result":{"conversation_id":"8b1f...","run_id":"19a0...","t
 const quickSteps = [
   {
     title: '创建 API Key',
-    description: '在 API Key 管理中心创建密钥，配置 Agent 白名单、IP 白名单、限流、日额度和过期时间。',
+    detail: '白名单 / 限流 / 额度 / 过期时间',
   },
   {
     title: '选择 Agent',
-    description: '把 `{agentId}` 替换为已发布且当前密钥创建人有权使用的 Agent ID。',
+    detail: '{agentId}',
   },
   {
     title: '发起调用',
-    description: '非流式调用使用 /chat，流式调用使用 /chat/stream，并提交 message 和可选 title。',
+    detail: '/chat / /chat/stream',
   },
   {
     title: '保存会话',
-    description: '外部系统应保存响应中的 conversation_id，后续同一业务上下文可以用续聊接口继续追问。',
+    detail: 'conversation_id',
   },
   {
     title: '配置回调',
-    description: '需要异步通知时，在 API Key 创建表单启用 Webhook，填写回调地址和可选签名密钥。',
+    detail: 'Webhook URL / secret',
   },
   {
     title: '追踪结果',
-    description: '非流式响应和流式 done 事件都会返回 conversation_id、run_id 和 trace_id，可进入观测、监控和审计中心排查链路。',
+    detail: 'conversation_id / run_id / trace_id',
   },
 ];
 
@@ -256,9 +256,9 @@ const webhookFields = [
 ];
 
 const managementEndpoints = [
-  { method: 'GET', path: '/api/v1/api-keys', permission: 'system:api_key:view', description: '查询当前租户接口密钥列表，返回脱敏密钥和额度状态。' },
-  { method: 'POST', path: '/api/v1/api-keys', permission: 'system:api_key:manage', description: '创建接口密钥，明文密钥只在创建成功时返回一次。' },
-  { method: 'DELETE', path: '/api/v1/api-keys/{id}', permission: 'system:api_key:manage', description: '软删除接口密钥，外部系统将无法继续使用。' },
+  { method: 'GET', path: '/api/v1/api-keys', permission: 'system:api_key:view', description: '脱敏列表与额度状态。' },
+  { method: 'POST', path: '/api/v1/api-keys', permission: 'system:api_key:manage', description: '创建密钥；明文只返回一次。' },
+  { method: 'DELETE', path: '/api/v1/api-keys/{id}', permission: 'system:api_key:manage', description: '删除后立即失效。' },
 ];
 
 const externalEndpoints = [
@@ -374,9 +374,6 @@ export default function ApiReferencePage() {
             <StatusBadge tone="healthy">Webhook 回调</StatusBadge>
           </div>
           <h1 className="text-3xl font-semibold tracking-normal">开放接口文档中心</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            面向企业外部系统的 Agent 调用文档。这里记录当前真实可用的接口、鉴权方式、请求响应结构、Webhook 回调、错误处理和安全校验链路。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void copyText('endpoint', externalStreamEndpoint)} type="button" variant="outline">
@@ -408,9 +405,6 @@ export default function ApiReferencePage() {
             <Code2 className="size-4 text-primary" />
             SDK 包文档
           </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            外部系统可以直接使用 `@aiaget/external-api-sdk` 接入 Agent 调用、流式响应和 Webhook 签名校验；包文档和发布前校验入口在这里统一暴露。
-          </p>
           <div className="grid gap-3">
             {sdkResources.map((resource) => (
               <a
@@ -425,7 +419,7 @@ export default function ApiReferencePage() {
                   <ExternalLink className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
                 </div>
                 <div className="break-all font-mono text-xs text-muted-foreground">{resource.path}</div>
-                <p className="text-sm leading-6 text-muted-foreground">{resource.description}</p>
+                <div className="text-xs text-muted-foreground">{resource.meta}</div>
               </a>
             ))}
           </div>
@@ -485,7 +479,7 @@ export default function ApiReferencePage() {
                   <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-foreground">{index + 1}</span>
                   {step.title}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                <div className="mt-2 font-mono text-xs text-muted-foreground">{step.detail}</div>
               </div>
             ))}
           </div>
@@ -622,9 +616,6 @@ export default function ApiReferencePage() {
             <KeyRound className="size-4 text-primary" />
             API Key 管理接口
           </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            这些接口用于控制台内管理租户密钥，需要 JWT 登录态和对应系统权限；外部业务系统只需要调用 Agent 接口。
-          </p>
           <div className="grid gap-3">
             {managementEndpoints.map((endpoint) => (
               <div className="grid gap-2 rounded-md border bg-muted/20 p-3" key={`${endpoint.method}-${endpoint.path}`}>

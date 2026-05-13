@@ -280,7 +280,7 @@ function DesktopLoginLayout() {
 
           <div className="absolute left-[7.1%] top-[19.4%] max-w-[52%]">
             <h1 className="whitespace-nowrap text-[4.3cqw] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)]">
-              企业智能体控制台
+              AIAget 控制台
             </h1>
             <p className="mt-[1.3cqw] text-[1.72cqw] font-medium leading-[1.55] tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)]">
               身份认证 · 权限审计 · 运行监控
@@ -300,7 +300,7 @@ function DesktopLoginLayout() {
                   欢迎登录
                 </h2>
                 <p className="mt-[0.78cqw] text-[1.43cqw] font-medium leading-[1.35] text-[#5e7398]">
-                  进入企业智能体控制台
+                  进入控制台
                 </p>
               </div>
               <LoginFormBoundary />
@@ -329,7 +329,7 @@ function MobileLoginLayout() {
           <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
             <div>
               <h1 className="max-w-[12ch] text-[clamp(2rem,9vw,3.75rem)] font-semibold leading-[1.08] tracking-[0] text-[#13284f] drop-shadow-[0_1px_0_rgba(255,255,255,0.58)] sm:max-w-none">
-                企业智能体控制台
+                AIAget 控制台
               </h1>
               <p className="mt-3 max-w-[42rem] text-sm font-medium leading-7 tracking-[0] text-[#536b92] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)] sm:mt-4 sm:text-base">
                 身份认证 · 权限审计 · 运行监控
@@ -350,7 +350,7 @@ function MobileLoginLayout() {
                   欢迎登录
                 </h2>
                 <p className="mt-2 text-sm font-medium leading-6 text-[#5e7398] sm:text-base">
-                  进入企业智能体控制台
+                  进入控制台
                 </p>
               </div>
               <LoginFormBoundary />

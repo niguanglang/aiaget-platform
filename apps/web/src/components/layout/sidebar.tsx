@@ -69,7 +69,7 @@ export function Sidebar({
           </span>
           <div className={cn('min-w-0 transition-opacity', isCollapsed && 'hidden')}>
             <div className="text-sm font-semibold tracking-tight">AIAget 平台</div>
-            <div className="text-xs text-muted-foreground">企业智能体控制台</div>
+            <div className="text-xs text-muted-foreground">控制台</div>
           </div>
         </div>
         <Button

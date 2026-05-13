@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { ModuleSpec } from '@/config/modules';
@@ -19,7 +18,6 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
           </div>
           <h1 className="text-2xl font-semibold">{moduleSpec.title}</h1>
         </div>
-        <Button disabled>{moduleSpec.primaryAction}</Button>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -67,18 +65,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border bg-background p-5">
-          <h2 className="text-sm font-semibold">行操作</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {moduleSpec.rowActions.map((action) => (
-              <Button disabled key={action} size="sm" variant="outline">
-                {action}
-              </Button>
-            ))}
-          </div>
-        </div>
-
+      <section className="grid gap-4">
         <div className="rounded-lg border bg-background p-5">
           <h2 className="text-sm font-semibold">信息分组</h2>
           <div className="mt-4 grid gap-2">

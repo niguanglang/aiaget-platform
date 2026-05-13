@@ -330,7 +330,7 @@ export function PlatformEventUsagePanel({
   const metrics = summary
     ? [
         { label: '平台事件', value: `${summary.event_count}`, helper: `${activeWindow} 窗口` },
-        { label: '用量事件', value: `${summary.usage_count}`, helper: '统一用量账本' },
+        { label: '用量事件', value: `${summary.usage_count}`, helper: '用量账本' },
         { label: '关系链路', value: `${summary.relation_count}`, helper: '父子 / 接力 / 审批' },
         { label: '汇总批次', value: `${summary.rollup_count}`, helper: '日 / 小时聚合' },
         { label: 'Trace 数', value: `${summary.trace_count}`, helper: '链路覆盖' },
@@ -345,10 +345,10 @@ export function PlatformEventUsagePanel({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge tone="ready">平台事件</StatusBadge>
-              <StatusBadge tone="healthy">统一底座</StatusBadge>
-              <StatusBadge tone="planned">监控 / 审计 / 成本</StatusBadge>
+              <StatusBadge tone="healthy">用量账本</StatusBadge>
+              <StatusBadge tone="planned">告警</StatusBadge>
             </div>
-            <h2 className="mt-3 text-base font-semibold">统一平台事件与用量底座</h2>
+            <h2 className="mt-3 text-base font-semibold">平台事件与用量</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {!compact ? (
@@ -388,7 +388,7 @@ export function PlatformEventUsagePanel({
 
         {overviewQuery.isError || eventsQuery.isError || eventDetailQuery.isError || trendsQuery.isError || ledgerQuery.isError ? (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            统一底座数据加载失败。
+            平台事件数据加载失败。
           </div>
         ) : null}
 

@@ -106,8 +106,8 @@ export function AgentsContent() {
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="healthy">智能体增删改查</StatusBadge>
-            <StatusBadge tone="planned">版本化发布</StatusBadge>
+            <StatusBadge tone="healthy">租户范围</StatusBadge>
+            <StatusBadge tone="planned">配置列表</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">智能体配置中心</h1>
         </div>
@@ -131,9 +131,6 @@ export function AgentsContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">智能体</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  搜索、筛选、创建、编辑、删除，并打开完整智能体详情。
-                </p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {agents.length} / {agentsQuery.data?.total ?? 0}
@@ -200,9 +197,7 @@ export function AgentsContent() {
         ) : agents.length === 0 ? (
           <div className="p-10 text-center">
             <div className="font-medium">暂无智能体</div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              新建智能体，或调整关键词、状态、分类和负责人筛选。
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">暂无匹配结果。</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

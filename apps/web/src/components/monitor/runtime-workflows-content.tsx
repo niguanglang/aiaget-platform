@@ -80,7 +80,6 @@ export function RuntimeWorkflowsContent() {
             <StatusBadge tone="planned">工作流恢复</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">Runtime 工作流</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看运行时工作流后端状态、最近派发失败和可恢复任务。</p>
         </div>
         <Button asChild type="button" variant="outline">
           <Link href="/monitor">

@@ -138,15 +138,7 @@ export function DeliveryAssetsContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">成果资产</StatusBadge>
-            <StatusBadge tone="mock">来源验收复盘</StatusBadge>
-            <StatusBadge tone="planned">复用指引 + 风险说明</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">成果资产中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            管理可复用方案模板、验收清单、风险清单、Prompt SOP、客户案例和报告归档。
-          </p>
+          <h1 className="text-2xl font-semibold">交付资产</h1>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -179,10 +171,7 @@ export function DeliveryAssetsContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">资产清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">资产类型、状态、复用评分、摘要预览和来源关系。</p>
-              </div>
+              <h2 className="text-sm font-semibold">资产清单</h2>
               <div className="text-sm text-muted-foreground">显示 {assets.length} / {total}</div>
             </div>
 
@@ -238,9 +227,9 @@ export function DeliveryAssetsContent() {
         </div>
 
         {assetsQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">成果资产加载失败。</div>
+          <div className="p-6 text-sm text-destructive">交付资产加载失败。</div>
         ) : assetsQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">正在加载成果资产...</div>
+          <div className="p-6 text-sm text-muted-foreground">正在加载交付资产...</div>
         ) : assets.length === 0 ? (
           <EmptyState
             action={
@@ -253,15 +242,14 @@ export function DeliveryAssetsContent() {
                 </Button>
               ) : null
             }
-            description="从一次验收复盘创建成果资产，并补充业务价值、复用指引、来源上下文和风险说明。"
-            title="暂无成果资产"
+            title="暂无交付资产"
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  {['资产', '客户', '类型/状态', '复用评分', '摘要预览', '复用指引', '来源关系', '负责人', '更新时间', '操作'].map((column) => (
+                  {['资产', '客户', '类型/状态', '评分', '摘要预览', '指引', '来源关系', '负责人', '更新时间', '操作'].map((column) => (
                     <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>{column}</th>
                   ))}
                 </tr>
@@ -343,7 +331,7 @@ export function DeliveryAssetsContent() {
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 px-4 backdrop-blur-sm">
           <Card className="w-full max-w-md p-5">
-            <h2 className="text-lg font-semibold">归档成果资产</h2>
+            <h2 className="text-lg font-semibold">归档交付资产</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               确认归档「{deleteTarget.name}」？归档后列表不再展示该资产，历史审计和来源复盘仍保留。
             </p>

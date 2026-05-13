@@ -66,17 +66,17 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
 
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline"><Link href={`/agent-teams/${teamId}/edit`}><Edit className="size-4" />编辑</Link></Button>
-          <Button asChild variant="outline"><Link href={`/agent-teams/${teamId}/members`}><UsersRound className="size-4" />成员管理</Link></Button>
+          <Button asChild variant="outline"><Link href={`/agent-teams/${teamId}/members`}><UsersRound className="size-4" />成员</Link></Button>
           <Button asChild><Link href={`/agent-teams/${teamId}/runs`}><ListChecks className="size-4" />运行记录</Link></Button>
           <Button asChild variant="outline"><Link href="/agent-teams/report-archives"><FileArchive className="size-4" />报告归档</Link></Button>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="成员摘要" label="成员" value={`${team.active_member_count} / ${team.member_count}`} />
-        <MetricCard helper="运行摘要" label="运行" value={formatInteger(team.run_count)} />
-        <MetricCard helper="接力入口" label="待处理接力" value={formatInteger(pendingHandoffs)} />
-        <MetricCard helper="反馈入口" label="反馈" value={formatInteger(feedbackCount)} />
+        <MetricCard helper={''} label="成员" value={`${team.active_member_count} / ${team.member_count}`} />
+        <MetricCard helper={''} label="运行" value={formatInteger(team.run_count)} />
+        <MetricCard helper={''} label="待处理接力" value={formatInteger(pendingHandoffs)} />
+        <MetricCard helper={''} label="反馈" value={formatInteger(feedbackCount)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-4">
@@ -105,7 +105,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
         <div className="rounded-lg border bg-background p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">成员摘要</h2>
-            <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/members`}>管理成员</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/members`}>成员</Link></Button>
           </div>
           <div className="mt-4 grid gap-3 text-sm">
             {team.members.slice(0, 4).map((member) => (
@@ -121,7 +121,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
         <div className="rounded-lg border bg-background p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">运行摘要</h2>
-            <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}>查看运行</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}>运行</Link></Button>
           </div>
           {latestRun ? (
             <div className="mt-4 grid gap-3 text-sm">
@@ -142,7 +142,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
             <p className="mt-2 text-sm text-muted-foreground">在运行记录页发起接力、保存反馈、导出报告或生成归档。</p>
           </Link>
           <Link className="rounded-md border bg-muted/20 p-4 transition-colors hover:bg-muted/40" href={`/agent-teams/${teamId}/runs`}>
-            <div className="flex items-center gap-2 font-medium"><MessageSquare className="size-4" />查看反馈和接力</div>
+            <div className="flex items-center gap-2 font-medium"><MessageSquare className="size-4" />反馈和接力</div>
             <p className="mt-2 text-sm text-muted-foreground">当前团队有 {pendingHandoffs} 条待处理接力和 {feedbackCount} 条运行反馈。</p>
           </Link>
         </div>
@@ -160,7 +160,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
             </div>
             {latestRun?.trace_id ? (
               <Button asChild size="sm" variant="outline">
-                <Link href={`/monitor/traces/${encodeURIComponent(latestRun.trace_id)}`}>查看 Trace</Link>
+                <Link href={`/monitor/traces/${encodeURIComponent(latestRun.trace_id)}`}>Trace</Link>
               </Button>
             ) : null}
           </div>
@@ -179,7 +179,6 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
                 <ShieldCheck className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">资源授权提示</h2>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">团队运行会继续经过 RBAC、数据范围、Resource ACL 和安全策略校验。</p>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link

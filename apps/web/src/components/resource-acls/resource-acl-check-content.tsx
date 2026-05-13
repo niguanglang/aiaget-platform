@@ -106,7 +106,6 @@ export function ResourceAclCheckContent() {
             </Link>
           </Button>
         }
-        description="按资源、主体和权限编码校验对象级访问决策，用于确认启用规则、拒绝优先级和未匹配场景。"
         eyebrow="权限校验"
         title="资源访问权限校验"
       />

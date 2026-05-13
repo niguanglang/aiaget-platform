@@ -33,7 +33,6 @@ export function BillingUsageContent() {
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         backHref="/billing"
         badge="Usage"
-        description="按窗口查看 Token、模型、供应商、API Key 和会话步骤成本列表，帮助运营定位成本来源。"
         onWindowChange={setWindowValue}
         title="用量明细 / Token / 成本列表"
         windowValue={windowValue}

@@ -42,11 +42,10 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
             <RefreshCw className={`size-4 ${eventQuery.isFetching ? 'animate-spin' : ''}`} />
             刷新详情
           </Button>
-        }
-        badge="事件详情"
-        description="请求摘要、主体、资源、上下文、Trace 和匹配策略。"
-        title="安全事件详情"
-      />
+	        }
+	        badge="事件详情"
+	        title="安全事件详情"
+	      />
 
       <div className="flex">
         <Button asChild variant="outline">
@@ -64,7 +63,7 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
         </Card>
       ) : !event ? (
         <Card className="p-5">
-          <EmptyState description="当前事件不存在或已超出查询范围。" title="未找到安全事件" />
+	          <EmptyState title="未找到安全事件" />
         </Card>
       ) : (
         <>
@@ -152,12 +151,9 @@ function ExportFieldSummary({ context }: { context: Record<string, unknown> | nu
 
   return (
     <Card className="grid gap-4 p-5">
-      <div>
-        <h2 className="text-sm font-semibold">审批导出字段清单</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          审批工作台导出事件的 CSV 字段范围，通知归档筛选字段单独标记，便于审计复核。
-        </p>
-      </div>
+	      <div>
+	        <h2 className="text-sm font-semibold">审批导出字段清单</h2>
+	      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <FieldChipGroup fields={exportedFields} title="导出字段" />
         <FieldChipGroup fields={notificationArchiveFilterFields} title="通知归档筛选字段" />

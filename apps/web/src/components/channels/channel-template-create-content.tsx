@@ -48,10 +48,8 @@ export function ChannelTemplateCreateContent() {
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="新建消息模板"
-        description="消息模板编码、类型、语言、正文内容和内容结构。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || createMutation.isPending}
-        subtitle="/channels/templates/create"
         title="新建消息模板"
         onRefresh={() => void providersQuery.refetch()}
       />
@@ -66,7 +64,7 @@ export function ChannelTemplateCreateContent() {
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法新建消息模板。" title="无权新建消息模板" />
+          <EmptyState title="无权新建消息模板" />
         </Card>
       ) : (
         <ChannelTemplateForm

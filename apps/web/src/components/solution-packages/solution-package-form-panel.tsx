@@ -31,7 +31,7 @@ const formSchema = z.object({
   priority: z.enum(solutionPriorities),
   executive_summary: z.string().min(1, '请输入方案摘要。'),
   business_objectives: z.string().min(1, '请输入业务目标。'),
-  scope_summary: z.string().min(1, '请输入落地范围。'),
+  scope_summary: z.string().min(1, '请输入方案范围。'),
   scenario_blueprint: z.string().min(1, '请输入场景蓝图。'),
   delivery_roadmap: z.string().min(1, '请输入交付路线图。'),
   acceptance_plan: z.string().min(1, '请输入验收计划。'),
@@ -54,33 +54,23 @@ function defaults(solutionPackage?: SolutionPackageDetail | null): SolutionPacka
   return {
     name: solutionPackage?.name ?? '',
     code: solutionPackage?.code ?? '',
-    customer_name: solutionPackage?.customer_name ?? '华中设计院',
-    industry: solutionPackage?.industry ?? '设计院',
+    customer_name: solutionPackage?.customer_name ?? '',
+    industry: solutionPackage?.industry ?? '',
     customer_type: solutionPackage?.customer_type ?? 'TASK_DRIVEN',
     package_stage: solutionPackage?.package_stage ?? 'PILOT_DESIGN',
     status: solutionPackage?.status ?? 'DRAFT',
     priority: solutionPackage?.priority ?? 'MEDIUM',
-    executive_summary:
-      solutionPackage?.executive_summary ??
-      '围绕客户当前最清晰的业务目标，把客户评估和岗位场景整理为可执行、可验收、可复盘的 AI 落地方案。',
-    business_objectives:
-      solutionPackage?.business_objectives ??
-      '让历史资料稳定检索，方案产出标准化，员工可以通过统一入口调用公司知识，并保留审核与复盘记录。',
-    scope_summary: solutionPackage?.scope_summary ?? '首期覆盖一个高价值岗位、一个知识库、一个 Agent 和一套交付成果验收口径。',
-    scenario_blueprint:
-      solutionPackage?.scenario_blueprint ??
-      '客户分层 -> 六问判断 -> 岗位场景编排 -> Agent/Skill/知识库绑定 -> 交付成果输出 -> 验收复盘。',
-    delivery_roadmap:
-      solutionPackage?.delivery_roadmap ??
-      '第 1 周完成资料盘点和权限边界；第 2 周完成场景配置和成果输出；第 3 周完成试点验收和扩展计划。',
-    acceptance_plan:
-      solutionPackage?.acceptance_plan ??
-      '验收材料包含交付成果、引用来源、风险提示、权限审计、运行日志和业务负责人复盘结论。',
-    roi_summary: solutionPackage?.roi_summary ?? '方案准备时间下降 40%，重复返工下降 30%，关键引用遗漏率低于 5%。',
-    risk_mitigation: solutionPackage?.risk_mitigation ?? '先采用只读知识检索、人工审核和安全策略前置，避免高危工具直接进入生产流程。',
-    commercial_strategy: solutionPackage?.commercial_strategy ?? '先用小范围试点证明交付成果，再扩展到更多岗位、知识库和渠道。',
-    next_milestone: solutionPackage?.next_milestone ?? '完成客户资料清单确认，并安排方案评审会。',
-    package_score: solutionPackage?.package_score ?? 85,
+    executive_summary: solutionPackage?.executive_summary ?? '',
+    business_objectives: solutionPackage?.business_objectives ?? '',
+    scope_summary: solutionPackage?.scope_summary ?? '',
+    scenario_blueprint: solutionPackage?.scenario_blueprint ?? '',
+    delivery_roadmap: solutionPackage?.delivery_roadmap ?? '',
+    acceptance_plan: solutionPackage?.acceptance_plan ?? '',
+    roi_summary: solutionPackage?.roi_summary ?? '',
+    risk_mitigation: solutionPackage?.risk_mitigation ?? '',
+    commercial_strategy: solutionPackage?.commercial_strategy ?? '',
+    next_milestone: solutionPackage?.next_milestone ?? '',
+    package_score: solutionPackage?.package_score ?? undefined,
     tags: solutionPackage?.tags.join(', ') ?? '',
     notes: solutionPackage?.notes ?? '',
     owner_id: solutionPackage?.owner?.id ?? '',
@@ -159,10 +149,7 @@ export function SolutionPackageFormPanel({
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">{isEditing ? '编辑落地方案' : '新建落地方案'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护完整交付路线图、验收计划、ROI、风险缓释和关联资源。
-            </p>
+            <h2 className="text-lg font-semibold">{isEditing ? '编辑方案包' : '新建方案包'}</h2>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />
@@ -229,7 +216,7 @@ export function SolutionPackageFormPanel({
           <div className="grid gap-4 xl:grid-cols-2">
             <LongField label="方案摘要" message={form.formState.errors.executive_summary?.message} register={form.register('executive_summary')} />
             <LongField label="业务目标" message={form.formState.errors.business_objectives?.message} register={form.register('business_objectives')} />
-            <LongField label="落地范围" message={form.formState.errors.scope_summary?.message} register={form.register('scope_summary')} />
+            <LongField label="方案范围" message={form.formState.errors.scope_summary?.message} register={form.register('scope_summary')} />
             <LongField label="场景蓝图" message={form.formState.errors.scenario_blueprint?.message} register={form.register('scenario_blueprint')} />
             <LongField label="交付路线图" message={form.formState.errors.delivery_roadmap?.message} register={form.register('delivery_roadmap')} />
             <LongField label="验收计划" message={form.formState.errors.acceptance_plan?.message} register={form.register('acceptance_plan')} />

@@ -182,15 +182,7 @@ export function CustomerSuccessOpportunitiesContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">续约机会</StatusBadge>
-            <StatusBadge tone="healthy">商务推进</StatusBadge>
-            <StatusBadge tone="planned">客户成功</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">客户成功续约机会中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            把客户成功计划和成功行动转成可阶段推进、可金额预测、可风险跟踪的续约、扩展、增购和风险挽留机会。
-          </p>
+          <h1 className="text-2xl font-semibold">续约机会</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
           <Button asChild className="w-full md:w-auto" variant="outline">
@@ -231,10 +223,7 @@ export function CustomerSuccessOpportunitiesContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">机会清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">核心字段、阶段、金额概率、摘要预览和来源关系。</p>
-              </div>
+              <h2 className="text-sm font-semibold">机会清单</h2>
               <div className="text-sm text-muted-foreground">显示 {opportunities.length} / {total}</div>
             </div>
 
@@ -341,7 +330,6 @@ export function CustomerSuccessOpportunitiesContent() {
                 </Button>
               ) : null
             }
-            description="从客户成功计划和成功行动创建续约机会，并维护商务策略、决策路径和风险摘要。"
             title="暂无续约机会"
           />
         ) : (

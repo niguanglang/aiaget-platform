@@ -99,7 +99,6 @@ export function AgentTeamsContent() {
             <StatusBadge tone="planned">运行记录</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">Agent 协作中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队状态、协作模式、接力策略、成员数量和最近运行。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -127,10 +126,7 @@ export function AgentTeamsContent() {
         <div className="border-b p-4">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">协作团队</h2>
-                <p className="mt-1 text-sm text-muted-foreground">搜索、筛选、查看详情，并进入编辑、成员和运行页面。</p>
-              </div>
+              <h2 className="text-sm font-semibold">协作团队</h2>
               <div className="text-sm text-muted-foreground">显示 {teams.length} / {teamsQuery.data?.total ?? 0}</div>
             </div>
 

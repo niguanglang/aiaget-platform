@@ -104,14 +104,14 @@ export function Field({ children, label }: { children: ReactNode; label: string 
   );
 }
 
-export function DetailList({ children, subtitle, title }: { children: ReactNode; subtitle: string; title: string }) {
+export function DetailList({ children, subtitle, title }: { children: ReactNode; subtitle?: string; title: string }) {
   return (
     <section className="rounded-lg border bg-muted/20 p-4">
       <div className="mb-3 flex items-start gap-2">
         <SlidersHorizontal className="mt-0.5 size-4 text-muted-foreground" />
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>
+          {subtitle ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p> : null}
         </div>
       </div>
       <div className="grid gap-3">{children}</div>
@@ -182,9 +182,6 @@ export function InstallGuideDialog({
               <StatusBadge tone={plugin.install_status ? pluginStatusTone(plugin.install_status) : 'planned'}>{pluginStatusLabel(plugin.install_status)}</StatusBadge>
             </div>
             <h2 className="mt-3 text-lg font-semibold">安装插件向导</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              安装前确认插件来源、风险等级、权限声明和当前租户可见性。安装后会生成插件安装实例和版本快照。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />
@@ -210,7 +207,7 @@ export function InstallGuideDialog({
         <section className="mt-4 rounded-lg border bg-muted/20 p-4">
           <h3 className="text-sm font-semibold">权限预览</h3>
           {plugin.permission_codes.length === 0 ? (
-            <EmptyState className="py-6" description="当前插件没有额外权限声明。" title="暂无权限声明" />
+            <EmptyState className="py-6" title="暂无权限声明" />
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {plugin.permission_codes.map((permission) => (
@@ -302,9 +299,6 @@ export function CustomPluginDialog({
               </StatusBadge>
             </div>
             <h2 className="mt-3 text-lg font-semibold">自定义插件 Manifest 安装</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              粘贴插件声明清单，平台会解析基础信息、权限、菜单、Hook、工具能力和配置快照。这里只注册控制面声明，不执行第三方任意代码。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />
@@ -314,10 +308,9 @@ export function CustomPluginDialog({
         <div className="grid max-h-[calc(92vh-156px)] gap-4 overflow-y-auto p-5 lg:grid-cols-[1fr_0.92fr]">
           <section className="grid gap-3">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold">Manifest JSON</h3>
-                <p className="mt-1 text-xs text-muted-foreground">必填字段：code、name。建议声明 version、provider、permissions、menus、hooks、tools。</p>
-              </div>
+            <div>
+              <h3 className="text-sm font-semibold">Manifest JSON</h3>
+            </div>
               <Button
                 onClick={() => {
                   setValidatedInputKey(null);
@@ -326,7 +319,7 @@ export function CustomPluginDialog({
                 type="button"
                 variant="outline"
               >
-                使用示例
+                重置
               </Button>
             </div>
             <textarea
@@ -518,9 +511,6 @@ function BackendManifestValidationPanel({
               {manifestValidationLabel(result, pending, stale)}
             </StatusBadge>
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            调用控制面校验 Manifest、签名声明、安装包来源和 sha256。自定义插件必须通过此预检后才能安装。
-          </p>
         </div>
         <Button disabled={!validManifest || pending} onClick={() => void onValidate()} size="sm" type="button" variant="outline">
           {pending ? '预检中...' : '执行预检'}
@@ -556,11 +546,7 @@ function BackendManifestValidationPanel({
             {result.summary}
           </p>
         </div>
-      ) : (
-        <p className="mt-3 rounded-md border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-          本地 JSON 解析只用于快速预览，安装门禁以后端预检结果为准。
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -589,9 +575,11 @@ function PluginSandboxPolicySummary({
         <ManifestSummary label="timeout_ms" value={sandboxPolicy.timeout_ms ? String(sandboxPolicy.timeout_ms) : '未声明'} />
         <ManifestSummary label="memory_mb" value={sandboxPolicy.memory_mb ? String(sandboxPolicy.memory_mb) : '未声明'} />
       </div>
-      <p className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
-        {sandboxPolicy.reason ?? '当前插件未声明自定义代码入口，安装后只通过 Tool Gateway 生成工具边界执行。'}
-      </p>
+      {sandboxPolicy.reason ? (
+        <p className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
+          {sandboxPolicy.reason}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -604,7 +592,7 @@ function ToolGatewayBindingPreview({ bindings }: { bindings: PluginToolBindingPr
         <StatusBadge tone={bindings.length > 0 ? 'ready' : 'planned'}>{bindings.length} 个工具</StatusBadge>
       </div>
       {bindings.length === 0 ? (
-        <p className="text-xs leading-5 text-muted-foreground">后端预检没有生成插件工具绑定。安装后不会新增 Tool Gateway 工具能力。</p>
+        <p className="text-xs leading-5 text-muted-foreground">无工具绑定。</p>
       ) : (
         <div className="grid gap-2">
           {bindings.map((binding) => (
@@ -636,7 +624,7 @@ function PackageIntegritySummary({ integrity }: { integrity: PluginPackageIntegr
   if (!integrity) {
     return (
       <div className="rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
-        暂无 package_integrity 结果。Manifest 未通过静态校验时不会下载插件包。
+        暂无 package_integrity 结果。
       </div>
     );
   }

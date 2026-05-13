@@ -88,9 +88,7 @@ export function ChannelReleaseAutomationContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="自动推进"
-        description="自动推进策略、运行状态、最近决策和频控。"
         refreshing={overviewQuery.isFetching || automationQuery.isFetching || runMutation.isPending || policyMutation.isPending}
-        subtitle="/channels/release/automation"
         title="自动推进"
         onRefresh={() => {
           void overviewQuery.refetch();
@@ -103,12 +101,12 @@ export function ChannelReleaseAutomationContent() {
       {!selectedChannel ? (
         <ReleaseChannelEmpty />
       ) : !automation ? (
-        <Card className="p-5"><EmptyState description="自动推进数据暂不可用。" title="暂无自动推进" /></Card>
+        <Card className="p-5"><EmptyState title="暂无自动推进" /></Card>
       ) : (
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <PanelTitle helper="门禁结论与频控状态" title="自动推进状态" />
+              <PanelTitle title="自动推进状态" />
               <Button
                 disabled={!permissions.canDeploy || runMutation.isPending}
                 onClick={() => setReleaseAutomationActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name })}
@@ -133,7 +131,7 @@ export function ChannelReleaseAutomationContent() {
           </Card>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="推进开关、门禁依赖、频控和干跑模式" title="推进策略配置" />
+              <PanelTitle title="推进策略配置" />
               <Button
                 disabled={!permissions.canManage || policyMutation.isPending}
                 onClick={() => setReleaseAutomationPolicyActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name, input: automationPolicyForm })}
@@ -157,8 +155,8 @@ export function ChannelReleaseAutomationContent() {
             {!permissions.canManage ? <p className="text-xs text-muted-foreground">当前账号缺少 channel:publish:manage 权限，只能查看推进策略。</p> : null}
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="自动推进结果" title="最近决策" />
-            {!automation.last_run ? <EmptyState description="当前没有自动推进运行记录。" title="暂无最近决策" /> : (
+            <PanelTitle title="最近决策" />
+            {!automation.last_run ? <EmptyState title="暂无最近决策" /> : (
               <DetailGrid items={[
                 { label: '运行 ID', value: automation.last_run.run_id },
                 { label: '决策', value: automation.last_run.decision },

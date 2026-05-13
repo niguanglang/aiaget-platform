@@ -54,7 +54,7 @@ export function SolutionPackageEditContent({ packageId }: { packageId: string })
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <SolutionPackageBackground />
-        <Card className="p-6 text-sm text-muted-foreground">当前账号没有编辑落地方案的权限。</Card>
+        <Card className="p-6 text-sm text-muted-foreground">当前账号没有编辑方案包的权限。</Card>
       </main>
     );
   }
@@ -64,8 +64,7 @@ export function SolutionPackageEditContent({ packageId }: { packageId: string })
       <SolutionPackageBackground />
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">编辑落地方案</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整方案摘要、路线图、验收、ROI、风险和关联资源。</p>
+          <h1 className="text-2xl font-semibold">编辑方案包</h1>
         </div>
         <Button asChild variant="outline">
           <Link href={`/solution-packages/${packageId}`}>
@@ -75,9 +74,9 @@ export function SolutionPackageEditContent({ packageId }: { packageId: string })
         </Button>
       </div>
       {packageQuery.isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">正在加载落地方案...</Card>
+        <Card className="p-6 text-sm text-muted-foreground">正在加载方案包...</Card>
       ) : packageQuery.isError || !packageQuery.data ? (
-        <Card className="p-6 text-sm text-destructive">落地方案加载失败。</Card>
+        <Card className="p-6 text-sm text-destructive">方案包加载失败。</Card>
       ) : (
         <SolutionPackageFormPanel
           assessments={assessmentsQuery.data?.items ?? []}

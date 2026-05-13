@@ -101,9 +101,6 @@ export function DataScopeContent() {
             <StatusBadge tone="mock">RBAC + ABAC</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">数据权限中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            角色、资源类型、数据范围、命中对象和状态。
-          </p>
         </div>
       </motion.section>
 
@@ -149,10 +146,7 @@ export function DataScopeContent() {
         <Card className="min-w-0">
           <div className="border-b p-4">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-              <div>
-                <h2 className="text-sm font-semibold">数据权限列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">按资源、范围和状态筛选当前租户所有角色的数据范围。</p>
-              </div>
+              <h2 className="text-sm font-semibold">数据权限列表</h2>
               <StatusBadge tone="planned">{scopes.length} 项</StatusBadge>
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
@@ -199,7 +193,7 @@ export function DataScopeContent() {
           {scopesQuery.isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">正在加载数据权限列表...</div>
           ) : scopes.length === 0 ? (
-            <EmptyState className="py-12" description="当前筛选条件没有匹配的数据范围。" title="暂无数据权限" />
+	            <EmptyState className="py-12" title="暂无数据权限" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">

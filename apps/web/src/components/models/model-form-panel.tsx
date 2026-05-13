@@ -84,9 +84,6 @@ export function ModelFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑模型' : '新建模型'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              配置模型能力、词元价格和限流，用于绑定到智能体。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

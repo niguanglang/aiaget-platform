@@ -11,7 +11,6 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { SkillCenterBackground } from '@/components/skills/skill-center-background';
 import { SkillFormPanel, toCreateSkillInput, type SkillFormValues } from '@/components/skills/skill-form-panel';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { createSkill, listUsers, type ApiClientError } from '@/lib/api-client';
 
 export function SkillCreateContent() {
@@ -57,14 +56,7 @@ export function SkillCreateContent() {
               技能资产中心
             </Link>
           </Button>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">新增页</StatusBadge>
-            <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
-          </div>
           <h1 className="text-2xl font-semibold">新建 Skill</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            创建可复用业务 Skill，并填写触发场景、输入要求、执行步骤、输出结构和质量标准。
-          </p>
         </div>
       </section>
 

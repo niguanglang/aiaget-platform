@@ -70,8 +70,6 @@ interface ChannelOperationsPageProps<TItem> {
   actionNotice?: string | null;
   badge: string;
   buildMetrics: (input: { items: TItem[]; result: ChannelOperationsListResult<TItem> | undefined; total: number }) => ChannelOperationMetric[];
-  description: string;
-  emptyDescription: string;
   emptyTitle: string;
   errorMessage: string;
   getItemId: (item: TItem) => string;
@@ -82,7 +80,6 @@ interface ChannelOperationsPageProps<TItem> {
   queryKey: string;
   renderItem: (input: { item: TItem; permissions: ChannelPermissions; selected: boolean; onToggle: () => void }) => ReactNode;
   statusOptions?: ChannelOperationStatusOption[];
-  subtitle: string;
   title: string;
 }
 
@@ -105,8 +102,6 @@ export function ChannelOperationsListPage<TItem>({
   actionNotice,
   badge,
   buildMetrics,
-  description,
-  emptyDescription,
   emptyTitle,
   errorMessage,
   getItemId,
@@ -117,7 +112,6 @@ export function ChannelOperationsListPage<TItem>({
   queryKey,
   renderItem,
   statusOptions = [],
-  subtitle,
   title,
 }: ChannelOperationsPageProps<TItem>) {
   const permissions = useChannelOperationPermissions();
@@ -172,9 +166,7 @@ export function ChannelOperationsListPage<TItem>({
       <ChannelFocusedHeader
         activeRoute={activeRoute}
         badge={badge}
-        description={description}
         permissions={permissions}
-        subtitle={subtitle}
         title={title}
         onRefresh={() => void listResultQuery.refetch()}
         refreshing={listResultQuery.isFetching}
@@ -192,10 +184,7 @@ export function ChannelOperationsListPage<TItem>({
           <ChannelMetricGrid loading={listResultQuery.isLoading} metrics={metrics} />
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h2 className="text-sm font-semibold">{title}列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">核心识别字段、状态、关键指标和单条记录操作。</p>
-              </div>
+              <h2 className="text-sm font-semibold">{title}列表</h2>
               <div className="flex flex-wrap gap-2">
                 <div className="relative min-w-56 flex-1 sm:flex-none">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -250,7 +239,7 @@ export function ChannelOperationsListPage<TItem>({
             {listResultQuery.isLoading ? (
               <ChannelRowSkeleton />
             ) : items.length === 0 ? (
-              <EmptyState description={emptyDescription} title={emptyTitle} />
+              <EmptyState title={emptyTitle} />
             ) : (
               <div className="grid gap-3">
                 {items.map((item) => {
@@ -281,16 +270,13 @@ export function ChannelFocusedHeader({
   badge,
   permissions,
   refreshing,
-  subtitle,
   title,
   onRefresh,
 }: {
   activeRoute: ChannelFocusedRoute;
   badge: string;
-  description: string;
   permissions: ChannelPermissions;
   refreshing: boolean;
-  subtitle: string;
   title: string;
   onRefresh: () => void;
 }) {
@@ -308,8 +294,7 @@ export function ChannelFocusedHeader({
               {permissions.canDeploy ? '可执行' : '不可执行'}
             </StatusBadge>
           </div>
-          <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
-          <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
+          <h1 className="text-2xl font-semibold">{title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={refreshing} onClick={onRefresh} type="button" variant="outline">
@@ -565,10 +550,7 @@ export function useChannelOperationPermissions(): ChannelPermissions {
 function PermissionDeniedCard() {
   return (
     <Card className="p-5">
-      <EmptyState
-        description="当前账号缺少 channel:publish:view 权限，无法查看渠道运营数据。"
-        title="无权查看渠道运营"
-      />
+      <EmptyState title="无权访问渠道运营" />
     </Card>
   );
 }

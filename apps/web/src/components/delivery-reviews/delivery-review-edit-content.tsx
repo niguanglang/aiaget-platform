@@ -63,7 +63,6 @@ export function DeliveryReviewEditContent({ reviewId }: { reviewId: string }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑验收复盘</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整验收结论、问题复盘、改进行动、扩展计划和可复用资产。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/delivery-reviews/${reviewId}`}>

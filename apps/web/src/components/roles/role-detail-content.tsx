@@ -116,9 +116,6 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
             {role?.is_system ? <StatusBadge tone="mock">系统角色</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{role?.name ?? '角色详情'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            基础信息、用户引用、菜单引用与权限编码。
-          </p>
         </div>
 
         {role ? (

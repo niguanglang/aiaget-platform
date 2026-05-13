@@ -93,7 +93,6 @@ export function AuditContent() {
             <StatusBadge tone="planned">计费</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审计中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">登录、操作、审批和计费事件。</p>
         </div>
         <Button
           onClick={() => {
@@ -150,10 +149,7 @@ export function AuditContent() {
           <div className="border-b p-4">
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">统一审计事件流</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">来源、状态、用户、模块和链路 ID。</p>
-                </div>
+                <h2 className="text-sm font-semibold">统一审计事件流</h2>
                 <div className="text-sm text-muted-foreground">
                   显示 {events.length} / {eventsQuery.data?.total ?? 0}
                 </div>
@@ -352,7 +348,6 @@ function ApprovalAuditBridgeCard({
             <StatusBadge tone="planned">审批审计联动</StatusBadge>
           </div>
           <h2 className="mt-3 text-sm font-semibold">审批审计风险入口</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">审批事件、失败数和 Trace 覆盖。</p>
         </div>
 
         {loading ? (

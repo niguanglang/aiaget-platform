@@ -42,7 +42,7 @@ export function AgentTeamRunTraceGraph({
           <GitBranch className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">运行内 Trace 图谱</h2>
         </div>
-        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="当前运行还没有可用于绘制关系图的 trace_id、span_id 或 parent_span_id。" title="暂无 Trace 关系" />
+        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" title="暂无 Trace 关系" />
       </section>
     );
   }
@@ -65,10 +65,10 @@ export function AgentTeamRunTraceGraph({
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <MetricCard helper="运行、步骤、子事件" label="节点" value={formatInteger(graph.nodes.length)} />
-        <MetricCard helper="parent_span_id 命中" label="已连接" value={formatInteger(graph.linkedCount)} />
-        <MetricCard helper="没有父 Span" label="根节点" value={formatInteger(graph.rootCount)} />
-        <MetricCard helper="父 Span 未在运行内出现" label="孤立节点" value={formatInteger(graph.orphanCount)} />
+        <MetricCard helper={''} label="节点" value={formatInteger(graph.nodes.length)} />
+        <MetricCard helper={''} label="已连接" value={formatInteger(graph.linkedCount)} />
+        <MetricCard helper={''} label="根节点" value={formatInteger(graph.rootCount)} />
+        <MetricCard helper={''} label="孤立节点" value={formatInteger(graph.orphanCount)} />
       </div>
 
       <div className="mt-4 grid gap-3">

@@ -121,7 +121,6 @@ export function AgentTeamFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑协作团队' : '新建协作团队'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">配置团队基础资料、协作模式、接力策略和运行约束。</p>
           </div>
           <Button onClick={onCancel} size="icon" type="button" variant="ghost">
             <X className="size-4" />
@@ -247,4 +246,3 @@ function optionalNumber(value: unknown) {
   if (value === '' || value === null || value === undefined) return undefined;
   return Number(value);
 }
-

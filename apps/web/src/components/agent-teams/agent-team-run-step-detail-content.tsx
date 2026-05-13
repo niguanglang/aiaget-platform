@@ -75,7 +75,7 @@ export function AgentTeamRunStepDetailContent({
     return (
       <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs/${runId}`}><ArrowLeft className="size-4" />运行详情</Link></Button>
-        <EmptyState description="当前运行下没有找到这条步骤记录，可能已被重放或归档数据尚未同步。" title="步骤记录不存在" />
+        <EmptyState title="步骤记录不存在" />
       </main>
     );
   }
@@ -91,23 +91,20 @@ export function AgentTeamRunStepDetailContent({
             <StatusBadge tone={teamRunStatusTone(run.status)}>{teamRunStatusLabel(run.status)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{step.title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            执行摘要、Trace 关联、成员内部事件、知识引用、工具调用和模型调用。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {step.trace_id ? (
-            <Button asChild variant="outline"><Link href={`/monitor/traces/${step.trace_id}`}>查看 Trace</Link></Button>
+            <Button asChild variant="outline"><Link href={`/monitor/traces/${step.trace_id}`}>Trace</Link></Button>
           ) : null}
-          <Button asChild variant="outline"><Link href={`/agent-teams/${teamId}/members`}><GitBranch className="size-4" />成员管理</Link></Button>
+          <Button asChild variant="outline"><Link href={`/agent-teams/${teamId}/members`}><GitBranch className="size-4" />成员</Link></Button>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard helper={step.agent_name ?? '未绑定 Agent'} label="执行成员" value={step.agent_code ?? '-'} />
-        <MetricCard helper="模型消耗" label="Token" value={formatInteger(step.total_tokens)} />
-        <MetricCard helper="步骤耗时" label="延迟" value={formatLatency(step.duration_ms)} />
-        <MetricCard helper="步骤成本" label="成本" value={formatMoney(step.cost_total)} />
+        <MetricCard helper={''} label="Token" value={formatInteger(step.total_tokens)} />
+        <MetricCard helper={''} label="延迟" value={formatLatency(step.duration_ms)} />
+        <MetricCard helper={''} label="成本" value={formatMoney(step.cost_total)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -136,7 +133,7 @@ export function AgentTeamRunStepDetailContent({
               <h2 className="text-sm font-semibold">成员内部事件</h2>
             </div>
             {events.length === 0 ? (
-              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="暂无 RAG、工具和模型子事件。" title="暂无子事件" />
+              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" title="暂无子事件" />
             ) : (
               <div className="mt-4 grid gap-3">
                 {events.map((event) => (
@@ -161,7 +158,7 @@ export function AgentTeamRunStepDetailContent({
             {selectedEvent ? (
               <SelectedStepEvent event={selectedEvent} />
             ) : (
-              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="请选择成员内部事件、知识引用、工具调用或模型调用。" title="请选择子事件" />
+              <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" title="请选择子事件" />
             )}
           </section>
 

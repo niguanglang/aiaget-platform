@@ -51,12 +51,11 @@ export function StorageSettingsContent() {
       <StorageWorkspaceHeader
         actions={
           <RefreshButton loading={settingsQuery.isFetching} onClick={() => void settingsQuery.refetch()} />
-        }
-        backHref="/storage"
-        badge="存储设置"
-        description="MinIO 连接、桶状态、访问密钥与桶校验。"
-        title="存储设置"
-      />
+	        }
+	        backHref="/storage"
+	        badge="存储设置"
+	        title="存储设置"
+	      />
 
       {ensureBucketMutation.isSuccess ? (
         <PageMessage
@@ -84,10 +83,10 @@ export function StorageSettingsContent() {
           )}
         </div>
 
-        {settingsQuery.isLoading ? (
-          <div className="text-sm text-muted-foreground">正在检测 MinIO 设置...</div>
-        ) : !settings ? (
-          <EmptyState description="无法读取存储设置，请确认后端存储配置。" title="设置不可用" />
+	        {settingsQuery.isLoading ? (
+	          <div className="text-sm text-muted-foreground">正在检测 MinIO 设置...</div>
+	        ) : !settings ? (
+	          <EmptyState title="设置不可用" />
         ) : (
           <div className="grid gap-5">
             <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

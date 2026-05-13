@@ -36,10 +36,8 @@ export function ChannelDeliveryDetailContent({ deliveryId }: { deliveryId: strin
       <ChannelFocusedHeader
         activeRoute="deliveries"
         badge="投递详情"
-        description="查看单条渠道投递的请求信息、响应信息、错误原因和链路信息。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
-        subtitle="/channels/deliveries/:deliveryId"
         title="投递详情"
         onRefresh={() => void detailQuery.refetch()}
       />
@@ -58,7 +56,7 @@ export function ChannelDeliveryDetailContent({ deliveryId }: { deliveryId: strin
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看投递详情。" title="无权查看投递详情" />
+          <EmptyState title="无权查看投递详情" />
         </Card>
       ) : detailQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -67,7 +65,7 @@ export function ChannelDeliveryDetailContent({ deliveryId }: { deliveryId: strin
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="投递记录不存在、已清理或当前账号没有权限查看。" title="投递详情不可用" />
+          <EmptyState title="投递详情不可用" />
         </Card>
       ) : (
         <>

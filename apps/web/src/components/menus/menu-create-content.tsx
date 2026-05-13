@@ -76,9 +76,6 @@ export function MenuCreateContent() {
             {parent ? <StatusBadge tone="planned">父级：{parent.name}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">新建菜单节点</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            创建控制台目录、页面或按钮节点。角色菜单授权请继续在角色权限中心维护。
-          </p>
         </div>
       </section>
 

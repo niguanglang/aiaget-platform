@@ -113,7 +113,6 @@ export function ResourceAclCreateContent() {
             </Link>
           </Button>
         }
-        description="选择具体资源对象和授权主体后创建对象级访问规则。资源、主体和权限编码会共同形成唯一授权关系。"
         eyebrow="新增页"
         title="新建资源授权"
       />
@@ -151,11 +150,10 @@ export function ResourceAclCreateContent() {
             resources={resources}
             subjects={subjects}
           />
-          <Card className="grid gap-4 p-4">
-            <div>
-              <h2 className="text-sm font-semibold">授权规则</h2>
-              <p className="mt-1 text-sm text-muted-foreground">配置效果、启停状态和条件 JSON。拒绝规则优先生效。</p>
-            </div>
+	          <Card className="grid gap-4 p-4">
+	            <div>
+	              <h2 className="text-sm font-semibold">授权规则</h2>
+	            </div>
             <ResourceAclRuleFields draft={draft} onDraftPatch={patchDraft} />
             <Button disabled={createMutation.isPending} onClick={submit} type="button">
               <Save className="size-4" />

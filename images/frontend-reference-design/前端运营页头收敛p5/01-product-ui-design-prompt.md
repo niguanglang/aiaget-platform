@@ -1,0 +1,3 @@
+# Product UI Design Image Prompt
+
+Design a modern Chinese enterprise SaaS admin list page for an AI Agent platform. The page is an operational management screen, not a landing page. Use a left navigation shell, a compact top page header with only the page title and a primary action button, then KPI metric cards, filters, a dense table, pagination and row actions. Avoid hero copy, marketing badges, explanatory paragraphs, decorative gradients and oversized cards. Visual style: clean, restrained, high-end product UI, Tailwind/shadcn-like, white background, subtle borders, 8px radius, clear information hierarchy, Chinese labels.

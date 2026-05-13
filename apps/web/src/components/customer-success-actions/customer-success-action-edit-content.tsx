@@ -69,7 +69,6 @@ export function CustomerSuccessActionEditContent({ actionId }: { actionId: strin
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑客户成功行动</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整行动类型、执行记录、阻塞风险、完成证据、关联计划和下一步动作。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/customer-success-actions/${actionId}`}>

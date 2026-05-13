@@ -344,13 +344,10 @@ function FollowUpActionCard({
             <ListChecks className="size-4 text-primary" />
             跟进行动
           </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            将当前续约机会生成客户成功行动，后续在成功行动中心跟踪负责人、截止时间、执行记录和完成证据。
-          </p>
         </div>
         {opportunityAction ? (
           <Button asChild variant="outline">
-            <Link href={`/customer-success-actions/${opportunityAction.id}`}>查看行动</Link>
+            <Link href={`/customer-success-actions/${opportunityAction.id}`}>行动详情</Link>
           </Button>
         ) : null}
       </div>
@@ -457,9 +454,6 @@ function CloseWonAdjustmentCard({
             <ReceiptText className="size-4 text-primary" />
             成交入账
           </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            将当前续约机会标记为赢单，并生成来源为续约机会的计费调账记录，后续在成本与额度中心继续核算。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {isClosed ? (
@@ -468,7 +462,7 @@ function CloseWonAdjustmentCard({
             </Button>
           ) : null}
           <Button asChild variant="outline">
-            <Link href="/billing/adjustments">查看调账记录</Link>
+            <Link href="/billing/adjustments">调账记录</Link>
           </Button>
         </div>
       </div>
@@ -486,7 +480,7 @@ function CloseWonAdjustmentCard({
             <div>
               <div className="font-medium">机会已赢单</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {hasAdjustments ? '已关联成交入账调账记录，可从这里进入账单和审计追踪。' : '暂未查询到关联调账记录，请进入调账记录按来源筛选。'}
+                {hasAdjustments ? '已关联成交入账调账记录。' : '暂无关联调账记录。'}
               </div>
             </div>
             <div className="flex flex-wrap gap-1">

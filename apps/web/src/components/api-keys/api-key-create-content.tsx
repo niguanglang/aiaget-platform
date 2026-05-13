@@ -136,7 +136,7 @@ export function ApiKeyCreateContent() {
             <StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '允许创建' : '只读'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">创建 API Key</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">配置调用范围、Agent 白名单、限流、额度、IP 白名单和 Webhook。明文密钥仅展示一次。</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">明文密钥仅展示一次。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button" variant="outline"><a href="/api-keys">返回列表</a></Button>
@@ -164,7 +164,6 @@ export function ApiKeyCreateContent() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold"><KeyRound className="size-4 text-primary" />创建受控密钥</div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">没有管理权限时表单保持只读。</p>
             </div>
             <StatusBadge tone={canManageApiKeys ? 'healthy' : 'planned'}>{canManageApiKeys ? '允许创建' : '只读'}</StatusBadge>
           </div>

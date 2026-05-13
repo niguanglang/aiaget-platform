@@ -30,21 +30,18 @@ export function KnowledgeActivityContent() {
             <StatusBadge tone="healthy">最近召回</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">知识库处理活动</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            最近文档、后台任务和召回日志。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={overviewQuery.isFetching} onClick={() => void overviewQuery.refetch()} type="button" variant="outline">刷新活动</Button>
           <Button asChild type="button" variant="outline"><Link href="/knowledge">返回知识库</Link></Button>
         </div>
       </motion.section>
-      {overviewQuery.isError ? <Card className="p-4 text-sm text-destructive">知识库活动加载失败。</Card> : null}
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard helper="最近处理文档" label="最近文档" value={`${recentDocumentCount}`} />
-        <MetricCard helper="解析 / 切片 / 索引任务" label="最近任务" value={`${recentTaskCount}`} />
-        <MetricCard helper="检索测试与召回日志" label="最近召回" value={`${recentRecallCount}`} />
-      </section>
+	      {overviewQuery.isError ? <Card className="p-4 text-sm text-destructive">知识库活动加载失败。</Card> : null}
+	      <section className="grid gap-4 md:grid-cols-3">
+	        <MetricCard helper={'文档'} label="最近文档" value={`${recentDocumentCount}`} />
+	        <MetricCard helper={'任务'} label="最近任务" value={`${recentTaskCount}`} />
+	        <MetricCard helper={'召回'} label="最近召回" value={`${recentRecallCount}`} />
+	      </section>
       <section className="grid gap-4 xl:grid-cols-3">
         <KnowledgeActivityTimeline loading={overviewQuery.isLoading} overview={overviewQuery.data ?? null} title="最近文档" type="documents" />
         <KnowledgeActivityTimeline loading={overviewQuery.isLoading} overview={overviewQuery.data ?? null} title="最近任务" type="tasks" />

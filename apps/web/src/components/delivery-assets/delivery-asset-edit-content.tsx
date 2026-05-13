@@ -71,7 +71,6 @@ export function DeliveryAssetEditContent({ assetId }: { assetId: string }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑成果资产</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整资产内容、复用评分、来源上下文、风险说明和关联资源。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/delivery-assets/${assetId}`}>

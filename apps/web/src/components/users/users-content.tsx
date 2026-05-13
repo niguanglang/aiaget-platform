@@ -117,7 +117,6 @@ export function UsersContent() {
             </StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">用户管理中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">租户用户、部门归属和角色绑定。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageUsers ? (
@@ -156,10 +155,7 @@ export function UsersContent() {
 
       <Card className="grid gap-4 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">用户清单</h2>
-            <p className="mt-1 text-sm text-muted-foreground">名称、邮箱、部门、状态和角色。</p>
-          </div>
+          <h2 className="text-sm font-semibold">用户清单</h2>
           <div className="grid gap-2 md:grid-cols-[1fr_140px_180px_auto]">
             <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <Search className="size-4 text-muted-foreground" />

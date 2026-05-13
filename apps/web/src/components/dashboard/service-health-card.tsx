@@ -12,13 +12,12 @@ const healthStatusLabels = {
 } as const;
 
 export function ServiceHealthCard({
-  description,
   health,
   isLoading,
   onRefresh,
   title,
 }: {
-  description: string;
+  description?: string;
   health: HealthResponse | null;
   isLoading: boolean;
   onRefresh: () => void;
@@ -39,7 +38,6 @@ export function ServiceHealthCard({
             )}
             <h2 className="text-sm font-semibold">{title}</h2>
           </div>
-          <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
         </div>
         <StatusBadge tone={status}>{healthStatusLabels[status]}</StatusBadge>
       </div>

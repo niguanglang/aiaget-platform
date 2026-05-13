@@ -23,13 +23,12 @@ export function SecurityWorkspaceHeader({
   badge,
   badgeTone = 'ready',
   title,
-}: {
-  actions?: ReactNode;
-  badge: string;
-  badgeTone?: SecurityStatusTone;
-  description: string;
-  title: string;
-}) {
+	}: {
+	  actions?: ReactNode;
+	  badge: string;
+	  badgeTone?: SecurityStatusTone;
+	  title: string;
+	}) {
   return (
     <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div>
@@ -39,10 +38,9 @@ export function SecurityWorkspaceHeader({
             安全总览
           </Link>
         </Button>
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone={badgeTone}>{badge}</StatusBadge>
-          <StatusBadge tone="healthy">中文职责页</StatusBadge>
-        </div>
+	        <div className="mb-2 flex flex-wrap items-center gap-2">
+	          <StatusBadge tone={badgeTone}>{badge}</StatusBadge>
+	        </div>
         <h1 className="text-2xl font-semibold">{title}</h1>
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

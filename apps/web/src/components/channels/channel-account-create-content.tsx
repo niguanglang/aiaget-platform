@@ -48,10 +48,8 @@ export function ChannelAccountCreateContent() {
       <ChannelFocusedHeader
         activeRoute="accounts"
         badge="新建账号凭据"
-        description="渠道提供方、外部账号、密钥和扩展配置。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || createMutation.isPending}
-        subtitle="/channels/accounts/create"
         title="新建账号凭据"
         onRefresh={() => void providersQuery.refetch()}
       />
@@ -66,7 +64,7 @@ export function ChannelAccountCreateContent() {
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法新建账号凭据。" title="无权新建账号凭据" />
+          <EmptyState title="无权新建账号凭据" />
         </Card>
       ) : providersQuery.isLoading ? (
         <Card className="grid gap-3 p-5">

@@ -87,9 +87,6 @@ export function UserEditContent({ userId }: { userId: string }) {
           </StatusBadge>
         </div>
         <h1 className="text-2xl font-semibold">编辑用户</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          修改用户名称、状态、部门归属、角色绑定和可选密码。
-        </p>
       </section>
 
       {userQuery.isError || rolesQuery.isError || departmentsQuery.isError ? (

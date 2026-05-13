@@ -96,10 +96,10 @@ export function PluginContent() {
 
   const activeRows = tab === 'market' ? filteredMarket : filteredInstallations;
   const metrics = [
-    { label: '插件总数', value: `${overviewQuery.data?.total ?? market.length}`, helper: '市场与租户插件' },
-    { label: '已启用', value: `${overviewQuery.data?.active_count ?? 0}`, helper: '运行态插件' },
-    { label: '待审核', value: `${overviewQuery.data?.pending_review_count ?? 0}`, helper: '安全审核入口' },
-    { label: '绑定入口', value: `${overviewQuery.data?.menu_count ?? 0}`, helper: '菜单与 Hook 摘要' },
+    { label: '插件总数', value: `${overviewQuery.data?.total ?? market.length}`, helper: '' },
+    { label: '已启用', value: `${overviewQuery.data?.active_count ?? 0}`, helper: '' },
+    { label: '待审核', value: `${overviewQuery.data?.pending_review_count ?? 0}`, helper: '' },
+    { label: '绑定入口', value: `${overviewQuery.data?.menu_count ?? 0}`, helper: '' },
   ];
 
   const installMutation = useMutation({
@@ -149,7 +149,7 @@ export function PluginContent() {
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <PluginCenterBackground />
-        <EmptyState description="当前账号没有插件中心查看权限，请联系管理员授权 plugin:center:view。" title="无权限访问插件中心" />
+        <EmptyState title="无权限访问插件中心" />
       </main>
     );
   }
@@ -170,9 +170,6 @@ export function PluginContent() {
             <StatusBadge tone="planned">列表与入口</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">插件生态中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查询插件市场和租户安装清单，查看概览，并进入插件详情、安装配置、安全审核和绑定配置页面。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -187,7 +184,7 @@ export function PluginContent() {
           </Button>
           <Button onClick={() => setTab('market')} type="button">
             <PackagePlus className="size-4" />
-            查看市场
+            市场
           </Button>
           <Button disabled={!canInstall} onClick={() => setCustomInstallOpen(true)} type="button" variant="outline">
             <Code2 className="size-4" />
@@ -208,10 +205,7 @@ export function PluginContent() {
       <Card className="min-w-0 overflow-hidden">
         <div className="border-b p-4">
           <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-            <div>
-              <h2 className="text-sm font-semibold">插件列表</h2>
-              <p className="mt-1 text-sm text-muted-foreground">市场用于安装入口，已安装清单用于进入详情与配置页面。</p>
-            </div>
+            <h2 className="text-sm font-semibold">插件列表</h2>
             <div className="inline-flex rounded-md border bg-background p-1">
               <button
                 className={cn('rounded px-3 py-1.5 text-xs transition-colors', tab === 'market' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
@@ -279,7 +273,6 @@ export function PluginContent() {
                 <tr>
                   <td colSpan={6}>
                     <EmptyState
-                      description={tab === 'market' ? '当前插件市场暂无可安装条目，请稍后刷新或添加自定义插件。' : '当前租户还没有安装插件。'}
                       title={marketQuery.isLoading || installationsQuery.isLoading ? '正在加载插件' : '暂无插件'}
                     />
                   </td>

@@ -33,9 +33,6 @@ export function ModelConfigCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold">模型配置</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            管理供应商下可绑定到 Agent 的模型能力、价格、上下文和限流。
-          </p>
         </div>
         <Button disabled={!canWrite} onClick={onNew} size="sm" type="button">
           <Plus className="size-4" />
@@ -52,7 +49,6 @@ export function ModelConfigCard({
             </Button>
           }
           className="rounded-lg border border-dashed"
-          description="先创建模型配置，再把它绑定到智能体或用于供应商兼容性测试。"
           title="暂无模型配置"
         />
       ) : (

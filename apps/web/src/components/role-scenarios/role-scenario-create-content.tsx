@@ -68,7 +68,6 @@ export function RoleScenarioCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建岗位场景</h1>
-          <p className="mt-2 text-sm text-muted-foreground">创建可复用的 AI 落地场景包，并绑定平台资产。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/role-scenarios">

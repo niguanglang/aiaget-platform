@@ -192,9 +192,6 @@ export function NotificationPolicyContent() {
             <StatusBadge tone={canManageSettings ? 'healthy' : 'planned'}>{canManageSettings ? '可编辑' : '只读'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">通知策略配置</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            配置告警自动首发、自动重试和 SLA 通知策略，并查看最近策略变更审计。
-          </p>
         </div>
         <Button asChild variant="outline">
           <Link href="/settings/notification-policy/snapshots">

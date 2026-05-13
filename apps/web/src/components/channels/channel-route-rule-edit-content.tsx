@@ -82,10 +82,8 @@ export function ChannelRouteRuleEditContent({ routeRuleId }: { routeRuleId: stri
       <ChannelFocusedHeader
         activeRoute="route-rules"
         badge="编辑路由规则"
-        description="匹配条件、目标配置、优先级、兜底策略和启停状态。"
         permissions={permissions}
         refreshing={routeRuleQuery.isFetching || providersQuery.isFetching || accountsQuery.isFetching || agentsQuery.isFetching || updateMutation.isPending}
-        subtitle="/channels/route-rules/:routeRuleId/edit"
         title="编辑路由规则"
         onRefresh={() => {
           if (!permissions.canManage) return;
@@ -112,7 +110,7 @@ export function ChannelRouteRuleEditContent({ routeRuleId }: { routeRuleId: stri
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法编辑路由规则。" title="无权编辑路由规则" />
+          <EmptyState title="无权编辑路由规则" />
         </Card>
       ) : loading ? (
         <Card className="grid gap-3 p-5">
@@ -121,7 +119,7 @@ export function ChannelRouteRuleEditContent({ routeRuleId }: { routeRuleId: stri
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="路由规则不存在、已删除或当前账号没有权限查看。" title="无法加载路由规则" />
+          <EmptyState title="无法加载路由规则" />
         </Card>
       ) : (
         <ChannelRouteRuleForm

@@ -92,9 +92,6 @@ export function DepartmentEditContent({ departmentId }: { departmentId: string }
             {department?.status ? <StatusBadge tone={department.status === 'ACTIVE' ? 'healthy' : 'planned'}>{department.status}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">编辑部门</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            修改部门上级、负责人、名称、描述、排序和启用状态。编码创建后不可修改。
-          </p>
         </div>
       </section>
 
@@ -122,4 +119,3 @@ export function DepartmentEditContent({ departmentId }: { departmentId: string }
     </main>
   );
 }
-

@@ -39,7 +39,6 @@ export function PlatformUsageTasksContent() {
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="重试任务"
-        description="查看平台用量告警通知自动重试任务的调度状态、策略来源和最近执行结果。"
         refreshing={taskQuery.isFetching}
         title="告警通知自动重试任务"
         onRefresh={() => void taskQuery.refetch()}

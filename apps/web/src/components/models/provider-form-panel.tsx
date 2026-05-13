@@ -78,9 +78,6 @@ export function ProviderFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑供应商' : '新建供应商'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              OpenAI 兼容是当前首个可执行的供应商适配器。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

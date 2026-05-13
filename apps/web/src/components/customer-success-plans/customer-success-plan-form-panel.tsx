@@ -58,20 +58,20 @@ function defaults(plan?: CustomerSuccessPlanDetail | null): CustomerSuccessPlanF
   return {
     name: plan?.name ?? '',
     code: plan?.code ?? '',
-    customer_name: plan?.customer_name ?? '华中设计院',
+    customer_name: plan?.customer_name ?? '',
     plan_stage: plan?.plan_stage ?? 'EXPANSION_DESIGN',
     status: plan?.status ?? 'ACTIVE',
     priority: plan?.priority ?? 'HIGH',
     health_level: plan?.health_level ?? 'HIGH',
-    success_score: plan?.success_score ?? 88,
-    expansion_scope: plan?.expansion_scope ?? '扩展到投标资料问答、项目复盘助手和客户成功运营看板。',
-    success_objectives: plan?.success_objectives ?? '30 天完成第二批岗位场景试点，复用成果资产并形成续约材料。',
-    stakeholder_plan: plan?.stakeholder_plan ?? '客户 CIO 负责业务牵引，设计院运营经理负责资料准备，平台客户成功经理每周复盘。',
-    asset_reuse_plan: plan?.asset_reuse_plan ?? '复用售前方案验收资产包，复制验收清单、风险提示和引用来源检查表。',
-    renewal_plan: plan?.renewal_plan ?? '在试点验收后 45 天形成续约方案和新增部门推广清单。',
-    risk_summary: plan?.risk_summary ?? '资料权限边界、跨部门目标不一致和知识库密级需要提前确认。',
-    next_action: plan?.next_action ?? '组织扩展方案评审会，确认第二批岗位场景和资料范围。',
-    due_at: plan?.due_at ? plan.due_at.slice(0, 16) : '2026-06-15T10:00',
+    success_score: plan?.success_score ?? undefined,
+    expansion_scope: plan?.expansion_scope ?? '',
+    success_objectives: plan?.success_objectives ?? '',
+    stakeholder_plan: plan?.stakeholder_plan ?? '',
+    asset_reuse_plan: plan?.asset_reuse_plan ?? '',
+    renewal_plan: plan?.renewal_plan ?? '',
+    risk_summary: plan?.risk_summary ?? '',
+    next_action: plan?.next_action ?? '',
+    due_at: plan?.due_at ? plan.due_at.slice(0, 16) : '',
     tags: plan?.tags.join(', ') ?? '',
     notes: plan?.notes ?? '',
     owner_id: plan?.owner?.id ?? '',
@@ -152,9 +152,6 @@ export function CustomerSuccessPlanFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑客户成功计划' : '新建客户成功计划'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护扩展范围、成功目标、资产复用、续约计划、风险摘要和下一步动作。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

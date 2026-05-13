@@ -54,12 +54,12 @@ export const dataScopeTypeLabels: Record<DataScopeType, string> = {
 };
 
 export const dataScopeTypeDescriptions: Record<DataScopeType, string> = {
-  ALL: '平台级全部数据，通常只给超级管理员。',
-  TENANT: '当前租户内全部数据，适合租户管理员。',
-  DEPT: '当前用户所属部门的数据。',
-  DEPT_AND_CHILD: '当前用户所属部门及所有下级部门的数据。',
-  SELF: '仅本人创建、负责或参与的数据。',
-  CUSTOM: '按指定部门、用户或资源清单授权。',
+  ALL: '平台级全部数据。',
+  TENANT: '本租户全部数据。',
+  DEPT: '用户所属部门数据。',
+  DEPT_AND_CHILD: '用户所属部门及下级部门数据。',
+  SELF: '本人创建、负责或参与的数据。',
+  CUSTOM: '指定部门、用户或资源清单。',
 };
 
 export function dataScopeTypeTone(scopeType: DataScopeType) {

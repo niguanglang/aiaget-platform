@@ -219,7 +219,7 @@ function SidebarNavItem({
             href={item.href}
             rel={item.external ? 'noreferrer' : undefined}
             target={item.external ? '_blank' : undefined}
-            title={item.description}
+            title={item.title}
           >
             {content}
           </Link>
@@ -232,7 +232,7 @@ function SidebarNavItem({
           href={item.href}
           rel={item.external ? 'noreferrer' : undefined}
           target={item.external ? '_blank' : undefined}
-          title={isCollapsed ? item.title : item.description}
+          title={item.title}
         >
           {content}
         </Link>
@@ -246,7 +246,7 @@ function SidebarNavItem({
             isActive && 'text-blue-700',
           )}
           onClick={() => hasChildren && onToggleExpanded(item.id)}
-          title={item.description}
+          title={item.title}
           type="button"
         >
           {content}
@@ -333,12 +333,12 @@ function CollapsedFlyoutMenuItem({ item, onClose, pathname }: { item: Navigation
           rel={item.external ? 'noreferrer' : undefined}
           role="menuitem"
           target={item.external ? '_blank' : undefined}
-          title={item.description}
+          title={item.title}
         >
           {content}
         </Link>
       ) : (
-        <button aria-haspopup={hasChildren ? 'menu' : undefined} className={itemClassName} role="menuitem" title={item.description} type="button">
+        <button aria-haspopup={hasChildren ? 'menu' : undefined} className={itemClassName} role="menuitem" title={item.title} type="button">
           {content}
         </button>
       )}

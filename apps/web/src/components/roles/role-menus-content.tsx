@@ -135,9 +135,6 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
             {role ? <StatusBadge tone={roleStatusTone(role.status)}>{roleStatusLabel(role.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">菜单授权配置</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            角色导航入口与菜单可见范围。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={!canWrite || menuTreeQuery.isLoading || flatTree.length === 0} onClick={() => setDraftMenuIds(flatTree.map((menu) => menu.id))} variant="outline">

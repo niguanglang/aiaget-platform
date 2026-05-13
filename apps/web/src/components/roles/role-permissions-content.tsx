@@ -114,9 +114,6 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
             {role ? <StatusBadge tone={roleStatusTone(role.status)}>{roleStatusLabel(role.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">权限编码配置</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            角色接口权限编码与按钮可见范围。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={!canWrite || catalogQuery.isLoading || allPermissionIds.length === 0} onClick={() => setDraftPermissionIds(allPermissionIds)} variant="outline">

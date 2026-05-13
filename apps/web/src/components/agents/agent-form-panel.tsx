@@ -91,9 +91,6 @@ export function AgentFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑智能体' : '新建智能体'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              基础资料和运行默认值会在发布前生成版本快照。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

@@ -78,9 +78,6 @@ export function ApprovalAuditArchiveCreateContent() {
             <StatusBadge tone="planned">导出留痕</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">生成审批审计归档</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            使用同一组筛选条件导出 CSV 或生成对象存储归档，归档文件可在归档中心下载和申请删除。
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -102,7 +99,6 @@ export function ApprovalAuditArchiveCreateContent() {
       <Card className="grid gap-5 p-5">
         <div>
           <h2 className="text-sm font-semibold">归档筛选条件</h2>
-          <p className="mt-1 text-sm text-muted-foreground">筛选条件会同时用于 CSV 导出和 MinIO 归档生成。</p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <label className="grid gap-1 text-sm">

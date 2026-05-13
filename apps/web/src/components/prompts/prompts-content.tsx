@@ -154,7 +154,6 @@ export function PromptsContent() {
             <StatusBadge tone="planned">版本测试</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">提示词中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">模板类型、状态、版本、变量、测试记录和智能体引用。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -267,7 +266,6 @@ export function PromptsContent() {
                 </Button>
               ) : null
             }
-            description="创建提示词模板后可定义变量、执行渲染测试并发布不可变版本。"
             title="暂无提示词模板"
           />
         ) : (

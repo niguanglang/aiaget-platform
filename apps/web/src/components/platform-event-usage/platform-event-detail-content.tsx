@@ -22,7 +22,6 @@ export function PlatformEventDetailContent({ eventId }: { eventId: string }) {
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="事件详情"
-        description="查看单条平台事件的基础信息、关联用量、事件关系和 Payload JSON。"
         refreshing={detailQuery.isFetching}
         title="平台事件详情"
         onRefresh={() => void detailQuery.refetch()}

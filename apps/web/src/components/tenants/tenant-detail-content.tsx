@@ -51,9 +51,6 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
             {tenant ? <StatusBadge tone={tenantStatusTone(tenant.status)}>{tenantStatusLabel(tenant.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{tenant?.name ?? '租户详情'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            租户资料、租户编码与生命周期时间。
-          </p>
         </div>
         {tenant ? (
           <Button asChild disabled={!canManageTenant || tenant.status === 'DELETED'} variant="outline">
@@ -96,10 +93,9 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
             <Card className="p-5">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <ShieldCheck className="size-4 text-primary" />
-                治理说明
+                操作限制
               </div>
               <div className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground">
-                <p>租户是当前控制台的数据隔离边界，业务表和配置读取都按租户上下文生效。</p>
                 <p>跨租户创建、删除和切换未开放。租户名称和启停状态可编辑。</p>
                 <p>如果租户被停用，依赖该租户上下文的用户和业务访问会受到后端权限策略限制。</p>
               </div>

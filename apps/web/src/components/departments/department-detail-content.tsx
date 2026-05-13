@@ -123,9 +123,6 @@ export function DepartmentDetailContent({ departmentId }: { departmentId: string
             {department ? <StatusBadge tone={departmentStatusTone(department.status)}>{departmentStatusLabel(department.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{department?.name ?? '部门详情'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            部门负责人、成员、上下级关系与审计时间。
-          </p>
         </div>
 
         {department ? (

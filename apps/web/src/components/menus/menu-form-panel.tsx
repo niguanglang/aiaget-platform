@@ -143,9 +143,6 @@ export function MenuFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑菜单节点' : '新建菜单节点'}</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              菜单节点会驱动控制台入口，支持多级菜单父级选择；按钮节点用于承载操作权限点，角色授权请在角色权限中心维护。
-            </p>
           </div>
           {isPage ? null : (
             <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -185,9 +182,6 @@ export function MenuFormPanel({
                   </option>
                 ))}
               </select>
-              <span className="text-xs font-normal text-muted-foreground">
-                支持选择任意非按钮节点作为父级，下拉项按层级路径展示。
-              </span>
             </Field>
 
             <Field label="节点类型" message={form.formState.errors.type?.message}>

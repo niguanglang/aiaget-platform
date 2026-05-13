@@ -136,11 +136,10 @@ export function KnowledgeDocumentsContent({ knowledgeId }: { knowledgeId: string
               <Link href={`/knowledge/${knowledgeId}/upload`}>上传文档</Link>
             </Button>
           </>
-        }
-        base={base}
-        description="文档、解析文本、切片和处理任务。"
-        eyebrow="文档管理"
-        title={`${base.name} / 文档管理`}
+	        }
+	        base={base}
+	        eyebrow="文档管理"
+	        title={`${base.name} / 文档管理`}
       />
 
       {actionError ? <PageMessage tone="error" value={actionError} /> : null}
@@ -197,15 +196,14 @@ function DocumentsCard({
   return (
     <Card className="min-w-0">
       <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-sm font-semibold">文档管理</h2>
-          <p className="mt-1 text-sm text-muted-foreground">上传来源、处理状态和切片覆盖情况。</p>
-        </div>
+	        <div>
+	          <h2 className="text-sm font-semibold">文档管理</h2>
+	        </div>
         <div className="text-sm text-muted-foreground">{base.documents.length} 个文档</div>
       </div>
 
       {base.documents.length === 0 ? (
-        <EmptyState description="上传文本或 Markdown 文档后生成检索切片。" title="暂无文档" />
+	        <EmptyState title="暂无文档" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
@@ -275,15 +273,14 @@ function DocumentDetailCard({ document, loading }: { document: KnowledgeDocument
             <FileText className="size-4" />
             文档详情
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">解析后的来源内容、文档任务和本地切片状态。</p>
-        </div>
+	        </div>
         {document ? <StatusBadge tone={knowledgeStatusTone(document.status)}>{knowledgeStatusLabel(document.status)}</StatusBadge> : null}
       </div>
 
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载文档...</div>
       ) : !document ? (
-        <EmptyState description="请选择文档。" title="未选择文档" />
+	        <EmptyState title="未选择文档" />
       ) : (
         <>
           <div className="grid gap-2 text-sm md:grid-cols-4">
@@ -320,13 +317,12 @@ function SegmentsCard({ base, document }: { base: KnowledgeBaseDetail; document:
             <Database className="size-4" />
             切片
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">切片内容、词元估算、关键词和索引状态。</p>
-        </div>
+	        </div>
         <span className="text-sm text-muted-foreground">显示 {segments.length} 条</span>
       </div>
 
       {segments.length === 0 ? (
-        <EmptyState description="上传并处理文档后生成检索切片。" title="暂无切片" />
+	        <EmptyState title="暂无切片" />
       ) : (
         <div className="grid max-h-[560px] gap-3 overflow-auto pr-1">
           {segments.map((segment) => (

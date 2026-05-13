@@ -239,9 +239,6 @@ export function AgentConversationTestPanel({
             <Sparkles className="size-4 text-muted-foreground" />
             会话测试
           </div>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            直接用当前智能体发起调试线程。优先走当前智能体绑定模型的真实执行链；如果没有可执行模型配置，则回退到确定性运行时。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {conversation ? (

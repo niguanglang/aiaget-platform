@@ -97,9 +97,7 @@ export function ChannelReleaseGateContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布观测门禁"
-        description="门禁结论、观测指标和门禁策略。"
         refreshing={overviewQuery.isFetching || gateQuery.isFetching || evaluateMutation.isPending || policyMutation.isPending}
-        subtitle="/channels/release/gate"
         title="发布观测门禁"
         onRefresh={() => {
           void overviewQuery.refetch();
@@ -112,12 +110,12 @@ export function ChannelReleaseGateContent() {
       {!selectedChannel ? (
         <ReleaseChannelEmpty />
       ) : !gate || !evaluation ? (
-        <Card className="p-5"><EmptyState description="发布观测门禁数据暂不可用。" title="暂无门禁结论" /></Card>
+        <Card className="p-5"><EmptyState title="暂无门禁结论" /></Card>
       ) : (
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <PanelTitle helper="灰度观测结论" title="门禁结论" />
+              <PanelTitle title="门禁结论" />
               <Button
                 disabled={!permissions.canDeploy || evaluateMutation.isPending}
                 onClick={() => setReleaseGateActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name })}
@@ -136,7 +134,7 @@ export function ChannelReleaseGateContent() {
             ]} />
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="放行、阻断和旁路指标" title="观测指标" />
+            <PanelTitle title="观测指标" />
             <DetailGrid items={[
               { label: '评估数', value: formatNumber(evaluation.metrics.evaluated_count) },
               { label: '放行数', value: formatNumber(evaluation.metrics.allowed_count) },
@@ -147,7 +145,7 @@ export function ChannelReleaseGateContent() {
           </Card>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-              <PanelTitle helper="门禁开关、阈值和样本量" title="门禁策略配置" />
+              <PanelTitle title="门禁策略配置" />
               <Button
                 disabled={!permissions.canManage || policyMutation.isPending}
                 onClick={() => setReleaseGatePolicyActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name, input: gatePolicyForm })}

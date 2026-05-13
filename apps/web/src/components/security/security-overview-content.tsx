@@ -114,7 +114,6 @@ export function SecurityOverviewContent() {
             <StatusBadge tone="healthy">治理入口</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">安全治理总览</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">安全态势、待办、风险和归档。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -140,28 +139,25 @@ export function SecurityOverviewContent() {
         </div>
       </section>
 
-      {hasError ? <PageError>安全治理总览部分数据加载失败，可刷新重试或进入对应子页面查看。</PageError> : null}
+	      {hasError ? <PageError>安全治理总览部分数据加载失败，可刷新重试。</PageError> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="综合评分" label="治理评分" value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'} />
-        <MetricCard helper="当前参与匹配" label="生效策略" value={formatNumber(policyOverview?.active)} />
-        <MetricCard helper="审批工作台待处理" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
-        <MetricCard
-          helper="通知任务失败与重试"
-          label="自愈待办"
-          value={formatNumber(notificationTaskOverview?.summary.pending_auto_retry_count)}
+	        <MetricCard helper="评分" label="治理评分" value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'} />
+	        <MetricCard helper="生效" label="生效策略" value={formatNumber(policyOverview?.active)} />
+	        <MetricCard helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
+	        <MetricCard
+	          helper="重试"
+	          label="自愈待办"
+	          value={formatNumber(notificationTaskOverview?.summary.pending_auto_retry_count)}
         />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="size-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">待办与运营摘要</h2>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">审批、告警、通知任务和调度状态。</p>
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">待办与运营摘要</h2>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/security/alerts">
@@ -187,12 +183,9 @@ export function SecurityOverviewContent() {
 
         <Card className="p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <FileWarning className="size-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">风险摘要</h2>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">风险信号和恢复建议。</p>
+            <div className="flex items-center gap-2">
+              <FileWarning className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">风险摘要</h2>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/security/events">
@@ -205,7 +198,7 @@ export function SecurityOverviewContent() {
           {securityOverviewQuery.isLoading ? (
             <LoadingRows count={3} />
           ) : risks.length === 0 && suggestions.length === 0 ? (
-            <EmptyState className="px-0 py-8" description="当前没有风险信号。" title="暂无风险" />
+	            <EmptyState className="px-0 py-8" title="暂无风险" />
           ) : (
             <div className="mt-4 grid gap-3">
               {risks.slice(0, 3).map((risk) => (

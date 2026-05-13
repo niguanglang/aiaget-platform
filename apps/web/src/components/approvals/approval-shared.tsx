@@ -221,12 +221,11 @@ export function EmptyApprovalSelection({ description, title }: { description: st
   return <EmptyState description={description} title={title} />;
 }
 
-export function CardSection({ children, title, description }: { children: React.ReactNode; title: string; description: string }) {
+export function CardSection({ children, title }: { children: React.ReactNode; title: string; description?: string }) {
   return (
     <Card className="min-w-0">
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       {children}
     </Card>

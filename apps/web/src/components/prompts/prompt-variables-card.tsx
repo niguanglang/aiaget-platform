@@ -33,12 +33,7 @@ export function PromptVariablesCard({
   return (
     <Card>
       <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-sm font-semibold">变量</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            定义 <code>{'{{name}}'}</code> 与 <code>{'{name}'}</code> 占位符使用的渲染输入。
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">变量</h2>
         <Button disabled={!canWrite} onClick={onCreate} variant="outline">
           <Plus className="size-4" />
           新建变量
@@ -52,7 +47,7 @@ export function PromptVariablesCard({
               新建变量
             </Button>
           }
-          description="变量为每个模板提供带类型的渲染契约，并在运行前暴露缺失输入。"
+          description="暂无记录。"
           title="暂无变量"
         />
       ) : (

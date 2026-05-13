@@ -159,7 +159,6 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
             <StatusBadge tone="planned">角色编辑</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">编辑角色数据范围</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">资源数据范围和生效预览。</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline">
@@ -181,7 +180,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
 
       {isTenantAdmin ? (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          租户管理员默认拥有全部资源范围，仅支持预览。
+	          租户管理员默认拥有全部资源范围，仅可预览。
         </div>
       ) : null}
       {!canWrite && !isTenantAdmin ? (
@@ -202,7 +201,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
       ) : detailQuery.isError ? (
         <Card className="p-6 text-sm text-destructive">角色数据范围加载失败。</Card>
       ) : !role ? (
-        <EmptyState className="py-12" description="未找到对应角色的数据权限配置。" title="暂无数据" />
+	        <EmptyState className="py-12" title="暂无数据" />
       ) : (
         <>
           <RoleSummaryCard role={role} />

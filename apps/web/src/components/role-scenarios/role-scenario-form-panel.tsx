@@ -59,18 +59,18 @@ function defaults(scenario?: RoleScenarioDetail | null): RoleScenarioFormValues 
   return {
     name: scenario?.name ?? '',
     code: scenario?.code ?? '',
-    role_name: scenario?.role_name ?? '售前顾问',
-    department_name: scenario?.department_name ?? '解决方案部',
+    role_name: scenario?.role_name ?? '',
+    department_name: scenario?.department_name ?? '',
     scenario_type: scenario?.scenario_type ?? 'SALES',
     status: scenario?.status ?? 'DRAFT',
     priority: scenario?.priority ?? 'MEDIUM',
-    pain_point: scenario?.pain_point ?? '岗位资料分散、流程动作难复用，AI 产出和业务验收之间缺少稳定连接。',
-    business_goal: scenario?.business_goal ?? '把岗位工作目标、业务流程、平台资产和验收口径整理成可复用的 AI 场景包。',
-    workflow_summary: scenario?.workflow_summary ?? '识别岗位痛点 -> 绑定 Agent/Skill/知识库/工具/提示词 -> 生成交付成果 -> 按验收标准试点。',
-    expected_outcome: scenario?.expected_outcome ?? '形成可复用场景包，降低重复配置和交付返工。',
-    sample_deliverable: scenario?.sample_deliverable ?? '一份包含岗位画像、流程步骤、关联资产、交付成果和验收标准的交付说明。',
-    acceptance_criteria: scenario?.acceptance_criteria ?? '场景包关联资产完整，输出格式稳定，业务负责人能按验收标准判断是否可试点。',
-    roi_metric: scenario?.roi_metric ?? '交付准备时间下降、返工次数下降、验收通过率提升。',
+    pain_point: scenario?.pain_point ?? '',
+    business_goal: scenario?.business_goal ?? '',
+    workflow_summary: scenario?.workflow_summary ?? '',
+    expected_outcome: scenario?.expected_outcome ?? '',
+    sample_deliverable: scenario?.sample_deliverable ?? '',
+    acceptance_criteria: scenario?.acceptance_criteria ?? '',
+    roi_metric: scenario?.roi_metric ?? '',
     impact_score: scenario?.impact_score ?? 80,
     tags: scenario?.tags.join(', ') ?? '',
     notes: scenario?.notes ?? '',
@@ -159,9 +159,6 @@ export function RoleScenarioFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑岗位场景' : '新建岗位场景'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              流程、交付成果、验收标准和平台资产绑定。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

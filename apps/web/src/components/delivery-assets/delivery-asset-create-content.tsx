@@ -68,7 +68,6 @@ export function DeliveryAssetCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建成果资产</h1>
-          <p className="mt-2 text-sm text-muted-foreground">从验收复盘创建可复用方案模板、验收清单、风险清单、Prompt SOP、客户案例或报告归档。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/delivery-assets">

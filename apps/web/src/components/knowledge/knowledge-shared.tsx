@@ -25,13 +25,12 @@ export function KnowledgeWorkspaceHeader({
   base,
   eyebrow = '知识库中心',
   title,
-}: {
-  actions?: ReactNode;
-  base?: KnowledgeBaseDetail | null;
-  description: string;
-  eyebrow?: string;
-  title: string;
-}) {
+	}: {
+	  actions?: ReactNode;
+	  base?: KnowledgeBaseDetail | null;
+	  eyebrow?: string;
+	  title: string;
+	}) {
   return (
     <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div className="min-w-0">

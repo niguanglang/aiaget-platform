@@ -132,10 +132,8 @@ export function ChannelTemplatesContent() {
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="消息模板"
-        description="管理渠道消息模板的编码、类型、语言、版本、适用目标和启停状态。"
         permissions={permissions}
         refreshing={templatesQuery.isFetching}
-        subtitle="/channels/templates"
         title="消息模板"
         onRefresh={() => void templatesQuery.refetch()}
       />
@@ -156,7 +154,7 @@ export function ChannelTemplatesContent() {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看消息模板。" title="无权查看消息模板" />
+          <EmptyState title="无权查看消息模板" />
         </Card>
       ) : (
         <>
@@ -222,7 +220,7 @@ export function ChannelTemplatesContent() {
             {templatesQuery.isLoading ? (
               <TemplateRowSkeleton />
             ) : templates.length === 0 ? (
-              <EmptyState description="当前没有消息模板。新增模板后，可在这里按状态、供应商和模板编码筛选。" title="暂无消息模板" />
+              <EmptyState title="暂无消息模板" />
             ) : (
               <div className="grid gap-3">
                 {templates.map((item) => {

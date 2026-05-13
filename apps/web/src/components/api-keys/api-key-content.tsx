@@ -216,7 +216,6 @@ export function ApiKeyContent() {
             <StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '可管理' : '仅查看'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">API Key 管理中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">外部调用密钥、授权 Agent、额度、IP 白名单、Webhook 和调用观测。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button">
@@ -261,10 +260,7 @@ export function ApiKeyContent() {
 
       <Card className="grid gap-3 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">外部调用入口</h2>
-            <p className="mt-1 text-sm text-muted-foreground">外部系统可通过 Bearer 或 x-api-key 调用已授权 Agent。</p>
-          </div>
+          <h2 className="text-sm font-semibold">外部调用入口</h2>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void copyText(endpoint, '外部调用地址已复制。')} type="button" variant="outline">
               <Copy className="size-4" />
@@ -294,10 +290,7 @@ export function ApiKeyContent() {
       <section className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <Card className="grid gap-4 p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold">密钥清单</h2>
-              <p className="mt-1 text-sm text-muted-foreground">查看外部调用密钥的状态、额度、白名单和最近使用情况。</p>
-            </div>
+            <h2 className="text-sm font-semibold">密钥清单</h2>
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
                 <Search className="size-4 text-muted-foreground" />

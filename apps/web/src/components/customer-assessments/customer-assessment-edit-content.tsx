@@ -16,7 +16,6 @@ import {
 } from '@/components/customer-assessments/customer-assessment-form-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { getCustomerAssessment, listUsers, updateCustomerAssessment, type ApiClientError } from '@/lib/api-client';
 
 export function CustomerAssessmentEditContent({ assessmentId }: { assessmentId: string }) {
@@ -66,14 +65,7 @@ export function CustomerAssessmentEditContent({ assessmentId }: { assessmentId: 
             客户评估详情
           </Link>
         </Button>
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="ready">编辑页</StatusBadge>
-          <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
-        </div>
         <h1 className="text-2xl font-semibold">编辑客户评估</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          编辑完整六问判断，保存后系统会重新计算准备度并更新建议打法。
-        </p>
       </section>
 
       {assessmentQuery.isLoading ? (

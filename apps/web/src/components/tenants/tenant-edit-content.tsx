@@ -100,9 +100,6 @@ export function TenantEditContent({ tenantId }: { tenantId: string }) {
           {tenant ? <StatusBadge tone={tenantStatusTone(tenant.status)}>{tenantStatusLabel(tenant.status)}</StatusBadge> : null}
         </div>
         <h1 className="text-2xl font-semibold">编辑租户</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          修改租户名称和启停状态。租户编码和 ID 是治理标识，不在当前接口中修改。
-        </p>
       </section>
 
       {tenantQuery.isError ? (

@@ -69,12 +69,11 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
   return (
     <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
       <StorageWorkspaceHeader
-        actions={<RefreshButton loading={objectQuery.isFetching} onClick={() => void objectQuery.refetch()} />}
-        backHref="/storage"
-        badge="对象详情"
-        description="MinIO 元数据、路径复制、下载与删除确认。"
-        title="对象详情"
-      />
+	        actions={<RefreshButton loading={objectQuery.isFetching} onClick={() => void objectQuery.refetch()} />}
+	        backHref="/storage"
+	        badge="对象详情"
+	        title="对象详情"
+	      />
 
       {message ? <PageMessage tone="success" value={message} /> : null}
       {objectQuery.isError ? <PageMessage tone="error" value="对象详情加载失败。" /> : null}
@@ -84,10 +83,7 @@ export function StorageObjectDetailContent({ objectKey }: { objectKey: string })
       {objectQuery.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">正在加载对象详情...</Card>
       ) : !object ? (
-        <EmptyState
-          description="对象不存在、已删除或无访问权限。"
-          title="未找到对象"
-        />
+	        <EmptyState title="未找到对象" />
       ) : (
         <Card className="grid gap-5 p-5">
           <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">

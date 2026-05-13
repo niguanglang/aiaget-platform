@@ -140,7 +140,6 @@ export function ToolContent() {
             <StatusBadge tone="planned">调用日志</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">工具中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">HTTP 工具、鉴权方式、风险等级、调用统计和智能体引用。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -173,12 +172,7 @@ export function ToolContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">工具清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  名称、方法、鉴权、风险、状态、今日调用和最近调用。
-                </p>
-              </div>
+              <h2 className="text-sm font-semibold">工具清单</h2>
               <div className="text-sm text-muted-foreground">
                 显示 {tools.length} / {total}
               </div>
@@ -253,7 +247,6 @@ export function ToolContent() {
                 </Button>
               ) : null
             }
-            description="先创建一个 HTTP 工具，再配置结构、鉴权策略和测试输入。"
             title="暂无工具"
           />
         ) : (

@@ -264,7 +264,6 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
 
         <InfoCard title="快捷操作">
           <div className="grid gap-2 text-sm text-muted-foreground">
-            <p>支持编辑、新建子节点、启停和删除。</p>
             <p>删除前会校验子节点和角色引用。</p>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">

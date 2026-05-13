@@ -80,7 +80,6 @@ export function BillingInvoiceDetailContent({ invoiceId }: { invoiceId: string }
         backHref="/billing/invoices"
         backLabel="发票列表"
         badge="Invoice Detail"
-        description="查看单张发票的账期金额、账单项明细、关联调账记录和状态流转操作。"
         title="发票详情"
       />
 
@@ -92,7 +91,7 @@ export function BillingInvoiceDetailContent({ invoiceId }: { invoiceId: string }
         <Card className="p-5 text-sm text-muted-foreground">正在加载发票详情...</Card>
       ) : !invoice || !summary ? (
         <Card className="p-5">
-          <EmptyState description="当前发票不存在、已删除或没有权限查看。" title="未找到发票" />
+          <EmptyState description="发票不存在或无权限访问。" title="未找到发票" />
         </Card>
       ) : (
         <InvoiceDetailPanel

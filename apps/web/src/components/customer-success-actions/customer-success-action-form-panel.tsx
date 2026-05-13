@@ -60,20 +60,20 @@ function defaults(action?: CustomerSuccessActionDetail | null): CustomerSuccessA
   return {
     name: action?.name ?? '',
     code: action?.code ?? '',
-    customer_name: action?.customer_name ?? '华中设计院',
+    customer_name: action?.customer_name ?? '',
     customer_success_plan_id: action?.linked_resources.customer_success_plan?.id ?? '',
     action_type: action?.action_type ?? 'MEETING',
     status: action?.status ?? 'IN_PROGRESS',
     priority: action?.priority ?? 'HIGH',
     risk_level: action?.risk_level ?? 'MEDIUM',
-    action_score: action?.action_score ?? 86,
-    action_summary: action?.action_summary ?? '组织客户 CIO、运营经理和平台客户成功经理确认第二批岗位场景。',
-    expected_outcome: action?.expected_outcome ?? '明确扩展场景、资料边界、验收节奏和复用资产清单。',
-    execution_notes: action?.execution_notes ?? '已完成会议议程和资料清单准备。',
-    blocker_summary: action?.blocker_summary ?? '知识库密级边界仍需安全管理员确认。',
-    completion_evidence: action?.completion_evidence ?? '会议纪要和二批场景清单将归档到成果资产。',
-    next_action: action?.next_action ?? '发送评审会议邀请并确认参会人。',
-    due_at: action?.due_at ? action.due_at.slice(0, 16) : '2026-06-18T10:00',
+    action_score: action?.action_score ?? undefined,
+    action_summary: action?.action_summary ?? '',
+    expected_outcome: action?.expected_outcome ?? '',
+    execution_notes: action?.execution_notes ?? '',
+    blocker_summary: action?.blocker_summary ?? '',
+    completion_evidence: action?.completion_evidence ?? '',
+    next_action: action?.next_action ?? '',
+    due_at: action?.due_at ? action.due_at.slice(0, 16) : '',
     completed_at: action?.completed_at ? action.completed_at.slice(0, 16) : '',
     tags: action?.tags.join(', ') ?? '',
     notes: action?.notes ?? '',
@@ -158,9 +158,6 @@ export function CustomerSuccessActionFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑客户成功行动' : '新建客户成功行动'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护行动类型、执行记录、阻塞风险、完成证据、关联计划和后续跟进。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

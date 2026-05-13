@@ -141,15 +141,7 @@ export function CustomerSuccessPlansContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">客户成功</StatusBadge>
-            <StatusBadge tone="healthy">成果资产复用</StatusBadge>
-            <StatusBadge tone="planned">扩展 + 续约</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">客户成功计划中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            把验收复盘和成果资产转成客户成功跟进计划，管理扩展范围、成功目标、资产复用、续约节奏、健康风险和下一步动作。
-          </p>
+          <h1 className="text-2xl font-semibold">客户成功计划</h1>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -182,10 +174,7 @@ export function CustomerSuccessPlansContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">计划清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">核心字段、评分、扩展预览、下一步动作和来源关系。</p>
-              </div>
+              <h2 className="text-sm font-semibold">计划清单</h2>
               <div className="text-sm text-muted-foreground">显示 {plans.length} / {total}</div>
             </div>
 
@@ -268,7 +257,6 @@ export function CustomerSuccessPlansContent() {
                 </Button>
               ) : null
             }
-            description="从一次验收复盘和成果资产创建客户成功计划，并维护扩展、续约和风险动作。"
             title="暂无客户成功计划"
           />
         ) : (

@@ -84,7 +84,6 @@ export function AgentTeamEditContent({ teamId }: { teamId: string }) {
             <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{team ? `编辑协作团队：${team.name}` : '编辑协作团队'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">修改团队基础配置。成员、运行和报告归档在独立页面维护。</p>
         </div>
       </section>
 
@@ -108,4 +107,3 @@ export function AgentTeamEditContent({ teamId }: { teamId: string }) {
     </main>
   );
 }
-

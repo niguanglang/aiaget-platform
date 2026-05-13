@@ -136,7 +136,6 @@ export function BillingQuotaPolicyContent() {
         }
         backHref="/billing"
         badge="额度"
-        description="额度策略配置与执行检查。"
         onWindowChange={setWindowValue}
         title="额度策略配置与执行检查"
         windowValue={windowValue}

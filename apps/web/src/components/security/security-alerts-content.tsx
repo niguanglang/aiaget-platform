@@ -422,11 +422,10 @@ export function SecurityAlertsContent() {
               </Link>
             </Button>
           </>
-        }
-        badge="告警"
-        description="审批、告警、通知、SLA。"
-        title="告警运营"
-      />
+	        }
+	        badge="告警"
+	        title="告警运营"
+	      />
 
       {!canViewApprovals ? (
         <PageError>当前账号无安全审批查看权限，审批工作台仅显示权限提示。</PageError>
@@ -436,10 +435,10 @@ export function SecurityAlertsContent() {
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="安全中心运营告警" label="运营告警" value={formatNumber(alerts.length)} />
-        <MetricCard helper="等待处理" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
-        <MetricCard helper="最近通知审计" label="通知失败" value={formatNumber(notificationQuery.data?.summary.failed_count)} />
-        <MetricCard helper="SLA 扫描" label="超时告警" value={formatNumber(slaQuery.data?.summary.overdue_count)} />
+	        <MetricCard helper="告警" label="运营告警" value={formatNumber(alerts.length)} />
+	        <MetricCard helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
+	        <MetricCard helper="失败" label="通知失败" value={formatNumber(notificationQuery.data?.summary.failed_count)} />
+	        <MetricCard helper="超时" label="超时告警" value={formatNumber(slaQuery.data?.summary.overdue_count)} />
       </section>
 
       <Card className="grid gap-4 p-5">
@@ -449,28 +448,27 @@ export function SecurityAlertsContent() {
               <Download className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">审批工作台导出治理</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">最近 24 小时导出风险。</p>
           </div>
           <Button asChild size="sm" variant="outline">
             <Link href="/security/events?source=APPROVAL_WORKBENCH">
               <ArrowRight className="size-4" />
-              查看导出事件
+	              导出事件
             </Link>
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard helper="24 小时导出次数" label="导出次数" value={formatNumber(approvalOperations?.approval_workbench_exports_24h)} />
-          <MetricCard helper="24 小时导出审批记录" label="导出记录" value={formatNumber(approvalOperations?.approval_workbench_exported_records_24h)} />
-          <MetricCard helper="待审批或归档删除筛选" label="高风险筛选" value={formatNumber(approvalOperations?.approval_workbench_high_risk_exports_24h)} />
-          <MetricCard helper="同一主体重复导出" label="重复导出" value={formatNumber(approvalOperations?.approval_workbench_repeated_exports_24h)} />
+	          <MetricCard helper="24h" label="导出次数" value={formatNumber(approvalOperations?.approval_workbench_exports_24h)} />
+	          <MetricCard helper="24h 记录" label="导出记录" value={formatNumber(approvalOperations?.approval_workbench_exported_records_24h)} />
+	          <MetricCard helper="高风险" label="高风险筛选" value={formatNumber(approvalOperations?.approval_workbench_high_risk_exports_24h)} />
+	          <MetricCard helper="重复" label="重复导出" value={formatNumber(approvalOperations?.approval_workbench_repeated_exports_24h)} />
         </div>
         {hasExportGovernanceRisk ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800">
-            导出治理风险：审批工作台最近 24 小时存在高风险筛选、重复导出或导出量偏高，请结合安全事件中心复核操作人、筛选条件、request_id 和 trace_id。
+	            导出治理风险：最近 24 小时存在高风险筛选、重复导出或导出量偏高，请复核操作人、筛选条件、request_id 和 trace_id。
           </div>
         ) : (
           <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-            当前导出治理指标处于正常范围，新的导出风险会进入通知和处置列表。
+	            导出治理指标正常。
           </div>
         )}
       </Card>
@@ -482,33 +480,32 @@ export function SecurityAlertsContent() {
               <ClipboardCheck className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">客户成功复盘归档删除运营</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">成交复盘报告归档删除审批。</p>
           </div>
           <Button asChild size="sm" variant="outline">
             <Link href="/approvals/archive-deletions">
               <ArrowRight className="size-4" />
-              查看归档审批
+	              归档审批
             </Link>
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            helper="成交复盘报告删除申请"
+	            helper="待审"
             label="客户成功复盘删除待审"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_pending)}
           />
           <MetricCard
-            helper="已批准但未必已删除"
+	            helper="已批准"
             label="复盘删除已批准"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_approved)}
           />
           <MetricCard
-            helper="留存策略或申请原因未通过"
+	            helper="已拒绝"
             label="复盘删除已拒绝"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_rejected)}
           />
           <MetricCard
-            helper="已从对象存储删除"
+	            helper="已删除"
             label="复盘删除已生效"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_applied)}
           />
@@ -522,7 +519,6 @@ export function SecurityAlertsContent() {
               <ClipboardCheck className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">审批工作台</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">审批类型、状态、风险域。</p>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -548,7 +544,7 @@ export function SecurityAlertsContent() {
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                当前筛选命中 {formatNumber(approvalTotal)} 条{approvalTotal === 0 ? '，当前筛选无结果，无法导出。' : '，导出会写入安全审计事件，并且导出会包含通知归档筛选上下文、通知筛选来源、状态和关键词，以及通知归档字段账本计数。字段账本是否保留、导出字段数和归档筛选字段数会进入 CSV。'}
+	                命中 {formatNumber(approvalTotal)} 条{approvalTotal === 0 ? '，无法导出。' : '，导出写入安全审计事件。'}
               </p>
               <Button
                 disabled={!canViewApprovals || approvalTotal === 0 || exportMutation.isPending || approvalItemsQuery.isFetching}
@@ -567,13 +563,13 @@ export function SecurityAlertsContent() {
           {approvalError ? <div className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{approvalError}</div> : null}
 
           {!canViewApprovals ? (
-            <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看审批工作台" />
+	            <EmptyState title="无权查看审批工作台" />
           ) : approvalItemsQuery.isError ? (
             <div className="p-4"><PageError>审批工作台加载失败。</PageError></div>
           ) : approvalItemsQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : approvalItems.length === 0 ? (
-            <EmptyState description="暂无审批记录。" title="暂无审批" />
+	            <EmptyState title="暂无审批" />
           ) : (
             <div className="divide-y">
               {approvalItems.map((item) => (
@@ -591,7 +587,7 @@ export function SecurityAlertsContent() {
                   <div className="flex justify-start xl:justify-end">
                     <Button onClick={() => setSelectedApprovalId(item.id)} size="sm" type="button" variant={selectedApprovalId === item.id ? 'secondary' : 'outline'}>
                       <ArrowRight className="size-4" />
-                      查看详情
+	                      详情
                     </Button>
                   </div>
                 </div>
@@ -619,7 +615,6 @@ export function SecurityAlertsContent() {
             <AlertTriangle className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">运营告警</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">来自安全中心态势聚合接口的操作告警，支持确认、升级、关闭和通知的后端动作。</p>
           {operationAlertNotice ? <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{operationAlertNotice}</div> : null}
           {operationAlertError ? <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{operationAlertError}</div> : null}
           {securityOverviewQuery.isError ? (
@@ -627,7 +622,7 @@ export function SecurityAlertsContent() {
           ) : securityOverviewQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : alerts.length === 0 ? (
-            <EmptyState className="px-0" description="暂无待处理告警。" title="暂无告警" />
+	            <EmptyState className="px-0" title="暂无告警" />
           ) : (
             <div className="mt-4 grid gap-3">
               {alerts.map((alert) => (
@@ -648,9 +643,8 @@ export function SecurityAlertsContent() {
         <Card className="overflow-hidden">
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">通知审计</h2>
-            <p className="mt-1 text-sm text-muted-foreground">状态、来源、关键词。</p>
             <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
-              通知审计字段账本：当前页 {formatNumber(notificationExportFieldLedgerCount)} 条通知带有字段账本，导出 CSV 已包含导出字段清单和通知归档筛选字段。
+	              字段账本 {formatNumber(notificationExportFieldLedgerCount)} 条
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-[170px_230px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setNotificationStatus(event.target.value as SecurityOperationAlertNotificationStatus | '')} value={notificationStatus}>
@@ -668,7 +662,7 @@ export function SecurityAlertsContent() {
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                当前筛选命中 {formatNumber(notificationTotal)} 条{notificationTotal === 0 ? '，暂无可导出或归档的通知审计。' : '，导出与归档会沿用状态、来源和关键词条件。'}
+	                命中 {formatNumber(notificationTotal)} 条{notificationTotal === 0 ? '，无法导出或归档。' : '。'}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -701,7 +695,7 @@ export function SecurityAlertsContent() {
           ) : notificationQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : notifications.length === 0 ? (
-            <EmptyState description="暂无通知审计。" title="暂无通知" />
+	            <EmptyState title="暂无通知" />
           ) : (
             <div className="divide-y">
               {notifications.slice(0, 8).map((item) => (
@@ -734,11 +728,10 @@ export function SecurityAlertsContent() {
         <Card className="overflow-hidden">
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">SLA 告警</h2>
-            <p className="mt-1 text-sm text-muted-foreground">展示超时扫描、自动升级和待通知状态，具体升级动作复用现有后端接口。</p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <MetricCard helper="达到重试窗口的通知" label="SLA 自动重试" value={formatNumber(slaRetryQuery.data?.summary.pending_auto_retry_count)} />
-              <MetricCard helper="超过最大重试次数" label="SLA 死信通知" value={formatNumber(slaRetryQuery.data?.summary.dead_letter_count)} />
-              <MetricCard helper="待人工处置的死信" label="死信未关闭" value={formatNumber(slaDeadLetterQuery.data?.summary.open_count)} />
+	              <MetricCard helper="重试" label="SLA 自动重试" value={formatNumber(slaRetryQuery.data?.summary.pending_auto_retry_count)} />
+	              <MetricCard helper="死信" label="SLA 死信通知" value={formatNumber(slaRetryQuery.data?.summary.dead_letter_count)} />
+	              <MetricCard helper="未关闭" label="死信未关闭" value={formatNumber(slaDeadLetterQuery.data?.summary.open_count)} />
             </div>
           </div>
           {slaQuery.isError ? (
@@ -746,7 +739,7 @@ export function SecurityAlertsContent() {
           ) : slaQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : slaItems.length === 0 ? (
-            <EmptyState description="暂无 SLA 告警。" title="暂无 SLA 告警" />
+	            <EmptyState title="暂无 SLA 告警" />
           ) : (
             <div className="divide-y">
               {slaItems.slice(0, 8).map((item) => (
@@ -768,27 +761,21 @@ export function SecurityAlertsContent() {
 
         <section className="grid gap-4 xl:grid-cols-3">
           <SlaNotificationListCard
-            description="重试间隔、次数、Trace、重放键。"
-            emptyDescription="暂无自动重试通知。"
-            emptyTitle="暂无自动重试"
+	            emptyTitle="暂无自动重试"
             isError={slaRetryQuery.isError}
             isLoading={slaRetryQuery.isLoading}
             items={slaRetryableItems}
             title="SLA 自动重试"
           />
           <SlaNotificationListCard
-            description="死信通知与原始通知事件。"
-            emptyDescription="暂无死信通知。"
-            emptyTitle="暂无死信通知"
+	            emptyTitle="暂无死信通知"
             isError={slaRetryQuery.isError}
             isLoading={slaRetryQuery.isLoading}
             items={slaRetryDeadLetterItems}
             title="SLA 死信通知"
           />
           <SlaDeadLetterListCard
-            description="最近处置、处置事件、处置时间。"
-            emptyDescription="暂无死信处置记录。"
-            emptyTitle="暂无死信处置"
+	            emptyTitle="暂无死信处置"
             isError={slaDeadLetterQuery.isError}
             isLoading={slaDeadLetterQuery.isLoading}
             items={slaDeadLetterItems}
@@ -799,7 +786,7 @@ export function SecurityAlertsContent() {
 
       {approvalReviewTarget ? (
         <SecurityConfirmDialog
-          body={`将${approvalReviewTarget.decision === 'APPROVE' ? '通过' : '拒绝'}审批「${approvalReviewTarget.title}」。审批意见会写入原审批链路和统一工作台时间线。`}
+	          body={`将${approvalReviewTarget.decision === 'APPROVE' ? '通过' : '拒绝'}审批「${approvalReviewTarget.title}」。审批意见会写入审批链路。`}
           confirmLabel={approvalReviewTarget.decision === 'APPROVE' ? '通过审批' : '拒绝审批'}
           pending={reviewMutation.isPending}
           title={approvalReviewTarget.decision === 'APPROVE' ? '确认通过审批' : '确认拒绝审批'}
@@ -879,16 +866,12 @@ function OperationAlertCard({
 }
 
 function SlaNotificationListCard({
-  description,
-  emptyDescription,
   emptyTitle,
   isError,
   isLoading,
   items,
   title,
 }: {
-  description: string;
-  emptyDescription: string;
   emptyTitle: string;
   isError: boolean;
   isLoading: boolean;
@@ -896,17 +879,16 @@ function SlaNotificationListCard({
   title: string;
 }) {
   return (
-    <Card className="min-w-0 overflow-hidden">
-      <div className="border-b p-4">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
+	    <Card className="min-w-0 overflow-hidden">
+	      <div className="border-b p-4">
+	        <h2 className="text-sm font-semibold">{title}</h2>
+	      </div>
       {isError ? (
         <div className="p-4"><PageError>{title}加载失败。</PageError></div>
       ) : isLoading ? (
         <LoadingRows count={3} />
       ) : items.length === 0 ? (
-        <EmptyState description={emptyDescription} title={emptyTitle} />
+	        <EmptyState title={emptyTitle} />
       ) : (
         <div className="divide-y">
           {items.slice(0, 5).map((item) => (
@@ -940,16 +922,12 @@ function SlaNotificationListItem({ item }: { item: SecurityOperationAlertSlaNoti
 }
 
 function SlaDeadLetterListCard({
-  description,
-  emptyDescription,
   emptyTitle,
   isError,
   isLoading,
   items,
   title,
 }: {
-  description: string;
-  emptyDescription: string;
   emptyTitle: string;
   isError: boolean;
   isLoading: boolean;
@@ -957,17 +935,16 @@ function SlaDeadLetterListCard({
   title: string;
 }) {
   return (
-    <Card className="min-w-0 overflow-hidden">
-      <div className="border-b p-4">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
+	    <Card className="min-w-0 overflow-hidden">
+	      <div className="border-b p-4">
+	        <h2 className="text-sm font-semibold">{title}</h2>
+	      </div>
       {isError ? (
         <div className="p-4"><PageError>{title}加载失败。</PageError></div>
       ) : isLoading ? (
         <LoadingRows count={3} />
       ) : items.length === 0 ? (
-        <EmptyState description={emptyDescription} title={emptyTitle} />
+	        <EmptyState title={emptyTitle} />
       ) : (
         <div className="divide-y">
           {items.slice(0, 5).map((item) => (
@@ -1081,17 +1058,16 @@ function ApprovalDetailPanel({
           <ClipboardCheck className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">审批详情</h2>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">来源扩展、时间线、处理意见。</p>
       </div>
 
       {!selectedApprovalId ? (
-        <EmptyState description="请选择审批记录。" title="未选择审批" />
+	      <EmptyState title="未选择审批" />
       ) : isError ? (
         <div className="p-4"><PageError>审批详情加载失败。</PageError></div>
       ) : isLoading ? (
         <LoadingRows count={4} />
       ) : !detail ? (
-        <EmptyState description="审批记录不存在或已移出筛选范围。" title="暂无详情" />
+	      <EmptyState title="暂无详情" />
       ) : (
         <div className="grid gap-5 p-4">
           <section className="grid gap-3">
@@ -1135,7 +1111,7 @@ function ApprovalDetailPanel({
             <h3 className="text-sm font-semibold">审批时间线</h3>
             <div className="grid gap-2">
               {detail.timeline.length === 0 ? (
-                <EmptyState className="px-0 py-6" description="暂无时间线事件。" title="暂无时间线" />
+	                <EmptyState className="px-0 py-6" title="暂无时间线" />
               ) : (
                 detail.timeline.map((event) => (
                   <div className="rounded-md border bg-background/80 p-3" key={event.id}>

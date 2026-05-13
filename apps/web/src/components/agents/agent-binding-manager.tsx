@@ -354,7 +354,6 @@ export function AgentBindingManager({
     <section className="grid gap-4 xl:grid-cols-2">
       <BindingCard
         count={agent.bindings.models.length}
-        description="按供应商绑定可用模型。"
         icon={Bot}
         title="模型绑定"
       >
@@ -424,7 +423,6 @@ export function AgentBindingManager({
 
       <BindingCard
         count={agent.bindings.prompts.length}
-        description="将提示词挂到不同消息角色，复用同一套上下文规范。"
         icon={FileText}
         title="提示词绑定"
       >
@@ -483,7 +481,6 @@ export function AgentBindingManager({
 
       <BindingCard
         count={agent.bindings.knowledge.length}
-        description="配置召回权重和 TopK，用于控制知识注入强度。"
         icon={Database}
         title="知识库绑定"
       >
@@ -594,7 +591,6 @@ export function AgentBindingManager({
 
       <BindingCard
         count={agent.bindings.tools.length}
-        description="按工具单独控制审批要求，适配不同风险等级。"
         icon={Wrench}
         title="工具绑定"
       >
@@ -724,13 +720,12 @@ function ActionField({ children }: { children: React.ReactNode }) {
 function BindingCard({
   children,
   count,
-  description,
   icon: Icon,
   title,
 }: {
   children: React.ReactNode;
   count: number;
-  description: string;
+  description?: string;
   icon: LucideIcon;
   title: string;
 }) {
@@ -741,10 +736,7 @@ function BindingCard({
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/20 text-muted-foreground">
             <Icon className="size-4" />
           </div>
-          <div>
-            <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-          </div>
+          <h2 className="text-sm font-semibold">{title}</h2>
         </div>
         <div className="pt-1 text-right">
           <div className="text-sm font-medium">{count}</div>

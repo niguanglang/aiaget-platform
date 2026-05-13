@@ -406,7 +406,7 @@ export function UsageAnomalyCard({ detecting, overview }: { detecting: boolean; 
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div><div className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-amber-600" />用量异常信号</div><p className="mt-1 text-sm text-muted-foreground">基于 Rollup 汇总对比最近周期和历史基线，检测成本、调用量、错误率和重试率异常。</p></div>
+        <div className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-amber-600" />用量异常信号</div>
         <StatusBadge tone={usageAnomalySummaryTone(summary?.highest_severity ?? null)}>{detecting ? '检测中' : summary ? usageAnomalySeverityLabel(summary.highest_severity) : '未检测'}</StatusBadge>
       </div>
       {detecting ? <div className="text-sm text-muted-foreground">正在检测用量异常...</div> : !overview ? (
@@ -460,7 +460,7 @@ export function UsageAlertList({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />告警生命周期</div><p className="mt-1 text-sm text-muted-foreground">确认、升级、关闭、通知。</p></div>
+      <div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />告警生命周期</div>
       {loading ? <div className="text-sm text-muted-foreground">正在加载告警队列...</div> : items.length === 0 ? <EmptyState description="暂无待处理告警。" title="暂无用量告警" /> : (
         <div className="grid gap-3">
           {items.slice(0, 10).map((alert) => (
@@ -499,7 +499,7 @@ export function UsageNotificationList({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <div><div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />通知投递审计</div><p className="mt-1 text-sm text-muted-foreground">失败或部分成功可重试。</p></div>
+      <div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />通知投递审计</div>
       {loading ? <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div> : items.length === 0 ? <EmptyState description="暂无投递记录。" title="暂无投递记录" /> : (
         <div className="grid gap-3">
           {items.slice(0, 12).map((item) => {
@@ -528,7 +528,7 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
-        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">自动重试</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">退避时间、最大重试次数、重试投递事件。</p></div>
+        <div><div className="flex flex-wrap items-center gap-2"><StatusBadge tone="ready">自动重试</StatusBadge><StatusBadge tone={overview?.scheduler_enabled ? 'healthy' : 'planned'}>{overview?.scheduler_enabled ? '任务已启用' : '任务未启用'}</StatusBadge><StatusBadge tone={policy?.source === 'SYSTEM_SETTING' ? 'healthy' : 'planned'}>{policy?.source === 'SYSTEM_SETTING' ? '租户策略' : '环境变量'}</StatusBadge></div><h2 className="mt-3 text-base font-semibold">告警通知自动重试</h2></div>
         <Button disabled={loading || running} onClick={onRunAutoRetry} type="button" variant="outline"><RefreshCw className={cn('size-4', running && 'animate-spin')} />{running ? '扫描中' : '立即扫描重试'}</Button>
       </div>
       {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-md border bg-muted/30" key={index} />)}</div> : (

@@ -46,7 +46,6 @@ export function DataScopeDetailContent({ roleId }: { roleId: string }) {
             <StatusBadge tone="planned">角色详情</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">角色数据范围详情</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">各类资源的数据范围、命中对象和更新时间。</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline">
@@ -75,13 +74,13 @@ export function DataScopeDetailContent({ roleId }: { roleId: string }) {
       ) : detailQuery.isError ? (
         <Card className="p-6 text-sm text-destructive">角色数据范围加载失败。</Card>
       ) : !detail ? (
-        <EmptyState className="py-12" description="未找到对应角色的数据权限配置。" title="暂无数据" />
+	        <EmptyState className="py-12" title="暂无数据" />
       ) : (
         <>
           <RoleSummaryCard role={detail.role} />
           {isTenantAdmin ? (
             <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-              租户管理员的数据权限由种子数据维护，默认拥有全部资源范围。
+	              租户管理员默认拥有全部资源范围。
             </div>
           ) : null}
           <section className="grid min-w-0 items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">

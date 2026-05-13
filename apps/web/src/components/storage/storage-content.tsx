@@ -47,15 +47,15 @@ export function StorageContent() {
 
   const metrics = useMemo(
     () => [
-      {
-        helper: '当前租户前缀',
-        label: '文件对象',
-        value: summary ? `${summary.object_count}` : '--',
-      },
-      {
-        helper: 'MinIO 对象容量',
-        label: '总容量',
-        value: summary ? formatBytes(summary.total_size_bytes) : '--',
+	      {
+	        helper: '租户前缀',
+	        label: '文件对象',
+	        value: summary ? `${summary.object_count}` : '--',
+	      },
+	      {
+	        helper: 'MinIO',
+	        label: '总容量',
+	        value: summary ? formatBytes(summary.total_size_bytes) : '--',
       },
       {
         helper: settings?.bucket ?? '未配置',
@@ -99,7 +99,6 @@ export function StorageContent() {
             </>
           }
           badge="文件对象"
-          description="管理当前租户在 MinIO 中的文件对象，支持查询、筛选、容量概览、文件查看和存储配置。"
           title="文件存储中心"
         />
       </motion.div>
@@ -115,9 +114,6 @@ export function StorageContent() {
           <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-sm font-semibold">文件对象列表</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                查看当前租户前缀下的对象，按文件名、目录、大小和更新时间快速定位文件。
-              </p>
             </div>
             <div className="text-sm text-muted-foreground">
               显示 {objects.length} / {objectsQuery.data?.total ?? 0}
@@ -155,12 +151,12 @@ export function StorageContent() {
           </div>
         </div>
 
-        {objectsQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">文件列表加载失败。</div>
-        ) : objectsQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">正在加载文件列表...</div>
-        ) : objects.length === 0 ? (
-          <EmptyState description="当前筛选条件下没有文件对象。" title="暂无文件" />
+	        {objectsQuery.isError ? (
+	          <div className="p-6 text-sm text-destructive">文件列表加载失败。</div>
+	        ) : objectsQuery.isLoading ? (
+	          <div className="p-6 text-sm text-muted-foreground">正在加载文件列表...</div>
+	        ) : objects.length === 0 ? (
+	          <EmptyState title="暂无文件" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] border-collapse text-left text-sm">
@@ -190,12 +186,12 @@ export function StorageContent() {
                     <td className="px-4 py-3 text-muted-foreground">{formatBytes(item.size_bytes)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.last_modified)}</td>
                     <td className="px-4 py-3">
-                      <Button asChild size="sm" type="button" variant="outline">
-                        <Link href={storageObjectDetailHref(item)}>
-                          <Eye className="size-4" />
-                          查看详情
-                        </Link>
-                      </Button>
+	                      <Button asChild size="sm" type="button" variant="outline">
+	                        <Link href={storageObjectDetailHref(item)}>
+	                          <Eye className="size-4" />
+	                          详情
+	                        </Link>
+	                      </Button>
                     </td>
                   </motion.tr>
                 ))}

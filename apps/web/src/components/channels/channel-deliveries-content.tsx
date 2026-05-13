@@ -32,8 +32,6 @@ export function ChannelDeliveriesContent() {
       activeRoute="deliveries"
       badge="投递记录"
       buildMetrics={(input) => buildDeliveryMetrics(input.items, input.total)}
-      description="查看渠道投递记录的响应状态、耗时、重试次数、目标摘要和 Trace 信息。"
-      emptyDescription="当前没有投递记录。渠道完成一次外部发送或回调后，投递记录会出现在这里。"
       emptyTitle="暂无投递记录"
       errorMessage="投递记录列表加载失败。"
       getItemId={(item) => item.id}
@@ -83,7 +81,6 @@ export function ChannelDeliveriesContent() {
         />
       )}
       statusOptions={deliveryStatusOptions}
-      subtitle="/channels/deliveries"
       title="投递记录"
     />
   );

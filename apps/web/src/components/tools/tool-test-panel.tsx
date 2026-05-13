@@ -39,12 +39,7 @@ export function ToolTestPanel({
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold">测试面板</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            使用 JSON 输入运行真实 HTTP 测试，并将结果记录为调用日志。
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">测试面板</h2>
         <Button onClick={onLoadDefaults} size="sm" type="button" variant="outline">
           加载默认值
         </Button>

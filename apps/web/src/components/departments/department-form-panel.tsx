@@ -87,9 +87,6 @@ export function DepartmentFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑部门' : '新建部门'}</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              部门归属会成为用户主体属性，后续可用于数据范围、知识库密级和资源授权。
-            </p>
           </div>
           {isPage ? (
             <Button onClick={onClose} type="button" variant="outline">

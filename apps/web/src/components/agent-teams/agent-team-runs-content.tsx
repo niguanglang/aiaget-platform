@@ -202,7 +202,6 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
             <StatusBadge tone={canRun ? 'healthy' : 'degraded'}>{canRun ? '可启动' : '无运行权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{team.name} · 运行记录</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队运行摘要、接力、反馈、报告导出和报告归档。</p>
         </div>
         <Button asChild variant="outline"><Link href="/agent-teams/report-archives"><FileArchive className="size-4" />报告归档</Link></Button>
       </section>
@@ -220,10 +219,10 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="全部任务" label="运行总数" value={formatInteger(runs.length)} />
-        <MetricCard helper="等待人工" label="接力中" value={formatInteger(runs.filter((run) => run.status === 'WAITING_HUMAN').length)} />
-        <MetricCard helper="失败或取消" label="异常运行" value={formatInteger(runs.filter((run) => run.status === 'FAILED' || run.status === 'CANCELLED').length)} />
-        <MetricCard helper="运行反馈" label="反馈" value={formatInteger(team.feedback.length)} />
+        <MetricCard helper={''} label="运行总数" value={formatInteger(runs.length)} />
+        <MetricCard helper={''} label="接力中" value={formatInteger(runs.filter((run) => run.status === 'WAITING_HUMAN').length)} />
+        <MetricCard helper={''} label="异常运行" value={formatInteger(runs.filter((run) => run.status === 'FAILED' || run.status === 'CANCELLED').length)} />
+        <MetricCard helper={''} label="反馈" value={formatInteger(team.feedback.length)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">

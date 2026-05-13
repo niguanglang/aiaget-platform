@@ -44,7 +44,6 @@ export function MonitorObservabilityContent() {
             <StatusBadge tone="planned">{windowValue}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">可观测性质量</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看 Trace 覆盖率、孤儿事件、慢链路、错误链路和错误模块。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setWindowValue(event.target.value as MonitorWindow)} value={windowValue}>

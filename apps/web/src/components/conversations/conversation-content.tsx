@@ -111,7 +111,6 @@ export function ConversationContent() {
             <StatusBadge tone="planned">运行证据</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">会话中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">会话线程、智能体、消息数量、运行状态、反馈和归档状态。</p>
         </div>
         {canWrite && agents.length > 0 ? (
           <Button asChild className="w-full md:w-auto">
@@ -214,7 +213,6 @@ export function ConversationContent() {
                 </Button>
               ) : null
             }
-            description="选择一个智能体并发送首条消息，即可创建会话线程。"
             title="暂无会话"
           />
         ) : (

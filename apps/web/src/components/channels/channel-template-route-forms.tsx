@@ -213,7 +213,6 @@ export function ChannelTemplateForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="维护渠道模板的基础信息、正文内容、变量映射和内容结构。"
           title={isEditing ? '编辑渠道模板' : '新建渠道模板'}
         />
 
@@ -466,7 +465,6 @@ export function ChannelRouteRuleForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="配置渠道路由的关联对象、匹配条件、优先级和目标投递策略。"
           title={isEditing ? '编辑渠道路由规则' : '新建渠道路由规则'}
         />
 
@@ -825,11 +823,10 @@ function TextSelect({
   );
 }
 
-function FormHeader({ description, title }: { description: string; title: string }) {
+function FormHeader({ title }: { description?: string; title: string }) {
   return (
     <div className="border-b pb-4">
       <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }

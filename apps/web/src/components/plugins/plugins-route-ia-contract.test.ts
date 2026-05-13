@@ -209,10 +209,10 @@ test('plugin hook and menu binding mutations require confirmation before updatin
   assert.doesNotMatch(bindingsSource, /onClick=\{\(\) => menuBindingMutation\.mutate/);
 });
 
-test('plugin hook execution queue success exposes a monitor event deep link for inspection', () => {
+test('plugin hook execution queue success exposes a monitor event deep link', () => {
   const bindingsSource = source(bindingsPath);
 
-  assert.match(bindingsSource, /查看事件详情|监控事件详情/);
+  assert.match(bindingsSource, /事件详情/);
   assert.match(bindingsSource, /\/monitor\/events\/\$\{queuedEventId\}/);
   assert.match(bindingsSource, /queuedEventId/);
 });

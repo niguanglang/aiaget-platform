@@ -70,9 +70,6 @@ export function TenantsContent() {
             <StatusBadge tone={canManageTenant ? 'mock' : 'planned'}>{canManageTenant ? '可管理' : '仅查看'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">租户管理中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看当前账号可访问的租户资料，确认租户状态、隔离边界，并进入详情或编辑资料。
-          </p>
         </div>
         <Button disabled={tenantsQuery.isFetching} onClick={() => tenantsQuery.refetch()} type="button" variant="outline">
           <RefreshCw className="size-4" />
@@ -132,7 +129,6 @@ export function TenantsContent() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold">租户列表</h2>
-              <p className="mt-1 text-sm text-muted-foreground">租户数据按账号所属范围隔离，可在这里确认当前工作区资料和状态。</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
@@ -212,7 +208,7 @@ function GovernanceCard() {
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <GovernanceItem title="强制租户隔离" description="核心业务表使用 tenant_id 隔离，前后端都按当前账号所属租户读取数据。" />
         <GovernanceItem title="当前接口范围" description="本阶段租户列表只返回当前租户，不提供跨租户创建、删除和切换。" />
-        <GovernanceItem title="资料维护" description="通过详情和编辑入口维护租户资料，列表保持筛选、状态确认和快速进入能力。" />
+        <GovernanceItem title="资料维护" description="租户资料和状态维护。" />
       </div>
     </Card>
   );

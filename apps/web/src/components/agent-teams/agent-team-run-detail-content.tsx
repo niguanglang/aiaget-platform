@@ -139,7 +139,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
     return (
       <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}><ArrowLeft className="size-4" />运行记录</Link></Button>
-        <EmptyState description="当前团队下没有找到这条运行记录，可能已被归档或筛选数据尚未同步。" title="运行记录不存在" />
+        <EmptyState title="运行记录不存在" />
       </main>
     );
   }
@@ -156,7 +156,6 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             <StatusBadge tone={teamRunStatusTone(run.status)}>{teamRunStatusLabel(run.status)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{run.objective}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">步骤时间线、接力记录、反馈记录、Trace 关联和报告动作。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -176,9 +175,9 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="完成 / 全部" label="步骤进度" value={`${formatInteger(run.completed_steps)}/${formatInteger(run.total_steps)}`} />
-        <MetricCard helper="失败步骤" label="异常" value={formatInteger(run.failed_steps)} />
-        <MetricCard helper="模型消耗" label="Token" value={formatInteger(run.total_tokens)} />
+        <MetricCard helper={''} label="步骤进度" value={`${formatInteger(run.completed_steps)}/${formatInteger(run.total_steps)}`} />
+        <MetricCard helper={''} label="异常" value={formatInteger(run.failed_steps)} />
+        <MetricCard helper={''} label="Token" value={formatInteger(run.total_tokens)} />
         <MetricCard helper={formatLatency(run.latency_ms)} label="成本" value={formatMoney(run.total_cost)} />
       </section>
 
@@ -221,7 +220,6 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             <Workflow className="size-4 text-primary" />
             <h2 className="text-sm font-semibold">当前运行回放</h2>
           </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">基于当前运行步骤、成员内部事件、RAG、工具调用和模型调用聚合关键执行信号。</p>
           <div className="mt-4 grid gap-2 text-sm">
             <DetailRow label="执行信号" value={`${formatInteger(currentReplayMetrics.steps)} 步 / ${formatInteger(currentReplayMetrics.childEvents)} 个内部事件`} />
             <DetailRow label="RAG / 工具 / 模型" value={`${formatInteger(currentReplayMetrics.references)} / ${formatInteger(currentReplayMetrics.toolCalls)} / ${formatInteger(currentReplayMetrics.modelCalls)}`} />
@@ -248,7 +246,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
               <h2 className="text-sm font-semibold">步骤时间线</h2>
             </div>
             {steps.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="暂无计划、成员执行、接力、校验和汇总记录。" title="暂无步骤" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" title="暂无步骤" />
             ) : (
               <div className="mt-5 grid gap-3">
                 {steps.map((step, index) => (
@@ -293,7 +291,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
               <h2 className="text-sm font-semibold">接力记录</h2>
             </div>
             {handoffs.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="暂无自动接力、人工接力和审批决策。" title="暂无接力" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" title="暂无接力" />
             ) : (
               <div className="mt-4 grid gap-3">
                 {handoffs.map((handoff) => (
@@ -328,7 +326,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             </div>
             {run.trace_id ? (
               <Button asChild className="mt-4 w-full" variant="outline">
-                <Link href={`/monitor/traces/${run.trace_id}`}>查看 Trace</Link>
+                <Link href={`/monitor/traces/${run.trace_id}`}>Trace</Link>
               </Button>
             ) : null}
           </section>
@@ -352,7 +350,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
               <h2 className="text-sm font-semibold">反馈记录</h2>
             </div>
             {feedback.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="团队运行反馈会显示评分、备注和提交人。" title="暂无反馈" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" title="暂无反馈" />
             ) : (
               <div className="mt-4 grid gap-2">
                 {feedback.map((item) => (
@@ -520,13 +518,12 @@ function RunComparePanel({
             <GitBranch className="size-4 text-primary" />
             <h2 className="text-sm font-semibold">上一轮运行对比</h2>
           </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">对比当前运行与上一条团队运行，定位步骤、成员输出、Token、成本、RAG 和工具调用变化。</p>
         </div>
         {previousRun ? <StatusBadge tone={teamRunStatusTone(previousRun.status)}>上一轮：{teamRunStatusLabel(previousRun.status)}</StatusBadge> : null}
       </div>
 
       {!previousRun || !previousMetrics ? (
-        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" description="暂无可对比的上一轮团队运行。" title="暂无上一轮可对比" />
+        <EmptyState className="mt-4 rounded-md border bg-muted/20 p-8" title="暂无上一轮可对比" />
       ) : (
         <div className="mt-5 grid gap-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -546,7 +543,7 @@ function RunComparePanel({
               <h3 className="text-sm font-semibold">成员差异</h3>
             </div>
             {memberRows.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-8" description="当前运行和上一轮都没有成员步骤可用于聚合。" title="暂无成员差异" />
+              <EmptyState className="rounded-md border bg-muted/20 p-8" title="暂无成员差异" />
             ) : (
               <div className="grid gap-3">
                 {memberRows.map((row) => (

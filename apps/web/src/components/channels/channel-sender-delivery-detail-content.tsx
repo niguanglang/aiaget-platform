@@ -64,10 +64,8 @@ export function ChannelSenderDeliveryDetailContent({ deliveryId }: { deliveryId:
       <ChannelFocusedHeader
         activeRoute="sender"
         badge="投递详情"
-        description="Sender 投递请求头、请求正文、平台响应、Trace 和重试入口。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
-        subtitle="/channels/sender/deliveries/:deliveryId"
         title="Sender 投递详情"
         onRefresh={() => void detailQuery.refetch()}
       />
@@ -87,7 +85,7 @@ export function ChannelSenderDeliveryDetailContent({ deliveryId }: { deliveryId:
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看 Sender 投递详情。" title="无权查看投递详情" />
+          <EmptyState title="无权查看投递详情" />
         </Card>
       ) : detailQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -96,7 +94,7 @@ export function ChannelSenderDeliveryDetailContent({ deliveryId }: { deliveryId:
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="投递详情不存在、已清理或没有权限查看。" title="投递详情不可用" />
+          <EmptyState title="投递详情不可用" />
         </Card>
       ) : (
         <>

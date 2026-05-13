@@ -79,10 +79,8 @@ export function ChannelJobDetailContent({ jobId }: { jobId: string }) {
       <ChannelFocusedHeader
         activeRoute="jobs"
         badge="发布任务详情"
-        description="发布任务执行状态、时间线、关联对象、载荷、结果和失败处理入口。"
         permissions={permissions}
         refreshing={detailQuery.isFetching || cancelMutation.isPending || retryMutation.isPending}
-        subtitle="/channels/jobs/:jobId"
         title="发布任务详情"
         onRefresh={() => void detailQuery.refetch()}
       />
@@ -102,7 +100,7 @@ export function ChannelJobDetailContent({ jobId }: { jobId: string }) {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看发布任务详情。" title="无权查看发布任务详情" />
+          <EmptyState title="无权查看发布任务详情" />
         </Card>
       ) : detailQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -111,7 +109,7 @@ export function ChannelJobDetailContent({ jobId }: { jobId: string }) {
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="发布任务不存在、已清理或当前账号没有权限查看。" title="发布任务不可用" />
+          <EmptyState title="发布任务不可用" />
         </Card>
       ) : (
         <>
@@ -217,7 +215,7 @@ async function invalidateJobQueries(queryClient: ReturnType<typeof useQueryClien
 
 function JobTimeline({ timeline }: { timeline: ChannelPublishJobTimelineItem[] }) {
   if (timeline.length === 0) {
-    return <EmptyState description="当前任务没有时间线记录。" title="暂无任务时间线" />;
+    return <EmptyState title="暂无任务时间线" />;
   }
 
   return (

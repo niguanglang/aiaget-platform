@@ -222,9 +222,6 @@ export function SettingsContent() {
             <StatusBadge tone={canManageSettings ? 'healthy' : 'planned'}>{canManageSettings ? '可编辑' : '只读'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">系统设置</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            系统参数、租户配置、账号权限、API Key、安全策略与文件存储。
-          </p>
         </div>
         <Button asChild variant="outline">
           <Link href="/settings/notification-policy">
@@ -290,10 +287,7 @@ export function SettingsContent() {
 
         <Card className="grid gap-4 p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold">系统参数</h2>
-              <p className="mt-1 text-sm text-muted-foreground">按租户隔离的运行配置，保存后由后端记录操作审计。</p>
-            </div>
+            <h2 className="text-sm font-semibold">系统参数</h2>
             <StatusBadge tone={canManageSettings ? 'healthy' : 'planned'}>
               {canManageSettings ? '可编辑' : '只读'}
             </StatusBadge>

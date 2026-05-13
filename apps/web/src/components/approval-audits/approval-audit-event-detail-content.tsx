@@ -53,9 +53,6 @@ export function ApprovalAuditEventDetailContent({
             <StatusBadge tone="planned">独立路由</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批审计事件详情</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看单条审批审计事件的来源、请求、Trace、操作人、备注和事件元数据。
-          </p>
         </div>
         <Button disabled={eventQuery.isFetching} onClick={() => void eventQuery.refetch()} type="button" variant="outline">
           <RefreshCw className="size-4" />
@@ -147,4 +144,3 @@ function buildApprovalAuditBackHref(windowValue: string | undefined, keyword: st
   const query = params.toString();
   return query ? `/approval-audits?${query}` : '/approval-audits';
 }
-

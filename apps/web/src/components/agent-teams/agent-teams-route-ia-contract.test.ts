@@ -143,7 +143,7 @@ test('agent team members, runs, and report archive pages own their dedicated API
   assert.match(membersSource, /createAgentTeamMember/);
   assert.match(membersSource, /updateAgentTeamMember/);
   assert.match(membersSource, /deleteAgentTeamMember/);
-  assert.match(membersSource, /成员管理/);
+  assert.match(membersSource, /成员列表/);
 
   assert.match(runsSource, /getAgentTeam/);
   assert.match(runsSource, /startAgentTeamRun/);

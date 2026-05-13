@@ -120,10 +120,8 @@ export function ChannelSenderContent() {
       <ChannelFocusedHeader
         activeRoute="sender"
         badge="Sender 投递"
-        description="企业微信、钉钉、飞书、Slack 和自定义 Webhook 的请求响应、Trace 上下文和失败重试。"
         permissions={permissions}
         refreshing={deliveriesQuery.isFetching || taskOverviewQuery.isFetching}
-        subtitle="/channels/sender"
         title="Sender 投递"
         onRefresh={() => {
           void deliveriesQuery.refetch();
@@ -136,7 +134,7 @@ export function ChannelSenderContent() {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看 Sender 投递。" title="无权查看 Sender 投递" />
+          <EmptyState title="无权查看 Sender 投递" />
         </Card>
       ) : (
         <>
@@ -194,7 +192,7 @@ export function ChannelSenderContent() {
                   {Array.from({ length: 5 }).map((_, index) => <div className="h-28 rounded-md border bg-muted/30" key={index} />)}
                 </div>
               ) : deliveries.length === 0 ? (
-                <EmptyState description="当前筛选条件下没有主动回复投递记录。" title="暂无 Sender 投递" />
+                <EmptyState title="暂无 Sender 投递" />
               ) : (
                 <div className="grid gap-3">
                   {deliveries.map((item) => (

@@ -61,70 +61,70 @@ const navigationItems = [
   {
     href: '/channels/publish',
     title: '发布渠道',
-    description: '查看已发布 Agent 的渠道入口、启停状态和健康巡检。',
+    meta: '入口 · 状态 · 巡检',
     icon: Rocket,
     badge: '渠道入口',
   },
   {
     href: '/channels/providers',
     title: '渠道提供方',
-    description: '维护平台适配、能力边界、健康状态和基础供应商信息。',
+    meta: '适配 · 健康',
     icon: Layers3,
     badge: '供应商',
   },
   {
     href: '/channels/accounts',
     title: '账号凭据',
-    description: '管理供应商账号、环境归属、凭据状态和轮换节奏。',
+    meta: '账号 · 凭据轮换',
     icon: KeyRound,
     badge: '凭据',
   },
   {
     href: '/channels/templates',
     title: '消息模板',
-    description: '进入模板编码、语言、版本和启停状态的专属页面。',
+    meta: '编码 · 版本 · 状态',
     icon: FileText,
     badge: '模板',
   },
   {
     href: '/channels/route-rules',
     title: '路由规则',
-    description: '维护匹配方式、目标类型、优先级和兜底策略。',
+    meta: '匹配 · 目标 · 优先级',
     icon: GitBranch,
     badge: '路由',
   },
   {
     href: '/channels/jobs',
     title: '发布任务',
-    description: '跟踪任务进度、失败原因、取消任务和重试任务。',
+    meta: '进度 · 重试',
     icon: ClipboardList,
     badge: '任务',
   },
   {
     href: '/channels/deliveries',
     title: '投递记录',
-    description: '查看响应状态、耗时、重试次数和链路追踪。',
+    meta: '响应 · 耗时 · Trace',
     icon: Truck,
     badge: '投递',
   },
   {
     href: '/channels/replies',
     title: '回复记录',
-    description: '定位外部会话、回复方向、Trace 和接收处理状态。',
+    meta: '会话 · Trace',
     icon: Inbox,
     badge: '回复',
   },
   {
     href: '/channels/sender',
     title: 'Sender 投递',
-    description: '查看主动回复投递、失败重试和自动清理任务。',
+    meta: '投递 · 重试 · 清理',
     icon: Send,
     badge: 'Sender',
   },
   {
     href: '/channels/release',
     title: '发布治理',
-    description: '进入发布流水线、自动推进、自愈和治理报表。',
+    meta: '流水线 · 门禁 · 自愈',
     icon: ShieldCheck,
     badge: '治理',
   },
@@ -177,9 +177,6 @@ export function ChannelOverviewContent() {
             </div>
             <p className="text-xs font-medium text-muted-foreground">/channels</p>
             <h1 className="mt-1 text-2xl font-semibold">渠道运营总览</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              汇总发布渠道、提供方、账号凭据、发布任务和投递记录的轻量状态；配置、详情和操作进入对应子页面处理。
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button disabled={refreshing} onClick={refresh} type="button" variant="outline">
@@ -196,7 +193,7 @@ export function ChannelOverviewContent() {
         </div>
       </section>
 
-      {hasError ? <Card className="border-amber-200 p-4 text-sm text-amber-700">渠道运营摘要加载不完整，请刷新或进入子页面查看。</Card> : null}
+      {hasError ? <Card className="border-amber-200 p-4 text-sm text-amber-700">渠道运营摘要加载不完整。</Card> : null}
 
       <OverviewMetrics
         accounts={accountsQuery.data}
@@ -214,10 +211,9 @@ export function ChannelOverviewContent() {
       </section>
 
       <section className="grid gap-4">
-          <div>
-            <h2 className="text-base font-semibold">运营入口</h2>
-          <p className="mt-1 text-sm text-muted-foreground">发布渠道、提供方、账号凭据、任务、投递和回复入口。</p>
-          </div>
+        <div>
+          <h2 className="text-base font-semibold">运营入口</h2>
+        </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {navigationItems.map((item) => (
             <NavigationCard key={item.href} item={item} />
@@ -300,7 +296,7 @@ function HealthSummaryCard({
       {loading ? (
         <SummarySkeleton />
       ) : channels.length === 0 && providerItems.length === 0 ? (
-        <EmptyState className="py-8" description="当前没有可展示的渠道健康数据。" title="暂无健康数据" />
+        <EmptyState className="py-8" title="暂无健康数据" />
       ) : (
         <div className="grid gap-3">
           {channels.map((channel) => (
@@ -347,7 +343,7 @@ function TaskSummaryCard({
       {loading ? (
         <SummarySkeleton />
       ) : items.length === 0 ? (
-        <EmptyState className="py-8" description="当前没有发布任务样本。" title="暂无发布任务" />
+        <EmptyState className="py-8" title="暂无发布任务" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -382,7 +378,7 @@ function DeliverySummaryCard({
       {loading ? (
         <SummarySkeleton />
       ) : items.length === 0 ? (
-        <EmptyState className="py-8" description="当前没有投递记录样本。" title="暂无投递记录" />
+        <EmptyState className="py-8" title="暂无投递记录" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -417,7 +413,7 @@ function NavigationCard({ item }: { item: (typeof navigationItems)[number] }) {
         </div>
         <div>
           <h3 className="text-sm font-semibold">{item.title}</h3>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.meta}</p>
         </div>
         <div className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
           进入页面

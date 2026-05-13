@@ -56,9 +56,6 @@ export function ApprovalContent() {
             <StatusBadge tone="planned">待办摘要</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看高危工具、通知策略和归档删除审批的待办摘要，并进入对应队列处理明细。
-          </p>
         </div>
         <Button
           onClick={() => {

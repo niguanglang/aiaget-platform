@@ -10,9 +10,7 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SkillCenterBackground } from '@/components/skills/skill-center-background';
 import { SkillFormPanel, toUpdateSkillInput, type SkillFormValues } from '@/components/skills/skill-form-panel';
-import { skillCategoryLabel, skillStatusLabel, skillStatusTone } from '@/components/skills/skill-status';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { getSkill, listUsers, updateSkill, type ApiClientError } from '@/lib/api-client';
 
 export function SkillEditContent({ skillId }: { skillId: string }) {
@@ -64,16 +62,7 @@ export function SkillEditContent({ skillId }: { skillId: string }) {
               {skill ? '返回 Skill 详情' : '返回技能资产中心'}
             </Link>
           </Button>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">编辑页</StatusBadge>
-            {skill ? <StatusBadge tone={skillStatusTone(skill.status)}>{skillStatusLabel(skill.status)}</StatusBadge> : null}
-            {skill ? <StatusBadge tone="planned">{skillCategoryLabel(skill.category)}</StatusBadge> : null}
-            <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
-          </div>
           <h1 className="break-words text-2xl font-semibold">{skill ? `编辑 ${skill.name}` : '编辑 Skill'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            编辑基础信息、触发场景、输入要求、执行步骤、输出结构和质量标准。
-          </p>
         </div>
       </section>
 

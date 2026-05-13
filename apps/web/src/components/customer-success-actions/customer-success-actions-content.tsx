@@ -147,15 +147,7 @@ export function CustomerSuccessActionsContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">成功行动</StatusBadge>
-            <StatusBadge tone="healthy">执行跟进</StatusBadge>
-            <StatusBadge tone="planned">计划拆解</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">客户成功行动中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            把客户成功计划拆成可跟踪的执行行动，管理负责人、截止时间、阻塞风险、完成证据和下一步跟进。
-          </p>
+          <h1 className="text-2xl font-semibold">客户成功行动</h1>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -188,10 +180,7 @@ export function CustomerSuccessActionsContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">行动清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">行动状态、评分、摘要预览、下一步动作和来源关系。</p>
-              </div>
+              <h2 className="text-sm font-semibold">行动清单</h2>
               <div className="text-sm text-muted-foreground">显示 {actions.length} / {total}</div>
             </div>
 
@@ -280,7 +269,6 @@ export function CustomerSuccessActionsContent() {
                 </Button>
               ) : null
             }
-            description="从客户成功计划拆解行动，并维护执行记录、阻塞风险和完成证据。"
             title="暂无客户成功行动"
           />
         ) : (

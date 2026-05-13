@@ -31,7 +31,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
   const detail = detailQuery.data ?? null;
 
   if (!canView) return <SecurityStatePanel description="当前账号没有 plugin:center:view 权限。" title="无权限访问安全审核" />;
-  if (detailQuery.isLoading) return <SecurityStatePanel description="正在加载插件安全审核、策略和风险检查。" title="正在加载安全审核" />;
+  if (detailQuery.isLoading) return <SecurityStatePanel title="正在加载安全审核" />;
   if (detailQuery.isError || !detail) return <SecurityStatePanel description="安全审核加载失败，可能是插件不存在或权限不足。" title="安全审核加载失败" />;
 
   const reviewRequired = detail.security_preview.review_required ?? (detail.risk_level === 'HIGH' || detail.risk_level === 'CRITICAL');
@@ -39,10 +39,10 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
   const reviewStatus = detail.security_preview.review_status ?? null;
   const blockReason = detail.security_preview.block_reason ?? null;
   const signals = [
-    { helper: '插件风险等级', label: '风险等级', value: pluginRiskLabel(detail.risk_level) },
-    { helper: 'Manifest 权限声明', label: '权限声明', value: `${detail.permission_preview.length}` },
-    { helper: '控制台入口', label: '菜单绑定', value: `${detail.menu_bindings.length}` },
-    { helper: '扩展点', label: 'Hook 绑定', value: `${detail.hooks.length}` },
+    { helper: '', label: '风险等级', value: pluginRiskLabel(detail.risk_level) },
+    { helper: '', label: '权限声明', value: `${detail.permission_preview.length}` },
+    { helper: '', label: '菜单绑定', value: `${detail.menu_bindings.length}` },
+    { helper: '', label: 'Hook 绑定', value: `${detail.hooks.length}` },
   ];
 
   return (
@@ -93,7 +93,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <DetailList title="风险检查" subtitle="根据 Manifest、风险等级、权限、Hook 和菜单注入形成风险信号。">
+            <DetailList title="风险检查">
               <div className="grid gap-2 md:grid-cols-2">
                 <RiskSignal label="风险等级" tone={pluginRiskTone(detail.risk_level)} value={pluginRiskLabel(detail.risk_level)} />
                 <RiskSignal label="审核状态" tone={pluginReviewStatusTone(reviewStatus)} value={formatPluginReviewStatus(reviewStatus)} />
@@ -102,22 +102,22 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
               </div>
             </DetailList>
 
-            <DetailList title="策略说明" subtitle="控制面只登记声明和绑定，不执行任意第三方代码。">
+            <DetailList title="策略">
               <div className="grid gap-2">
                 {detail.security_preview.notes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">暂无额外策略说明。</p>
+                  <p className="text-sm text-muted-foreground">暂无策略。</p>
                 ) : (
                   detail.security_preview.notes.map((note) => (
-                    <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground" key={note}>说明：{note}</div>
+                    <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground" key={note}>{note}</div>
                   ))
                 )}
               </div>
             </DetailList>
           </section>
 
-          <DetailList title="风险列表" subtitle="需要安全审核或策略关注的风险项。">
+          <DetailList title="风险列表">
             {detail.security_preview.risks.length === 0 ? (
-              <EmptyState className="p-6" description="暂无记录。" title="暂无风险" />
+              <EmptyState className="p-6" title="暂无风险" />
             ) : (
               detail.security_preview.risks.map((risk) => (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" key={risk}>风险：{risk}</div>
@@ -125,11 +125,11 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
             )}
           </DetailList>
 
-          <DetailList title="审核审计" subtitle="安全审核页展示最近审计记录，便于追踪策略和准入变更。">
+          <DetailList title="审核审计">
             {!canAudit ? (
-              <EmptyState className="p-6" description="当前账号没有 plugin:center:audit 权限，审计详情已隐藏。" title="无审计权限" />
+              <EmptyState className="p-6" title="无审计权限" />
             ) : detail.audit_logs.length === 0 ? (
-              <EmptyState className="p-6" description="暂无记录。" title="暂无审计" />
+              <EmptyState className="p-6" title="暂无审计" />
             ) : (
               detail.audit_logs.slice(0, 8).map((log) => (
                 <div className="rounded-md border bg-background p-3" key={log.id}>
@@ -163,7 +163,7 @@ function RiskSignal({ label, tone, value }: { label: string; tone: 'healthy' | '
   );
 }
 
-function SecurityStatePanel({ description, title }: { description: string; title: string }) {
+function SecurityStatePanel({ description, title }: { description?: string; title: string }) {
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <PluginCenterBackground />

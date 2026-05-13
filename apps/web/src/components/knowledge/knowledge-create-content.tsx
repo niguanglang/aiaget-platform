@@ -72,9 +72,6 @@ export function KnowledgeCreateContent() {
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">新建知识库</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            录入知识库名称、编码、可见范围和负责人。保存后可补充文档、重建索引并进行检索测试。
-          </p>
         </div>
       </section>
 

@@ -36,7 +36,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <SolutionPackageBackground />
-        <Card className="p-6 text-sm text-muted-foreground">正在加载落地方案...</Card>
+        <Card className="p-6 text-sm text-muted-foreground">正在加载方案包...</Card>
       </main>
     );
   }
@@ -45,7 +45,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <SolutionPackageBackground />
-        <Card className="p-6 text-sm text-destructive">落地方案加载失败。</Card>
+        <Card className="p-6 text-sm text-destructive">方案包加载失败。</Card>
       </main>
     );
   }
@@ -118,7 +118,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
 
       <section className="grid gap-4 md:grid-cols-2">
         <DetailCard title="业务目标" value={item.business_objectives} />
-        <DetailCard title="落地范围" value={item.scope_summary} />
+        <DetailCard title="方案范围" value={item.scope_summary} />
         <DetailCard title="场景蓝图" value={item.scenario_blueprint} />
         <DetailCard title="交付路线图" value={item.delivery_roadmap} />
         <DetailCard title="验收计划" value={item.acceptance_plan} />

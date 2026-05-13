@@ -62,10 +62,8 @@ export function ChannelTemplateEditContent({ templateId }: { templateId: string 
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="编辑消息模板"
-        description="维护归属供应商、模板内容、变量映射和第三方模板编号。"
         permissions={permissions}
         refreshing={templateQuery.isFetching || providersQuery.isFetching || updateMutation.isPending}
-        subtitle="/channels/templates/:templateId/edit"
         title="编辑消息模板"
         onRefresh={() => {
           void templateQuery.refetch();
@@ -86,7 +84,7 @@ export function ChannelTemplateEditContent({ templateId }: { templateId: string 
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法编辑消息模板。" title="无权编辑消息模板" />
+          <EmptyState title="无权编辑消息模板" />
         </Card>
       ) : templateQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -95,7 +93,7 @@ export function ChannelTemplateEditContent({ templateId }: { templateId: string 
         </Card>
       ) : !item || !initialValue ? (
         <Card className="p-5">
-          <EmptyState description="消息模板不存在、已删除或当前账号没有权限查看。" title="无法加载消息模板" />
+          <EmptyState title="无法加载消息模板" />
         </Card>
       ) : (
         <ChannelTemplateForm

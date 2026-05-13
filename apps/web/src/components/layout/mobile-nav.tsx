@@ -54,7 +54,7 @@ export function MobileNav() {
                   className={itemClassName}
                   key={item.id}
                   onClick={() => onDrilldown(item, index)}
-                  title={item.description}
+                  title={item.title}
                   type="button"
                 >
                   <Icon className={index === 0 ? 'size-4' : 'size-3.5'} />
@@ -64,7 +64,7 @@ export function MobileNav() {
             }
 
             return (
-              <Link className={itemClassName} href={item.href} key={item.id} rel={item.external ? 'noreferrer' : undefined} target={item.external ? '_blank' : undefined} title={item.description}>
+              <Link className={itemClassName} href={item.href} key={item.id} rel={item.external ? 'noreferrer' : undefined} target={item.external ? '_blank' : undefined} title={item.title}>
                 <Icon className={index === 0 ? 'size-4' : 'size-3.5'} />
                 {item.title}
               </Link>

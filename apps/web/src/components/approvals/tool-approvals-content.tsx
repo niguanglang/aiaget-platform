@@ -131,9 +131,6 @@ export function ToolApprovalsContent() {
             <StatusBadge tone={canWrite ? 'healthy' : 'planned'}>{canWrite ? '可处理' : '查看模式'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">高危工具审批</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            处理测试调用和运行时调用触发的高风险工具审批，核对请求、上下文和执行结果后放行或拒绝。
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -335,7 +332,6 @@ function ToolApprovalDetailPanel({
     <Card className="grid gap-4 p-5">
       <div>
         <h2 className="text-sm font-semibold">工具审批详情</h2>
-        <p className="mt-1 text-sm text-muted-foreground">查看原始请求、执行结果和上下文后，决定是否继续执行当前工具调用。</p>
       </div>
 
       {loading ? (

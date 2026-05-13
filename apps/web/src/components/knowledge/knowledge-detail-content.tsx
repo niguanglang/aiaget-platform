@@ -40,12 +40,12 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
   const metrics = useMemo(() => {
     if (!base) return [];
 
-    return [
-      { label: '文档', value: `${base.document_count}`, helper: '进入文档管理' },
-      { label: '切片', value: `${base.segment_count}`, helper: '索引切片' },
-      { label: '召回日志', value: `${base.recall_count}`, helper: '检索测试' },
-      { label: '智能体', value: `${base.agent_reference_count}`, helper: '绑定引用' },
-    ];
+	    return [
+	      { label: '文档', value: `${base.document_count}`, helper: '文档' },
+	      { label: '切片', value: `${base.segment_count}`, helper: '切片' },
+	      { label: '召回日志', value: `${base.recall_count}`, helper: '日志' },
+	      { label: '智能体', value: `${base.agent_reference_count}`, helper: '引用' },
+	    ];
   }, [base]);
 
   const deleteBaseMutation = useMutation({
@@ -104,12 +104,11 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
                 删除
               </Button>
             </>
-          }
-          base={base}
-          description={base.description ?? '暂无描述。'}
-          eyebrow="知识库详情"
-          title={base.name}
-        />
+	          }
+	          base={base}
+	          eyebrow="知识库详情"
+	          title={base.name}
+	        />
       </motion.div>
 
       {actionError ? <PageMessage tone="error" value={actionError} /> : null}
@@ -133,24 +132,21 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 
         <Card className="grid gap-4 p-5">
           <h2 className="text-sm font-semibold">操作入口</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <OperationEntry
-              description="文档、切片、处理任务。"
-              href={`/knowledge/${knowledgeId}/documents`}
-              icon={FileText}
-              title="文档管理"
-            />
-            <OperationEntry
-              description="上传文本、Markdown、HTML 或 FAQ 内容。"
-              href={`/knowledge/${knowledgeId}/upload`}
-              icon={FileUp}
-              title="上传文档"
-            />
-            <OperationEntry
-              description="混合检索、召回结果、日志。"
-              href={`/knowledge/${knowledgeId}/retrieval`}
-              icon={Search}
-              title="检索测试"
+	          <div className="grid gap-3 md:grid-cols-3">
+	            <OperationEntry
+	              href={`/knowledge/${knowledgeId}/documents`}
+	              icon={FileText}
+	              title="文档管理"
+	            />
+	            <OperationEntry
+	              href={`/knowledge/${knowledgeId}/upload`}
+	              icon={FileUp}
+	              title="上传文档"
+	            />
+	            <OperationEntry
+	              href={`/knowledge/${knowledgeId}/retrieval`}
+	              icon={Search}
+	              title="检索测试"
             />
           </div>
         </Card>
@@ -173,9 +169,9 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
       </section>
 
       {deleteBaseTarget ? (
-        <ConfirmDialog
-          body={`这会归档 ${deleteBaseTarget.name}，并保留记录用于审计。`}
-          confirmLabel="删除"
+	        <ConfirmDialog
+	          body={`这会归档 ${deleteBaseTarget.name}，并保留审计记录。`}
+	          confirmLabel="删除"
           pending={deleteBaseMutation.isPending}
           title="删除知识库？"
           onCancel={() => setDeleteBaseTarget(null)}
@@ -187,12 +183,10 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 }
 
 function OperationEntry({
-  description,
   href,
   icon: Icon,
   title,
 }: {
-  description: string;
   href: string;
   icon: typeof FileText;
   title: string;
@@ -200,12 +194,11 @@ function OperationEntry({
   return (
     <Button asChild className="h-auto justify-start p-0" variant="outline">
       <Link className="grid gap-2 p-4 text-left" href={href}>
-        <span className="flex items-center gap-2 text-sm font-semibold">
-          <Icon className="size-4 text-primary" />
-          {title}
-        </span>
-        <span className="text-xs leading-5 text-muted-foreground">{description}</span>
-      </Link>
+	        <span className="flex items-center gap-2 text-sm font-semibold">
+	          <Icon className="size-4 text-primary" />
+	          {title}
+	        </span>
+	      </Link>
     </Button>
   );
 }
@@ -215,7 +208,7 @@ function AgentReferencesCard({ base }: { base: KnowledgeBaseDetail }) {
     <Card className="grid min-w-0 gap-4 p-5">
       <h2 className="text-sm font-semibold">智能体引用</h2>
       {base.agent_references.length === 0 ? (
-        <EmptyState className="py-4" description="暂无智能体绑定该知识库。" title="暂无引用" />
+	        <EmptyState className="py-4" title="暂无引用" />
       ) : (
         <div className="grid gap-3">
           {base.agent_references.map((reference) => (

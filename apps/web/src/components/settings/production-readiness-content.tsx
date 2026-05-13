@@ -114,9 +114,6 @@ export function ProductionReadinessContent() {
             </StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">生产落地中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            按环境配置、外部服务、第三方联调、发布验收和风险项集中汇总上线证据。页面支持记录人工验收说明，但不会执行中间件连接、容器操作或危险变更。
-          </p>
           <div className="mt-3 text-xs text-muted-foreground">生成时间：{formatDateTime(overview?.generated_at)}</div>
         </div>
         <div className="flex flex-wrap gap-2">

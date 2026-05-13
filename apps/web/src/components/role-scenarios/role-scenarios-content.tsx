@@ -115,15 +115,7 @@ export function RoleScenariosContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">岗位场景编排</StatusBadge>
-            <StatusBadge tone="mock">业务资产组合</StatusBadge>
-            <StatusBadge tone="planned">交付成果验收</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">岗位场景编排</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            将岗位目标、业务流程、Agent、Skill、知识库、工具、提示词和验收标准组合为可复用的 AI 落地场景包。
-          </p>
+          <h1 className="text-2xl font-semibold">岗位场景</h1>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -161,10 +153,7 @@ export function RoleScenariosContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">场景包清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">按岗位、部门、状态、价值评分和负责人筛选场景包，快速跟进流程、痛点和关联资产。</p>
-              </div>
+              <h2 className="text-sm font-semibold">场景包清单</h2>
               <div className="text-sm text-muted-foreground">显示 {scenarios.length} / {total}</div>
             </div>
 
@@ -223,7 +212,6 @@ export function RoleScenariosContent() {
                 </Button>
               ) : null
             }
-            description="新建岗位场景包后补充业务流程、交付成果、验收标准和关联资产。"
             title="暂无岗位场景"
           />
         ) : (
@@ -288,7 +276,7 @@ export function RoleScenariosContent() {
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/role-scenarios/${scenario.id}`}>
                             <Eye className="size-3.5" />
-                            查看
+                            详情
                           </Link>
                         </Button>
                         <Button asChild disabled={!canWrite} size="sm" variant="outline">

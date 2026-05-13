@@ -152,7 +152,6 @@ export function RolePermissionContent() {
             <StatusBadge tone="planned">菜单</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">角色权限中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">角色状态、用户绑定、接口权限和菜单授权。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -190,10 +189,7 @@ export function RolePermissionContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">角色清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">名称、状态、用户数和授权数量。</p>
-              </div>
+              <h2 className="text-sm font-semibold">角色清单</h2>
               <div className="text-sm text-muted-foreground">
                 显示 {roles.length} / {total}
               </div>

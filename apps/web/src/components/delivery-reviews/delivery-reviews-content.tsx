@@ -135,15 +135,7 @@ export function DeliveryReviewsContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">验收复盘</StatusBadge>
-            <StatusBadge tone="mock">绑定落地方案包</StatusBadge>
-            <StatusBadge tone="planned">改进行动 + 扩展计划</StatusBadge>
-          </div>
           <h1 className="text-2xl font-semibold">交付验收复盘</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            承接落地方案包，记录客户验收结果、问题复盘、改进行动、扩展计划和可复用资产。
-          </p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -176,10 +168,7 @@ export function DeliveryReviewsContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">复盘清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">核心字段、状态、评分、验收结论和摘要预览。</p>
-              </div>
+              <h2 className="text-sm font-semibold">复盘清单</h2>
               <div className="text-sm text-muted-foreground">显示 {reviews.length} / {total}</div>
             </div>
 
@@ -250,7 +239,6 @@ export function DeliveryReviewsContent() {
                 </Button>
               ) : null
             }
-            description="暂无交付范围、问题改进、扩展机会和可复用资产。"
             title="暂无验收复盘"
           />
         ) : (

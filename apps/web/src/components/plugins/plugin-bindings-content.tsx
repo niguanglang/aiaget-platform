@@ -115,15 +115,15 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
   });
 
   if (!canView) return <BindingsStatePanel description="当前账号没有 plugin:center:view 权限。" title="无权限访问绑定配置" />;
-  if (detailQuery.isLoading) return <BindingsStatePanel description="正在加载菜单绑定和 Hook 配置。" title="正在加载绑定配置" />;
+  if (detailQuery.isLoading) return <BindingsStatePanel title="正在加载绑定配置" />;
   if (detailQuery.isError || !detail) return <BindingsStatePanel description="绑定配置加载失败，可能是插件不存在或权限不足。" title="绑定配置加载失败" />;
 
   const isMutating = hookMutation.isPending || menuBindingMutation.isPending || hookExecutionMutation.isPending;
   const metrics = [
-    { helper: '控制台菜单入口', label: '菜单绑定', value: `${detail.menu_bindings.length}` },
-    { helper: '当前可见入口', label: '可见菜单', value: `${detail.menu_bindings.filter((binding) => binding.visible).length}` },
-    { helper: '扩展点配置', label: 'Hook 绑定', value: `${detail.hooks.length}` },
-    { helper: '启用 Hook', label: '启用 Hook', value: `${detail.hooks.filter((hook) => hook.status === 'ACTIVE').length}` },
+    { helper: '', label: '菜单绑定', value: `${detail.menu_bindings.length}` },
+    { helper: '', label: '可见菜单', value: `${detail.menu_bindings.filter((binding) => binding.visible).length}` },
+    { helper: '', label: 'Hook 绑定', value: `${detail.hooks.length}` },
+    { helper: '', label: '启用 Hook', value: `${detail.hooks.filter((hook) => hook.status === 'ACTIVE').length}` },
   ];
 
   function confirmBindingAction() {
@@ -179,7 +179,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
           <Message tone="success" value={notice} />
           {queuedEventId ? (
             <Button asChild className="w-fit" size="sm" variant="outline">
-              <Link href={`/monitor/events/${queuedEventId}`}>查看事件详情</Link>
+              <Link href={`/monitor/events/${queuedEventId}`}>事件详情</Link>
             </Button>
           ) : null}
         </div>
@@ -193,9 +193,9 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <DetailList title="菜单绑定" subtitle="控制插件向控制台注入的菜单入口、可见性和启停状态。">
+        <DetailList title="菜单绑定">
           {detail.menu_bindings.length === 0 ? (
-            <EmptyState className="p-6" description="暂无记录。" title="暂无菜单注入" />
+            <EmptyState className="p-6" title="暂无菜单注入" />
           ) : (
             detail.menu_bindings.map((binding) => (
               <div className="rounded-lg border bg-background p-3" key={binding.id}>
@@ -203,7 +203,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{binding.menu_name}</div>
                     <div className="mt-1 truncate text-xs text-muted-foreground">{binding.menu_code} · {binding.path ?? '无路由'}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">组件：{binding.component ?? '未配置'}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">组件：{binding.component ?? '-'}</div>
                   </div>
                   <div className="flex gap-1">
                     <Button disabled={!canManage || isMutating} onClick={() => setBindingActionTarget({ binding, type: 'MENU_VISIBILITY', visible: !binding.visible })} size="icon" title={binding.visible ? '隐藏菜单' : '显示菜单'} type="button" variant="outline">
@@ -224,9 +224,9 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
           )}
         </DetailList>
 
-        <DetailList title="Hook 绑定" subtitle="控制插件接入控制面事件或网关扩展点。">
+        <DetailList title="Hook 绑定">
           {detail.hooks.length === 0 ? (
-            <EmptyState className="p-6" description="暂无记录。" title="暂无 Hook" />
+            <EmptyState className="p-6" title="暂无 Hook" />
           ) : (
             detail.hooks.map((hook) => (
               <div className="rounded-lg border bg-background p-3" key={hook.id}>
@@ -256,11 +256,11 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
       </section>
 
       <Card className="p-5">
-        <h2 className="text-sm font-semibold">绑定配置说明</h2>
+        <h2 className="text-sm font-semibold">绑定动作</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <SummaryItem label="菜单可见性" value="控制是否出现在控制台菜单" />
-          <SummaryItem label="菜单启停" value="控制绑定是否可用" />
-          <SummaryItem label="Hook 入队" value="仅记录受控平台事件，不执行第三方代码" />
+          <SummaryItem label="菜单可见性" value="显示 / 隐藏" />
+          <SummaryItem label="菜单启停" value="启用 / 停用" />
+          <SummaryItem label="Hook 入队" value="受控平台事件" />
         </div>
       </Card>
 
@@ -343,7 +343,7 @@ function HookConfigSummary({ config }: { config: Record<string, unknown> | null 
   );
 }
 
-function BindingsStatePanel({ description, title }: { description: string; title: string }) {
+function BindingsStatePanel({ description, title }: { description?: string; title: string }) {
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <PluginCenterBackground />

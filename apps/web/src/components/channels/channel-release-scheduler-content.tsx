@@ -40,9 +40,7 @@ export function ChannelReleaseSchedulerContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布巡检调度"
-        description="发布巡检调度状态、候选渠道、工作流模式和最近运行结果。"
         refreshing={schedulerQuery.isFetching || runMutation.isPending}
-        subtitle="/channels/release/scheduler"
         title="发布巡检调度"
         onRefresh={() => void schedulerQuery.refetch()}
       />
@@ -50,13 +48,13 @@ export function ChannelReleaseSchedulerContent() {
       <ChannelAlert message={actionError ?? (schedulerQuery.isError ? '发布巡检调度加载失败。' : null)} tone="error" />
       <Card className="grid gap-4 p-5">
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <PanelTitle helper="自动推进和自愈候选扫描" title="调度状态" />
+          <PanelTitle title="调度状态" />
           <Button disabled={!permissions.canDeploy || runMutation.isPending} onClick={() => setReleaseSchedulerActionTarget('run-release-scheduler')} type="button" variant="outline">
             <Play className="size-4" />
             运行发布巡检
           </Button>
         </div>
-        {!overview ? <EmptyState description="发布巡检调度数据暂不可用。" title="暂无调度概览" /> : (
+        {!overview ? <EmptyState title="暂无调度概览" /> : (
           <DetailGrid items={[
             { label: '调度状态', value: overview.scheduler_enabled ? '启用' : '停用' },
             { label: '运行中', value: overview.running ? '是' : '否' },
@@ -70,7 +68,7 @@ export function ChannelReleaseSchedulerContent() {
       {overview ? (
         <>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="候选渠道范围" title="候选摘要" />
+            <PanelTitle title="候选摘要" />
             <DetailGrid items={[
               { label: '总渠道', value: formatNumber(overview.summary.total_channels) },
               { label: '自动推进候选', value: formatNumber(overview.summary.automation_enabled_channel_count) },
@@ -80,8 +78,8 @@ export function ChannelReleaseSchedulerContent() {
             ]} />
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="调度运行结果" title="最近运行" />
-            {!overview.last_run ? <EmptyState description="当前没有调度运行记录。" title="暂无最近运行" /> : (
+            <PanelTitle title="最近运行" />
+            {!overview.last_run ? <EmptyState title="暂无最近运行" /> : (
               <>
                 <DetailGrid items={[
                   { label: '运行 ID', value: overview.last_run.run_id },

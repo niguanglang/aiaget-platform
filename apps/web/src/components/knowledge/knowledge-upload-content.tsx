@@ -48,18 +48,15 @@ export function KnowledgeUploadContent({ knowledgeId }: { knowledgeId: string })
     <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
       <KnowledgeCenterBackground />
       <KnowledgeWorkspaceHeader
-        actions={<RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />}
-        base={base}
-        description="上传文档是独立表单流程，提交后进入文档管理页查看处理状态、切片和任务。"
-        eyebrow="上传文档"
-        title={base ? `${base.name} / 上传文档` : '上传文档'}
-      />
+	        actions={<RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />}
+	        base={base}
+	        eyebrow="上传文档"
+	        title={base ? `${base.name} / 上传文档` : '上传文档'}
+	      />
 
       {!canWrite ? <PageMessage tone="error" value="当前账号没有上传文档权限。" /> : null}
       {uploadMutation.isError ? <PageMessage tone="error" value={(uploadMutation.error as ApiClientError).message} /> : null}
-      {uploadMutation.isSuccess ? (
-        <PageMessage tone="success" value="文档已提交处理，可以进入文档管理查看后台任务进度。" />
-      ) : null}
+	      {uploadMutation.isSuccess ? <PageMessage tone="success" value="文档已提交处理。" /> : null}
 
       <Card className="overflow-hidden">
         <KnowledgeDocumentFormPanel
@@ -74,11 +71,11 @@ export function KnowledgeUploadContent({ knowledgeId }: { knowledgeId: string })
         />
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline">
-          <Link href={`/knowledge/${knowledgeId}/documents`}>查看文档管理</Link>
-        </Button>
-      </div>
+	      <div className="flex flex-wrap gap-2">
+	        <Button asChild variant="outline">
+	          <Link href={`/knowledge/${knowledgeId}/documents`}>文档管理</Link>
+	        </Button>
+	      </div>
     </main>
   );
 }

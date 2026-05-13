@@ -71,7 +71,6 @@ export function RoleScenarioEditContent({ scenarioId }: { scenarioId: string }) 
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑岗位场景</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整流程、交付成果、验收标准和关联资产。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/role-scenarios/${scenarioId}`}>

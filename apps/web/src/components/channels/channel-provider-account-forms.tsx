@@ -163,7 +163,6 @@ export function ChannelProviderForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="基础接入、鉴权与能力配置。"
           title={isEditing ? '编辑渠道提供方' : '创建渠道提供方'}
         />
 
@@ -339,7 +338,6 @@ export function ChannelAccountForm({
     <Card className="overflow-hidden">
       <form className="grid gap-5 p-5" onSubmit={handleSubmit}>
         <FormHeader
-          description="提供方归属、外部账号与密钥配置。"
           title={isEditing ? '编辑渠道账号' : '创建渠道账号'}
         />
 
@@ -623,11 +621,10 @@ function JsonTextarea({
   );
 }
 
-function FormHeader({ description, title }: { description: string; title: string }) {
+function FormHeader({ title }: { description?: string; title: string }) {
   return (
     <div className="border-b pb-4">
       <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }

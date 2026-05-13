@@ -21,12 +21,7 @@ export function PromptContentEditorCard({
   return (
     <Card>
       <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-sm font-semibold">提示词编辑器</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            当前使用文本域实现，并保留兼容 Monaco 编辑器的替换边界。
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">提示词编辑器</h2>
         <Button disabled={!canWrite || pending || content.trim().length === 0} onClick={onSave}>
           <Save className="size-4" />
           保存内容

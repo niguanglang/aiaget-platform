@@ -43,7 +43,7 @@ export function KnowledgeDocumentFormPanel({
       title: '',
       source_type: 'MARKDOWN',
       file_name: '',
-      content: '# 知识笔记\n\n在这里粘贴文本或 Markdown 文档内容。\n\n使用清晰的标题和段落可以获得更好的切片效果。',
+      content: '',
     },
   });
 
@@ -73,9 +73,6 @@ export function KnowledgeDocumentFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">上传文档</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              原始文件会写入 MinIO，解析文本继续用于切片、索引和检索。
-            </p>
           </div>
           {isDrawer ? (
             <Button onClick={onClose} size="icon" type="button" variant="ghost">
@@ -124,7 +121,7 @@ export function KnowledgeDocumentFormPanel({
                 <span className="mt-1 block text-xs text-muted-foreground">
                   {selectedFile
                     ? `${formatFileSize(selectedFile.size)} · ${selectedFile.type}`
-                    : '支持 TXT、Markdown、HTML，上传后原文保存到 MinIO。'}
+                    : 'TXT / Markdown / HTML'}
                 </span>
               </span>
             </span>

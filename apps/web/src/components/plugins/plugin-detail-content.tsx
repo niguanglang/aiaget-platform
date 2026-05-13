@@ -47,13 +47,13 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <PluginCenterBackground />
-        <EmptyState description="当前账号没有 plugin:center:view 权限，无法查看插件详情。" title="无权限访问插件详情" />
+        <EmptyState title="无权限访问插件详情" />
       </main>
     );
   }
 
   if (detailQuery.isLoading) {
-    return <PluginStatePanel description="正在加载插件 Manifest、安装状态、权限和绑定摘要。" title="正在加载插件详情" />;
+    return <PluginStatePanel title="正在加载插件详情" />;
   }
 
   if (detailQuery.isError || !detail) {
@@ -62,9 +62,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
 
   const metrics = [
     { label: '安装状态', value: pluginStatusLabel(detail.status), helper: pluginRuntimeLabel(detail.runtime_status) },
-    { label: '权限声明', value: `${detail.permission_preview.length}`, helper: 'Manifest 权限' },
-    { label: '菜单绑定', value: `${detail.menu_bindings.length}`, helper: '控制台入口摘要' },
-    { label: 'Hook 绑定', value: `${detail.hooks.length}`, helper: '扩展点摘要' },
+    { label: '权限声明', value: `${detail.permission_preview.length}`, helper: '' },
+    { label: '菜单绑定', value: `${detail.menu_bindings.length}`, helper: '' },
+    { label: 'Hook 绑定', value: `${detail.hooks.length}`, helper: '' },
   ];
 
   return (
@@ -149,9 +149,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <DetailList title="权限预览" subtitle="插件声明的权限编码会进入角色、资源授权和安全策略校验。">
+            <DetailList title="权限预览">
               {detail.permission_preview.length === 0 ? (
-                <EmptyState className="p-6" description="暂无记录。" title="暂无权限声明" />
+                <EmptyState className="p-6" title="暂无权限声明" />
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {detail.permission_preview.map((permission) => (
@@ -163,7 +163,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
               )}
             </DetailList>
 
-            <DetailList title="安全摘要" subtitle="安全审核页负责策略、风险检查和准入判断。">
+            <DetailList title="安全摘要">
               <p className="text-sm leading-6 text-muted-foreground">{detail.security_preview.summary}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <SummaryItem label="审核要求" value={detail.security_preview.review_required ? '需要审核' : '无需审核'} />
@@ -173,9 +173,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <DetailList title="菜单摘要" subtitle="完整菜单绑定编辑在绑定配置页完成。">
+            <DetailList title="菜单摘要">
               {detail.menu_bindings.length === 0 ? (
-                <EmptyState className="p-6" description="暂无记录。" title="暂无菜单绑定" />
+                <EmptyState className="p-6" title="暂无菜单绑定" />
               ) : (
                 detail.menu_bindings.slice(0, 4).map((binding) => (
                   <div className="rounded-md border bg-background p-3" key={binding.id}>
@@ -186,9 +186,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
               )}
             </DetailList>
 
-            <DetailList title="Hook 摘要" subtitle="完整 Hook 配置在绑定配置页完成。">
+            <DetailList title="Hook 摘要">
               {detail.hooks.length === 0 ? (
-                <EmptyState className="p-6" description="暂无记录。" title="暂无 Hook" />
+                <EmptyState className="p-6" title="暂无 Hook" />
               ) : (
                 detail.hooks.slice(0, 4).map((hook) => (
                   <div className="rounded-md border bg-background p-3" key={hook.id}>
@@ -205,11 +205,11 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
             </DetailList>
           </section>
 
-          <DetailList title="审计记录" subtitle="安装、启停、升级、Hook 和菜单变更会保留审计摘要。">
+          <DetailList title="审计记录">
             {!canAudit ? (
-              <EmptyState className="p-6" description="当前账号没有 plugin:center:audit 权限，审计详情已隐藏。" title="无审计权限" />
+              <EmptyState className="p-6" title="无审计权限" />
             ) : detail.audit_logs.length === 0 ? (
-              <EmptyState className="p-6" description="暂无记录。" title="暂无审计" />
+              <EmptyState className="p-6" title="暂无审计" />
             ) : (
               detail.audit_logs.slice(0, 5).map((log) => (
                 <div className="rounded-md border bg-background p-3" key={log.id}>
@@ -231,7 +231,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
   );
 }
 
-function PluginStatePanel({ description, title }: { description: string; title: string }) {
+function PluginStatePanel({ description, title }: { description?: string; title: string }) {
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <PluginCenterBackground />

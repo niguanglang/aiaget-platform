@@ -79,15 +79,7 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">机会分析</StatusBadge>
-            <StatusBadge tone="planned">漏斗看板</StatusBadge>
-            <StatusBadge tone="healthy">客户成功</StatusBadge>
-          </div>
           <h1 className="text-2xl font-semibold">续约机会分析</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            从续约机会清单汇总阶段漏斗、类型分布、风险暴露、加权金额和近期关闭节奏，帮助客户成功团队判断商务推进优先级。
-          </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline">
@@ -120,7 +112,6 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
               <Link href="/customer-success-opportunities">返回机会清单</Link>
             </Button>
           }
-          description="暂无阶段漏斗、加权金额、风险分布和近期关闭机会。"
           title="暂无可分析的续约机会"
         />
       ) : null}

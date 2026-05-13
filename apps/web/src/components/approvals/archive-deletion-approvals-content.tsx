@@ -235,9 +235,6 @@ export function ArchiveDeletionApprovalsContent() {
             <StatusBadge tone={canWrite ? 'healthy' : 'planned'}>{canWrite ? '可处理' : '查看模式'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">归档删除审批</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            汇总审批审计、安全死信、自愈恢复审计和 Agent 团队报告归档删除审批，删除类操作批准后才会生效。
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -269,7 +266,7 @@ export function ArchiveDeletionApprovalsContent() {
       <ErrorBanner message={actionError ?? (hasError ? '部分归档删除审批加载失败，请刷新或进入来源页面查看。' : null)} />
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[1.12fr_0.88fr]">
-        <CardSection description="按来源查看不同归档删除审批，支持在同一页面完成基础处理。" title="归档删除审批队列">
+        <CardSection title="归档删除审批队列">
           <div className="grid gap-2 border-b p-4 md:grid-cols-[220px_auto]">
             <select
               className="h-9 rounded-md border bg-background/80 px-3 text-sm"

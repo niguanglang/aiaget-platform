@@ -35,10 +35,8 @@ export function ChannelReplyDetailContent({ replyId }: { replyId: string }) {
       <ChannelFocusedHeader
         activeRoute="replies"
         badge="回复详情"
-        description="回复消息链路、消息内容、原始载荷和处理时间。"
         permissions={permissions}
         refreshing={detailQuery.isFetching}
-        subtitle="/channels/replies/:replyId"
         title="回复详情"
         onRefresh={() => void detailQuery.refetch()}
       />
@@ -57,7 +55,7 @@ export function ChannelReplyDetailContent({ replyId }: { replyId: string }) {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看回复详情。" title="无权查看回复详情" />
+          <EmptyState title="无权查看回复详情" />
         </Card>
       ) : detailQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -66,7 +64,7 @@ export function ChannelReplyDetailContent({ replyId }: { replyId: string }) {
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="回复记录不存在、已清理或当前账号没有权限查看。" title="回复详情不可用" />
+          <EmptyState title="回复详情不可用" />
         </Card>
       ) : (
         <>

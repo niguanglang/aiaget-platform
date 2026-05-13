@@ -130,9 +130,6 @@ export function NotificationPolicyApprovalsContent() {
             <StatusBadge tone={canWrite ? 'healthy' : 'planned'}>{canWrite ? '可处理' : '查看模式'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">通知策略审批</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            审核高影响通知策略变更，批准后才会写入系统参数并影响后台通知任务。
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -349,7 +346,6 @@ function NotificationPolicyApprovalDetailPanel({
           <div className="grid gap-3 text-sm">
             <DetailRow label="策略名称" value={detail.setting_name} />
             <DetailRow label="策略编码" value={detail.setting_key} />
-            <DetailRow label="策略说明" value={notificationPolicySettingLabel(detail.setting_key)} />
             <DetailRow label="快照版本" value={`v${detail.version}`} />
             <DetailRow label="申请人" value={detail.created_by ? `${detail.created_by.name} (${detail.created_by.email})` : '-'} />
             <DetailRow label="申请时间" value={formatDateTime(detail.created_at)} />

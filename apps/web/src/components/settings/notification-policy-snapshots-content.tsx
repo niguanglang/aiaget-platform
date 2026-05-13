@@ -78,9 +78,6 @@ export function NotificationPolicySnapshotsContent() {
             <StatusBadge tone={canManageSettings ? 'healthy' : 'planned'}>{canManageSettings ? '可回滚' : '只读'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">通知策略快照</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看通知策略版本快照、审批预留状态和回滚历史。回滚会生成新的策略快照。
-          </p>
         </div>
       </section>
 

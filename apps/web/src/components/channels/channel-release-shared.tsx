@@ -38,17 +38,13 @@ export const releaseSubnavItems = [
 export function ChannelReleaseHeader({
   badge,
   children,
-  description,
   refreshing,
-  subtitle,
   title,
   onRefresh,
 }: {
   badge: string;
   children?: ReactNode;
-  description: string;
   refreshing: boolean;
-  subtitle: string;
   title: string;
   onRefresh: () => void;
 }) {
@@ -59,10 +55,8 @@ export function ChannelReleaseHeader({
       <ChannelFocusedHeader
         activeRoute="release"
         badge={badge}
-        description={description}
         permissions={permissions}
         refreshing={refreshing}
-        subtitle={subtitle}
         title={title}
         onRefresh={onRefresh}
       />
@@ -99,9 +93,9 @@ export function ReleaseChannelPicker({
 }) {
   return (
     <Card className="grid gap-4 p-5">
-      <PanelTitle helper="" title="治理渠道" />
+      <PanelTitle title="治理渠道" />
       {channels.length === 0 ? (
-        <EmptyState description="" title="暂无发布渠道" />
+        <EmptyState title="暂无发布渠道" />
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {channels.map((channel) => (
@@ -132,7 +126,7 @@ export function ReleaseChannelPicker({
 export function ReleaseChannelEmpty({ title = '未选择渠道' }: { title?: string }) {
   return (
     <Card className="p-5">
-      <EmptyState description="" title={title} />
+      <EmptyState title={title} />
     </Card>
   );
 }
@@ -164,9 +158,9 @@ export function ReleaseModuleEntry({
 export function ReleaseSchedulerSummaryCard({ overview }: { overview: ChannelReleaseSchedulerOverview | null | undefined }) {
   return (
     <Card className="grid gap-4 p-5">
-      <PanelTitle helper="" title="发布巡检调度概览" />
+      <PanelTitle title="发布巡检调度概览" />
       {!overview ? (
-        <EmptyState description="" title="暂无调度概览" />
+        <EmptyState title="暂无调度概览" />
       ) : (
         <DetailGrid
           items={[
@@ -183,7 +177,7 @@ export function ReleaseSchedulerSummaryCard({ overview }: { overview: ChannelRel
   );
 }
 
-export function PanelTitle({ helper, title }: { helper: string; title: string }) {
+export function PanelTitle({ helper, title }: { helper?: string; title: string }) {
   return (
     <div>
       <h2 className="text-sm font-semibold">{title}</h2>

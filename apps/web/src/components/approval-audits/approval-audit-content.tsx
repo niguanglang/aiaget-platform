@@ -91,9 +91,6 @@ export function ApprovalAuditContent() {
             <StatusBadge tone="planned">事件追踪</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批审计</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            全局检索工具审批、通知策略审批和归档操作事件，按来源、类型、状态、Trace 与关键词定位审批链路。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">

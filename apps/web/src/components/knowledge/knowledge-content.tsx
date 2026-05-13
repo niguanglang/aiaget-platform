@@ -116,15 +116,14 @@ export function KnowledgeContent() {
             <Lock className="size-4 text-primary" />
             知识库访问受限
           </div>
-          <EmptyState
-            action={(
-              <Button asChild variant="outline">
-                <Link href="/dashboard">返回工作台</Link>
-              </Button>
-            )}
-            description="请联系租户管理员开通 knowledge:base:view 权限后再访问知识库中心。"
-            title="暂无访问权限"
-          />
+	          <EmptyState
+	            action={(
+	              <Button asChild variant="outline">
+	                <Link href="/dashboard">返回工作台</Link>
+	              </Button>
+	            )}
+	            title="暂无访问权限"
+	          />
         </Card>
       </main>
     );
@@ -165,12 +164,12 @@ export function KnowledgeContent() {
         {basesQuery.isLoading && !basesQuery.data
           ? Array.from({ length: 4 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
           : (
-              [
-                { label: '知识库', value: `${basesQuery.data?.total ?? bases.length}`, helper: '当前筛选结果' },
-                { label: '启用中', value: `${activeCount}`, helper: '当前页启用数' },
-                { label: '文档', value: `${documentCount}`, helper: '当前页文档数' },
-                { label: '失败任务', value: `${failedTaskCount}`, helper: `${segmentCount} 个切片` },
-              ] as const
+	              [
+	                { label: '知识库', value: `${basesQuery.data?.total ?? bases.length}`, helper: '筛选结果' },
+	                { label: '启用中', value: `${activeCount}`, helper: '启用数' },
+	                { label: '文档', value: `${documentCount}`, helper: '文档数' },
+	                { label: '失败任务', value: `${failedTaskCount}`, helper: `${segmentCount} 个切片` },
+	              ] as const
             ).map((metric) => (
               <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
             ))}
@@ -189,10 +188,7 @@ export function KnowledgeContent() {
           <div className="border-b p-4">
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">知识库</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">名称、编码、状态、负责人和索引规模。</p>
-                </div>
+                <h2 className="text-sm font-semibold">知识库</h2>
                 <div className="text-sm text-muted-foreground">显示 {bases.length} / {basesQuery.data?.total ?? 0}</div>
               </div>
 
@@ -233,10 +229,9 @@ export function KnowledgeContent() {
                     </Link>
                   </Button>
                 ) : null
-              }
-              description="暂无记录。"
-              title="暂无知识库"
-            />
+	              }
+	              title="暂无知识库"
+	            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] border-collapse text-left text-sm">
@@ -290,7 +285,7 @@ export function KnowledgeContent() {
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
             <h2 className="text-lg font-semibold">删除知识库？</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">这会归档 `{deleteTarget.name}`，并保留文档记录用于审计。</p>
+	            <p className="mt-2 text-sm leading-6 text-muted-foreground">这会归档 `{deleteTarget.name}`，并保留文档审计记录。</p>
             <div className="mt-6 flex justify-end gap-2">
               <Button onClick={() => setDeleteTarget(null)} variant="outline">取消</Button>
               <Button disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget.id)} variant="destructive">删除</Button>

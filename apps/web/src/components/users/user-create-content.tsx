@@ -84,9 +84,6 @@ export function UserCreateContent() {
           </StatusBadge>
         </div>
         <h1 className="text-2xl font-semibold">新建用户</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          创建租户用户账号，设置初始密码、部门归属和角色绑定。
-        </p>
       </section>
 
       {!canManageUsers ? (

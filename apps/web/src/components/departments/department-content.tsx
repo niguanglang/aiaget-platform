@@ -152,9 +152,6 @@ export function DepartmentContent() {
             <StatusBadge tone="planned">ABAC 属性源</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">部门组织架构中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            维护租户部门树、负责人和成员归属，让用户具备真实部门属性，支撑后续数据范围与资源授权。
-          </p>
         </div>
         <Button asChild className="w-full md:w-auto" disabled={!canWrite}>
           <Link href="/departments/create">
@@ -179,10 +176,7 @@ export function DepartmentContent() {
       <section className="grid min-w-0 gap-4 xl:grid-cols-[0.72fr_1.28fr]">
         <Card className="min-w-0">
           <div className="flex items-start justify-between gap-3 border-b p-4">
-            <div>
-              <h2 className="text-sm font-semibold">组织树</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">最多六级结构，用于用户部门归属。</p>
-            </div>
+            <h2 className="text-sm font-semibold">组织树</h2>
             <Button asChild disabled={!canWrite} size="sm" variant="outline">
               <Link href="/departments/create">
                 <Plus className="size-4" />
@@ -221,10 +215,7 @@ export function DepartmentContent() {
           <div className="border-b p-4">
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold">部门清单</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">按名称、编码、描述、状态和父级部门过滤。</p>
-                </div>
+                <h2 className="text-sm font-semibold">部门清单</h2>
                 <div className="text-sm text-muted-foreground">
                   显示 {departments.length} / {departmentsQuery.data?.total ?? 0}
                 </div>

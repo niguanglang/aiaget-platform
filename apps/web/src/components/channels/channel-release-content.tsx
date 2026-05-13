@@ -39,9 +39,7 @@ export function ChannelReleaseContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布治理"
-        description="发布关键指标、调度概览和治理模块入口。"
         refreshing={overviewQuery.isFetching || schedulerQuery.isFetching}
-        subtitle="/channels/release"
         title="发布治理总览"
         onRefresh={() => {
           void overviewQuery.refetch();
@@ -53,7 +51,7 @@ export function ChannelReleaseContent() {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看发布治理。" title="无权查看发布治理" />
+          <EmptyState title="无权查看发布治理" />
         </Card>
       ) : (
         <>

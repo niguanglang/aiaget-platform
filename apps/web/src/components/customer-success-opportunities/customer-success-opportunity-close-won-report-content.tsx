@@ -137,7 +137,6 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
           <h1 className="text-2xl font-semibold">成交复盘报告</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
             {report.summary.customer_name} / {report.summary.opportunity_name} / {customerSuccessOpportunityTypeLabel(opportunity.opportunity_type)}
-            ，聚焦客户价值、来源链路、入账追踪和后续运营动作。
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -189,10 +188,10 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard helper="机会原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
+        <MetricCard helper="原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
         <MetricCard helper="金额 x 概率" label="加权金额" value={formatMoney(report.summary.weighted_amount)} />
-        <MetricCard helper="已生效调账汇总" label="成交金额" value={formatMoney(report.summary.close_amount)} />
-        <MetricCard helper="关联入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
+        <MetricCard helper="已生效" label="成交金额" value={formatMoney(report.summary.close_amount)} />
+        <MetricCard helper="入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
         <MetricCard helper={`生成 ${formatDateTime(report.generated_at)}`} label="关闭时间" value={formatDateTime(report.summary.closed_at)} />
       </section>
 
@@ -244,12 +243,9 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
               <ReceiptText className="size-4 text-primary" />
               入账追踪
             </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              从续约机会回链到计费调账和审计记录，便于财务运营确认收入来源和后续核算口径。
-            </p>
           </div>
           <Button asChild variant="outline">
-            <Link href={billingHref}>查看全部调账</Link>
+            <Link href={billingHref}>全部调账</Link>
           </Button>
         </div>
         <div className="mt-4 grid gap-3">
@@ -364,7 +360,7 @@ function ArchiveRetentionCard({
           ))
         ) : (
           <div className="flex flex-col justify-between gap-3 rounded-md border bg-muted/15 px-3 py-4 text-sm text-muted-foreground md:flex-row md:items-center">
-            <span>暂无归档文件，生成归档后可在这里下载留存版本。</span>
+            <span>暂无归档文件。</span>
             <Button disabled={isArchiving} onClick={onArchive} size="sm" variant="outline">
               <Archive className="size-4" />
               生成归档

@@ -82,9 +82,6 @@ export function DepartmentCreateContent() {
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">新建部门</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            创建新的部门节点，设置上级部门、负责人、编码、排序和启用状态。
-          </p>
         </div>
       </section>
 
@@ -112,4 +109,3 @@ export function DepartmentCreateContent() {
     </main>
   );
 }
-

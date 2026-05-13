@@ -75,9 +75,6 @@ export function ApprovalAuditArchivesContent() {
             <StatusBadge tone="planned">MinIO 归档</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批审计归档</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            审批审计 CSV 归档、留痕下载与删除审批。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>

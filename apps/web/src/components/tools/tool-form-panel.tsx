@@ -95,9 +95,6 @@ export function ToolFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑工具' : '新建工具'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              配置 HTTP 请求、鉴权方式、风险策略和输入输出结构。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

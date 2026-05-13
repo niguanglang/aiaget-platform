@@ -244,7 +244,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
   }
 
   if (!canView) return <InstallStatePanel description="当前账号没有 plugin:center:view 权限。" title="无权限访问安装配置" />;
-  if (detailQuery.isLoading) return <InstallStatePanel description="正在加载租户安装实例和配置 JSON。" title="正在加载安装配置" />;
+  if (detailQuery.isLoading) return <InstallStatePanel title="正在加载安装配置" />;
   if (detailQuery.isError || !detail || !form) return <InstallStatePanel description="安装配置加载失败，可能是资源不存在或权限不足。" title="安装配置加载失败" />;
 
   const rollbackCandidate = detail.versions.find((version) => version.version !== detail.installed_version) ?? null;
@@ -302,7 +302,6 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
         <Card className="p-5">
           <div className="border-b pb-4">
             <h2 className="text-sm font-semibold">安装配置表单</h2>
-            <p className="mt-1 text-sm text-muted-foreground">基础信息、状态和配置 JSON。</p>
           </div>
           <div className="mt-5 grid gap-5">
             <div className="grid gap-4 md:grid-cols-2">
@@ -354,7 +353,6 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
 
         <Card className="p-5">
           <h2 className="text-sm font-semibold">运行态操作</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">启停、升级和卸载会影响当前租户插件安装实例。</p>
           <div className="mt-4 grid gap-3">
             <SummaryItem label="运行状态" value={pluginRuntimeLabel(detail.runtime_status)} />
             <SummaryItem label="风险等级" value={pluginRiskLabel(detail.risk_level)} />
@@ -382,9 +380,6 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
         <div className="flex flex-col justify-between gap-3 border-b pb-4 lg:flex-row lg:items-start">
           <div>
             <h2 className="text-sm font-semibold">版本对比</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              在执行回滚前对比当前版本与历史版本的 Manifest 差异，便于确认菜单、Hook、权限和工具声明变化。
-            </p>
           </div>
           <StatusBadge tone={versionCompareRows.length > 0 ? 'degraded' : 'ready'}>
             {versionCompareRows.length > 0 ? `${versionCompareRows.length} 项差异` : '无 Manifest 差异'}
@@ -415,9 +410,9 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
           <div className="grid gap-2">
             <div className="text-sm font-semibold">Manifest 差异</div>
             {!selectedCompareVersion ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-6" description="暂无记录。" title="暂无版本快照" />
+              <EmptyState className="rounded-md border bg-muted/20 p-6" title="暂无版本快照" />
             ) : versionCompareRows.length === 0 ? (
-              <EmptyState className="rounded-md border bg-muted/20 p-6" description="当前版本与对比版本的 Manifest 摘要字段一致。" title="无 Manifest 差异" />
+              <EmptyState className="rounded-md border bg-muted/20 p-6" title="无 Manifest 差异" />
             ) : (
               <div className="grid gap-2">
                 {versionCompareRows.map((row) => (
@@ -544,7 +539,7 @@ function installationActionBody(target: InstallationActionTarget) {
   return `确认升级插件「${target.plugin.name}」？升级会进入版本更新流程，可能刷新 Manifest、菜单绑定、Hook 配置和工具声明。`;
 }
 
-function InstallStatePanel({ description, title }: { description: string; title: string }) {
+function InstallStatePanel({ description, title }: { description?: string; title: string }) {
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <PluginCenterBackground />

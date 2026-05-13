@@ -284,17 +284,16 @@ export function SecurityRecoveryContent() {
               </Link>
             </Button>
           </>
-        }
-        badge="任务"
-        description="聚焦通知任务健康、自愈建议、恢复审计和归档审批，帮助定位自动通知与自动重试的失败来源。"
-        title="自愈恢复"
-      />
+	        }
+	        badge="任务"
+	        title="自愈恢复"
+	      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="等待自动通知" label="待通知" value={formatNumber(taskOverview?.summary.pending_auto_notify_count)} />
-        <MetricCard helper="等待自动重试" label="待重试" value={formatNumber(taskOverview?.summary.pending_auto_retry_count)} />
-        <MetricCard helper="最近 24 小时" label="任务失败率" value={formatPercent(failureRate)} />
-        <MetricCard helper="自愈建议" label="待处理建议" value={formatNumber(suggestions.length)} />
+	        <MetricCard helper="通知" label="待通知" value={formatNumber(taskOverview?.summary.pending_auto_notify_count)} />
+	        <MetricCard helper="重试" label="待重试" value={formatNumber(taskOverview?.summary.pending_auto_retry_count)} />
+	        <MetricCard helper="24h" label="任务失败率" value={formatPercent(failureRate)} />
+	        <MetricCard helper="建议" label="待处理建议" value={formatNumber(suggestions.length)} />
       </section>
 
       {recoveryNotice ? (
@@ -320,8 +319,7 @@ export function SecurityRecoveryContent() {
               </Button>
             </div>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">自动通知和自动重试任务状态，任务动作由既有后端调度接口执行。</p>
-          {taskOverviewQuery.isError ? (
+	          {taskOverviewQuery.isError ? (
             <PageError>任务概览加载失败。</PageError>
           ) : taskOverviewQuery.isLoading ? (
             <LoadingRows count={4} />
@@ -363,7 +361,7 @@ export function SecurityRecoveryContent() {
           ) : taskRunsQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : taskRuns.length === 0 ? (
-            <EmptyState description="当前筛选下暂无任务运行记录。" title="暂无任务运行" />
+	            <EmptyState title="暂无任务运行" />
           ) : (
             <div className="divide-y">
               {taskRuns.slice(0, 8).map((run) => (
@@ -385,15 +383,14 @@ export function SecurityRecoveryContent() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-        <Card className="p-5">
-          <h2 className="text-sm font-semibold">自愈建议</h2>
-          <p className="mt-1 text-sm text-muted-foreground">来自安全中心态势聚合的失败来源建议。</p>
-          {securityOverviewQuery.isError ? (
+	        <Card className="p-5">
+	          <h2 className="text-sm font-semibold">自愈建议</h2>
+	          {securityOverviewQuery.isError ? (
             <PageError>自愈建议加载失败。</PageError>
           ) : securityOverviewQuery.isLoading ? (
             <LoadingRows count={3} />
           ) : suggestions.length === 0 ? (
-            <EmptyState className="px-0" description="当前暂无需要处理的自愈建议。" title="暂无建议" />
+	            <EmptyState className="px-0" title="暂无建议" />
           ) : (
             <div className="mt-4 grid gap-3">
               {suggestions.map((suggestion) => (
@@ -454,8 +451,7 @@ export function SecurityRecoveryContent() {
                 </Button>
               </div>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">按动作、状态、原因和失败来源检索自愈处理记录。</p>
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[140px_140px_180px_180px_1fr]">
+	            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[140px_140px_180px_180px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setAuditAction(event.target.value as SecurityOperationAlertNotificationTaskRecoveryAction | '')} value={auditAction}>
                 <option value="">全部动作</option>
                 {recoveryActions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -484,7 +480,7 @@ export function SecurityRecoveryContent() {
           ) : recoveryAuditsQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : recoveryAudits.length === 0 ? (
-            <EmptyState description="当前筛选下暂无恢复审计。" title="暂无恢复审计" />
+	            <EmptyState title="暂无恢复审计" />
           ) : (
             <div className="divide-y">
               {recoveryAudits.map((audit) => (
@@ -511,16 +507,15 @@ export function SecurityRecoveryContent() {
 
       <Card className="overflow-hidden">
         <div className="border-b p-4">
-          <div className="flex items-center gap-2">
-            <Archive className="size-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">归档审批</h2>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">自愈恢复审计归档、归档删除审批和恢复审计证据。</p>
-          <div className="mt-4 grid gap-4 md:grid-cols-4">
-            <MetricCard helper="对象存储归档" label="归档文件" value={formatNumber(archivesQuery.data?.summary.archive_count)} />
-            <MetricCard helper="归档体积" label="归档大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes)} />
-            <MetricCard helper="待安全审批" label="待审批" value={formatNumber(archiveOverviewQuery.data?.pending_count)} />
-            <MetricCard helper="已生效删除" label="已生效" value={formatNumber(archiveOverviewQuery.data?.applied_count)} />
+	          <div className="flex items-center gap-2">
+	            <Archive className="size-4 text-muted-foreground" />
+	            <h2 className="text-sm font-semibold">归档审批</h2>
+	          </div>
+	          <div className="mt-4 grid gap-4 md:grid-cols-4">
+	            <MetricCard helper="归档" label="归档文件" value={formatNumber(archivesQuery.data?.summary.archive_count)} />
+	            <MetricCard helper="大小" label="归档大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes)} />
+	            <MetricCard helper="待审" label="待审批" value={formatNumber(archiveOverviewQuery.data?.pending_count)} />
+	            <MetricCard helper="生效" label="已生效" value={formatNumber(archiveOverviewQuery.data?.applied_count)} />
           </div>
         </div>
         {archiveApprovalsQuery.isError || archivesQuery.isError ? (
@@ -528,7 +523,7 @@ export function SecurityRecoveryContent() {
         ) : archiveApprovalsQuery.isLoading || archivesQuery.isLoading ? (
           <LoadingRows count={4} />
         ) : archiveApprovals.length === 0 && archives.length === 0 ? (
-          <EmptyState description="暂无恢复审计归档或归档删除审批。" title="暂无归档审批" />
+	          <EmptyState title="暂无归档审批" />
         ) : (
           <div className="grid gap-4 p-4 xl:grid-cols-2">
             <div className="grid gap-3">

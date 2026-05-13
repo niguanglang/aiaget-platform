@@ -130,9 +130,6 @@ export function MonitorContent() {
             <StatusBadge tone="planned">运行步骤</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">监控中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            聚合控制服务、运行时、模型、工具、检索和会话运行数据，保留概览、事件列表、服务健康和快捷入口。
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -172,14 +169,12 @@ export function MonitorContent() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <ServiceHealthCard
-          description="控制服务健康状态，由当前 API 进程直接汇总。"
           health={overviewQuery.data?.health.control_api ?? null}
           isLoading={overviewQuery.isLoading}
           onRefresh={() => void overviewQuery.refetch()}
           title="控制服务"
         />
         <ServiceHealthCard
-          description="运行时健康状态，通过同一配置的运行时地址拉取。"
           health={overviewQuery.data?.health.runtime ?? null}
           isLoading={overviewQuery.isLoading}
           onRefresh={() => void overviewQuery.refetch()}
@@ -287,9 +282,6 @@ function PlatformUsageEntryCard() {
             <Route className="size-4 text-primary" />
             平台事件与用量底座
           </div>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            平台事件、用量账本、Rollup、异常检测、通知审计和重试任务。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button" variant="outline">

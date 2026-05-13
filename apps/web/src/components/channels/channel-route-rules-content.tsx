@@ -83,8 +83,6 @@ export function ChannelRouteRulesContent() {
       actionNotice={actionNotice}
       badge="路由规则"
       buildMetrics={(input) => buildRouteRuleMetrics(input.items, input.total)}
-      description="入站和出站路由规则优先级、匹配方式与目标类型。"
-      emptyDescription="暂无路由规则。"
       emptyTitle="暂无路由规则"
       errorMessage="路由规则列表加载失败。"
       getItemId={(item) => item.id}
@@ -167,7 +165,6 @@ export function ChannelRouteRulesContent() {
         />
       )}
       statusOptions={routeRuleStatusOptions}
-      subtitle="/channels/route-rules"
       title="路由规则"
     />
     {routeRuleActionTarget ? (

@@ -312,11 +312,10 @@ export function SecurityArchivesContent() {
               </Link>
             </Button>
           </>
-        }
-        badge="归档"
-        description="告警通知、自愈审计、SLA 死信。"
-        title="归档治理"
-      />
+	        }
+	        badge="归档"
+	        title="归档治理"
+	      />
 
       {!canViewApprovals ? (
         <PageError>当前账号无安全审批查看权限，归档治理需要 security:approval:view 或租户管理员角色。</PageError>
@@ -366,17 +365,17 @@ export function SecurityArchivesContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard helper={activeMeta.label} label="归档文件" value={formatNumber(activeSummary.archiveCount)} />
-        <MetricCard helper="对象存储容量" label="归档容量" value={formatBytes(activeSummary.totalSizeBytes)} />
-        <MetricCard
-          helper="等待审批处理"
-          label="删除待审"
-          value={formatNumber(activeApprovalOverview?.pending_count ?? activeSummary.pendingCount)}
-        />
-        <MetricCard
-          helper="审批通过并已应用"
-          label="删除生效"
-          value={formatNumber(activeApprovalOverview?.applied_count ?? activeSummary.appliedCount)}
-        />
+	        <MetricCard helper="容量" label="归档容量" value={formatBytes(activeSummary.totalSizeBytes)} />
+	        <MetricCard
+	          helper="待审"
+	          label="删除待审"
+	          value={formatNumber(activeApprovalOverview?.pending_count ?? activeSummary.pendingCount)}
+	        />
+	        <MetricCard
+	          helper="生效"
+	          label="删除生效"
+	          value={formatNumber(activeApprovalOverview?.applied_count ?? activeSummary.appliedCount)}
+	        />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
@@ -386,10 +385,9 @@ export function SecurityArchivesContent() {
               <Archive className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">{activeMeta.label}</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">删除申请进入审批。</p>
-          </div>
-          {!canViewApprovals ? (
-            <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看归档文件" />
+	          </div>
+	          {!canViewApprovals ? (
+	            <EmptyState title="无权查看归档文件" />
           ) : activeArchivesQuery.isError ? (
             <div className="p-4">
               <PageError>归档文件加载失败。</PageError>
@@ -397,7 +395,7 @@ export function SecurityArchivesContent() {
           ) : activeArchivesQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : activeArchives.length === 0 ? (
-            <EmptyState description="暂无归档文件。" title="暂无归档文件" />
+	            <EmptyState title="暂无归档文件" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] border-collapse text-left text-sm">
@@ -439,10 +437,9 @@ export function SecurityArchivesContent() {
               <Trash2 className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">删除审批</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">来源、申请人、处理状态。</p>
-          </div>
-          {!canViewApprovals ? (
-            <EmptyState description="需要 security:approval:view 或租户管理员角色。" title="无权查看删除审批" />
+	          </div>
+	          {!canViewApprovals ? (
+	            <EmptyState title="无权查看删除审批" />
           ) : activeApprovalsQuery.isError ? (
             <div className="p-4">
               <PageError>删除审批加载失败。</PageError>
@@ -450,7 +447,7 @@ export function SecurityArchivesContent() {
           ) : activeApprovalsQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : activeApprovals.length === 0 ? (
-            <EmptyState description="暂无归档删除审批。" title="暂无删除审批" />
+	            <EmptyState title="暂无删除审批" />
           ) : (
             <div className="divide-y">
               {activeApprovals.map((approval) => (

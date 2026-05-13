@@ -65,10 +65,8 @@ export function ChannelRouteRuleCreateContent() {
       <ChannelFocusedHeader
         activeRoute="route-rules"
         badge="新建路由规则"
-        description="渠道路由规则匹配条件、优先级、关联对象和目标投递策略。"
         permissions={permissions}
         refreshing={providersQuery.isFetching || accountsQuery.isFetching || agentsQuery.isFetching || createMutation.isPending}
-        subtitle="/channels/route-rules/create"
         title="新建路由规则"
         onRefresh={() => {
           if (!permissions.canManage) return;
@@ -97,7 +95,7 @@ export function ChannelRouteRuleCreateContent() {
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法新建路由规则。" title="无权新建路由规则" />
+          <EmptyState title="无权新建路由规则" />
         </Card>
       ) : loadingOptions ? (
         <Card className="grid gap-3 p-5">

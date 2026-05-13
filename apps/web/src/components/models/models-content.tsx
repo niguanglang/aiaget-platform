@@ -133,7 +133,6 @@ export function ModelsContent() {
             <StatusBadge tone="planned">模型配置</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">模型中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">供应商、模型数量、接口密钥、能力标签和最近调用。</p>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -166,12 +165,7 @@ export function ModelsContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">供应商列表</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  名称、类型、状态、模型数量、密钥数量和最近调用。
-                </p>
-              </div>
+              <h2 className="text-sm font-semibold">供应商列表</h2>
               <div className="text-sm text-muted-foreground">
                 显示 {providers.length} / {total}
               </div>
@@ -246,7 +240,6 @@ export function ModelsContent() {
                 </Button>
               ) : null
             }
-            description="创建供应商后可添加模型、脱敏密钥、成本规则和兼容性测试。"
             title="暂无模型供应商"
           />
         ) : (

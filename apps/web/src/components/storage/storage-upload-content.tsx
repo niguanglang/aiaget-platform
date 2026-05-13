@@ -59,7 +59,6 @@ export function StorageUploadContent() {
       <StorageWorkspaceHeader
         backHref="/storage"
         badge="上传文件"
-        description="选择本地文件并上传到当前租户的 MinIO 前缀。上传成功后可以进入对象详情查看元数据、下载或删除。"
         title="上传文件"
       />
 
@@ -131,11 +130,11 @@ export function StorageUploadContent() {
             <UploadCloud className="size-4" />
             {uploadMutation.isPending ? '正在上传...' : '上传到 MinIO'}
           </Button>
-          {uploadedItem ? (
-            <Button asChild type="button" variant="outline">
-              <Link href={storageObjectDetailHref(uploadedItem)}>查看对象详情</Link>
-            </Button>
-          ) : null}
+	          {uploadedItem ? (
+	            <Button asChild type="button" variant="outline">
+	              <Link href={storageObjectDetailHref(uploadedItem)}>对象详情</Link>
+	            </Button>
+	          ) : null}
         </div>
         {uploadTarget ? (
           <ConfirmCard

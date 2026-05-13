@@ -104,9 +104,9 @@ export function ResourceAclPermissionNotice({ canWrite }: { canWrite: boolean })
   if (canWrite) return null;
 
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      当前账号缺少 system:resource_acl:manage 权限，只能查看授权规则并执行访问校验。
-    </div>
+	    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+	      当前账号缺少 system:resource_acl:manage 权限，只能读取授权规则并执行访问校验。
+	    </div>
   );
 }
 
@@ -468,9 +468,7 @@ export function ResourceAclImmutableRuleSummary({ acl }: { acl: ResourceAclItem 
           <StatusBadge tone={resourceAclStatusTone(acl.status)}>{resourceAclStatusLabels[acl.status]}</StatusBadge>
           <StatusBadge tone="planned">{acl.condition_count} 个条件</StatusBadge>
         </div>
-        <p className="text-xs leading-5 text-muted-foreground">
-          后端更新接口不支持改变资源与主体，编辑页仅允许调整权限编码、授权效果、状态和条件 JSON。
-        </p>
+	        <p className="text-xs leading-5 text-muted-foreground">资源与主体不可变。</p>
       </div>
     </Card>
   );
@@ -480,7 +478,7 @@ export function ResourceAclCheckResultPanel({ result }: { result: ResourceAclChe
   if (!result) {
     return (
       <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-        执行校验后展示 ALLOW、DENY 或未匹配结果。
+	        暂无校验结果。
       </div>
     );
   }
@@ -510,12 +508,10 @@ export function ResourceAclPageHeader({
   actions,
   eyebrow,
   title,
-  description,
 }: {
   actions?: ReactNode;
   eyebrow: string;
   title: string;
-  description: string;
 }) {
   return (
     <motion.section
@@ -530,7 +526,6 @@ export function ResourceAclPageHeader({
           <StatusBadge tone="mock">{eyebrow}</StatusBadge>
         </div>
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       {actions ? <div className="flex flex-col gap-2 sm:flex-row">{actions}</div> : null}
     </motion.section>

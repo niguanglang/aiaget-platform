@@ -137,11 +137,10 @@ export function SecurityPoliciesContent() {
               </Button>
             ) : null}
           </>
-        }
-        badge="ABAC"
-        description="按策略状态、效果、资源类型、优先级和最近评估记录维护访问边界。"
-        title="策略治理"
-      />
+	        }
+	        badge="ABAC"
+	        title="策略治理"
+	      />
 
       {!canWrite ? (
         <PageError>当前账号无策略写入权限，启停和编辑入口已禁用。需要 security:rule:manage 或租户管理员角色。</PageError>
@@ -149,10 +148,10 @@ export function SecurityPoliciesContent() {
       {actionError ? <PageError>{actionError}</PageError> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="策略清单" label="策略总数" value={formatNumber(overview?.total)} />
-        <MetricCard helper="当前参与匹配" label="生效中" value={formatNumber(overview?.active)} />
-        <MetricCard helper="优先收紧访问边界" label="拒绝策略" value={formatNumber(overview?.deny)} />
-        <MetricCard helper="最近评估记录" label="评估日志" value={formatNumber(evaluationsQuery.data?.total)} />
+	        <MetricCard helper="总数" label="策略总数" value={formatNumber(overview?.total)} />
+	        <MetricCard helper="生效" label="生效中" value={formatNumber(overview?.active)} />
+	        <MetricCard helper="拒绝" label="拒绝策略" value={formatNumber(overview?.deny)} />
+	        <MetricCard helper="日志" label="评估日志" value={formatNumber(evaluationsQuery.data?.total)} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
@@ -164,9 +163,9 @@ export function SecurityPoliciesContent() {
                   <ShieldCheck className="size-4 text-muted-foreground" />
                   <h2 className="text-sm font-semibold">策略清单</h2>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  显示 {policies.length} / {policiesQuery.data?.total ?? 0} 条策略，启停后会重新拉取策略概览。
-                </p>
+	                <p className="mt-1 text-sm text-muted-foreground">
+	                  {policies.length} / {policiesQuery.data?.total ?? 0} 条
+	                </p>
               </div>
               <Button disabled={!hasFilters} onClick={() => {
                 setKeyword('');
@@ -221,7 +220,7 @@ export function SecurityPoliciesContent() {
           ) : policiesQuery.isLoading ? (
             <LoadingRows count={5} />
           ) : policies.length === 0 ? (
-            <EmptyState description="当前筛选下暂无安全策略，可返回总览使用完整策略表单创建。" title="暂无策略" />
+	            <EmptyState title="暂无策略" />
           ) : (
             <div className="divide-y">
               {policies.map((policy) => {
@@ -282,13 +281,12 @@ export function SecurityPoliciesContent() {
             <FileSearch className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">评估日志</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">最近策略评估结果与命中趋势。</p>
           {evaluationsQuery.isError ? (
             <PageError>评估日志加载失败。</PageError>
           ) : evaluationsQuery.isLoading ? (
             <LoadingRows count={4} />
           ) : evaluations.length === 0 ? (
-            <EmptyState className="px-0" description="暂无策略评估日志。" title="暂无评估" />
+	            <EmptyState className="px-0" title="暂无评估" />
           ) : (
             <div className="mt-4 grid gap-3">
               {evaluations.map((evaluation) => (

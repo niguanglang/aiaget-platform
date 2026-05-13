@@ -349,9 +349,6 @@ export function PlatformEventUsagePanel({
               <StatusBadge tone="planned">监控 / 审计 / 成本</StatusBadge>
             </div>
             <h2 className="mt-3 text-base font-semibold">统一平台事件与用量底座</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              把平台事件、用量事件、关系链路和 rollup 汇总收敛为同一套查询入口，供监控、审计、成本与安全中心共享。
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {!compact ? (
@@ -773,9 +770,6 @@ function UsageAnomalyCard({
             <AlertTriangle className="size-4 text-amber-600" />
             用量异常信号
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            基于 Rollup 汇总对比最近周期和历史基线，检测成本、调用量、错误率和重试率异常。
-          </p>
         </div>
         <StatusBadge tone={usageAnomalySummaryTone(summary?.highest_severity ?? null)}>
           {detecting ? '检测中' : summary ? usageAnomalySeverityLabel(summary.highest_severity) : '未检测'}
@@ -1215,9 +1209,6 @@ function UsageAlertNotificationTaskCard({
             </StatusBadge>
           </div>
           <h3 className="mt-3 text-base font-semibold">告警通知自动重试</h3>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            扫描失败或部分成功的告警通知投递，满足退避时间和最大重试次数后自动追加重试投递事件。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
@@ -1257,7 +1248,6 @@ function UsageAlertNotificationTaskCard({
             <Card className="border-slate-200/80 p-4">
               <div className="mb-3">
                 <div className="text-sm font-semibold">调度状态</div>
-                <p className="mt-1 text-sm text-muted-foreground">应用内轻量任务调度，不依赖额外中间件。</p>
               </div>
               <div className="grid gap-2 text-sm">
                 <DetailRow label="任务开关" value={overview?.scheduler_enabled ? '已启用' : '未启用'} />
@@ -1272,7 +1262,6 @@ function UsageAlertNotificationTaskCard({
             <Card className="border-slate-200/80 p-4">
               <div className="mb-3">
                 <div className="text-sm font-semibold">当前策略</div>
-                <p className="mt-1 text-sm text-muted-foreground">策略可在设置中心的通知策略分类中维护。</p>
               </div>
               <div className="grid gap-2 text-sm md:grid-cols-2">
                 <DetailRow label="单批数量" value={`${policy?.retry_batch_size ?? 0}`} />
@@ -1286,7 +1275,6 @@ function UsageAlertNotificationTaskCard({
           <Card className="border-slate-200/80 p-4">
             <div className="mb-3">
               <div className="text-sm font-semibold">最近执行结果</div>
-              <p className="mt-1 text-sm text-muted-foreground">展示最近一次自动重试任务结果。</p>
             </div>
             <AlertNotificationTaskResultCard result={overview?.last_auto_retry_result ?? null} />
           </Card>

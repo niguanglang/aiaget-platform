@@ -51,7 +51,7 @@ export function SolutionPackageCreateContent() {
     return (
       <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
         <SolutionPackageBackground />
-        <Card className="p-6 text-sm text-muted-foreground">当前账号没有新建落地方案的权限。</Card>
+        <Card className="p-6 text-sm text-muted-foreground">当前账号没有新建方案包的权限。</Card>
       </main>
     );
   }
@@ -61,8 +61,7 @@ export function SolutionPackageCreateContent() {
       <SolutionPackageBackground />
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">新建落地方案</h1>
-          <p className="mt-2 text-sm text-muted-foreground">创建可交付的 AI 落地方案包，并绑定客户评估与岗位场景。</p>
+          <h1 className="text-2xl font-semibold">新建方案包</h1>
         </div>
         <Button asChild variant="outline">
           <Link href="/solution-packages">

@@ -127,8 +127,6 @@ export function ChannelPublishContent() {
         actionNotice={actionNotice}
         badge="发布渠道"
         buildMetrics={buildPublishMetrics}
-        description="聚焦已发布 Agent 的渠道入口、健康状态和 24h 调用表现；启停、渠道巡检等低频动作进入单行详情。"
-        emptyDescription="暂无发布渠道。"
         emptyTitle="暂无发布渠道"
         errorMessage="发布渠道数据加载失败。"
         getItemId={(item) => item.id}
@@ -207,7 +205,6 @@ export function ChannelPublishContent() {
           />
         )}
         statusOptions={publishStatusOptions}
-        subtitle="/channels/publish"
         title="发布渠道"
       />
 

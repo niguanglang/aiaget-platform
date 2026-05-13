@@ -35,7 +35,7 @@ export function searchNavigationItems(items: NavigationLink[], keyword: string):
   const flatItems = flattenNavigationLinks(items).filter((item) => item.href !== '#');
   if (!normalizedKeyword) return flatItems.slice(0, 8);
   return flatItems
-    .filter((item) => `${item.title} ${item.href} ${item.description}`.toLowerCase().includes(normalizedKeyword))
+    .filter((item) => `${item.title} ${item.href}`.toLowerCase().includes(normalizedKeyword))
     .slice(0, 12);
 }
 

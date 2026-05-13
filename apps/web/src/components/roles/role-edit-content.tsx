@@ -75,9 +75,6 @@ export function RoleEditContent({ roleId }: { roleId: string }) {
             {roleQuery.data?.is_system ? <StatusBadge tone="mock">系统角色</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">编辑角色</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            修改角色基础信息和启用状态。角色编码创建后不可修改，接口权限和菜单授权在独立配置页维护。
-          </p>
         </div>
       </section>
 

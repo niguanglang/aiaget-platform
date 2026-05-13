@@ -35,9 +35,7 @@ function formDefaults(prompt?: PromptTemplateDetail | null): PromptFormValues {
     type: prompt?.type ?? 'SYSTEM',
     status: prompt?.status ?? 'DRAFT',
     description: prompt?.description ?? '',
-    content:
-      prompt?.content ??
-      '你是面向 {{audience}} 的精准助手。\n\n目标：{{goal}}\n\n请输出简洁回答，并给出明确下一步。',
+    content: prompt?.content ?? '',
     owner_id: prompt?.owner?.id ?? '',
   };
 }
@@ -85,9 +83,6 @@ export function PromptFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑提示词' : '新建提示词'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              提示词模板支持版本化发布、回滚、变量和渲染测试。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

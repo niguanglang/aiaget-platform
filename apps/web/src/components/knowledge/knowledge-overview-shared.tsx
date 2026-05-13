@@ -16,16 +16,15 @@ export function KnowledgeHealthSummaryCard({ overview, loading }: { overview: Kn
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold">知识库健康</div>
-          <p className="mt-1 text-sm text-muted-foreground">总览租户级知识库数量、处理状态和索引就绪情况。</p>
-        </div>
+	        <div>
+	          <div className="text-sm font-semibold">知识库健康</div>
+	        </div>
         <StatusBadge tone={overview ? 'healthy' : 'planned'}>{overview ? '已更新' : '等待加载'}</StatusBadge>
       </div>
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载知识库总览...</div>
       ) : !overview ? (
-        <EmptyState description="暂无知识库治理总览。" title="没有总览数据" />
+	        <EmptyState title="没有总览数据" />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <StatTile label="启用知识库" value={`${overview.summary.active_knowledge_base_count}/${overview.summary.knowledge_base_count}`} />
@@ -45,14 +44,13 @@ export function KnowledgeActivityTimeline({ overview, loading, title, type }: { 
 
   return (
     <Card className="grid gap-4 p-5">
-      <div>
-        <div className="text-sm font-semibold">{title}</div>
-        <p className="mt-1 text-sm text-muted-foreground">最近处理、任务和召回记录。</p>
-      </div>
+	      <div>
+	        <div className="text-sm font-semibold">{title}</div>
+	      </div>
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载活动记录...</div>
       ) : !overview ? (
-        <EmptyState description="暂无知识库活动数据。" title="没有活动数据" />
+	        <EmptyState title="没有活动数据" />
       ) : (
         <TimelineList items={items} />
       )}
@@ -89,7 +87,7 @@ function buildTimelineItems(overview: KnowledgeOverview | null, type: 'documents
 
 function TimelineList({ items }: { items: Array<{ id: string; title: string; subtitle: string; status: string }> }) {
   return items.length === 0 ? (
-    <EmptyState className="rounded-md border bg-muted/20 p-4" description="暂无记录。" title="空" />
+	    <EmptyState className="rounded-md border bg-muted/20 p-4" title="空" />
   ) : (
     <div className="grid gap-2">
       {items.map((item) => (
@@ -107,7 +105,7 @@ function TimelineList({ items }: { items: Array<{ id: string; title: string; sub
   );
 }
 
-export function KnowledgeCapabilityCard({ icon: Icon, title, value, description }: { icon: LucideIcon; title: string; value: string; description: string }) {
+export function KnowledgeCapabilityCard({ icon: Icon, title, value }: { icon: LucideIcon; title: string; value: string }) {
   return (
     <Card className="grid gap-3 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
@@ -115,7 +113,6 @@ export function KnowledgeCapabilityCard({ icon: Icon, title, value, description 
         {title}
       </div>
       <div className="text-2xl font-semibold">{value}</div>
-      <p className="text-sm leading-6 text-muted-foreground">{description}</p>
     </Card>
   );
 }

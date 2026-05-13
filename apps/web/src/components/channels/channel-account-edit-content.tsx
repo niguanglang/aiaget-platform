@@ -58,10 +58,8 @@ export function ChannelAccountEditContent({ accountId }: { accountId: string }) 
       <ChannelFocusedHeader
         activeRoute="accounts"
         badge="编辑账号凭据"
-        description="外部账号、密钥、状态、运行环境和扩展配置。"
         permissions={permissions}
         refreshing={accountQuery.isFetching || providersQuery.isFetching || updateMutation.isPending}
-        subtitle="/channels/accounts/:accountId/edit"
         title="编辑账号凭据"
         onRefresh={() => {
           void accountQuery.refetch();
@@ -82,7 +80,7 @@ export function ChannelAccountEditContent({ accountId }: { accountId: string }) 
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法编辑账号凭据。" title="无权编辑账号凭据" />
+          <EmptyState title="无权编辑账号凭据" />
         </Card>
       ) : accountQuery.isLoading || providersQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -91,7 +89,7 @@ export function ChannelAccountEditContent({ accountId }: { accountId: string }) 
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="账号凭据不存在、已删除或当前账号没有权限查看。" title="无法加载账号凭据" />
+          <EmptyState title="无法加载账号凭据" />
         </Card>
       ) : (
         <ChannelAccountForm

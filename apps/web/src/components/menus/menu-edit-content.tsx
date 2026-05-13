@@ -73,9 +73,6 @@ export function MenuEditContent({ menuId }: { menuId: string }) {
             <StatusBadge tone={canWrite ? 'healthy' : 'degraded'}>{canWrite ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{menu ? `编辑 ${menu.name}` : '编辑菜单节点'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            菜单名称、路由、显示状态与权限控制。
-          </p>
         </div>
       </section>
 

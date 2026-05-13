@@ -50,19 +50,19 @@ function defaults(review?: DeliveryReviewDetail | null): DeliveryReviewFormValue
   return {
     name: review?.name ?? '',
     code: review?.code ?? '',
-    customer_name: review?.customer_name ?? '华中设计院',
+    customer_name: review?.customer_name ?? '',
     review_stage: review?.review_stage ?? 'PILOT_ACCEPTANCE',
     result: review?.result ?? 'PASSED',
     status: review?.status ?? 'COMPLETED',
     satisfaction_level: review?.satisfaction_level ?? 'HIGH',
-    acceptance_score: review?.acceptance_score ?? 95,
-    delivered_scope: review?.delivered_scope ?? '完成售前方案资产、引用来源清单、风险提示模板、权限审计说明和验收清单。',
-    acceptance_summary: review?.acceptance_summary ?? '客户确认交付成果可用于试点验收，引用来源完整，关键风险均有处理建议。',
-    issue_summary: review?.issue_summary ?? '需要补充更多历史方案样例，并完善跨部门资料权限边界说明。',
-    improvement_actions: review?.improvement_actions ?? '补齐历史方案样例，增加权限边界说明，并把验收清单同步到交付模板库。',
-    expansion_plan: review?.expansion_plan ?? '下一阶段扩展到投标资料问答、项目复盘助手和客户成功运营看板。',
-    reusable_assets: review?.reusable_assets ?? '方案模板、验收清单、风险提示模板、引用来源检查表、复盘会议纪要模板。',
-    next_action: review?.next_action ?? '安排扩展方案评审会，确认第二批岗位场景和资料范围。',
+    acceptance_score: review?.acceptance_score ?? undefined,
+    delivered_scope: review?.delivered_scope ?? '',
+    acceptance_summary: review?.acceptance_summary ?? '',
+    issue_summary: review?.issue_summary ?? '',
+    improvement_actions: review?.improvement_actions ?? '',
+    expansion_plan: review?.expansion_plan ?? '',
+    reusable_assets: review?.reusable_assets ?? '',
+    next_action: review?.next_action ?? '',
     reviewed_at: review?.reviewed_at ? review.reviewed_at.slice(0, 16) : '',
     tags: review?.tags.join(', ') ?? '',
     notes: review?.notes ?? '',
@@ -136,9 +136,6 @@ export function DeliveryReviewFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑验收复盘' : '新建验收复盘'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护已交付范围、验收结论、问题复盘、改进行动、扩展计划、可复用资产和关联方案包。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

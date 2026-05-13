@@ -184,7 +184,6 @@ export function ResourceAclContent() {
             </Button>
           </>
         }
-        description="面向具体 Agent、知识库、工具、模型和会话对象配置授权规则，补齐菜单权限、接口权限、数据权限之后的对象级访问控制。"
         eyebrow="Resource ACL"
         title="资源授权中心"
       />
@@ -390,11 +389,10 @@ function AclRuleTable({
 }) {
   return (
     <Card className="min-w-0">
-      <div className="flex items-start justify-between gap-3 border-b p-4">
-        <div>
-          <h2 className="text-sm font-semibold">授权规则</h2>
-          <p className="mt-1 text-sm text-muted-foreground">拒绝规则优先于允许规则，停用规则不会参与访问校验。</p>
-        </div>
+	      <div className="flex items-start justify-between gap-3 border-b p-4">
+	        <div>
+	          <h2 className="text-sm font-semibold">授权规则</h2>
+	        </div>
         <StatusBadge tone="planned">{acls.length} 条</StatusBadge>
       </div>
 
@@ -411,9 +409,8 @@ function AclRuleTable({
             </Button>
           }
           className="py-12"
-          description="暂无对象级资源授权规则。"
-          title="暂无资源授权"
-        />
+	          title="暂无资源授权"
+	        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">

@@ -67,7 +67,6 @@ export function CustomerSuccessPlanEditContent({ planId }: { planId: string }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑客户成功计划</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整扩展范围、成功目标、资产复用、续约计划、风险摘要和关联资源。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/customer-success-plans/${planId}`}>

@@ -71,7 +71,7 @@ function defaults(opportunity?: CustomerSuccessOpportunityDetail | null): Custom
   return {
     name: opportunity?.name ?? '',
     code: opportunity?.code ?? '',
-    customer_name: opportunity?.customer_name ?? '华中设计院',
+    customer_name: opportunity?.customer_name ?? '',
     customer_success_plan_id: opportunity?.linked_resources.customer_success_plan?.id ?? '',
     customer_success_action_id: opportunity?.linked_resources.customer_success_action?.id ?? '',
     opportunity_type: opportunity?.opportunity_type ?? 'EXPANSION',
@@ -80,17 +80,17 @@ function defaults(opportunity?: CustomerSuccessOpportunityDetail | null): Custom
     priority: opportunity?.priority ?? 'HIGH',
     confidence_level: opportunity?.confidence_level ?? 'HIGH',
     risk_level: opportunity?.risk_level ?? 'MEDIUM',
-    opportunity_score: opportunity?.opportunity_score ?? 92,
-    estimated_amount: opportunity?.estimated_amount ?? 680000,
-    probability: opportunity?.probability ?? 75,
-    expected_close_at: opportunity?.expected_close_at ? opportunity.expected_close_at.slice(0, 16) : '2026-07-20T10:00',
+    opportunity_score: opportunity?.opportunity_score ?? undefined,
+    estimated_amount: opportunity?.estimated_amount ?? undefined,
+    probability: opportunity?.probability ?? undefined,
+    expected_close_at: opportunity?.expected_close_at ? opportunity.expected_close_at.slice(0, 16) : '',
     closed_at: opportunity?.closed_at ? opportunity.closed_at.slice(0, 16) : '',
-    opportunity_summary: opportunity?.opportunity_summary ?? '基于试点验收和成功行动，推进第二批岗位场景扩展与年度续约。',
-    customer_value: opportunity?.customer_value ?? '复用已验收资产，覆盖更多业务岗位，降低二期交付风险。',
-    commercial_strategy: opportunity?.commercial_strategy ?? '以续约为主线，绑定二期扩展场景和年度服务包。',
-    decision_path: opportunity?.decision_path ?? 'CIO 确认技术价值，运营负责人确认推广节奏，采购负责人确认商务条款。',
-    risk_summary: opportunity?.risk_summary ?? '预算窗口和知识库密级审批可能影响签约节奏。',
-    next_action: opportunity?.next_action ?? '准备二期扩展报价单并约定商务评审会。',
+    opportunity_summary: opportunity?.opportunity_summary ?? '',
+    customer_value: opportunity?.customer_value ?? '',
+    commercial_strategy: opportunity?.commercial_strategy ?? '',
+    decision_path: opportunity?.decision_path ?? '',
+    risk_summary: opportunity?.risk_summary ?? '',
+    next_action: opportunity?.next_action ?? '',
     loss_reason: opportunity?.loss_reason ?? '',
     tags: opportunity?.tags.join(', ') ?? '',
     notes: opportunity?.notes ?? '',
@@ -183,9 +183,6 @@ export function CustomerSuccessOpportunityFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑续约机会' : '新建续约机会'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护机会阶段、金额概率、商务策略、决策路径、风险摘要和关联资源。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

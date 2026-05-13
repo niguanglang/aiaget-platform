@@ -32,8 +32,6 @@ export function ChannelRepliesContent() {
       activeRoute="replies"
       badge="回复记录"
       buildMetrics={(input) => buildReplyMetrics(input.items, input.total)}
-      description="查看入站消息回复链路的状态、平台、会话摘要、投递关联和 Trace 覆盖情况。"
-      emptyDescription="暂无回复记录。"
       emptyTitle="暂无回复记录"
       errorMessage="回复记录列表加载失败。"
       getItemId={(item) => item.id}
@@ -82,7 +80,6 @@ export function ChannelRepliesContent() {
         />
       )}
       statusOptions={replyStatusOptions}
-      subtitle="/channels/replies"
       title="回复记录"
     />
   );

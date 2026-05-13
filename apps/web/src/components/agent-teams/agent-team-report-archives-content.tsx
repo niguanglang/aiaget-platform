@@ -131,14 +131,13 @@ export function AgentTeamReportArchivesContent() {
             <StatusBadge tone={canReview ? 'healthy' : 'planned'}>{canReview ? '可审批' : '查看模式'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">Agent 团队报告归档</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">团队运行报告归档、下载链接、删除申请和审批处理。</p>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard helper="归档文件" label="归档数" value={formatInteger(archivesQuery.data?.summary.archive_count ?? archives.length)} />
-        <MetricCard helper="文件体积" label="总大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes ?? 0)} />
-        <MetricCard helper="删除审批" label="待审批" value={formatInteger(approvals.filter((item) => item.status === 'PENDING').length)} />
+        <MetricCard helper={''} label="归档数" value={formatInteger(archivesQuery.data?.summary.archive_count ?? archives.length)} />
+        <MetricCard helper={''} label="总大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes ?? 0)} />
+        <MetricCard helper={''} label="待审批" value={formatInteger(approvals.filter((item) => item.status === 'PENDING').length)} />
       </section>
 
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}

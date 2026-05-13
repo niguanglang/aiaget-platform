@@ -38,10 +38,8 @@ export function ChannelProviderCreateContent() {
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="新建渠道提供方"
-        description="渠道提供方基础接入、鉴权方式、能力列表和扩展配置。"
         permissions={permissions}
         refreshing={createMutation.isPending}
-        subtitle="/channels/providers/create"
         title="新建渠道提供方"
         onRefresh={() => setActionError(null)}
       />
@@ -56,7 +54,7 @@ export function ChannelProviderCreateContent() {
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法新建渠道提供方。" title="无权新建渠道提供方" />
+          <EmptyState title="无权新建渠道提供方" />
         </Card>
       ) : (
         <ChannelProviderForm

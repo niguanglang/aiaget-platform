@@ -20,7 +20,7 @@ test('solution package center has separate list, create, detail, and edit routes
 test('solution package list stays compact and does not embed full delivery details', () => {
   const listSource = source('solution-packages-content.tsx');
 
-  assert.match(listSource, /落地方案包/);
+  assert.match(listSource, /方案包/);
   assert.match(listSource, /listSolutionPackages/);
   assert.match(listSource, /新建方案包/);
   assert.match(listSource, /package_score/);

@@ -47,9 +47,6 @@ export function AuditEventDetailContent({
             <StatusBadge tone="planned">独立路由</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审计事件详情</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看单条审计事件的基础信息、请求上下文、Trace、主体、详情 JSON 与关联入口。
-          </p>
         </div>
         <Button disabled={eventQuery.isFetching} onClick={() => void eventQuery.refetch()} type="button" variant="outline">
           <RefreshCw className="size-4" />

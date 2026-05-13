@@ -66,9 +66,6 @@ export function UserDetailContent({ userId }: { userId: string }) {
             {user ? <StatusBadge tone={userStatusTone(user.status)}>{userStatusLabel(user.status)}</StatusBadge> : null}
           </div>
           <h1 className="text-2xl font-semibold">{user?.name ?? '用户详情'}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            账号资料、组织归属、角色绑定与登录记录。
-          </p>
         </div>
         {user ? (
           <div className="flex flex-wrap gap-2">

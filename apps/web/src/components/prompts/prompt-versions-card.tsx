@@ -37,9 +37,6 @@ export function PromptVersionsCard({
     <Card>
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold">版本</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          发布会创建不可变快照；回滚会将内容和变量恢复到草稿状态。
-        </p>
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
           <input
             className="h-9 rounded-md border bg-background/80 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -55,7 +52,6 @@ export function PromptVersionsCard({
       </div>
       {prompt.versions.length === 0 ? (
         <EmptyState
-          description="发布该提示词后会创建首个不可变版本快照。"
           title="暂无已发布版本"
         />
       ) : (

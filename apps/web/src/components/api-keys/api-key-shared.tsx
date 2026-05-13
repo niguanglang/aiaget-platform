@@ -159,7 +159,7 @@ export function GovernanceCard({ canManage }: { canManage: boolean }) {
         <GovernanceItem title="密钥只展示一次" description="创建成功后立即保存明文密钥，后续仅显示脱敏前缀。" />
         <GovernanceItem title="Agent 白名单优先" description="生产集成建议绑定到指定 Agent，避免一枚密钥覆盖全部能力。" />
         <GovernanceItem title="额度和 IP 双限制" description="用日额度、分钟限流和 IP 白名单共同降低外部调用风险。" />
-        <GovernanceItem title="权限仍在后端校验" description="外部调用会继续校验 scope、创建人权限、数据范围和资源授权。" />
+        <GovernanceItem title="后端权限校验" description="scope、数据范围、资源授权。" />
         <GovernanceItem title="Webhook 异步投递" description="完成回调失败只记录投递状态，不阻塞外部调用主响应。" />
       </div>
       <div className="mt-5 rounded-md border bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
@@ -167,7 +167,7 @@ export function GovernanceCard({ canManage }: { canManage: boolean }) {
           <AlertTriangle className="size-4 text-amber-600" />
           当前权限
         </div>
-        <div className="mt-2">{canManage ? '当前账号可以创建和删除外部调用密钥。' : '当前账号只能查看密钥配置，请联系租户管理员分配管理权限。'}</div>
+        <div className="mt-2">{canManage ? '允许创建和删除外部调用密钥。' : '只读权限。'}</div>
       </div>
     </Card>
   );

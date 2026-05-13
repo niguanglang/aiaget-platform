@@ -129,10 +129,8 @@ export function ChannelProvidersContent() {
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="渠道提供方"
-        description="管理企业微信、钉钉、飞书、Slack、自定义 Webhook 等渠道提供方的适配状态、账号数量和健康指标。"
         permissions={permissions}
         refreshing={providersQuery.isFetching}
-        subtitle="/channels/providers"
         title="渠道提供方"
         onRefresh={() => void providersQuery.refetch()}
       />
@@ -153,7 +151,7 @@ export function ChannelProvidersContent() {
 
       {!permissions.canView ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:view 权限，无法查看渠道提供方。" title="无权查看渠道提供方" />
+          <EmptyState title="无权查看渠道提供方" />
         </Card>
       ) : (
         <>
@@ -213,7 +211,7 @@ export function ChannelProvidersContent() {
             {providersQuery.isLoading ? (
               <ProviderRowSkeleton />
             ) : providers.length === 0 ? (
-              <EmptyState description="当前没有渠道提供方。创建提供方后，再配置账号凭据、模板和路由规则。" title="暂无渠道提供方" />
+              <EmptyState title="暂无渠道提供方" />
             ) : (
               <div className="grid gap-3">
                 {providers.map((item) => (

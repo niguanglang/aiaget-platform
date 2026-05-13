@@ -120,15 +120,7 @@ export function SolutionPackagesContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">落地方案包</StatusBadge>
-            <StatusBadge tone="mock">客户评估 + 岗位场景</StatusBadge>
-            <StatusBadge tone="planned">交付验收</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">AI 落地方案包</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            把客户分层、六问判断和岗位场景转成可交付的方案摘要、交付路线图、验收计划、ROI 摘要和商务推进策略。
-          </p>
+          <h1 className="text-2xl font-semibold">方案包</h1>
         </div>
         {canWrite ? (
           <Button asChild className="w-full md:w-auto">
@@ -161,10 +153,7 @@ export function SolutionPackagesContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">方案包清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">核心识别字段、状态、评分、摘要预览和行内操作。</p>
-              </div>
+              <h2 className="text-sm font-semibold">方案包清单</h2>
               <div className="text-sm text-muted-foreground">显示 {packages.length} / {total}</div>
             </div>
 
@@ -214,9 +203,9 @@ export function SolutionPackagesContent() {
         </div>
 
         {packagesQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">落地方案加载失败。</div>
+          <div className="p-6 text-sm text-destructive">方案包加载失败。</div>
         ) : packagesQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">正在加载落地方案...</div>
+          <div className="p-6 text-sm text-muted-foreground">正在加载方案包...</div>
         ) : packages.length === 0 ? (
           <EmptyState
             action={
@@ -229,8 +218,7 @@ export function SolutionPackagesContent() {
                 </Button>
               ) : null
             }
-            description="暂无交付路线图、验收、ROI、风险和关联资源。"
-            title="暂无落地方案"
+            title="暂无方案包"
           />
         ) : (
           <div className="overflow-x-auto">
@@ -325,7 +313,7 @@ export function SolutionPackagesContent() {
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 px-4 backdrop-blur-sm">
           <Card className="w-full max-w-md p-5">
-            <h2 className="text-lg font-semibold">归档落地方案</h2>
+            <h2 className="text-lg font-semibold">归档方案包</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               确认归档「{deleteTarget.name}」？归档后列表不再展示该方案包，历史审计仍保留。
             </p>

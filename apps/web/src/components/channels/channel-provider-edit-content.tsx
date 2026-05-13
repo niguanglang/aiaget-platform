@@ -54,10 +54,8 @@ export function ChannelProviderEditContent({ providerId }: { providerId: string 
       <ChannelFocusedHeader
         activeRoute="providers"
         badge="编辑渠道提供方"
-        description="接入端点、回调地址、鉴权方式、能力列表和扩展配置。"
         permissions={permissions}
         refreshing={providerQuery.isFetching || updateMutation.isPending}
-        subtitle="/channels/providers/:providerId/edit"
         title="编辑渠道提供方"
         onRefresh={() => void providerQuery.refetch()}
       />
@@ -72,7 +70,7 @@ export function ChannelProviderEditContent({ providerId }: { providerId: string 
 
       {!permissions.canManage ? (
         <Card className="p-5">
-          <EmptyState description="当前账号缺少 channel:publish:manage 权限，无法编辑渠道提供方。" title="无权编辑渠道提供方" />
+          <EmptyState title="无权编辑渠道提供方" />
         </Card>
       ) : providerQuery.isLoading ? (
         <Card className="grid gap-3 p-5">
@@ -81,7 +79,7 @@ export function ChannelProviderEditContent({ providerId }: { providerId: string 
         </Card>
       ) : !item ? (
         <Card className="p-5">
-          <EmptyState description="渠道提供方不存在、已删除或当前账号没有权限查看。" title="无法加载渠道提供方" />
+          <EmptyState title="无法加载渠道提供方" />
         </Card>
       ) : (
         <ChannelProviderForm

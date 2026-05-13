@@ -108,7 +108,6 @@ export function BillingAdjustmentsContent() {
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         backHref="/billing"
         badge="Adjustments"
-        description="登记调账申请并处理审批记录；需要 billing:adjustment:manage 或租户管理员角色才能创建、审批、应用和作废。"
         onWindowChange={setWindowValue}
         title="调账申请与审批记录"
         windowValue={windowValue}
@@ -122,7 +121,7 @@ export function BillingAdjustmentsContent() {
         <MetricCard helper="等待财务处理" label="待处理" value={String(countByStatus(adjustments, 'PENDING'))} />
         <MetricCard helper="可应用到账单" label="已批准" value={String(countByStatus(adjustments, 'APPROVED'))} />
         <MetricCard helper="已进入账单估算" label="已生效" value={String(countByStatus(adjustments, 'APPLIED'))} />
-        <MetricCard helper="按 signed_amount 汇总" label="调账影响" value={formatMoney(adjustments.reduce((total, item) => total + item.signed_amount, 0))} />
+        <MetricCard helper="signed_amount" label="调账影响" value={formatMoney(adjustments.reduce((total, item) => total + item.signed_amount, 0))} />
       </section>
 
       <Card className="grid gap-4 p-5">
@@ -132,7 +131,6 @@ export function BillingAdjustmentsContent() {
               <Plus className="size-4 text-primary" />
               调账申请
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">用于登记退款、折扣、减免、补收和纠错，审批记录会影响后续账单估算。</p>
           </div>
           <StatusBadge tone={canManage ? 'healthy' : 'planned'}>{canManage ? '可创建调账' : '仅查看'}</StatusBadge>
         </div>

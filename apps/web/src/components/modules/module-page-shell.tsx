@@ -16,12 +16,8 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <StatusBadge tone={moduleSpec.status}>{statusLabels[moduleSpec.status]}</StatusBadge>
-            <StatusBadge tone="planned">增删改查契约</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">{moduleSpec.title}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {moduleSpec.description}
-          </p>
         </div>
         <Button disabled>{moduleSpec.primaryAction}</Button>
       </section>
@@ -35,12 +31,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
       <section className="rounded-lg border bg-background">
         <div className="border-b p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold">数据列表</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                搜索、筛选、分页与行操作。
-              </p>
-            </div>
+            <h2 className="text-sm font-semibold">数据列表</h2>
             <div className="flex flex-wrap gap-2">
               {moduleSpec.filters.map((filter) => (
                 <span
@@ -69,9 +60,6 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
               <tr>
                 <td className="px-4 py-10 text-center text-muted-foreground" colSpan={moduleSpec.columns.length}>
                   <div className="font-medium text-foreground">{moduleSpec.emptyTitle}</div>
-                  <div className="mx-auto mt-2 max-w-xl text-sm leading-6">
-                    {moduleSpec.emptyDescription}
-                  </div>
                 </td>
               </tr>
             </tbody>

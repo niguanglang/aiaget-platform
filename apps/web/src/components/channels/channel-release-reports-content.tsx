@@ -102,9 +102,7 @@ export function ChannelReleaseReportsContent() {
       <ChannelCenterBackground />
       <ChannelReleaseHeader
         badge="发布复盘报告"
-        description="查看单个渠道的发布复盘报告、风险建议、快照详情和版本对比。"
         refreshing={overviewQuery.isFetching || reportQuery.isFetching || snapshotsQuery.isFetching || snapshotMutation.isPending}
-        subtitle="/channels/release/reports"
         title="发布复盘报告"
         onRefresh={() => {
           void overviewQuery.refetch();
@@ -121,13 +119,13 @@ export function ChannelReleaseReportsContent() {
         <ReleaseChannelEmpty />
       ) : !report ? (
         <Card className="p-5">
-          <EmptyState description="发布复盘报告数据暂不可用。" title="暂无复盘报告" />
+          <EmptyState title="暂无复盘报告" />
         </Card>
       ) : (
         <>
           <Card className="grid gap-4 p-5">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <PanelTitle helper="发布复盘报告汇总健康、风险和最近事件。" title="报告摘要" />
+              <PanelTitle title="报告摘要" />
               <Button
                 disabled={!permissions.canManage || snapshotMutation.isPending}
                 onClick={() => setReleaseReportActionTarget({ channelId: selectedChannel.id, channelName: selectedChannel.name })}
@@ -156,9 +154,9 @@ export function ChannelReleaseReportsContent() {
             </div>
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="风险建议帮助运营判断是否继续推进。" title="风险建议" />
+            <PanelTitle title="风险建议" />
             {report.risks.length === 0 ? (
-              <EmptyState description="当前报告没有风险建议。" title="暂无风险建议" />
+              <EmptyState title="暂无风险建议" />
             ) : (
               <div className="grid gap-2">
                 {report.risks.map((risk) => (
@@ -174,9 +172,9 @@ export function ChannelReleaseReportsContent() {
             )}
           </Card>
           <Card className="grid gap-4 p-5">
-            <PanelTitle helper="复盘快照用于后续对比和留痕。" title="复盘快照" />
+            <PanelTitle title="复盘快照" />
             {snapshots.length === 0 ? (
-              <EmptyState description="当前渠道暂无复盘快照。" title="暂无复盘快照" />
+              <EmptyState title="暂无复盘快照" />
             ) : (
               <div className="grid gap-2">
                 {snapshots.map((snapshot) => (
@@ -224,7 +222,7 @@ export function ChannelReleaseReportsContent() {
           <section className="grid gap-4 xl:grid-cols-2">
             <Card className="grid gap-4 p-5">
               <div className="flex items-center justify-between gap-2">
-                <PanelTitle helper="通过快照 ID 查看单条快照详情。" title="快照详情" />
+                <PanelTitle title="快照详情" />
                 <StatusBadge tone="mock">{snapshotLookupId.trim() || '未选择'}</StatusBadge>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -240,11 +238,11 @@ export function ChannelReleaseReportsContent() {
                 </Button>
               </div>
               {snapshotDetailQuery.isLoading ? (
-                <EmptyState description="正在加载快照详情。" title="加载中" />
+                <EmptyState title="加载中" />
               ) : snapshotDetailQuery.isError ? (
-                <EmptyState description="快照详情加载失败。" title="快照详情不可用" />
+                <EmptyState title="快照详情不可用" />
               ) : !snapshotDetail ? (
-                <EmptyState description="输入快照 ID 后可以查看归档详情、来源事件和报告正文。" title="暂无快照详情" />
+                <EmptyState title="暂无快照详情" />
               ) : (
                 <div className="grid gap-4">
                   <DetailGrid
@@ -281,7 +279,7 @@ export function ChannelReleaseReportsContent() {
             </Card>
             <Card className="grid gap-4 p-5">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <PanelTitle helper="选择两个快照后查看版本差异、严重差异和变更结论。" title="报告版本对比" />
+                <PanelTitle title="报告版本对比" />
                 <StatusBadge tone={compareResult ? 'ready' : 'planned'}>{compareResult ? '已对比' : '待选择快照'}</StatusBadge>
               </div>
               <div className="grid gap-3">
@@ -317,11 +315,11 @@ export function ChannelReleaseReportsContent() {
                 </div>
               </div>
               {compareQuery.isLoading ? (
-                <EmptyState description="正在加载报告版本对比结果。" title="对比加载中" />
+                <EmptyState title="对比加载中" />
               ) : compareQuery.isError ? (
-                <EmptyState description="两个快照必须不同且都可访问。" title="报告版本对比不可用" />
+                <EmptyState title="报告版本对比不可用" />
               ) : !compareResult ? (
-                <EmptyState description="选择两个不同的快照后即可查看报告版本对比。" title="暂无对比结果" />
+                <EmptyState title="暂无对比结果" />
               ) : (
                 <div className="grid gap-4">
                   <DetailGrid
@@ -375,7 +373,7 @@ function DiffSection({
     <div className="grid gap-2">
       <div className="text-sm font-semibold">{title}</div>
       {items.length === 0 ? (
-        <EmptyState description="当前分组没有可见差异。" title="无差异" />
+        <EmptyState title="无差异" />
       ) : (
         <div className="grid gap-2">
           {items.map((item) => (

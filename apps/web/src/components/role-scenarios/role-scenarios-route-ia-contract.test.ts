@@ -20,7 +20,7 @@ test('role scenario center has separate list, create, detail, and edit routes', 
 test('role scenario list stays compact and does not embed full delivery details', () => {
   const listSource = source('role-scenarios-content.tsx');
 
-  assert.match(listSource, /岗位场景编排/);
+  assert.match(listSource, /岗位场景/);
   assert.match(listSource, /listRoleScenarios/);
   assert.match(listSource, /新建场景包/);
   assert.match(listSource, /impact_score/);

@@ -15,12 +15,7 @@ export function ModelCostLogCard({ provider }: { provider: ModelProviderDetail }
   return (
     <Card className="grid gap-5 p-5">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <h2 className="text-sm font-semibold">成本规则与调用日志</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            成本规则由模型价格生成，调用日志用于审计、成本核算和问题追踪。
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">成本规则与调用日志</h2>
         <StatusBadge tone="planned">最近 {provider.call_logs.length} 条</StatusBadge>
       </div>
 

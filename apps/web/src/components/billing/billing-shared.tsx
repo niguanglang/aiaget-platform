@@ -151,7 +151,6 @@ export function BillingWorkspaceHeader({
   backHref,
   backLabel = '成本总览',
   badge,
-  description,
   onWindowChange,
   title,
   windowValue,
@@ -160,7 +159,7 @@ export function BillingWorkspaceHeader({
   backHref?: string;
   backLabel?: string;
   badge: string;
-  description: string;
+  description?: string;
   onWindowChange?: (value: BillingWindow) => void;
   title: string;
   windowValue?: BillingWindow;
@@ -178,10 +177,8 @@ export function BillingWorkspaceHeader({
         ) : null}
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <StatusBadge tone="ready">{badge}</StatusBadge>
-          <StatusBadge tone="healthy">中文职责页</StatusBadge>
         </div>
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {windowValue && onWindowChange ? (

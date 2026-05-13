@@ -71,7 +71,6 @@ export function CustomerSuccessOpportunityEditContent({ opportunityId }: { oppor
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">编辑续约机会</h1>
-          <p className="mt-2 text-sm text-muted-foreground">调整机会阶段、金额概率、商务策略、决策路径、风险摘要和关联资源。</p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/customer-success-opportunities/${opportunityId}`}>

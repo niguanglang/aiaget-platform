@@ -79,12 +79,9 @@ export function KnowledgeFormPanel({
     >
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">{isEditing ? '编辑知识库' : '新建知识库'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              先配置元数据和访问范围，再上传来源文档。
-            </p>
-          </div>
+	          <div>
+	            <h2 className="text-lg font-semibold">{isEditing ? '编辑知识库' : '新建知识库'}</h2>
+	          </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />
           </Button>

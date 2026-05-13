@@ -85,16 +85,15 @@ export function SecurityEventsContent() {
           <RefreshButton loading={eventsQuery.isFetching} onClick={() => {
             void eventsQuery.refetch();
           }} />
-        }
-        badge="Trace"
-        description="检索拒绝事件、审批导出事件、安全策略命中、Trace 和请求主体。"
-        title="安全事件"
-      />
+	        }
+	        badge="Trace"
+	        title="安全事件"
+	      />
 
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard helper={`${windowValue} 窗口`} label="事件总数" value={`${total}`} />
-        <MetricCard helper="当前页可跳转链路" label="Trace 事件" value={`${tracedCount}`} />
-        <MetricCard helper={traceOnly ? '仅看可追踪事件' : '包含无 Trace 事件'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
+	        <MetricCard helper="Trace" label="Trace 事件" value={`${tracedCount}`} />
+	        <MetricCard helper={traceOnly ? 'Trace' : '全部'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
       </section>
 
       <section className="grid gap-4">
@@ -106,7 +105,7 @@ export function SecurityEventsContent() {
                   <Activity className="size-4 text-muted-foreground" />
                   <h2 className="text-sm font-semibold">事件列表</h2>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">当前筛选命中 {total} 条安全事件。</p>
+	                <p className="mt-1 text-sm text-muted-foreground">{total} 条安全事件</p>
               </div>
               <Button disabled={!keyword && !source && !traceOnly && windowValue === '24h'} onClick={resetFilters} type="button" variant="outline">
                 清空筛选
@@ -171,7 +170,7 @@ export function SecurityEventsContent() {
           ) : eventsQuery.isLoading ? (
             <LoadingRows count={6} />
           ) : events.length === 0 ? (
-            <EmptyState description="当前筛选下暂无安全事件。" title="暂无事件" />
+	            <EmptyState title="暂无事件" />
           ) : (
             <div className="divide-y">
               {events.map((event) => (

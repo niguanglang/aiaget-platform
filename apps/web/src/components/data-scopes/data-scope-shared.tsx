@@ -34,15 +34,15 @@ export const scopeTypes: DataScopeType[] = ['ALL', 'TENANT', 'DEPT', 'DEPT_AND_C
 
 export function DataScopeMetricGrid({ overview, roleTotal }: { overview?: DataScopeOverview; roleTotal: number }) {
   const metrics = [
+	    {
+	      label: '覆盖角色',
+	      value: `${overview?.configured_role_count ?? 0}`,
+	      helper: `共 ${overview?.role_count ?? roleTotal} 个角色`,
+	    },
     {
-      label: '已配置角色',
-      value: `${overview?.configured_role_count ?? 0}`,
-      helper: `共 ${overview?.role_count ?? roleTotal} 个角色`,
-    },
-    {
-      label: '数据范围',
-      value: `${overview?.scope_count ?? 0}`,
-      helper: '资源矩阵配置',
+	      label: '数据范围',
+	      value: `${overview?.scope_count ?? 0}`,
+	      helper: '资源矩阵',
     },
     {
       label: '全部范围',
@@ -92,10 +92,7 @@ export function RoleDirectoryList({
     <Card className="min-w-0">
       <div className="border-b p-4">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">角色名称、编码和状态。</p>
-          </div>
+          <h2 className="text-sm font-semibold">{title}</h2>
           <StatusBadge tone="planned">{roles.length}/{total}</StatusBadge>
         </div>
         <div className="mt-4 grid gap-2">
@@ -129,7 +126,7 @@ export function RoleDirectoryList({
       {loading ? (
         <div className="p-6 text-sm text-muted-foreground">正在加载角色目录...</div>
       ) : roles.length === 0 ? (
-        <EmptyState className="py-8" description="当前筛选条件没有匹配角色。" title="暂无角色" />
+	        <EmptyState className="py-8" title="暂无角色" />
       ) : (
         <div className="grid max-h-[620px] gap-2 overflow-y-auto p-3">
           {roles.map((role, index) => (
@@ -209,10 +206,7 @@ export function ScopeMatrix({
   return (
     <Card className="min-w-0">
       <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-start">
-        <div>
-          <h2 className="text-sm font-semibold">资源范围矩阵</h2>
-          <p className="mt-1 text-sm text-muted-foreground">各类资源的生效范围。</p>
-        </div>
+        <h2 className="text-sm font-semibold">资源范围矩阵</h2>
         <StatusBadge tone="mock">{scopes.length} 项</StatusBadge>
       </div>
       <div className="overflow-x-auto">
@@ -315,16 +309,15 @@ export function StaticPreviewSummary({ scopes }: { scopes: RoleDataScopeItem[] }
 
   return (
     <Card className="min-w-0 p-4">
-      <div className="flex items-start gap-3">
-        <span className="grid size-9 place-items-center rounded-md border bg-background">
-          <ShieldCheck className="size-4 text-teal-700" />
-        </span>
-        <div>
-          <h2 className="text-sm font-semibold">只读预览摘要</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            当前角色共有 {activeScopes.length} 个启用资源范围，其中 {allScopes.length} 个全部范围、{customScopes.length} 个自定义范围。
-            如需按实时租户数据计算部门与用户范围，请进入编辑页执行预览。
-          </p>
+	      <div className="flex items-start gap-3">
+	        <span className="grid size-9 place-items-center rounded-md border bg-background">
+	          <ShieldCheck className="size-4 text-teal-700" />
+	        </span>
+	        <div>
+	          <h2 className="text-sm font-semibold">只读预览摘要</h2>
+	          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+	            启用 {activeScopes.length} 个 · 全部 {allScopes.length} 个 · 自定义 {customScopes.length} 个
+	          </p>
         </div>
       </div>
     </Card>
@@ -400,10 +393,7 @@ export function ScopeEditor({
 
         <div className="rounded-lg border bg-muted/15 p-3">
           <div className="flex items-center justify-between gap-2">
-            <div>
-              <div className="text-sm font-semibold">自定义范围</div>
-              <p className="mt-1 text-xs text-muted-foreground">仅在选择“自定义范围”时生效。</p>
-            </div>
+            <div className="text-sm font-semibold">自定义范围</div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 checked={scope.scope_value.include_children}
@@ -455,7 +445,7 @@ export function ScopeEditor({
                   resource_ids: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean),
                 })
               }
-              placeholder="每行一个资源 ID，可用于后续 Resource ACL 精确对象授权"
+	              placeholder="每行一个资源 ID"
               value={scope.scope_value.resource_ids.join('\n')}
             />
           </div>
@@ -479,10 +469,7 @@ export function PreviewPanel({
   return (
     <div className="rounded-lg border bg-background/75 p-3">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold">生效预览</div>
-          <p className="mt-1 text-xs text-muted-foreground">按当前登录用户和租户数据计算命中范围。</p>
-        </div>
+        <div className="text-sm font-semibold">生效预览</div>
         <Button disabled={pendingPreview} onClick={onPreview} size="sm" variant="outline">
           <Search className="size-4" />
           预览
@@ -491,7 +478,7 @@ export function PreviewPanel({
 
       {!result ? (
         <div className="mt-4 rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-          点击预览后展示命中的部门、用户和策略说明。
+	          暂无预览结果。
         </div>
       ) : (
         <div className="mt-4 grid gap-3">

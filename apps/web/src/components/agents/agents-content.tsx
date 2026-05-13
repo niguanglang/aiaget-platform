@@ -110,9 +110,6 @@ export function AgentsContent() {
             <StatusBadge tone="planned">版本化发布</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">智能体配置中心</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            管理租户智能体、运行默认值、版本快照、发布状态和审计历史。
-          </p>
         </div>
         <Button asChild aria-disabled={!canWrite} className={!canWrite ? 'pointer-events-none opacity-60' : undefined}>
           <Link href="/agents/create">

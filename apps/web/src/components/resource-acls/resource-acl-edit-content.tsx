@@ -105,7 +105,6 @@ export function ResourceAclEditContent({ resourceAclId }: { resourceAclId: strin
             </Link>
           </Button>
         }
-        description="编辑已有资源授权规则。资源与主体由创建时确定，编辑页只开放后端支持更新的字段。"
         eyebrow="编辑页"
         title="编辑资源授权"
       />

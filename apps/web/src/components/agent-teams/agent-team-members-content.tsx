@@ -138,11 +138,10 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}`}><ArrowLeft className="size-4" />团队详情</Link></Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">成员管理</StatusBadge>
+            <StatusBadge tone="ready">成员</StatusBadge>
             <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
           </div>
-          <h1 className="break-words text-2xl font-semibold">{team.name} · 成员管理</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">成员职责、执行顺序、必选状态和启停状态。</p>
+          <h1 className="break-words text-2xl font-semibold">{team.name} · 成员</h1>
         </div>
         <Button disabled={!canManage} onClick={openCreateForm} type="button">
           <Plus className="size-4" />

@@ -60,7 +60,6 @@ export function DeliveryReviewCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建验收复盘</h1>
-          <p className="mt-2 text-sm text-muted-foreground">记录落地方案包的验收结论、问题复盘、改进行动和扩展计划。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/delivery-reviews">

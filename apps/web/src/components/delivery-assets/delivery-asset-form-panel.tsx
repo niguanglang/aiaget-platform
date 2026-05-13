@@ -57,17 +57,17 @@ function defaults(asset?: DeliveryAssetDetail | null): DeliveryAssetFormValues {
   return {
     name: asset?.name ?? '',
     code: asset?.code ?? '',
-    customer_name: asset?.customer_name ?? '华中设计院',
+    customer_name: asset?.customer_name ?? '',
     asset_type: asset?.asset_type ?? 'SOLUTION_TEMPLATE',
     status: asset?.status ?? 'PUBLISHED',
     visibility: asset?.visibility ?? 'TENANT',
-    reuse_score: asset?.reuse_score ?? 92,
-    summary: asset?.summary ?? '售前方案资产、引用来源检查、风险提示和验收清单，供同类任务型客户试点复用。',
-    business_value: asset?.business_value ?? '降低方案准备时间，减少验收返工，并统一引用来源、风险说明和验收口径。',
-    reuse_guidance: asset?.reuse_guidance ?? '适用于任务型客户的售前方案试点，可复制到投标资料问答、项目复盘助手和客户成功运营场景。',
-    source_context: asset?.source_context ?? '来源于华中设计院试点验收复盘，客户确认交付成果可进入扩展阶段。',
-    risk_notes: asset?.risk_notes ?? '复用前需要确认客户资料权限、行业术语、知识库密级和输出审核责任。',
-    next_action: asset?.next_action ?? '把资产同步到 Skill Hub，并标记为售前方案交付推荐资产。',
+    reuse_score: asset?.reuse_score ?? undefined,
+    summary: asset?.summary ?? '',
+    business_value: asset?.business_value ?? '',
+    reuse_guidance: asset?.reuse_guidance ?? '',
+    source_context: asset?.source_context ?? '',
+    risk_notes: asset?.risk_notes ?? '',
+    next_action: asset?.next_action ?? '',
     tags: asset?.tags.join(', ') ?? '',
     notes: asset?.notes ?? '',
     owner_id: asset?.owner?.id ?? '',
@@ -153,9 +153,6 @@ export function DeliveryAssetFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isEditing ? '编辑成果资产' : '新建成果资产'}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              独立表单维护资产类型、复用评分、业务价值、复用指引、来源上下文、风险说明和关联资源。
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />

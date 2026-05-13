@@ -68,7 +68,6 @@ export function CustomerSuccessOpportunityCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建续约机会</h1>
-          <p className="mt-2 text-sm text-muted-foreground">把客户成功计划和成功行动转成可阶段推进、可金额预测、可风险跟踪的商务机会。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/customer-success-opportunities">

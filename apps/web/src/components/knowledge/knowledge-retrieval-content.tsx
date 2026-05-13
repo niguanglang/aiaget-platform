@@ -94,11 +94,10 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
               {rebuildMutation.isPending ? '正在重建...' : '重建索引'}
             </Button>
           </>
-        }
-        base={base}
-        description="运行混合检索、向量检索或关键词检索测试，查看最新召回结果和历史召回日志。"
-        eyebrow="检索测试"
-        title={base ? `${base.name} / 检索测试` : '检索测试'}
+	        }
+	        base={base}
+	        eyebrow="检索测试"
+	        title={base ? `${base.name} / 检索测试` : '检索测试'}
       />
 
       {retrievalError ? <PageMessage tone="error" value={retrievalError} /> : null}
@@ -123,7 +122,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
       <Card className="grid gap-4 p-5">
         <h2 className="text-sm font-semibold">召回日志</h2>
         {!base || base.recall_logs.length === 0 ? (
-          <EmptyState description="运行检索测试后会生成召回日志。" title="暂无召回日志" />
+	          <EmptyState title="暂无召回日志" />
         ) : (
           <div className="grid gap-3">
             {base.recall_logs.slice(0, 12).map((log) => (
@@ -179,15 +178,12 @@ function RetrievalFormCard({
 }) {
   return (
     <Card className="grid min-w-0 gap-4 p-5">
-      <div>
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Search className="size-4" />
-          检索测试
-        </div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          混合检索会融合 OpenSearch 关键词分数和 Qdrant 向量分数，缺少可用后端时回退到本地近似。
-        </p>
-      </div>
+	      <div>
+	        <div className="flex items-center gap-2 text-sm font-semibold">
+	          <Search className="size-4" />
+	          检索测试
+	        </div>
+	      </div>
       <SummaryTile label="可检索切片" value={`${segmentCount}`} />
       <label className="grid gap-2 text-sm font-medium">
         检索问题
@@ -212,9 +208,9 @@ function RetrievalResultCard({ result }: { result: KnowledgeRetrievalTestResult 
     <Card className="grid min-w-0 gap-4 p-5">
       <h2 className="text-sm font-semibold">最新结果</h2>
       {!result ? (
-        <EmptyState description="运行检索测试后展示命中切片和分数。" title="暂无检索结果" />
-      ) : result.results.length === 0 ? (
-        <EmptyState description="没有切片命中该问题。" title="无召回结果" />
+	        <EmptyState title="暂无检索结果" />
+	      ) : result.results.length === 0 ? (
+	        <EmptyState title="无召回结果" />
       ) : (
         <div className="grid gap-3">
           {result.results.map((item) => (

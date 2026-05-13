@@ -121,24 +121,16 @@ export function CustomerAssessmentsContent() {
         transition={{ duration: 0.32, ease: 'easeOut' }}
       >
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">客户分层评估</StatusBadge>
-            <StatusBadge tone="healthy">六问判断</StatusBadge>
-            <StatusBadge tone="planned">轻量售前资格</StatusBadge>
-          </div>
-            <h1 className="text-2xl font-semibold">客户分层评估</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              查看客户识别、类型、阶段、状态、准备度、建议预览和负责人。
-            </p>
-          </div>
-          {canWrite ? (
+          <h1 className="text-2xl font-semibold">客户分层评估</h1>
+        </div>
+        {canWrite ? (
           <Button asChild className="w-full md:w-auto">
             <Link href="/customer-assessments/create">
               <Plus className="size-4" />
               新建评估
             </Link>
           </Button>
-          ) : null}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -162,10 +154,7 @@ export function CustomerAssessmentsContent() {
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-sm font-semibold">评估清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">客户分层、准备度、责任人、业务目标和建议摘要。</p>
-              </div>
+              <h2 className="text-sm font-semibold">评估清单</h2>
               <div className="text-sm text-muted-foreground">
                 显示 {assessments.length} / {total}
               </div>
@@ -236,7 +225,6 @@ export function CustomerAssessmentsContent() {
                 </Button>
               ) : null
             }
-            description="新增客户评估后，可维护六问判断、建议策略、风险和下一步动作。"
             title="暂无客户评估"
           />
         ) : (
@@ -293,7 +281,7 @@ export function CustomerAssessmentsContent() {
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/customer-assessments/${assessment.id}`}>
                             <Eye className="size-3.5" />
-                            查看
+                            详情
                           </Link>
                         </Button>
                         {canWrite ? (

@@ -158,12 +158,7 @@ export function CustomerSuccessPlansContent() {
               新建计划
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建计划
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -189,7 +184,7 @@ export function CustomerSuccessPlansContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">计划清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心字段、评分、扩展预览、下一步动作和来源关系，完整客户成功计划进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">核心字段、评分、扩展预览、下一步动作和来源关系。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {plans.length} / {total}</div>
             </div>
@@ -273,7 +268,7 @@ export function CustomerSuccessPlansContent() {
                 </Button>
               ) : null
             }
-            description="先从一次验收复盘和成果资产创建客户成功计划，再在详情页维护完整扩展、续约和风险动作。"
+            description="从一次验收复盘和成果资产创建客户成功计划，并维护扩展、续约和风险动作。"
             title="暂无客户成功计划"
           />
         ) : (

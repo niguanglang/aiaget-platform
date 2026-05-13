@@ -130,7 +130,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
           </div>
           <h1 className="break-words text-2xl font-semibold">{skill.name}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {skill.description ?? '暂无描述。'} 这里维护完整 SOP 信息、版本记录和 Agent 引用。
+            {skill.description ?? '暂无描述。'} 这里展示 SOP 信息、版本记录和 Agent 引用。
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {skill.tags.map((tag) => (
@@ -141,12 +141,14 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild disabled={!canWrite} variant="outline">
-            <Link href={`/skills/${skill.id}/edit`}>
-              <Edit className="size-4" />
-              编辑
-            </Link>
-          </Button>
+          {canWrite ? (
+            <Button asChild variant="outline">
+              <Link href={`/skills/${skill.id}/edit`}>
+                <Edit className="size-4" />
+                编辑
+              </Link>
+            </Button>
+          ) : null}
           <Button disabled={!canWrite || copyMutation.isPending} onClick={() => copyMutation.mutate(skill.id)} variant="outline">
             <Copy className="size-4" />
             复制

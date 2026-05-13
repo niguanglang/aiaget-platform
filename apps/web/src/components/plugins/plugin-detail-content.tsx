@@ -130,7 +130,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
       <Card className="overflow-hidden">
         <div className="border-b p-5">
           <h2 className="text-sm font-semibold">Manifest 与安装摘要</h2>
-          <p className="mt-1 text-sm text-muted-foreground">展示插件声明、安装状态、权限、Hook 和菜单绑定摘要；编辑配置请进入独立页面。</p>
+          <p className="mt-1 text-sm text-muted-foreground">插件声明、安装状态、权限、Hook 和菜单绑定摘要。</p>
         </div>
         <div className="grid gap-4 p-5">
           <div className="grid gap-3 md:grid-cols-3">

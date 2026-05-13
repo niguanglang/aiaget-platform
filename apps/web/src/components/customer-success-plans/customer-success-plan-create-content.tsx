@@ -64,7 +64,7 @@ export function CustomerSuccessPlanCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建客户成功计划</h1>
-          <p className="mt-2 text-sm text-muted-foreground">从验收复盘和成果资产沉淀扩展推广、续约准备、健康风险和下一步动作。</p>
+          <p className="mt-2 text-sm text-muted-foreground">从验收复盘和成果资产创建扩展推广、续约准备、健康风险和下一步动作。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/customer-success-plans">

@@ -23,7 +23,7 @@ export function customerSuccessActionTypeLabel(type: CustomerSuccessActionType |
     MEETING: '客户会议',
     ASSET_REUSE: '资产复用',
     ROLLOUT: '推广落地',
-    TRAINING: '培训赋能',
+    TRAINING: '培训支持',
     RENEWAL: '续约推进',
     RISK_REVIEW: '风险复盘',
     FOLLOW_UP: '跟进行动',

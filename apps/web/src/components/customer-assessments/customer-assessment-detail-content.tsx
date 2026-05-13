@@ -115,12 +115,14 @@ export function CustomerAssessmentDetailContent({ assessmentId }: { assessmentId
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild disabled={!canWrite} variant="outline">
-            <Link href={`/customer-assessments/${assessment.id}/edit`}>
-              <Edit className="size-4" />
-              编辑
-            </Link>
-          </Button>
+          {canWrite ? (
+            <Button asChild variant="outline">
+              <Link href={`/customer-assessments/${assessment.id}/edit`}>
+                <Edit className="size-4" />
+                编辑
+              </Link>
+            </Button>
+          ) : null}
           <Button disabled={!canWrite || archiveMutation.isPending} onClick={() => setConfirmArchive(true)} variant="outline">
             <Trash2 className="size-4" />
             归档

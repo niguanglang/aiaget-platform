@@ -142,7 +142,7 @@ export function DeliveryReviewsContent() {
           </div>
           <h1 className="text-2xl font-semibold">交付验收复盘</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            承接落地方案包，记录客户验收结果、问题复盘、改进行动、扩展计划和可复用资产，形成企业 AI 落地运营闭环。
+            承接落地方案包，记录客户验收结果、问题复盘、改进行动、扩展计划和可复用资产。
           </p>
         </div>
         {canWrite ? (
@@ -152,12 +152,7 @@ export function DeliveryReviewsContent() {
               新建复盘
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建复盘
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -183,7 +178,7 @@ export function DeliveryReviewsContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">复盘清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心字段、状态、评分和摘要预览，完整验收内容进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">核心字段、状态、评分、验收结论和摘要预览。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {reviews.length} / {total}</div>
             </div>

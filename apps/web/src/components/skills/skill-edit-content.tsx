@@ -72,7 +72,7 @@ export function SkillEditContent({ skillId }: { skillId: string }) {
           </div>
           <h1 className="break-words text-2xl font-semibold">{skill ? `编辑 ${skill.name}` : '编辑 Skill'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里编辑基础信息和完整 SOP 字段。版本发布、版本记录和 Agent 引用仍在详情页维护。
+            编辑基础信息、触发场景、输入要求、执行步骤、输出结构和质量标准。
           </p>
         </div>
       </section>

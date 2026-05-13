@@ -342,7 +342,7 @@ function FollowUpActionCard({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <ListChecks className="size-4 text-primary" />
-            跟进行动闭环
+            跟进行动
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             将当前续约机会生成客户成功行动，后续在成功行动中心跟踪负责人、截止时间、执行记录和完成证据。
@@ -455,7 +455,7 @@ function CloseWonAdjustmentCard({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <ReceiptText className="size-4 text-primary" />
-            成交入账闭环
+            成交入账
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             将当前续约机会标记为赢单，并生成来源为续约机会的计费调账记录，后续在成本与额度中心继续核算。

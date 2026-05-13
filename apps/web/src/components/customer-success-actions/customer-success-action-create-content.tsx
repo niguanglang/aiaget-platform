@@ -66,7 +66,7 @@ export function CustomerSuccessActionCreateContent() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建客户成功行动</h1>
-          <p className="mt-2 text-sm text-muted-foreground">把客户成功计划拆解成可负责人、可截止、可沉淀证据的执行动作。</p>
+          <p className="mt-2 text-sm text-muted-foreground">把客户成功计划拆解成有负责人、截止时间和证据要求的执行动作。</p>
         </div>
         <Button asChild variant="outline">
           <Link href="/customer-success-actions">

@@ -49,11 +49,11 @@ test('customer success opportunity detail owns value, strategy, decision path, r
   assert.match(detailSource, /成功行动/);
   assert.match(detailSource, /来源复盘/);
   assert.match(detailSource, /成果资产/);
-  assert.match(detailSource, /跟进行动闭环/);
+  assert.match(detailSource, /跟进行动/);
   assert.match(detailSource, /createCustomerSuccessOpportunityFollowUpAction/);
   assert.match(detailSource, /customer:success_action:manage/);
   assert.match(detailSource, /确认生成/);
-  assert.match(detailSource, /成交入账闭环/);
+  assert.match(detailSource, /成交入账/);
   assert.match(detailSource, /closeWonCustomerSuccessOpportunity/);
   assert.match(detailSource, /billing:adjustment:manage/);
   assert.match(detailSource, /确认成交入账/);
@@ -113,7 +113,7 @@ test('customer success opportunity close won billing workflow stays on detail pa
   const detailSource = source('customer-success-opportunity-detail-content.tsx');
   const analyticsSource = source('customer-success-opportunity-analytics-content.tsx');
 
-  assert.match(detailSource, /成交入账闭环/);
+  assert.match(detailSource, /成交入账/);
   assert.match(detailSource, /确认成交入账/);
   assert.match(detailSource, /\/billing\/adjustments/);
   assert.match(detailSource, /\/audit\?keyword=/);

@@ -62,7 +62,7 @@ function defaults(asset?: DeliveryAssetDetail | null): DeliveryAssetFormValues {
     status: asset?.status ?? 'PUBLISHED',
     visibility: asset?.visibility ?? 'TENANT',
     reuse_score: asset?.reuse_score ?? 92,
-    summary: asset?.summary ?? '沉淀售前方案样板、引用来源检查、风险提示和验收清单，供同类任务型客户试点复用。',
+    summary: asset?.summary ?? '售前方案样板、引用来源检查、风险提示和验收清单，供同类任务型客户试点复用。',
     business_value: asset?.business_value ?? '降低方案准备时间，减少验收返工，并统一引用来源、风险说明和验收口径。',
     reuse_guidance: asset?.reuse_guidance ?? '适用于任务型客户的售前方案试点，可复制到投标资料问答、项目复盘助手和客户成功运营场景。',
     source_context: asset?.source_context ?? '来源于华中设计院试点验收复盘，客户确认样板成果可进入扩展阶段。',

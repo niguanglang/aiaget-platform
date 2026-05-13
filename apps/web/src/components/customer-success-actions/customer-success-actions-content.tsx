@@ -149,7 +149,7 @@ export function CustomerSuccessActionsContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">成功行动</StatusBadge>
-            <StatusBadge tone="healthy">执行闭环</StatusBadge>
+            <StatusBadge tone="healthy">执行跟进</StatusBadge>
             <StatusBadge tone="planned">计划拆解</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">客户成功行动中心</h1>
@@ -164,12 +164,7 @@ export function CustomerSuccessActionsContent() {
               新建行动
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建行动
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -195,7 +190,7 @@ export function CustomerSuccessActionsContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">行动清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心字段、状态、评分、摘要预览、下一步动作和来源关系，完整执行内容进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">行动状态、评分、摘要预览、下一步动作和来源关系。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {actions.length} / {total}</div>
             </div>
@@ -285,7 +280,7 @@ export function CustomerSuccessActionsContent() {
                 </Button>
               ) : null
             }
-            description="先从客户成功计划拆解行动，再在详情页维护完整执行记录、阻塞风险和完成证据。"
+            description="从客户成功计划拆解行动，并维护执行记录、阻塞风险和完成证据。"
             title="暂无客户成功行动"
           />
         ) : (

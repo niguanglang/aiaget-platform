@@ -123,7 +123,7 @@ export function SolutionPackagesContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">落地方案包</StatusBadge>
             <StatusBadge tone="mock">客户评估 + 岗位场景</StatusBadge>
-            <StatusBadge tone="planned">交付验收闭环</StatusBadge>
+            <StatusBadge tone="planned">交付验收</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">AI 落地方案包</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -137,12 +137,7 @@ export function SolutionPackagesContent() {
               新建方案包
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建方案包
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -168,7 +163,7 @@ export function SolutionPackagesContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">方案包清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心识别字段、状态、评分、摘要预览和行内操作，完整交付内容进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">核心识别字段、状态、评分、摘要预览和行内操作。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {packages.length} / {total}</div>
             </div>

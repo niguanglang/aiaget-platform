@@ -145,7 +145,7 @@ export function DeliveryAssetsContent() {
           </div>
           <h1 className="text-2xl font-semibold">成果资产中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            把交付验收复盘沉淀为可复用方案模板、验收清单、风险清单、Prompt SOP、客户案例和报告归档，让成功交付可以被复制。
+            管理可复用方案模板、验收清单、风险清单、Prompt SOP、客户案例和报告归档。
           </p>
         </div>
         {canWrite ? (
@@ -155,12 +155,7 @@ export function DeliveryAssetsContent() {
               新建资产
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建资产
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -186,7 +181,7 @@ export function DeliveryAssetsContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">资产清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心字段、复用评分、摘要预览和来源关系，完整资产内容进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">资产类型、状态、复用评分、摘要预览和来源关系。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {assets.length} / {total}</div>
             </div>
@@ -258,7 +253,7 @@ export function DeliveryAssetsContent() {
                 </Button>
               ) : null
             }
-            description="先从一次验收复盘沉淀成果资产，再在详情页查看完整业务价值、复用指引、来源上下文和风险说明。"
+            description="从一次验收复盘创建成果资产，并补充业务价值、复用指引、来源上下文和风险说明。"
             title="暂无成果资产"
           />
         ) : (

@@ -66,7 +66,7 @@ export function CustomerAssessmentCreateContent() {
         </div>
         <h1 className="text-2xl font-semibold">新建客户评估</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          用客户分层和六问判断沉淀售前资格，生成准备度、建议打法、风险提示和下一步动作。
+          用客户分层和六问判断记录售前资格，生成准备度、建议打法、风险提示和下一步动作。
         </p>
       </section>
 

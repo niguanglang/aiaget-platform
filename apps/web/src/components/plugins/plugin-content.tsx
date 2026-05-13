@@ -165,7 +165,7 @@ export function PluginContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M63-2</StatusBadge>
+            <StatusBadge tone="ready">插件生态</StatusBadge>
             <StatusBadge tone="healthy">插件生态</StatusBadge>
             <StatusBadge tone="planned">列表与入口</StatusBadge>
           </div>

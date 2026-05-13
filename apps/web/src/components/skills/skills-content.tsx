@@ -118,11 +118,11 @@ export function SkillsContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">技能资产中心</StatusBadge>
             <StatusBadge tone="healthy">Skill 资产</StatusBadge>
-            <StatusBadge tone="planned">详情页承载 SOP</StatusBadge>
+            <StatusBadge tone="planned">SOP 管理</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">技能资产中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            列表页用于查询、筛选、概览和行内治理操作。完整触发场景、输入要求、执行步骤、输出结构、质量标准、边界规则、版本记录和 Agent 引用在详情页维护。
+            查询可复用业务 Skill，查看状态、分类、触发场景、SOP 摘要、版本和 Agent 引用。
           </p>
         </div>
         {canWrite ? (
@@ -132,12 +132,7 @@ export function SkillsContent() {
               新建 Skill
             </Link>
           </Button>
-        ) : (
-          <Button className="w-full md:w-auto" disabled>
-            <Plus className="size-4" />
-            新建 Skill
-          </Button>
-        )}
+        ) : null}
       </motion.section>
 
       <motion.section
@@ -163,7 +158,7 @@ export function SkillsContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">Skill 清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">搜索、筛选、分页和单条操作；完整 SOP 请进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">搜索、筛选、分页、状态、分类、SOP 摘要和单条操作。</p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {skills.length} / {total}
@@ -227,7 +222,7 @@ export function SkillsContent() {
                 </Button>
               ) : null
             }
-            description="先创建一个可复用业务 Skill，再进入详情页发布版本并查看 Agent 引用。"
+            description="创建可复用业务 Skill 后，可发布版本并查看 Agent 引用。"
             title="暂无 Skill"
           />
         ) : (

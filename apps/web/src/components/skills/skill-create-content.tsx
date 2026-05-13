@@ -63,7 +63,7 @@ export function SkillCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建 Skill</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            创建可复用业务 Skill，并填写完整 SOP 字段。版本发布和 Agent 引用在详情页维护。
+            创建可复用业务 Skill，并填写触发场景、输入要求、执行步骤、输出结构和质量标准。
           </p>
         </div>
       </section>

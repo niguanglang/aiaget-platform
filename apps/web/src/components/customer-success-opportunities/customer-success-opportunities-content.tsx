@@ -184,7 +184,7 @@ export function CustomerSuccessOpportunitiesContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">续约机会</StatusBadge>
-            <StatusBadge tone="healthy">商务闭环</StatusBadge>
+            <StatusBadge tone="healthy">商务推进</StatusBadge>
             <StatusBadge tone="planned">客户成功</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">客户成功续约机会中心</h1>
@@ -206,12 +206,7 @@ export function CustomerSuccessOpportunitiesContent() {
                 新建机会
               </Link>
             </Button>
-          ) : (
-            <Button className="w-full md:w-auto" disabled>
-              <Plus className="size-4" />
-              新建机会
-            </Button>
-          )}
+          ) : null}
         </div>
       </motion.section>
 
@@ -238,7 +233,7 @@ export function CustomerSuccessOpportunitiesContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">机会清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示核心字段、阶段、金额概率、摘要预览和来源关系，完整商务策略进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">核心字段、阶段、金额概率、摘要预览和来源关系。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {opportunities.length} / {total}</div>
             </div>
@@ -346,7 +341,7 @@ export function CustomerSuccessOpportunitiesContent() {
                 </Button>
               ) : null
             }
-            description="先从客户成功计划和成功行动沉淀续约机会，再在详情页维护完整商务策略、决策路径和风险摘要。"
+            description="从客户成功计划和成功行动创建续约机会，并维护商务策略、决策路径和风险摘要。"
             title="暂无续约机会"
           />
         ) : (

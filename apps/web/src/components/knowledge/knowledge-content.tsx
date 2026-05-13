@@ -147,6 +147,12 @@ export function KnowledgeContent() {
             <Link href="/knowledge/activity">处理活动</Link>
           </Button>
           <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/knowledge/tasks">处理任务</Link>
+          </Button>
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/knowledge/recalls">召回记录</Link>
+          </Button>
+          <Button asChild className="w-full md:w-auto" variant="outline">
             <Link href="/knowledge/health">能力健康</Link>
           </Button>
           {canWrite ? (

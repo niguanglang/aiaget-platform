@@ -15,8 +15,8 @@ import { getKnowledgeOverview } from '@/lib/api-client';
 export function KnowledgeActivityContent() {
   const overviewQuery = useQuery({ queryKey: ['knowledge-activity-overview'], queryFn: getKnowledgeOverview });
   const recentDocumentCount = overviewQuery.data?.recent_documents.length ?? 0;
-  const recentTaskCount = overviewQuery.data?.recent_tasks.length ?? 0;
-  const recentRecallCount = overviewQuery.data?.recent_recall_logs.length ?? 0;
+  const activeTaskCount = overviewQuery.data?.summary.active_task_count ?? 0;
+  const recallCount24h = overviewQuery.data?.summary.recall_log_count_24h ?? 0;
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
@@ -26,26 +26,24 @@ export function KnowledgeActivityContent() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">活动中心</StatusBadge>
             <StatusBadge tone="healthy">最近文档</StatusBadge>
-            <StatusBadge tone="healthy">最近任务</StatusBadge>
-            <StatusBadge tone="healthy">最近召回</StatusBadge>
           </div>
-          <h1 className="text-2xl font-semibold">知识库处理活动</h1>
+          <h1 className="text-2xl font-semibold">知识库活动总览</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild type="button" variant="outline"><Link href="/knowledge/tasks">文档处理任务</Link></Button>
+          <Button asChild type="button" variant="outline"><Link href="/knowledge/recalls">召回记录</Link></Button>
           <Button disabled={overviewQuery.isFetching} onClick={() => void overviewQuery.refetch()} type="button" variant="outline">刷新活动</Button>
           <Button asChild type="button" variant="outline"><Link href="/knowledge">返回知识库</Link></Button>
         </div>
       </motion.section>
 	      {overviewQuery.isError ? <Card className="p-4 text-sm text-destructive">知识库活动加载失败。</Card> : null}
-	      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-3">
 	        <MetricCard helper={'文档'} label="最近文档" value={`${recentDocumentCount}`} />
-	        <MetricCard helper={'任务'} label="最近任务" value={`${recentTaskCount}`} />
-	        <MetricCard helper={'召回'} label="最近召回" value={`${recentRecallCount}`} />
+	        <MetricCard helper={'活跃任务'} label="处理任务" value={`${activeTaskCount}`} />
+	        <MetricCard helper={'24 小时'} label="召回记录" value={`${recallCount24h}`} />
 	      </section>
-      <section className="grid gap-4 xl:grid-cols-3">
+      <section className="grid gap-4">
         <KnowledgeActivityTimeline loading={overviewQuery.isLoading} overview={overviewQuery.data ?? null} title="最近文档" type="documents" />
-        <KnowledgeActivityTimeline loading={overviewQuery.isLoading} overview={overviewQuery.data ?? null} title="最近任务" type="tasks" />
-        <KnowledgeActivityTimeline loading={overviewQuery.isLoading} overview={overviewQuery.data ?? null} title="最近召回" type="recalls" />
       </section>
     </main>
   );

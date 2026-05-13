@@ -34,6 +34,9 @@ export const platformUsageWindows: PlatformEventWindow[] = ['24h', '7d', '30d'];
 
 export const platformUsageSubnavItems = [
   { href: '/monitor/platform-usage', label: '事件总览' },
+  { href: '/monitor/platform-usage/events', label: '平台事件' },
+  { href: '/monitor/platform-usage/ledger', label: '用量账本' },
+  { href: '/monitor/platform-usage/trends', label: '用量趋势' },
   { href: '/monitor/platform-usage/alerts', label: '用量告警' },
   { href: '/monitor/platform-usage/notifications', label: '通知审计' },
   { href: '/monitor/platform-usage/tasks', label: '重试任务' },

@@ -18,6 +18,8 @@ test('knowledge create and edit are route-level pages', () => {
 
 test('knowledge operation pages are route-level pages with focused components', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/activity/page.tsx')));
+  assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/tasks/page.tsx')));
+  assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/recalls/page.tsx')));
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/health/page.tsx')));
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/[id]/documents/page.tsx')));
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/knowledge/[id]/upload/page.tsx')));
@@ -25,6 +27,8 @@ test('knowledge operation pages are route-level pages with focused components', 
 
   assert.ok(existsSync(join(componentsRoot, 'knowledge-shared.tsx')));
   assert.ok(existsSync(join(componentsRoot, 'knowledge-activity-content.tsx')));
+  assert.ok(existsSync(join(componentsRoot, 'knowledge-tasks-content.tsx')));
+  assert.ok(existsSync(join(componentsRoot, 'knowledge-recalls-content.tsx')));
   assert.ok(existsSync(join(componentsRoot, 'knowledge-health-content.tsx')));
   assert.ok(existsSync(join(componentsRoot, 'knowledge-documents-content.tsx')));
   assert.ok(existsSync(join(componentsRoot, 'knowledge-upload-content.tsx')));
@@ -57,13 +61,23 @@ test('knowledge list page stays a directory list without activity logs or backen
 
 test('knowledge activity and health pages own overview activity and backend capability surfaces', () => {
   const activitySource = source('knowledge-activity-content.tsx');
+  const tasksSource = source('knowledge-tasks-content.tsx');
+  const recallsSource = source('knowledge-recalls-content.tsx');
   const healthSource = source('knowledge-health-content.tsx');
 
   assert.match(activitySource, /getKnowledgeOverview/);
   assert.match(activitySource, /recent_documents/);
-  assert.match(activitySource, /recent_tasks/);
-  assert.match(activitySource, /recent_recall_logs/);
-  assert.match(activitySource, /最近召回/);
+  assert.match(activitySource, /\/knowledge\/tasks/);
+  assert.match(activitySource, /\/knowledge\/recalls/);
+  assert.doesNotMatch(activitySource, /recent_tasks[\s\S]*recent_recall_logs/);
+
+  assert.match(tasksSource, /getKnowledgeOverview/);
+  assert.match(tasksSource, /type="tasks"/);
+  assert.match(tasksSource, /文档处理任务/);
+
+  assert.match(recallsSource, /getKnowledgeOverview/);
+  assert.match(recallsSource, /type="recalls"/);
+  assert.match(recallsSource, /召回记录/);
 
   assert.match(healthSource, /getKnowledgeOverview/);
   assert.match(healthSource, /MinIO/);

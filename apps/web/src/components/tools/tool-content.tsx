@@ -141,14 +141,19 @@ export function ToolContent() {
           </div>
           <h1 className="text-2xl font-semibold">工具中心</h1>
         </div>
-        {canWrite ? (
-          <Button asChild className="w-full md:w-auto">
-            <Link href="/tools/create">
-              <Plus className="size-4" />
-              新建工具
-            </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild className="w-full md:w-auto" variant="outline">
+            <Link href="/tools/logs">执行记录</Link>
           </Button>
-        ) : null}
+          {canWrite ? (
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/tools/create">
+                <Plus className="size-4" />
+                新建工具
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </motion.section>
 
       <motion.section

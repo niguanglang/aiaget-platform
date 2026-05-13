@@ -105,7 +105,7 @@ export function ResourceAclPermissionNotice({ canWrite }: { canWrite: boolean })
 
   return (
     <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      当前账号缺少 system:resource_acl:manage 权限，只能查看和模拟资源授权。
+      当前账号缺少 system:resource_acl:manage 权限，只能查看授权规则并执行访问校验。
     </div>
   );
 }
@@ -165,7 +165,7 @@ export function ResourceAclOptionSelector({
           <div>
             <h2 className="text-sm font-semibold">资源与主体</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === 'create' ? '选择要授权的资源对象和授权主体。' : '选择要模拟检查的资源对象和主体。'}
+              {mode === 'create' ? '选择要授权的资源对象和授权主体。' : '选择要校验访问权限的资源对象和主体。'}
             </p>
           </div>
           <StatusBadge tone="planned">{resources.length}/{subjects.length}</StatusBadge>
@@ -480,7 +480,7 @@ export function ResourceAclCheckResultPanel({ result }: { result: ResourceAclChe
   if (!result) {
     return (
       <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-        点击模拟检查后展示 ALLOW、DENY 或未匹配结果。
+        执行校验后展示 ALLOW、DENY 或未匹配结果。
       </div>
     );
   }
@@ -526,7 +526,6 @@ export function ResourceAclPageHeader({
     >
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="ready">M36</StatusBadge>
           <StatusBadge tone="healthy">资源授权</StatusBadge>
           <StatusBadge tone="mock">{eyebrow}</StatusBadge>
         </div>

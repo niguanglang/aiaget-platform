@@ -156,7 +156,7 @@ export function GovernanceCard({ canManage }: { canManage: boolean }) {
         外部调用治理
       </div>
       <div className="mt-4 grid gap-3 text-sm">
-        <GovernanceItem title="密钥只展示一次" description="创建成功后立即保存明文密钥。列表只展示脱敏前缀。" />
+        <GovernanceItem title="密钥只展示一次" description="创建成功后立即保存明文密钥，后续仅显示脱敏前缀。" />
         <GovernanceItem title="Agent 白名单优先" description="生产集成建议绑定到指定 Agent，避免一枚密钥覆盖全部能力。" />
         <GovernanceItem title="额度和 IP 双限制" description="用日额度、分钟限流和 IP 白名单共同降低外部调用风险。" />
         <GovernanceItem title="权限仍在后端校验" description="外部调用会继续校验 scope、创建人权限、数据范围和资源授权。" />

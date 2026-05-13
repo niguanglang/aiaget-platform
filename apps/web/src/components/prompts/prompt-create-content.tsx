@@ -70,7 +70,7 @@ export function PromptCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建提示词</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            录入提示词基础资料和初始内容。变量、版本、渲染测试、真实模型测试和 Agent 引用在详情页维护。
+            录入提示词基础资料和初始内容。保存后可补充变量、版本、渲染测试、真实模型测试和 Agent 引用。
           </p>
         </div>
       </section>

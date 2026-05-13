@@ -148,7 +148,6 @@ export function DepartmentContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M32</StatusBadge>
             <StatusBadge tone="healthy">组织架构</StatusBadge>
             <StatusBadge tone="planned">ABAC 属性源</StatusBadge>
           </div>

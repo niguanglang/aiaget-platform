@@ -81,7 +81,7 @@ export function ToolEditContent({ toolId }: { toolId: string }) {
           </div>
           <h1 className="break-words text-2xl font-semibold">{tool ? `编辑 ${tool.name}` : '编辑工具'}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里编辑 HTTP 请求、鉴权方式、风险策略和输入输出结构。测试调用、调用日志和智能体引用仍在工具详情页维护。
+            这里编辑 HTTP 请求、鉴权方式、风险策略和输入输出结构。保存后可继续测试调用、查看调用日志并关联智能体。
           </p>
         </div>
       </section>

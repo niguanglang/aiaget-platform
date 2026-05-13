@@ -49,7 +49,7 @@ export function ApiKeyObservabilityContent() {
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="ready">M57</StatusBadge><StatusBadge tone="healthy">外部调用观测</StatusBadge><StatusBadge tone="mock">{windowLabel(observabilityWindow)}</StatusBadge></div>
+          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="healthy">外部调用观测</StatusBadge><StatusBadge tone="mock">{windowLabel(observabilityWindow)}</StatusBadge></div>
           <h1 className="text-2xl font-semibold">外部 API 调用观测</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">聚合外部系统通过 API Key 调用 Agent 的请求、额度消耗、安全拒绝和 Trace 线索。</p>
         </div>

@@ -87,9 +87,8 @@ export function ApprovalAuditContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M78</StatusBadge>
             <StatusBadge tone="healthy">审批审计</StatusBadge>
-            <StatusBadge tone="planned">独立列表</StatusBadge>
+            <StatusBadge tone="planned">事件追踪</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批审计</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -157,7 +156,7 @@ export function ApprovalAuditContent() {
               <div>
                 <h2 className="text-sm font-semibold">审批审计事件</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  列表只展示关键识别字段和状态，完整上下文进入独立事件详情页查看。
+                  按关键识别字段和状态筛选事件，并通过详情查看审批链路、请求信息和处理记录。
                 </p>
               </div>
               <div className="text-sm text-muted-foreground">

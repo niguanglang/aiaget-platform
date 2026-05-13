@@ -49,7 +49,6 @@ export function ToolDetailHeader({
           </Link>
         </Button>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="ready">M07</StatusBadge>
           <StatusBadge tone={toolStatusTone(tool.status)}>{toolStatusLabel(tool.status)}</StatusBadge>
           <StatusBadge tone={tool.risk_level === 'HIGH' ? 'degraded' : tool.risk_level === 'MEDIUM' ? 'planned' : 'healthy'}>
             {toolRiskLabel(tool.risk_level)}

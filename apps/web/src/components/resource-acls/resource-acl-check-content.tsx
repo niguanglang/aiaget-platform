@@ -106,9 +106,9 @@ export function ResourceAclCheckContent() {
             </Link>
           </Button>
         }
-        description="独立模拟资源、主体和权限编码的对象级访问决策，用于验证启用规则、拒绝优先级和未匹配场景。"
-        eyebrow="模拟检查"
-        title="资源授权模拟检查"
+        description="按资源、主体和权限编码校验对象级访问决策，用于确认启用规则、拒绝优先级和未匹配场景。"
+        eyebrow="权限校验"
+        title="资源访问权限校验"
       />
 
       <ResourceAclFeedback error={formError} />
@@ -143,7 +143,7 @@ export function ResourceAclCheckContent() {
         <Card className="grid content-start gap-4 p-4">
           <div>
             <h2 className="text-sm font-semibold">检查结果</h2>
-            <p className="mt-1 text-sm text-muted-foreground">模拟检查不会创建或修改任何授权规则。</p>
+            <p className="mt-1 text-sm text-muted-foreground">权限校验不会创建或修改任何授权规则。</p>
           </div>
           <Button disabled={checkMutation.isPending} onClick={runCheck} type="button">
             <Search className="size-4" />

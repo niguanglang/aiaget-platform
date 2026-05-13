@@ -368,7 +368,6 @@ export default function ApiReferencePage() {
       >
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M61</StatusBadge>
             <StatusBadge tone="healthy">开放接口</StatusBadge>
             <StatusBadge tone="ready">SSE 流式</StatusBadge>
             <StatusBadge tone="ready">会话续聊</StatusBadge>
@@ -436,7 +435,7 @@ export default function ApiReferencePage() {
           code={sdkInstallExample}
           copied={copied === 'sdk-install'}
           icon={<Code2 className="size-4 text-primary" />}
-          title="SDK 快速示例"
+          title="SDK 快速调用样例"
           onCopy={() => void copyText('sdk-install', sdkInstallExample)}
         />
       </section>
@@ -533,7 +532,7 @@ export default function ApiReferencePage() {
           code={streamEventExample}
           copied={copied === 'stream-event'}
           icon={<TerminalSquare className="size-4 text-primary" />}
-          title="SSE 事件示例"
+          title="SSE 事件样例"
           onCopy={() => void copyText('stream-event', streamEventExample)}
         />
       </section>
@@ -545,14 +544,14 @@ export default function ApiReferencePage() {
             code={webhookExample}
             copied={copied === 'webhook-example'}
             icon={<TerminalSquare className="size-4 text-primary" />}
-            title="Webhook 投递示例"
+            title="Webhook 投递样例"
             onCopy={() => void copyText('webhook-example', webhookExample)}
           />
           <CodeCard
             code={webhookVerifyExample}
             copied={copied === 'webhook-verify'}
             icon={<Code2 className="size-4 text-primary" />}
-            title="Webhook 签名校验示例"
+            title="Webhook 签名校验样例"
             onCopy={() => void copyText('webhook-verify', webhookVerifyExample)}
           />
         </div>
@@ -563,14 +562,14 @@ export default function ApiReferencePage() {
           code={curlExample}
           copied={copied === 'curl'}
           icon={<TerminalSquare className="size-4 text-primary" />}
-          title="curl 示例"
+          title="curl 请求样例"
           onCopy={() => void copyText('curl', curlExample)}
         />
         <CodeCard
           code={typescriptExample}
           copied={copied === 'typescript'}
           icon={<Code2 className="size-4 text-primary" />}
-          title="TypeScript fetch 示例"
+          title="TypeScript fetch 请求样例"
           onCopy={() => void copyText('typescript', typescriptExample)}
         />
       </section>
@@ -580,14 +579,14 @@ export default function ApiReferencePage() {
           code={continueCurlExample}
           copied={copied === 'continue-curl'}
           icon={<TerminalSquare className="size-4 text-primary" />}
-          title="续聊 curl 示例"
+          title="续聊 curl 请求样例"
           onCopy={() => void copyText('continue-curl', continueCurlExample)}
         />
         <CodeCard
           code={continueStreamCurlExample}
           copied={copied === 'continue-stream-curl'}
           icon={<TerminalSquare className="size-4 text-primary" />}
-          title="续聊流式 curl 示例"
+          title="续聊流式 curl 请求样例"
           onCopy={() => void copyText('continue-stream-curl', continueStreamCurlExample)}
         />
       </section>
@@ -597,14 +596,14 @@ export default function ApiReferencePage() {
           code={streamCurlExample}
           copied={copied === 'stream-curl'}
           icon={<TerminalSquare className="size-4 text-primary" />}
-          title="流式 curl 示例"
+          title="流式 curl 请求样例"
           onCopy={() => void copyText('stream-curl', streamCurlExample)}
         />
         <CodeCard
           code={streamTypescriptExample}
           copied={copied === 'stream-typescript'}
           icon={<Code2 className="size-4 text-primary" />}
-          title="流式 TypeScript 示例"
+          title="流式 TypeScript 请求样例"
           onCopy={() => void copyText('stream-typescript', streamTypescriptExample)}
         />
       </section>
@@ -613,7 +612,7 @@ export default function ApiReferencePage() {
         code={responseExample}
         copied={copied === 'response'}
         icon={<CheckCircle2 className="size-4 text-primary" />}
-        title="响应示例"
+        title="响应样例"
         onCopy={() => void copyText('response', responseExample)}
       />
 

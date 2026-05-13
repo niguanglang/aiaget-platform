@@ -82,7 +82,7 @@ export function AgentCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建智能体</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            录入基础资料、负责人和运行默认值。模型、提示词、知识库和工具绑定在详情页维护。
+            录入基础资料、负责人和运行默认值。保存后可继续配置模型、提示词、知识库和工具绑定。
           </p>
         </div>
       </section>

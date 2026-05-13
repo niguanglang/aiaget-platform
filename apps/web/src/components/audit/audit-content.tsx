@@ -349,7 +349,6 @@ function ApprovalAuditBridgeCard({
       <div className="grid gap-4 p-5 lg:grid-cols-[0.9fr_1.1fr_auto] lg:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M79</StatusBadge>
             <StatusBadge tone="planned">审批审计联动</StatusBadge>
           </div>
           <h2 className="mt-3 text-sm font-semibold">审批审计风险入口</h2>

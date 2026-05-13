@@ -84,7 +84,7 @@ export function WebhookDeliveriesContent() {
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="ready">M62</StatusBadge><StatusBadge tone="healthy">Webhook 投递日志</StatusBadge><StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '可重试' : '只读'}</StatusBadge></div>
+          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="healthy">Webhook 投递日志</StatusBadge><StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '可重试' : '只读'}</StatusBadge></div>
           <h1 className="text-2xl font-semibold">Webhook 投递日志</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">查看 Agent 运行完成后的回调投递记录、响应状态、失败原因和重试链路。</p>
         </div>
@@ -106,7 +106,7 @@ export function WebhookDeliveriesContent() {
       </section>
 
       <Card className="grid gap-4 p-5">
-        <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">最近投递</h2><p className="mt-1 text-sm text-muted-foreground">按最近时间排序，进入详情查看 payload 和响应正文。</p></div><StatusBadge tone="mock">{webhookDeliveriesQuery.data?.total ?? 0} 条</StatusBadge></div>
+        <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">最近投递</h2><p className="mt-1 text-sm text-muted-foreground">按最近时间排序，支持查看 payload、响应正文和重试链路。</p></div><StatusBadge tone="mock">{webhookDeliveriesQuery.data?.total ?? 0} 条</StatusBadge></div>
         {webhookDeliveriesQuery.isLoading ? <div className="grid gap-3">{Array.from({ length: 4 }).map((_, index) => <div className="h-28 rounded-md border bg-muted/30" key={index} />)}</div> : deliveries.length === 0 ? <EmptyState description="当前没有 Webhook 投递记录。完成一次外部 Agent 调用后，记录会出现在这里。" title="暂无投递日志" /> : (
           <div className="grid gap-3">
             {deliveries.map((item) => (

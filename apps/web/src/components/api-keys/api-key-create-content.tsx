@@ -132,7 +132,6 @@ export function ApiKeyCreateContent() {
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M50</StatusBadge>
             <StatusBadge tone="healthy">创建密钥</StatusBadge>
             <StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '允许创建' : '只读'}</StatusBadge>
           </div>

@@ -98,8 +98,8 @@ export function StorageContent() {
               </Button>
             </>
           }
-          badge="M24"
-          description="管理当前租户在 MinIO 中的文件对象，列表页只承载查询、筛选、概览和进入详情或配置的入口。"
+          badge="文件对象"
+          description="管理当前租户在 MinIO 中的文件对象，支持查询、筛选、容量概览、文件查看和存储配置。"
           title="文件存储中心"
         />
       </motion.div>
@@ -116,7 +116,7 @@ export function StorageContent() {
             <div>
               <h2 className="text-sm font-semibold">文件对象列表</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                仅展示当前租户前缀下的对象；完整元数据、下载、复制路径和删除操作在对象详情页完成。
+                查看当前租户前缀下的对象，按文件名、目录、大小和更新时间快速定位文件。
               </p>
             </div>
             <div className="text-sm text-muted-foreground">

@@ -106,7 +106,6 @@ export function AgentsContent() {
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M03</StatusBadge>
             <StatusBadge tone="healthy">智能体增删改查</StatusBadge>
             <StatusBadge tone="planned">版本化发布</StatusBadge>
           </div>

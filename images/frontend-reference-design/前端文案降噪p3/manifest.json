@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-13T00:33:02.752715+00:00",
+  "page": "前端文案降噪p3",
+  "route": "/console",
+  "feature": "清理剩余后台页面内部里程碑、列表职责解释和示例式占位文案",
+  "purpose": "Reference-first frontend UI design assets",
+  "expected_files": {
+    "brief": "00-project-ui-brief.md",
+    "product_ui_prompt": "01-product-ui-design-prompt.md",
+    "prototype_prompt": "02-product-prototype-prompt.md",
+    "implementation_mapping": "03-component-mapping.md",
+    "product_ui_image": "product-ui-design.png",
+    "prototype_image": "product-prototype-wireframe.png",
+    "extra_reference_images": "references/reference-*.png"
+  }
+}

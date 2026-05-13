@@ -65,7 +65,7 @@ export function ToolCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建工具</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            配置 HTTP 请求、鉴权方式、风险策略和输入输出结构。测试调用、调用日志和智能体引用在工具详情页维护。
+            配置 HTTP 请求、鉴权方式、风险策略和输入输出结构。保存后可继续测试调用、查看调用日志并关联智能体。
           </p>
         </div>
       </section>

@@ -61,7 +61,7 @@ export function AgentTeamCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建协作团队</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            录入团队基础资料、协作模式和运行约束。成员配置和任务运行在团队详情页进入独立页面维护。
+            录入团队基础资料、协作模式和运行约束。保存后可配置成员并发起团队任务。
           </p>
         </div>
       </section>
@@ -81,4 +81,3 @@ export function AgentTeamCreateContent() {
     </main>
   );
 }
-

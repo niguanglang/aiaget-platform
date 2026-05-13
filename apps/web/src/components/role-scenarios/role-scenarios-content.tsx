@@ -117,7 +117,7 @@ export function RoleScenariosContent() {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">岗位场景编排</StatusBadge>
-            <StatusBadge tone="mock">Agent + Skill + 知识库</StatusBadge>
+            <StatusBadge tone="mock">业务资产组合</StatusBadge>
             <StatusBadge tone="planned">样板成果验收</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">岗位场景编排</h1>
@@ -163,7 +163,7 @@ export function RoleScenariosContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">场景包清单</h2>
-                <p className="mt-1 text-sm text-muted-foreground">列表只展示识别字段、状态、价值评分、摘要和行内操作，完整交付细节进入详情页。</p>
+                <p className="mt-1 text-sm text-muted-foreground">按岗位、部门、状态、价值评分和负责人筛选场景包，快速跟进流程、痛点和关联资产。</p>
               </div>
               <div className="text-sm text-muted-foreground">显示 {scenarios.length} / {total}</div>
             </div>
@@ -223,7 +223,7 @@ export function RoleScenariosContent() {
                 </Button>
               ) : null
             }
-            description="先新建一个岗位场景包，再在详情页查看完整流程、样板成果、验收标准和关联资产。"
+            description="先新建一个岗位场景包，再补充业务流程、样板成果、验收标准和关联资产。"
             title="暂无岗位场景"
           />
         ) : (

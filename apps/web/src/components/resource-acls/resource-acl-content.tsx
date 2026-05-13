@@ -173,7 +173,7 @@ export function ResourceAclContent() {
             <Button asChild type="button" variant="outline">
               <Link href="/resource-acls/check">
                 <Search className="size-4" />
-                模拟检查
+                权限校验
               </Link>
             </Button>
             <Button asChild disabled={!canWrite} type="button">
@@ -393,7 +393,7 @@ function AclRuleTable({
       <div className="flex items-start justify-between gap-3 border-b p-4">
         <div>
           <h2 className="text-sm font-semibold">授权规则</h2>
-          <p className="mt-1 text-sm text-muted-foreground">拒绝规则优先于允许规则，停用规则不会参与模拟检查。</p>
+          <p className="mt-1 text-sm text-muted-foreground">拒绝规则优先于允许规则，停用规则不会参与访问校验。</p>
         </div>
         <StatusBadge tone="planned">{acls.length} 条</StatusBadge>
       </div>

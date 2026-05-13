@@ -67,7 +67,7 @@ export function WebhookDeliveryDetailContent({ deliveryId }: { deliveryId: strin
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="ready">M62</StatusBadge><StatusBadge tone="healthy">Webhook 投递详情</StatusBadge>{item ? <StatusBadge tone={webhookDeliveryTone(item.status)}>{webhookDeliveryLabel(item.status)}</StatusBadge> : null}</div>
+          <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="healthy">Webhook 投递详情</StatusBadge>{item ? <StatusBadge tone={webhookDeliveryTone(item.status)}>{webhookDeliveryLabel(item.status)}</StatusBadge> : null}</div>
           <h1 className="text-2xl font-semibold">Webhook 投递详情</h1>
           <p className="mt-2 max-w-3xl break-all text-sm leading-6 text-muted-foreground">投递 ID：{deliveryId}</p>
         </div>

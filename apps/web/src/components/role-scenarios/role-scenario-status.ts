@@ -10,7 +10,7 @@ export function scenarioTypeLabel(type: RoleScenarioType | string) {
     SERVICE: '客户服务',
     OPERATIONS: '运营运维',
     DESIGN: '设计研发',
-    TRAINING: '培训赋能',
+    TRAINING: '培训交付',
     MANAGEMENT: '经营管理',
     CUSTOM: '自定义',
   }[type] ?? type;

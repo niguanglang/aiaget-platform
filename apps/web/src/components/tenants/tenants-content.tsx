@@ -48,10 +48,10 @@ export function TenantsContent() {
 
   const metrics = useMemo(
     () => [
-      { label: '租户范围', value: `${tenantsQuery.data?.total ?? tenants.length}`, helper: '当前上下文可见' },
+      { label: '租户范围', value: `${tenantsQuery.data?.total ?? tenants.length}`, helper: '当前账号可见' },
       { label: '当前状态', value: currentTenant ? tenantStatusLabel(currentTenant.status) : '--', helper: currentTenant?.code ?? '等待加载' },
-      { label: '当前租户', value: currentTenant?.name ?? '--', helper: '登录上下文' },
-      { label: '用户上下文', value: currentUser?.user.email ?? '--', helper: '当前登录主体' },
+      { label: '当前租户', value: currentTenant?.name ?? '--', helper: '登录账号所属' },
+      { label: '当前用户', value: currentUser?.user.email ?? '--', helper: '当前登录主体' },
     ],
     [currentTenant, currentUser?.user.email, tenants.length, tenantsQuery.data?.total],
   );
@@ -66,13 +66,12 @@ export function TenantsContent() {
       >
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M51</StatusBadge>
-            <StatusBadge tone="healthy">租户上下文</StatusBadge>
+            <StatusBadge tone="healthy">租户隔离</StatusBadge>
             <StatusBadge tone={canManageTenant ? 'mock' : 'planned'}>{canManageTenant ? '可管理' : '仅查看'}</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">租户管理中心</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            查看当前租户范围内的租户资料。详情查看和资料编辑已拆到独立页面，列表页只保留筛选、概览和入口。
+            查看当前账号可访问的租户资料，确认租户状态、隔离边界，并进入详情或编辑资料。
           </p>
         </div>
         <Button disabled={tenantsQuery.isFetching} onClick={() => tenantsQuery.refetch()} type="button" variant="outline">
@@ -102,7 +101,7 @@ export function TenantsContent() {
             当前租户入口
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            当前登录上下文绑定的租户是所有业务数据的隔离边界。
+            当前登录账号绑定的租户是所有业务数据的隔离边界。
           </p>
           {currentTenant ? (
             <div className="mt-4 grid gap-3 text-sm">
@@ -125,7 +124,7 @@ export function TenantsContent() {
               </div>
             </div>
           ) : (
-            <EmptyState description="正在读取当前租户上下文。" title="等待租户数据" />
+            <EmptyState description="正在读取当前账号所属租户。" title="等待租户数据" />
           )}
         </Card>
 
@@ -133,7 +132,7 @@ export function TenantsContent() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-sm font-semibold">租户列表</h2>
-              <p className="mt-1 text-sm text-muted-foreground">当前接口按租户上下文隔离，列表用于确认当前工作区资料和状态。</p>
+              <p className="mt-1 text-sm text-muted-foreground">租户数据按账号所属范围隔离，可在这里确认当前工作区资料和状态。</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
@@ -211,9 +210,9 @@ function GovernanceCard() {
         租户治理边界
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <GovernanceItem title="强制租户隔离" description="核心业务表使用 tenant_id 隔离，前后端都围绕当前租户上下文读取数据。" />
+        <GovernanceItem title="强制租户隔离" description="核心业务表使用 tenant_id 隔离，前后端都按当前账号所属租户读取数据。" />
         <GovernanceItem title="当前接口范围" description="本阶段租户列表只返回当前租户，不提供跨租户创建、删除和切换。" />
-        <GovernanceItem title="独立工作流" description="详情和编辑通过独立路由承载，避免列表页混入表单状态。" />
+        <GovernanceItem title="资料维护" description="通过详情和编辑入口维护租户资料，列表保持筛选、状态确认和快速进入能力。" />
       </div>
     </Card>
   );

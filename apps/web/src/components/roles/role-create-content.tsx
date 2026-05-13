@@ -69,7 +69,7 @@ export function RoleCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建角色</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            定义角色名称、编码、描述和启用状态。接口权限和菜单入口在角色创建后进入独立配置页维护。
+            定义角色名称、编码、描述和启用状态。创建后可分配接口权限和菜单入口。
           </p>
         </div>
       </section>

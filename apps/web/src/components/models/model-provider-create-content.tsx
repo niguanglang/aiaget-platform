@@ -65,7 +65,7 @@ export function ModelProviderCreateContent() {
           </div>
           <h1 className="text-2xl font-semibold">新建供应商</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            录入供应商名称、类型、基础 URL 和默认标记。模型、密钥和调用测试在供应商详情页维护。
+            录入供应商名称、类型、基础 URL 和默认标记。保存后可继续配置模型、密钥和调用测试。
           </p>
         </div>
       </section>

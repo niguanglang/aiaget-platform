@@ -79,8 +79,8 @@ export function BillingInvoicesContent() {
           </>
         }
         backHref="/billing"
-        badge="Invoices"
-        description="查看发票、账单记录和账单项；状态操作集中在此页面，避免总览页承担账务编辑职责。"
+        badge="账单记录"
+        description="查看发票、账单记录和账单项，并处理账单重算、状态跟踪与财务核对。"
         onWindowChange={setWindowValue}
         title="发票与账单记录"
         windowValue={windowValue}
@@ -134,7 +134,7 @@ function InvoiceCard({
             <FileText className="size-4 text-primary" />
             账单记录
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">列表只保留发票识别、状态和关键金额，完整账单项与调账记录进入详情页。</p>
+          <p className="mt-1 text-xs text-muted-foreground">按发票编号、账期、状态和金额快速核对账单，便于跟进未结清款项和调账记录。</p>
         </div>
         <StatusBadge tone={invoices.length > 0 ? 'ready' : 'planned'}>{invoices.length} 张发票</StatusBadge>
       </div>

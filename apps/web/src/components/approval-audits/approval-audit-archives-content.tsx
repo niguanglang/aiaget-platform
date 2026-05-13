@@ -72,7 +72,6 @@ export function ApprovalAuditArchivesContent() {
             </Link>
           </Button>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">M80</StatusBadge>
             <StatusBadge tone="planned">MinIO 归档</StatusBadge>
           </div>
           <h1 className="text-2xl font-semibold">审批审计归档</h1>

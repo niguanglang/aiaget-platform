@@ -42,7 +42,6 @@ export function PromptDetailHeader({
           </Link>
         </Button>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <StatusBadge tone="ready">M20</StatusBadge>
           <StatusBadge tone={promptStatusTone(prompt.status)}>{promptStatusLabel(prompt.status)}</StatusBadge>
           <StatusBadge tone="ready">v{prompt.version}</StatusBadge>
           <StatusBadge tone="healthy">真实模型测试</StatusBadge>

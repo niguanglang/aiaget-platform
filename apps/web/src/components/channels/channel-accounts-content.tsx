@@ -93,7 +93,7 @@ export function ChannelAccountsContent() {
       actionNotice={actionNotice}
       badge="账号凭据"
       buildMetrics={(input) => buildAccountMetrics(input.items, input.total, providers)}
-      description="集中查看渠道提供方与账号凭据，主列表只展示账号归属、环境、状态和轮换风险；凭据轮换和删除等低频动作收进详情。"
+      description="集中查看渠道提供方与账号凭据，跟进账号归属、运行环境、启停状态、接入就绪和凭据轮换风险。"
       emptyDescription="当前没有渠道账号。请先配置渠道提供方，再新增账号凭据。"
       emptyTitle="暂无账号凭据"
       errorMessage="账号凭据列表加载失败。"

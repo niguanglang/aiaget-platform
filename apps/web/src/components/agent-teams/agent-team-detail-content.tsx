@@ -192,7 +192,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
                   },
                 }}
               >
-                模拟检查
+                权限校验
               </Link>
             </Button>
           </div>
@@ -200,7 +200,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
             <DetailRow label="资源类型" value="AGENT_TEAM" />
             <DetailRow label="资源 ID" value={team.id} />
             <DetailRow label="运行权限" value="agent:team:run" />
-            <DetailRow label="授权入口" value="资源授权中心 / 模拟检查" />
+            <DetailRow label="授权入口" value="资源授权中心 / 权限校验" />
           </div>
         </div>
       </section>

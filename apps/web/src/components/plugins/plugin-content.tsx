@@ -279,7 +279,7 @@ export function PluginContent() {
                 <tr>
                   <td colSpan={6}>
                     <EmptyState
-                      description={tab === 'market' ? '还没有可展示的插件市场条目，执行 seed 后会有示例插件。' : '当前租户还没有安装插件。'}
+                      description={tab === 'market' ? '当前插件市场暂无可安装条目，请稍后刷新或添加自定义插件。' : '当前租户还没有安装插件。'}
                       title={marketQuery.isLoading || installationsQuery.isLoading ? '正在加载插件' : '暂无插件'}
                     />
                   </td>

@@ -28,6 +28,24 @@ test('tool list page keeps detail, forms, and test panels out of the list surfac
   assert.doesNotMatch(toolsListSource, /testTool/);
 });
 
+test('tool logs page reads call log data instead of tool summary data', () => {
+  const toolLogsSource = readFileSync(join(toolsRoot, 'tool-logs-content.tsx'), 'utf8');
+
+  assert.match(toolLogsSource, /listToolCallLogs/);
+  assert.doesNotMatch(toolLogsSource, /listTools/);
+  assert.match(toolLogsSource, /ToolCallLogItem/);
+  assert.match(toolLogsSource, /log\.tool_name/);
+  assert.match(toolLogsSource, /log\.tool_code/);
+  assert.match(toolLogsSource, /approval_status: approvalStatus/);
+  assert.match(toolLogsSource, /request_method: requestMethod/);
+  assert.match(toolLogsSource, /date_from: toDateFromIso\(dateFrom\)/);
+  assert.match(toolLogsSource, /date_to: toDateToIso\(dateTo\)/);
+  assert.match(toolLogsSource, /全部审批/);
+  assert.match(toolLogsSource, /全部方法/);
+  assert.match(toolLogsSource, /开始日期/);
+  assert.match(toolLogsSource, /结束日期/);
+});
+
 test('tool status changes require confirmation before mutation', () => {
   const confirmSource = source('tool-confirm-dialog.tsx');
 

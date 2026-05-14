@@ -1,6 +1,8 @@
 import type {
+  ToolApprovalStatus,
   ToolAuthType,
   ToolCallStatus,
+  ToolCallTriggerSource,
   ToolMethod,
   ToolRiskLevel,
   ToolStatus,
@@ -17,6 +19,17 @@ const callStatusLabels: Record<ToolCallStatus, string> = {
   SUCCESS: '成功',
   FAILED: '失败',
   APPROVAL_REQUIRED: '等待审批',
+  REJECTED: '已拒绝',
+};
+
+const callTriggerSourceLabels: Record<ToolCallTriggerSource, string> = {
+  TEST: '控制台测试',
+  RUNTIME: '运行时',
+};
+
+const approvalStatusLabels: Record<ToolApprovalStatus, string> = {
+  PENDING: '待审批',
+  APPROVED: '已通过',
   REJECTED: '已拒绝',
 };
 
@@ -58,6 +71,14 @@ export function toolStatusLabel(status: ToolStatus) {
 
 export function toolCallStatusLabel(status: ToolCallStatus) {
   return callStatusLabels[status] ?? status;
+}
+
+export function toolCallTriggerSourceLabel(source: ToolCallTriggerSource) {
+  return callTriggerSourceLabels[source] ?? source;
+}
+
+export function toolApprovalStatusLabel(status: ToolApprovalStatus | null | undefined) {
+  return status ? (approvalStatusLabels[status] ?? status) : '无审批';
 }
 
 export function toolTypeLabel(type: ToolType) {

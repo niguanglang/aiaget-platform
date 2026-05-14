@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToolGatewayService, type ToolGatewayCallLogRecord } from '../tool-gateway/tool-gateway.service';
 import type { CreateToolDto } from './dto/create-tool.dto';
+import type { ListToolCallLogsDto } from './dto/list-tool-call-logs.dto';
 import type { ListToolsDto } from './dto/list-tools.dto';
 import type { TestToolDto } from './dto/test-tool.dto';
 import type { UpdateToolDto } from './dto/update-tool.dto';
@@ -42,6 +43,7 @@ const toolDetailInclude = {
     },
     take: 20,
     include: {
+      tool: true,
       operator: true,
       approvalRequest: true,
     },
@@ -51,6 +53,13 @@ const toolDetailInclude = {
 type ToolListRecord = Prisma.ToolGetPayload<{ include: typeof toolListInclude }>;
 type ToolDetailRecord = Prisma.ToolGetPayload<{ include: typeof toolDetailInclude }>;
 type ToolCallLogRecord = ToolGatewayCallLogRecord;
+type ToolCallLogListRecord = Prisma.ToolCallLogGetPayload<{
+  include: {
+    tool: true;
+    operator: true;
+    approvalRequest: true;
+  };
+}>;
 type ToolAgentBindingRecord = Prisma.AgentToolBindingGetPayload<{
   include: {
     agent: true;
@@ -178,6 +187,88 @@ export class ToolsService {
           agentRefMap.get(tool.id) ?? 0,
         ),
       ),
+      page,
+      page_size: pageSize,
+      total,
+    };
+  }
+
+  async listLogs(
+    currentUser: AuthenticatedUser,
+    query: ListToolCallLogsDto,
+  ): Promise<PaginatedResult<ToolCallLogItem>> {
+    const page = Number(query.page ?? 1);
+    const pageSize = Number(query.page_size ?? 20);
+    const keyword = query.keyword?.trim();
+    const where: Prisma.ToolCallLogWhereInput = {
+      tenantId: currentUser.tenantId,
+    };
+
+    if (query.tool_id) {
+      where.toolId = query.tool_id;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.trigger_source) {
+      where.triggerSource = query.trigger_source;
+    }
+
+    if (query.approval_status) {
+      where.approvalRequest = {
+        status: query.approval_status,
+      };
+    }
+
+    if (query.request_method) {
+      where.requestMethod = query.request_method;
+    }
+
+    const dateFilter: Prisma.DateTimeFilter = {};
+    if (query.date_from) {
+      dateFilter.gte = new Date(query.date_from);
+    }
+    if (query.date_to) {
+      dateFilter.lte = new Date(query.date_to);
+    }
+    if (dateFilter.gte || dateFilter.lte) {
+      where.createdAt = dateFilter;
+    }
+
+    if (keyword) {
+      where.OR = [
+        { requestUrl: { contains: keyword, mode: 'insensitive' } },
+        { errorMessage: { contains: keyword, mode: 'insensitive' } },
+        { tool: { name: { contains: keyword, mode: 'insensitive' } } },
+        { tool: { code: { contains: keyword, mode: 'insensitive' } } },
+        { operator: { email: { contains: keyword, mode: 'insensitive' } } },
+      ];
+    }
+
+    const dataScope = await this.dataScopeQuery.buildWhere<Prisma.ToolWhereInput>(currentUser, 'TOOL');
+    appendToolLogWhere(where, dataScope.where ? { tool: dataScope.where } : null);
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.toolCallLog.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          tool: true,
+          operator: true,
+          approvalRequest: true,
+        },
+      }),
+      this.prisma.toolCallLog.count({ where }),
+    ]);
+
+    return {
+      items: items.map((callLog) => this.mapToolCallLog(callLog)),
       page,
       page_size: pageSize,
       total,
@@ -450,10 +541,12 @@ export class ToolsService {
     };
   }
 
-  private mapToolCallLog(callLog: ToolCallLogRecord): ToolCallLogItem {
+  private mapToolCallLog(callLog: ToolCallLogRecord | ToolCallLogListRecord): ToolCallLogItem {
     return {
       id: callLog.id,
       tool_id: callLog.toolId,
+      tool_name: 'tool' in callLog ? callLog.tool.name : callLog.toolId,
+      tool_code: 'tool' in callLog ? callLog.tool.code : callLog.toolId,
       trigger_source: callLog.triggerSource as ToolCallLogItem['trigger_source'],
       status: callLog.status as ToolCallLogItem['status'],
       approval_request_id: callLog.approvalRequest?.id ?? null,
@@ -561,6 +654,14 @@ function traceContextFromUser(currentUser: AuthenticatedUser): TraceContext | nu
     traceparent: currentUser.traceparent,
     requestId: currentUser.requestId ?? null,
   };
+}
+
+function appendToolLogWhere(where: Prisma.ToolCallLogWhereInput, clause: Prisma.ToolCallLogWhereInput | null) {
+  if (!clause) return;
+
+  const current = where.AND;
+  const currentItems = Array.isArray(current) ? current : current ? [current] : [];
+  where.AND = [...currentItems, clause];
 }
 
 function startOfToday() {

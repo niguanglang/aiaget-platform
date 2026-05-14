@@ -347,7 +347,7 @@ function FollowUpActionCard({
         </div>
         {opportunityAction ? (
           <Button asChild variant="outline">
-            <Link href={`/customer-success-actions/${opportunityAction.id}`}>行动详情</Link>
+            <Link href={`/customer-success-actions/${opportunityAction.id}`}>查看行动</Link>
           </Button>
         ) : null}
       </div>

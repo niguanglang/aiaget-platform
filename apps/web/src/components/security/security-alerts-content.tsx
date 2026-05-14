@@ -286,7 +286,7 @@ export function SecurityAlertsContent() {
       downloadBlob(blob, `安全审批工作台-${new Date().toISOString().slice(0, 10)}.csv`);
       setApprovalError(null);
       setApprovalNotice(
-        `审批工作台导出完成，当前筛选命中 ${formatNumber(approvalTotal)} 条，CSV 已包含通知筛选来源、状态、关键词和通知归档字段账本计数。`,
+        `审批工作台导出完成，当前筛选命中 ${formatNumber(approvalTotal)} 条，CSV 已包含通知筛选来源、状态和关键词，以及通知归档字段账本计数。`,
       );
       await queryClient.invalidateQueries({ queryKey: ['security-alerts-page-overview'] });
     },
@@ -543,9 +543,11 @@ export function SecurityAlertsContent() {
               </select>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
-	                命中 {formatNumber(approvalTotal)} 条{approvalTotal === 0 ? '，无法导出。' : '，导出写入安全审计事件。'}
-              </p>
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                <p>{approvalTotal === 0 ? '当前筛选无结果，无法导出' : `当前筛选命中 ${formatNumber(approvalTotal)} 条，导出写入安全审计事件。`}</p>
+                <p>导出会包含通知归档筛选上下文。</p>
+                <p>字段账本是否保留、导出字段数和归档筛选字段数会写入 CSV。</p>
+              </div>
               <Button
                 disabled={!canViewApprovals || approvalTotal === 0 || exportMutation.isPending || approvalItemsQuery.isFetching}
                 onClick={() => exportMutation.mutate()}
@@ -644,7 +646,7 @@ export function SecurityAlertsContent() {
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">通知审计</h2>
             <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
-	              字段账本 {formatNumber(notificationExportFieldLedgerCount)} 条
+              通知审计字段账本 {formatNumber(notificationExportFieldLedgerCount)} 条
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-[170px_230px_1fr]">
               <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => setNotificationStatus(event.target.value as SecurityOperationAlertNotificationStatus | '')} value={notificationStatus}>

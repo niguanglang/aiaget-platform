@@ -56,6 +56,7 @@ export function ChannelReleaseContent() {
       ) : (
         <>
           <ChannelMetricGrid loading={overviewQuery.isLoading || schedulerQuery.isLoading} metrics={metrics} />
+          <h2 className="text-sm font-semibold">治理模块</h2>
           <section className="grid gap-4 xl:grid-cols-3">
             <ReleaseModuleEntry href="/channels/release/pipeline" title="发布流水线" />
             <ReleaseModuleEntry href="/channels/release/gate" title="发布观测门禁" />

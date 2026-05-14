@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type {
   PaginatedResult,
   TestToolResult,
+  ToolCallLogItem,
   ToolDetail,
   ToolListItem,
 } from '@aiaget/shared-types';
@@ -30,6 +31,7 @@ import { ResourceAclGuard } from '../common/guards/resource-acl.guard';
 import { SecurityPolicyGuard } from '../common/guards/security-policy.guard';
 import type { AuthenticatedUser } from '../common/types/request-context';
 import { CreateToolDto } from './dto/create-tool.dto';
+import { ListToolCallLogsDto } from './dto/list-tool-call-logs.dto';
 import { ListToolsDto } from './dto/list-tools.dto';
 import { TestToolDto } from './dto/test-tool.dto';
 import { UpdateToolDto } from './dto/update-tool.dto';
@@ -50,6 +52,16 @@ export class ToolsController {
     @Query() query: ListToolsDto,
   ): Promise<PaginatedResult<ToolListItem>> {
     return this.toolsService.list(currentUser, query);
+  }
+
+  @Get('logs')
+  @Permissions('tool:call:log:view')
+  @ApiOkResponse({ description: 'Tenant-isolated paginated tool execution logs' })
+  async listLogs(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query() query: ListToolCallLogsDto,
+  ): Promise<PaginatedResult<ToolCallLogItem>> {
+    return this.toolsService.listLogs(currentUser, query);
   }
 
   @Post()

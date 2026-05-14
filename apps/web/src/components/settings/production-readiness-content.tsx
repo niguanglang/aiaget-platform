@@ -42,6 +42,14 @@ const categoryAnchors: Record<ProductionReadinessCategory, string> = {
   RISK: 'risk',
 };
 
+const categoryLabels: Record<ProductionReadinessCategory, string> = {
+  ENVIRONMENT: '环境配置',
+  EXTERNAL_SERVICE: '外部服务',
+  THIRD_PARTY: '第三方联调',
+  RELEASE_VALIDATION: '发布验收',
+  RISK: '风险项',
+};
+
 export function ProductionReadinessContent() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
@@ -157,7 +165,7 @@ export function ProductionReadinessContent() {
                 key={category.category}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span>{category.label}</span>
+                  <span>{categoryLabels[category.category] ?? category.label}</span>
                   <span className="text-xs text-muted-foreground">{category.items.length}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -178,7 +186,7 @@ export function ProductionReadinessContent() {
               <Card className="p-4">
                 <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                   <div>
-                    <h2 className="text-base font-semibold">{category.label}</h2>
+                    <h2 className="text-base font-semibold">{categoryLabels[category.category] ?? category.label}</h2>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">{category.description}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">

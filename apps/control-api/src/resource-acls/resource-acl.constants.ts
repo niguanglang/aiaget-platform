@@ -140,7 +140,7 @@ export const RESOURCE_ACL_RESOURCE_DEFINITIONS: ResourceAclResourceDefinition[] 
     resource_type: 'TOOL',
     name: '工具',
     description: '控制具体工具的查看、配置、绑定、测试和调用。',
-    permission_codes: ['tool:definition:view', 'tool:definition:manage', 'tool:call:execute'],
+    permission_codes: ['tool:definition:view', 'tool:definition:manage', 'tool:call:log:view', 'tool:call:execute'],
   },
   {
     resource_type: 'MODEL',

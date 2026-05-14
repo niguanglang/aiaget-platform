@@ -103,6 +103,7 @@ export const PERMISSION_CODES = {
   knowledgeBaseManage: 'knowledge:base:manage',
   toolDefinitionView: 'tool:definition:view',
   toolDefinitionManage: 'tool:definition:manage',
+  toolCallLogView: 'tool:call:log:view',
   toolCallExecute: 'tool:call:execute',
   conversationHistoryView: 'conversation:history:view',
   conversationChatManage: 'conversation:chat:manage',
@@ -579,6 +580,14 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'tool',
     resource: 'definition',
     action: 'manage',
+  },
+  {
+    code: PERMISSION_CODES.toolCallLogView,
+    legacy_code: 'tool.log.read',
+    name: 'Tool Call Log View',
+    module: 'tool',
+    resource: 'call_log',
+    action: 'view',
   },
   {
     code: PERMISSION_CODES.toolCallExecute,
@@ -6836,6 +6845,8 @@ export interface ToolListItem {
 export interface ToolCallLogItem {
   id: string;
   tool_id: string;
+  tool_name: string;
+  tool_code: string;
   trigger_source: ToolCallTriggerSource;
   status: ToolCallStatus;
   approval_request_id: string | null;

@@ -14,7 +14,12 @@ import {
 import { Notice } from '@/components/platform-event-usage/platform-usage-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { getPlatformUsageOverview } from '@/lib/api-client';
+import {
+  getPlatformUsageOverview,
+  listPlatformEvents,
+  listPlatformUsageLedger,
+  listPlatformUsageTrends,
+} from '@/lib/api-client';
 
 export function PlatformUsageOverviewContent() {
   const windowValue = parsePlatformUsageWindow(null);
@@ -23,27 +28,43 @@ export function PlatformUsageOverviewContent() {
     queryKey: ['platform-usage-overview-page', windowValue],
     queryFn: () => getPlatformUsageOverview({ window: windowValue }),
   });
+  const eventPreviewQuery = useQuery({
+    queryKey: ['platform-usage-overview-events-preview', windowValue],
+    queryFn: () => listPlatformEvents({ page: 1, page_size: 1, window: windowValue }),
+  });
+  const trendPreviewQuery = useQuery({
+    queryKey: ['platform-usage-overview-trends-preview', windowValue],
+    queryFn: () => listPlatformUsageTrends({ period: 'day', window: windowValue }),
+  });
+  const ledgerPreviewQuery = useQuery({
+    queryKey: ['platform-usage-overview-ledger-preview', windowValue],
+    queryFn: () => listPlatformUsageLedger({ page: 1, page_size: 1, window: windowValue }),
+  });
 
   const overview = overviewQuery.data ?? null;
-  const loadError = overviewQuery.isError;
+  const loadError = overviewQuery.isError || eventPreviewQuery.isError || trendPreviewQuery.isError || ledgerPreviewQuery.isError;
+  const refreshing = overviewQuery.isFetching || eventPreviewQuery.isFetching || trendPreviewQuery.isFetching || ledgerPreviewQuery.isFetching;
 
   return (
     <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
       <MonitorCenterBackground />
       <PlatformUsageHeader
         badge="平台事件"
-        refreshing={overviewQuery.isFetching}
+        refreshing={refreshing}
         title="事件总览"
         onRefresh={() => {
           void overviewQuery.refetch();
+          void eventPreviewQuery.refetch();
+          void trendPreviewQuery.refetch();
+          void ledgerPreviewQuery.refetch();
         }}
       />
       <Notice message={loadError ? '平台事件与用量数据加载失败。' : null} tone="error" />
       <PlatformUsageSummaryCards loading={overviewQuery.isLoading} overview={overview} windowValue={windowValue} />
       <section className="grid gap-4 md:grid-cols-3">
-        <RouteCard href="/monitor/platform-usage/events" title="平台事件" value={`${overview?.summary.event_count ?? 0}`} />
-        <RouteCard href="/monitor/platform-usage/ledger" title="用量账本" value={`${overview?.summary.usage_count ?? 0}`} />
-        <RouteCard href="/monitor/platform-usage/trends" title="用量趋势" value={`${overview?.metric_rankings.length ?? 0}`} />
+        <RouteCard href="/monitor/platform-usage/events" title="平台事件" value={`${eventPreviewQuery.data?.total ?? overview?.summary.event_count ?? 0}`} />
+        <RouteCard href="/monitor/platform-usage/ledger" title="用量账本" value={`${ledgerPreviewQuery.data?.total ?? overview?.summary.usage_count ?? 0}`} />
+        <RouteCard href="/monitor/platform-usage/trends" title="用量趋势" value={`${trendPreviewQuery.data?.length ?? overview?.metric_rankings.length ?? 0}`} />
       </section>
       <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <RollupCard loading={overviewQuery.isLoading} items={overview?.recent_rollups ?? []} />

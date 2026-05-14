@@ -711,7 +711,7 @@ const defaultMenus: DefaultMenuDefinition[] = [
   { code: 'knowledge_recalls', parentCode: 'knowledge', name: '召回记录', type: 'MENU', path: '/knowledge/recalls', component: 'knowledge/recalls/page', icon: 'ScrollText', permissionCode: PERMISSION_CODES.knowledgeBaseView, sortOrder: 30 },
   { code: 'knowledge_health', parentCode: 'knowledge', name: '检索健康度', type: 'MENU', path: '/knowledge/health', component: 'knowledge/health/page', icon: 'ServerCog', permissionCode: PERMISSION_CODES.knowledgeBaseView, sortOrder: 40 },
   { code: 'tools', parentCode: 'agent_platform', name: '工具中心', type: 'MENU', path: '/tools', component: 'tools/page', icon: 'Wrench', permissionCode: PERMISSION_CODES.toolDefinitionView, sortOrder: 70 },
-  { code: 'tools_logs', parentCode: 'tools', name: '执行记录', type: 'MENU', path: '/tools/logs', component: 'tools/logs/page', icon: 'ScrollText', permissionCode: PERMISSION_CODES.toolDefinitionView, sortOrder: 10 },
+  { code: 'tools_logs', parentCode: 'tools', name: '执行记录', type: 'MENU', path: '/tools/logs', component: 'tools/logs/page', icon: 'ScrollText', permissionCode: PERMISSION_CODES.toolCallLogView, sortOrder: 10 },
   { code: 'conversations', parentCode: 'agent_platform', name: '会话中心', type: 'MENU', path: '/conversations', component: 'conversations/page', icon: 'MessageSquareText', permissionCode: PERMISSION_CODES.conversationHistoryView, sortOrder: 80 },
   { code: 'customer_delivery', name: '客户落地运营', type: 'DIRECTORY', icon: 'Building2', sortOrder: 30 },
   { code: 'customer_assessments', parentCode: 'customer_delivery', name: '客户评估', type: 'MENU', path: '/customer-assessments', component: 'customer-assessments/page', icon: 'ClipboardCheck', permissionCode: PERMISSION_CODES.customerAssessmentView, sortOrder: 10 },

@@ -141,7 +141,7 @@ export const DATA_SCOPE_RESOURCE_DEFINITIONS: DataScopeResourceDefinition[] = [
     resource_type: 'TOOL',
     name: '工具数据',
     description: '控制工具定义、工具测试和工具调用链路的可访问范围。',
-    permission_codes: ['tool:definition:view', 'tool:definition:manage'],
+    permission_codes: ['tool:definition:view', 'tool:definition:manage', 'tool:call:log:view'],
   },
   {
     resource_type: 'MODEL',

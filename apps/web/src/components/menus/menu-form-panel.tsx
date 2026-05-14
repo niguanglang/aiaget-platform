@@ -173,7 +173,7 @@ export function MenuFormPanel({
               />
             </Field>
 
-            <Field label="父级节点" message={form.formState.errors.parent_id?.message}>
+            <Field label="多级菜单父级 / 层级路径" message={form.formState.errors.parent_id?.message}>
               <select className="h-10 rounded-md border bg-background px-3 text-sm" {...form.register('parent_id')}>
                 <option value="">根节点</option>
                 {parentOptions.map((option) => (

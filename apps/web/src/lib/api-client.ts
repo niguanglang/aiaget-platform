@@ -303,6 +303,7 @@ import type {
   TestToolResult,
   TestModelProviderInput,
   TestModelProviderResult,
+  ToolCallLogItem,
   ToolDetail,
   ToolListItem,
   ToolApprovalListItem,
@@ -2550,6 +2551,21 @@ export function listTools(params: {
   risk_level?: string;
 }) {
   return request<PaginatedResult<ToolListItem>>(`/tools?${toSearchParams(params)}`);
+}
+
+export function listToolCallLogs(params: {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+  tool_id?: string;
+  status?: string;
+  trigger_source?: string;
+  approval_status?: string;
+  request_method?: string;
+  date_from?: string;
+  date_to?: string;
+}) {
+  return request<PaginatedResult<ToolCallLogItem>>(`/tools/logs?${toSearchParams(params)}`);
 }
 
 export function createTool(input: CreateToolInput) {

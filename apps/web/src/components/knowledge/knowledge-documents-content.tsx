@@ -2,12 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { KnowledgeBaseDetail, KnowledgeDocumentDetail, KnowledgeDocumentListItem } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Database, FileText, RotateCcw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
-import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import {
   formatDateTime,
   formatFileSize,
@@ -109,25 +107,22 @@ export function KnowledgeDocumentsContent({ knowledgeId }: { knowledgeId: string
 
   if (baseQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <KnowledgeCenterBackground />
-        <Card className="p-6 text-sm text-muted-foreground">正在加载文档管理...</Card>
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">正在加载文档管理</Card>
       </main>
     );
   }
 
   if (baseQuery.isError || !base) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <KnowledgeCenterBackground />
-        <Card className="p-6 text-sm text-destructive">知识库加载失败。</Card>
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">知识库加载失败。</Card>
       </main>
     );
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <KnowledgeCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <KnowledgeWorkspaceHeader
         actions={
           <>
@@ -194,8 +189,8 @@ function DocumentsCard({
   selectedDocumentId: string | null;
 }) {
   return (
-    <Card className="min-w-0">
-      <div className="flex flex-col justify-between gap-3 border-b p-4 md:flex-row md:items-center">
+    <Card className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-col justify-between gap-3 border-b border-slate-200/80 px-5 py-4 md:flex-row md:items-center">
 	        <div>
 	          <h2 className="text-sm font-semibold">文档管理</h2>
 	        </div>
@@ -215,13 +210,10 @@ function DocumentsCard({
               </tr>
             </thead>
             <tbody>
-              {base.documents.map((document, index) => (
-                <motion.tr
-                  animate={{ opacity: 1, y: 0 }}
-                  className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                  initial={{ opacity: 0, y: 8 }}
+              {base.documents.map((document) => (
+                <tr
+                  className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70"
                   key={document.id}
-                  transition={{ delay: index * 0.025, duration: 0.22 }}
                 >
                   <td className="px-4 py-3">
                     <button className="grid max-w-xs gap-1 text-left" onClick={() => onSelect(document.id)} type="button">
@@ -254,7 +246,7 @@ function DocumentsCard({
                       </Button>
                     </div>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -266,7 +258,7 @@ function DocumentsCard({
 
 function DocumentDetailCard({ document, loading }: { document: KnowledgeDocumentDetail | null; loading: boolean }) {
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -310,7 +302,7 @@ function SegmentsCard({ base, document }: { base: KnowledgeBaseDetail; document:
   const segments = document?.segments ?? base.segments;
 
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -359,7 +351,7 @@ function TasksCard({ base, document }: { base: KnowledgeBaseDetail; document: Kn
   const tasks = useMemo(() => document?.tasks ?? base.tasks, [base.tasks, document?.tasks]);
 
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <h2 className="text-sm font-semibold">处理任务</h2>
       {tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">暂无任务记录。</p>

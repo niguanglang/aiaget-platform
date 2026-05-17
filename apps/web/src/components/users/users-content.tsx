@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type UserListItem, type UserStatus } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Edit, Eye, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -14,7 +13,6 @@ import { userStatusLabel, userStatusTone } from '@/components/users/user-status'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { deleteUser, getDepartmentTree, listRoles, listUsers, type ApiClientError } from '@/lib/api-client';
 
@@ -77,12 +75,12 @@ export function UsersContent() {
     const roleBindings = users.reduce((sum, user) => sum + user.roles.length, 0);
 
     return [
-      { label: '用户总数', value: `${usersQuery.data?.total ?? users.length}`, helper: '当前租户账号' },
-      { label: '启用用户', value: `${activeUsers.length}`, helper: '可登录控制台' },
-      { label: '停用用户', value: `${disabledUsers.length}`, helper: '已限制登录' },
-      { label: '部门归属', value: `${assignedDepartments.length}`, helper: '具备 ABAC 属性' },
-      { label: '角色绑定', value: `${roleBindings}`, helper: 'RBAC 授权关系' },
-      { label: '可用角色', value: `${roles.length}`, helper: '角色权限中心' },
+      { label: '用户总数', value: `${usersQuery.data?.total ?? users.length}` },
+      { label: '启用用户', value: `${activeUsers.length}` },
+      { label: '停用用户', value: `${disabledUsers.length}` },
+      { label: '部门归属', value: `${assignedDepartments.length}` },
+      { label: '角色绑定', value: `${roleBindings}` },
+      { label: '可用角色', value: `${roles.length}` },
     ];
   }, [roles.length, users, usersQuery.data?.total]);
 
@@ -101,13 +99,8 @@ export function UsersContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">系统管理</StatusBadge>
@@ -137,9 +130,7 @@ export function UsersContent() {
             刷新
           </Button>
         </div>
-      </motion.section>
-
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_18%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_82%_12%,rgba(20,184,166,0.08),transparent_30%)]" />
+      </section>
 
       {actionError || usersQuery.isError || rolesQuery.isError || departmentsQuery.isError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -149,11 +140,11 @@ export function UsersContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {usersQuery.isLoading
-          ? Array.from({ length: 6 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
-          : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+          ? Array.from({ length: 6 }).map((_, index) => <div className="h-24 rounded-xl border border-slate-200/80 bg-white/[0.9]" key={index} />)
+          : metrics.map((metric) => <MetricTile key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
 
-      <Card className="grid gap-4 p-5">
+      <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-sm font-semibold">用户清单</h2>
           <div className="grid gap-2 md:grid-cols-[1fr_140px_180px_auto]">
@@ -162,7 +153,7 @@ export function UsersContent() {
               <input
                 className="min-w-0 bg-transparent outline-none"
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder="搜索名称或邮箱"
+                aria-label="搜索名称或邮箱"
                 value={keyword}
               />
             </label>
@@ -203,7 +194,6 @@ export function UsersContent() {
                 </Button>
               ) : null
             }
-            description="当前筛选无结果。"
             title="暂无用户"
           />
         ) : (
@@ -253,17 +243,11 @@ function UserTable({
           </tr>
         </thead>
         <tbody>
-          {users.map((user, index) => {
+          {users.map((user) => {
             const isCurrentUser = currentUserId === user.id;
 
             return (
-              <motion.tr
-                animate={{ opacity: 1, y: 0 }}
-                className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                initial={{ opacity: 0, y: 8 }}
-                key={user.id}
-                transition={{ delay: index * 0.018, duration: 0.18 }}
-              >
+              <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={user.id}>
                 <td className="px-4 py-3">
                   <div className="grid max-w-sm gap-1">
                     <Link className="font-medium hover:text-primary" href={`/users/${user.id}`}>
@@ -327,11 +311,20 @@ function UserTable({
                     </Button>
                   </div>
                 </td>
-              </motion.tr>
+              </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
     </div>
   );
 }

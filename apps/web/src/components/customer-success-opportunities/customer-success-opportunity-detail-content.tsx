@@ -17,7 +17,6 @@ import {
   customerSuccessActionRiskLabel,
   customerSuccessActionStatusLabel,
 } from '@/components/customer-success-actions/customer-success-action-status';
-import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
 import {
   customerSuccessOpportunityConfidenceLabel,
   customerSuccessOpportunityConfidenceTone,
@@ -124,8 +123,7 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
 
   if (opportunityQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessOpportunityBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载续约机会...</Card>
       </main>
     );
@@ -133,8 +131,7 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
 
   if (opportunityQuery.isError || !opportunityQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessOpportunityBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">续约机会加载失败。</Card>
       </main>
     );
@@ -143,8 +140,7 @@ export function CustomerSuccessOpportunityDetailContent({ opportunityId }: { opp
   const item = opportunityQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessOpportunityBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

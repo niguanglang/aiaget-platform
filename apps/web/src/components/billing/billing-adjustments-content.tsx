@@ -10,6 +10,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import {
   ActionMessage,
   BillingConfirmDialog,
+  BillingStatTile,
   type AdjustmentAction,
   type AdjustmentDraft,
   BillingWorkspaceHeader,
@@ -33,7 +34,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   applyBillingAdjustment,
@@ -103,7 +103,7 @@ export function BillingAdjustmentsContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
       <BillingWorkspaceHeader
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         backHref="/billing"
@@ -118,10 +118,10 @@ export function BillingAdjustmentsContent() {
       {actionMessage ? <ActionMessage>{actionMessage}</ActionMessage> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="等待财务处理" label="待处理" value={String(countByStatus(adjustments, 'PENDING'))} />
-        <MetricCard helper="可应用到账单" label="已批准" value={String(countByStatus(adjustments, 'APPROVED'))} />
-        <MetricCard helper="已进入账单估算" label="已生效" value={String(countByStatus(adjustments, 'APPLIED'))} />
-        <MetricCard helper="signed_amount" label="调账影响" value={formatMoney(adjustments.reduce((total, item) => total + item.signed_amount, 0))} />
+        <BillingStatTile detail="等待财务处理" label="待处理" value={String(countByStatus(adjustments, 'PENDING'))} />
+        <BillingStatTile detail="可应用到账单" label="已批准" value={String(countByStatus(adjustments, 'APPROVED'))} />
+        <BillingStatTile detail="已进入账单估算" label="已生效" value={String(countByStatus(adjustments, 'APPLIED'))} />
+        <BillingStatTile detail="所有调账合计" label="调账影响" value={formatMoney(adjustments.reduce((total, item) => total + item.signed_amount, 0))} />
       </section>
 
       <Card className="grid gap-4 p-5">

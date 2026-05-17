@@ -9,11 +9,9 @@ import type {
   ResourceAclSubjectType,
 } from '@aiaget/shared-types';
 import { KeyRound, Plus, Search, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { ResourceAclBackground } from '@/components/resource-acls/resource-acl-background';
 import {
   formatDateTime,
   resourceAclEffectLabels,
@@ -34,7 +32,6 @@ import { ConfirmDialog } from '@/components/roles/role-ia-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteResourceAcl,
@@ -164,9 +161,7 @@ export function ResourceAclContent() {
   const pending = deleteMutation.isPending || statusMutation.isPending;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ResourceAclBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <ResourceAclPageHeader
         actions={
           <>
@@ -190,7 +185,11 @@ export function ResourceAclContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm" key={metric.label}>
+            <div className="text-sm text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+          </Card>
         ))}
       </section>
 
@@ -424,13 +423,10 @@ function AclRuleTable({
               </tr>
             </thead>
             <tbody>
-              {acls.map((acl, index) => (
-                <motion.tr
-                  animate={{ opacity: 1, y: 0 }}
+              {acls.map((acl) => (
+                <tr
                   className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                  initial={{ opacity: 0, y: 8 }}
                   key={acl.id}
-                  transition={{ delay: index * 0.02, duration: 0.2 }}
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium">{acl.resource.name}</div>
@@ -499,7 +495,7 @@ function AclRuleTable({
                       </Button>
                     </div>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>

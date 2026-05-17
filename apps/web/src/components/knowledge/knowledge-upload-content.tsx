@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { KnowledgeSourceType } from '@aiaget/shared-types';
 import Link from 'next/link';
 
-import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import {
   KnowledgeDocumentFormPanel,
   type KnowledgeDocumentFormValues,
@@ -45,8 +44,7 @@ export function KnowledgeUploadContent({ knowledgeId }: { knowledgeId: string })
   });
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <KnowledgeCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <KnowledgeWorkspaceHeader
 	        actions={<RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />}
 	        base={base}
@@ -58,7 +56,7 @@ export function KnowledgeUploadContent({ knowledgeId }: { knowledgeId: string })
       {uploadMutation.isError ? <PageMessage tone="error" value={(uploadMutation.error as ApiClientError).message} /> : null}
 	      {uploadMutation.isSuccess ? <PageMessage tone="success" value="文档已提交处理。" /> : null}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <KnowledgeDocumentFormPanel
           error={uploadMutation.isError ? (uploadMutation.error as ApiClientError).message : null}
           isPending={uploadMutation.isPending}

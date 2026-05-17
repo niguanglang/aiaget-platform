@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 
 import './globals.css';
+import { ThemeProvider } from '@/components/providers/theme-provider';
 
 export const metadata: Metadata = {
-  title: '企业智能体平台',
-  description: '私有企业智能体平台控制台',
+  title: '企业AIAgent平台',
+  description: '企业AIAgent平台',
 };
 
 export default function RootLayout({
@@ -13,8 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

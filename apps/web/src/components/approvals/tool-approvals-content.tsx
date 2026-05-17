@@ -26,12 +26,12 @@ import {
   formatLatency,
   LoadingBlock,
   PreviewCard,
+  SummaryTile,
   useApprovalCanHandle,
 } from '@/components/approvals/approval-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveToolApproval,
@@ -147,17 +147,17 @@ export function ToolApprovalsContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard helper="当前队列" label="待审批" value={`${overviewQuery.data?.pending_count ?? 0}`} />
-        <MetricCard helper="累计记录" label="已通过" value={`${overviewQuery.data?.approved_count ?? 0}`} />
-        <MetricCard helper="累计记录" label="已拒绝" value={`${overviewQuery.data?.rejected_count ?? 0}`} />
-        <MetricCard helper="会话触发" label="运行时待审批" value={`${overviewQuery.data?.runtime_pending_count ?? 0}`} />
-        <MetricCard helper="工具测试" label="测试待审批" value={`${overviewQuery.data?.test_pending_count ?? 0}`} />
+        <SummaryTile label="待审批" value={`${overviewQuery.data?.pending_count ?? 0}`} />
+        <SummaryTile label="已通过" value={`${overviewQuery.data?.approved_count ?? 0}`} />
+        <SummaryTile label="已拒绝" value={`${overviewQuery.data?.rejected_count ?? 0}`} />
+        <SummaryTile label="运行时待审批" value={`${overviewQuery.data?.runtime_pending_count ?? 0}`} />
+        <SummaryTile label="测试待审批" value={`${overviewQuery.data?.test_pending_count ?? 0}`} />
       </section>
 
       <ErrorBanner message={actionError} />
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[1.12fr_0.88fr]">
-        <CardSection description="按工具、会话、申请人、状态和来源筛选待处理请求。" title="工具审批队列">
+        <CardSection title="工具审批队列">
           <ToolApprovalFilters
             keyword={keyword}
             onChangeKeyword={setKeyword}
@@ -176,7 +176,7 @@ export function ToolApprovalsContent() {
           ) : approvalsQuery.isLoading ? (
             <LoadingBlock>正在加载工具审批队列...</LoadingBlock>
           ) : approvals.length === 0 ? (
-            <EmptyState description="当前筛选条件下没有工具审批请求。" title="暂无工具审批" />
+            <EmptyState title="暂无工具审批" />
           ) : (
             <ToolApprovalTable approvals={approvals} onSelect={setSelectedApprovalId} />
           )}
@@ -221,7 +221,6 @@ function ToolApprovalFilters({
         <input
           className="min-w-0 flex-1 bg-transparent outline-none"
           onChange={(event) => onChangeKeyword(event.target.value)}
-          placeholder="搜索工具、会话、申请人"
           value={keyword}
         />
       </label>
@@ -337,7 +336,7 @@ function ToolApprovalDetailPanel({
       {loading ? (
         <div className="rounded-lg border bg-muted/20 px-4 py-8 text-sm text-muted-foreground">正在加载工具审批详情...</div>
       ) : !detail ? (
-        <EmptyApprovalSelection description="选择一条工具审批请求。" title="未选择审批请求" />
+        <EmptyApprovalSelection title="未选择审批请求" />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -401,7 +400,6 @@ function ToolApprovalDetailPanel({
             onChangeDecisionNote={onChangeDecisionNote}
             onReject={() => onReject(detail.id)}
             pending={pending}
-            placeholder="补充审批备注，可用于说明放行原因或拒绝原因..."
             rejectLabel="拒绝请求"
           />
         </>

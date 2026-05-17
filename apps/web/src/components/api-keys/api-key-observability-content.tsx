@@ -9,7 +9,6 @@ import { formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getExternalApiObservability } from '@/lib/api-client';
 
@@ -46,8 +45,8 @@ export function ApiKeyObservabilityContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="healthy">外部调用观测</StatusBadge><StatusBadge tone="mock">{windowLabel(observabilityWindow)}</StatusBadge></div>
           <h1 className="text-2xl font-semibold">外部 API 调用观测</h1>
@@ -66,7 +65,13 @@ export function ApiKeyObservabilityContent() {
       <ErrorBanner message={errorMessage ?? (observabilityQuery.isError ? '外部 API 调用观测加载失败。' : null)} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {observabilityQuery.isLoading ? Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-lg border bg-muted/30" key={index} />) : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        {observabilityQuery.isLoading ? Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-lg border bg-muted/30" key={index} />) : metrics.map((metric) => (
+          <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm" key={metric.label}>
+            <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+          </div>
+        ))}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">

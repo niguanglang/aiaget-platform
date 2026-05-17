@@ -2,19 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type MenuDetail } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { ArrowLeft, Edit, Eye, Plus, Power, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { MenuCenterBackground } from '@/components/menus/menu-center-background';
 import { booleanLabel, booleanTone, formatDateTime, menuTypeLabel, menuTypeTone } from '@/components/menus/menu-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { deleteMenu, disableMenu, enableMenu, getMenu, type ApiClientError } from '@/lib/api-client';
 
@@ -39,10 +36,10 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
 
   const metrics = menu
     ? [
-        { label: '子节点', value: `${menu.child_count}`, helper: '直接子节点' },
-        { label: '角色引用', value: `${menu.role_count}`, helper: '授权引用数' },
-        { label: '层级', value: `${menu.level}`, helper: '树深度' },
-        { label: '更新时间', value: formatDateTime(menu.updated_at), helper: '最近修改' },
+        { label: '子节点', value: `${menu.child_count}` },
+        { label: '角色引用', value: `${menu.role_count}` },
+        { label: '层级', value: `${menu.level}` },
+        { label: '更新时间', value: formatDateTime(menu.updated_at) },
       ]
     : [];
 
@@ -76,9 +73,8 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
 
   if (menuQuery.isLoading) {
     return (
-      <main className="relative mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <MenuCenterBackground />
-        <Card className="p-6">
+      <main className="mx-auto max-w-[1680px] px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="text-sm text-muted-foreground">正在加载菜单详情...</div>
         </Card>
       </main>
@@ -87,15 +83,14 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
 
   if (menuQuery.isError || !menu) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
-        <MenuCenterBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/menus">
             <ArrowLeft className="size-4" />
             返回菜单中心
           </Link>
         </Button>
-        <Card className="p-6">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="text-sm text-destructive">菜单详情加载失败。</div>
         </Card>
       </main>
@@ -103,15 +98,8 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MenuCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)] md:flex-row md:items-start">
         <div className="min-w-0">
           <Button asChild className="mb-4" size="sm" variant="outline">
             <Link href="/menus">
@@ -127,9 +115,6 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
           </div>
           <h1 className="break-words text-2xl font-semibold">{menu.name}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{menu.code}</p>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            基础信息、路由、显示状态、权限控制、子节点与角色引用。
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canWrite ? (
@@ -171,11 +156,17 @@ export function MenuDetailContent({ menuId }: { menuId: string }) {
             删除
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <div
+            className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-5 py-4 shadow-[0_16px_45px_rgba(15,23,42,0.05)]"
+            key={metric.label}
+          >
+            <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 break-words text-2xl font-semibold tracking-normal text-slate-950">{metric.value}</div>
+          </div>
         ))}
       </section>
 

@@ -1,4 +1,3 @@
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { ModuleSpec } from '@/config/modules';
 
@@ -10,7 +9,7 @@ const statusLabels: Record<ModuleSpec['status'], string> = {
 
 export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex items-center gap-2">
@@ -22,11 +21,11 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {moduleSpec.metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricTile key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
-      <section className="rounded-lg border bg-background">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9]">
         <div className="border-b p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h2 className="text-sm font-semibold">数据列表</h2>
@@ -66,7 +65,7 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
       </section>
 
       <section className="grid gap-4">
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
           <h2 className="text-sm font-semibold">信息分组</h2>
           <div className="mt-4 grid gap-2">
             {moduleSpec.detailSections.map((section) => (
@@ -78,5 +77,14 @@ export function ModulePageShell({ moduleSpec }: { moduleSpec: ModuleSpec }) {
         </div>
       </section>
     </main>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
+    </div>
   );
 }

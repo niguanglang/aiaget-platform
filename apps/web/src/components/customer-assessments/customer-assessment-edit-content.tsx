@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerAssessmentBackground } from '@/components/customer-assessments/customer-assessment-background';
 import {
   CustomerAssessmentFormPanel,
   toUpdateCustomerAssessmentInput,
@@ -55,8 +54,7 @@ export function CustomerAssessmentEditContent({ assessmentId }: { assessmentId: 
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerAssessmentBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
 
       <section>
         <Button asChild className="mb-4 w-fit" variant="outline">

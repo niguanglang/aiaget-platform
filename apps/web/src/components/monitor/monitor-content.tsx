@@ -12,14 +12,12 @@ import type {
   MonitorWindow,
 } from '@aiaget/shared-types';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import { Activity, AlertTriangle, ExternalLink, GitBranch, Layers3, RefreshCw, Route, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ServiceHealthCard } from '@/components/dashboard/service-health-card';
-import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
 import {
   formatDateTime,
   formatLatency,
@@ -34,7 +32,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getMonitorOverview, listMonitorEvents } from '@/lib/api-client';
 
@@ -112,15 +109,8 @@ export function MonitorContent() {
   }, [overviewQuery.data, windowValue]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MonitorCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">事件流</StatusBadge>
@@ -142,7 +132,7 @@ export function MonitorContent() {
           <RefreshCw className="size-4" />
           刷新数据
         </Button>
-      </motion.section>
+      </section>
 
       {legacyTraceHref ? (
         <Card className="grid gap-3 border-primary/25 bg-primary/5 p-4 md:grid-cols-[1fr_auto] md:items-center">
@@ -184,7 +174,7 @@ export function MonitorContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MonitorMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -439,7 +429,7 @@ function EventListCard({
       ) : loading ? (
         <div className="p-6 text-sm text-muted-foreground">正在加载监控事件...</div>
       ) : events.length === 0 ? (
-        <EmptyState description="当前筛选窗口内没有事件记录。" title="暂无监控数据" />
+        <EmptyState title="暂无监控数据" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1360px] border-collapse text-left text-sm">
@@ -453,14 +443,8 @@ function EventListCard({
               </tr>
             </thead>
             <tbody>
-              {events.map((event, index) => (
-                <motion.tr
-                  animate={{ opacity: 1, y: 0 }}
-                  className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                  initial={{ opacity: 0, y: 8 }}
-                  key={event.event_id}
-                  transition={{ delay: index * 0.02, duration: 0.22 }}
-                >
+              {events.map((event) => (
+                <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={event.event_id}>
                   <td className="px-4 py-3">
                     <Link className="font-mono text-xs text-primary hover:underline" href={`/monitor/traces/${event.trace_id}`}>
                       {event.trace_id}
@@ -485,7 +469,7 @@ function EventListCard({
                       <Link href={`/monitor/events/${event.event_id}`}>详情</Link>
                     </Button>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -519,7 +503,7 @@ function RunStepSummaryCard({ loading, summary }: { loading: boolean; summary: M
       {loading ? (
         <div className="text-sm text-muted-foreground">正在聚合运行步骤...</div>
       ) : !summary || summary.steps_total === 0 ? (
-        <EmptyState description="当前窗口内还没有可聚合的会话运行步骤。" title="暂无步骤数据" />
+        <EmptyState title="暂无步骤数据" />
       ) : (
         <div className="grid gap-3">
           <div className="grid gap-2 sm:grid-cols-2">
@@ -558,17 +542,11 @@ function RunStepBreakdownCard({ items, loading }: { items: MonitorRunStepMetricI
       {loading ? (
         <div className="text-sm text-muted-foreground">正在计算步骤分布...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="当前窗口没有模型、检索或工具步骤。" title="暂无分布数据" />
+        <EmptyState title="暂无分布数据" />
       ) : (
         <div className="grid gap-3">
-          {items.map((item, index) => (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-md border bg-muted/20 p-3"
-              initial={{ opacity: 0, y: 8 }}
-              key={item.step_type}
-              transition={{ delay: index * 0.03, duration: 0.24 }}
-            >
+          {items.map((item) => (
+            <div className="rounded-md border bg-muted/20 p-3" key={item.step_type}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <StatusBadge tone={item.failed_count > 0 ? 'degraded' : 'healthy'}>{monitorStepTypeLabel(item.step_type)}</StatusBadge>
@@ -586,7 +564,7 @@ function RunStepBreakdownCard({ items, loading }: { items: MonitorRunStepMetricI
                 <span>词元 {formatInteger(item.total_tokens)}</span>
                 <span>成本 {formatMoney(item.total_cost)}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}
@@ -620,7 +598,7 @@ function TrendCard({ loading, points }: { loading: boolean; points: MonitorTrend
       {loading ? (
         <div className="text-sm text-muted-foreground">正在计算趋势...</div>
       ) : points.length === 0 ? (
-        <EmptyState description="当前窗口没有足够的延迟数据。" title="暂无趋势数据" />
+        <EmptyState title="暂无趋势数据" />
       ) : (
         <div className="grid gap-3">
           <div className="flex h-44 items-end gap-2">
@@ -658,7 +636,7 @@ function ErrorCard({ errors, loading }: { errors: MonitorErrorSampleItem[]; load
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载错误样本...</div>
       ) : errors.length === 0 ? (
-        <EmptyState description="当前窗口没有错误事件。" title="暂无错误" />
+        <EmptyState title="暂无错误" />
       ) : (
         <div className="grid gap-3">
           {errors.map((error) => (
@@ -711,6 +689,16 @@ function RankingCard({
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+function MonitorMetricTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-none">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-2 text-xs text-muted-foreground">{helper}</div>
     </Card>
   );
 }

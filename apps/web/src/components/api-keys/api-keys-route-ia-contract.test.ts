@@ -11,6 +11,15 @@ const apiReferenceSourcePath = join(root, 'src/app/(console)/api-reference/page.
 const observabilitySourcePath = join(root, 'src/components/api-keys/api-key-observability-content.tsx');
 const webhookListSourcePath = join(root, 'src/components/api-keys/webhook-deliveries-content.tsx');
 const webhookDetailSourcePath = join(root, 'src/components/api-keys/webhook-delivery-detail-content.tsx');
+const apiKeyRouteShellSourcePaths = [
+  listSourcePath,
+  createSourcePath,
+  editSourcePath,
+  apiReferenceSourcePath,
+  observabilitySourcePath,
+  webhookListSourcePath,
+  webhookDetailSourcePath,
+];
 
 test('api key route-level pages exist for list, create, edit, observability, webhook list, and webhook detail', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/api-keys/page.tsx')));
@@ -124,4 +133,21 @@ test('webhook retry actions require confirmation before mutation', () => {
   assert.match(webhookDetailSource, /确认重试 Webhook 投递/);
   assert.match(webhookDetailSource, /onConfirm=\{confirmWebhookRetry\}/);
   assert.doesNotMatch(webhookDetailSource, /onClick=\{\(\) => retryMutation\.mutate\(item\.delivery_id\)\}/);
+});
+
+test('api key and api reference routes do not depend on legacy marketing shells', () => {
+  for (const sourcePath of apiKeyRouteShellSourcePaths) {
+    const source = readFileSync(sourcePath, 'utf8');
+
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /motion\/react/);
+    assert.doesNotMatch(source, /max-w-7xl/);
+    assert.match(source, /max-w-\[1680px\]/);
+  }
+
+  for (const sourcePath of [listSourcePath, apiReferenceSourcePath, observabilitySourcePath, webhookListSourcePath]) {
+    const source = readFileSync(sourcePath, 'utf8');
+
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  }
 });

@@ -6,13 +6,11 @@ import { ArrowLeft, CheckCircle2, Eye, EyeOff, Play, Power } from 'lucide-react'
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { PluginCenterBackground } from '@/components/plugins/plugin-center-background';
 import { pluginHookStatusLabel, pluginHookStatusTone, pluginStatusLabel, pluginStatusTone } from '@/components/plugins/plugin-status';
-import { ConfirmDialog, DetailList, Message, PluginSectionNav, SummaryItem, usePluginPermissions } from '@/components/plugins/plugin-shared';
+import { ConfirmDialog, DetailList, Message, PluginPageShell, PluginSectionNav, PluginStatsGrid, SummaryItem, usePluginPermissions } from '@/components/plugins/plugin-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getPluginInstallation, queuePluginHookExecution, updatePluginHook, updatePluginMenuBinding, type ApiClientError } from '@/lib/api-client';
 
@@ -154,8 +152,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" size="sm" variant="outline">
@@ -186,11 +183,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
       ) : null}
       {actionError ? <Message tone="error" value={actionError} /> : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </section>
+      <PluginStatsGrid items={metrics} />
 
       <section className="grid gap-4 xl:grid-cols-2">
         <DetailList title="菜单绑定">
@@ -275,7 +268,7 @@ export function PluginBindingsContent({ pluginId }: { pluginId: string }) {
           variant={bindingActionVariant(bindingActionTarget)}
         />
       ) : null}
-    </main>
+    </PluginPageShell>
   );
 }
 
@@ -345,8 +338,7 @@ function HookConfigSummary({ config }: { config: Record<string, unknown> | null 
 
 function BindingsStatePanel({ description, title }: { description?: string; title: string }) {
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <Button asChild className="w-fit" variant="outline">
         <Link href="/plugins">
           <ArrowLeft className="size-4" />
@@ -356,6 +348,6 @@ function BindingsStatePanel({ description, title }: { description?: string; titl
       <Card className="p-6">
         <EmptyState description={description} title={title} />
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }

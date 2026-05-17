@@ -14,7 +14,6 @@ import { ArrowLeft, CheckCircle2, RefreshCcw, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DataScopeBackground } from '@/components/data-scopes/data-scope-background';
 import {
   RoleSummaryCard,
   ScopeEditor,
@@ -150,8 +149,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <DataScopeBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -180,7 +178,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
 
       {isTenantAdmin ? (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-	          租户管理员默认拥有全部资源范围，仅可预览。
+          租户管理员默认拥有全部资源范围，仅可预览。
         </div>
       ) : null}
       {!canWrite && !isTenantAdmin ? (
@@ -201,7 +199,7 @@ export function DataScopeEditContent({ roleId }: { roleId: string }) {
       ) : detailQuery.isError ? (
         <Card className="p-6 text-sm text-destructive">角色数据范围加载失败。</Card>
       ) : !role ? (
-	        <EmptyState className="py-12" title="暂无数据" />
+        <EmptyState className="py-12" title="暂无数据" />
       ) : (
         <>
           <RoleSummaryCard role={role} />

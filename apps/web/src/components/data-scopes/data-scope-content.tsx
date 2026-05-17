@@ -2,13 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { hasPermission } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import Link from 'next/link';
-import { Edit3, Eye, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Edit3, Eye, SlidersHorizontal } from 'lucide-react';
+import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DataScopeBackground } from '@/components/data-scopes/data-scope-background';
 import {
   DataScopeMetricGrid,
   RoleDirectoryList,
@@ -65,13 +63,6 @@ export function DataScopeContent() {
 
   const roles = rolesQuery.data?.items ?? [];
   const scopes = scopesQuery.data ?? [];
-  const scopesByRole = useMemo(() => {
-    const grouped = new Map<string, typeof scopes>();
-    for (const scope of scopes) {
-      grouped.set(scope.role_id, [...(grouped.get(scope.role_id) ?? []), scope]);
-    }
-    return grouped;
-  }, [scopes]);
 
   function clearRoleFilters() {
     setRoleKeyword('');
@@ -85,15 +76,8 @@ export function DataScopeContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <DataScopeBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">角色范围</StatusBadge>
@@ -102,7 +86,7 @@ export function DataScopeContent() {
           </div>
           <h1 className="text-2xl font-semibold">数据权限中心</h1>
         </div>
-      </motion.section>
+      </section>
 
       <DataScopeMetricGrid overview={overviewQuery.data} roleTotal={rolesQuery.data?.total ?? 0} />
 
@@ -193,7 +177,7 @@ export function DataScopeContent() {
           {scopesQuery.isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">正在加载数据权限列表...</div>
           ) : scopes.length === 0 ? (
-	            <EmptyState className="py-12" title="暂无数据权限" />
+            <EmptyState className="py-12" title="暂无数据权限" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
@@ -207,14 +191,8 @@ export function DataScopeContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scopes.map((scope, index) => (
-                    <motion.tr
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border-b last:border-0 hover:bg-muted/25"
-                      initial={{ opacity: 0, y: 8 }}
-                      key={scope.id}
-                      transition={{ delay: index * 0.012, duration: 0.2 }}
-                    >
+                  {scopes.map((scope) => (
+                    <tr className="border-b last:border-0 hover:bg-muted/25" key={scope.id}>
                       <td className="px-4 py-3">
                         <div className="font-medium">{scope.role_name}</div>
                         <div className="text-xs text-muted-foreground">{scope.role_code}</div>
@@ -262,7 +240,7 @@ export function DataScopeContent() {
                           ) : null}
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -270,18 +248,6 @@ export function DataScopeContent() {
           )}
         </Card>
       </section>
-
-      <Card className="min-w-0 p-4">
-        <div className="flex items-start gap-3">
-          <span className="grid size-9 place-items-center rounded-md border bg-background">
-            <ShieldCheck className="size-4 text-teal-700" />
-          </span>
-          <div>
-            <h2 className="text-sm font-semibold">角色覆盖摘要</h2>
-            <p className="mt-1 text-sm text-muted-foreground">筛选命中 {scopesByRole.size} 个角色。</p>
-          </div>
-        </div>
-      </Card>
     </main>
   );
 }

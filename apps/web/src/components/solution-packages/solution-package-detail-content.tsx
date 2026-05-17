@@ -6,7 +6,6 @@ import { ArrowLeft, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SolutionPackageBackground } from '@/components/solution-packages/solution-package-background';
 import {
   formatDateTime,
   solutionCustomerTypeLabel,
@@ -34,8 +33,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
 
   if (packageQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <SolutionPackageBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载方案包...</Card>
       </main>
     );
@@ -43,8 +41,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
 
   if (packageQuery.isError || !packageQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <SolutionPackageBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">方案包加载失败。</Card>
       </main>
     );
@@ -53,8 +50,7 @@ export function SolutionPackageDetailContent({ packageId }: { packageId: string 
   const item = packageQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SolutionPackageBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

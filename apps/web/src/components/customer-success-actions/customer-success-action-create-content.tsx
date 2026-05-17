@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerSuccessActionBackground } from '@/components/customer-success-actions/customer-success-action-background';
 import {
   CustomerSuccessActionFormPanel,
   toCreateCustomerSuccessActionInput,
@@ -53,16 +52,14 @@ export function CustomerSuccessActionCreateContent() {
 
   if (!canWrite) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessActionBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">当前账号没有新建客户成功行动的权限。</Card>
       </main>
     );
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessActionBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建客户成功行动</h1>

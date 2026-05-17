@@ -17,6 +17,7 @@ const formPanelText = readFileSync(join(root, 'src/components/departments/depart
 const createText = readFileSync(join(root, 'src/components/departments/department-create-content.tsx'), 'utf8');
 const detailText = readFileSync(join(root, 'src/components/departments/department-detail-content.tsx'), 'utf8');
 const editText = readFileSync(join(root, 'src/components/departments/department-edit-content.tsx'), 'utf8');
+const productionTexts = [componentText, formPanelText, createText, detailText, editText];
 
 test('department routes are split into list, create, detail, and edit pages', () => {
   for (const file of routeFiles) {
@@ -63,4 +64,15 @@ test('department status changes require confirmation before mutation', () => {
   assert.match(detailText, /onConfirm=\{confirmDepartmentStatusChange\}/);
   assert.doesNotMatch(componentText, /onToggle=\{\(department\) =>\s*statusMutation\.mutate/);
   assert.doesNotMatch(detailText, /onClick=\{\(\) =>\s*statusMutation\.mutate/);
+});
+
+test('department route production components use the operations shell without legacy visual wrappers', () => {
+  for (const source of productionTexts) {
+    assert.doesNotMatch(source, /motion\/react/);
+    assert.doesNotMatch(source, /motion\./);
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /max-w-7xl/);
+    assert.doesNotMatch(source, /DepartmentCenterBackground/);
+    assert.doesNotMatch(source, /department-center-background/);
+  }
 });

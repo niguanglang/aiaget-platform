@@ -2,19 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type MenuTreeItem } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { ArrowLeft, Eye, EyeOff, ListTree, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleCenterBackground } from '@/components/roles/role-center-background';
-import { flattenMenuTree } from '@/components/roles/role-ia-shared';
+import { flattenMenuTree, RoleStatGrid } from '@/components/roles/role-ia-shared';
 import { roleStatusLabel, roleStatusTone } from '@/components/roles/role-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getMenuTree, getRole, listMenuRoleBindings, updateMenuRoleBinding, type ApiClientError } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
@@ -114,13 +111,11 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
     { label: '当前已选', value: `${draftMenuIds.length}`, helper: '导航入口' },
     { label: '菜单总数', value: `${flatTree.length}`, helper: `${menuTypeCounts.DIRECTORY} 个目录` },
     { label: '页面菜单', value: `${menuTypeCounts.MENU}`, helper: '按钮权限单独授权' },
-    { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '暂无', helper: role?.code ?? roleId },
+    { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '-', helper: role?.code ?? roleId },
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <RoleCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm md:p-6">
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -152,11 +147,7 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </section>
+      <RoleStatGrid items={metrics} />
 
       {menuError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -190,11 +181,10 @@ export function RoleMenusContent({ roleId }: { roleId: string }) {
           </div>
 
           <div className="grid max-h-[620px] gap-1 overflow-y-auto p-4">
-            {flatTree.map((menu, index) => (
+            {flatTree.map((menu) => (
               <MenuCheckbox
                 checked={draftMenuIds.includes(menu.id)}
                 disabled={!canWrite}
-                index={index}
                 key={menu.id}
                 menu={menu}
                 onToggle={() => toggleMenu(menu)}
@@ -247,27 +237,22 @@ function collectDescendantMenuIds(menu: MenuTreeItem) {
 function MenuCheckbox({
   checked,
   disabled,
-  index,
   menu,
   onToggle,
 }: {
   checked: boolean;
   disabled: boolean;
-  index: number;
   menu: MenuTreeItem;
   onToggle: () => void;
 }) {
   return (
-    <motion.label
-      animate={{ opacity: 1, y: 0 }}
+    <label
       className={cn(
         'flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm transition-colors',
         checked ? 'border-blue-200 bg-blue-50/70' : 'border-transparent hover:border-slate-200 hover:bg-muted/30',
         disabled && 'cursor-not-allowed opacity-70',
       )}
-      initial={{ opacity: 0, y: 6 }}
       style={{ paddingLeft: `${12 + (menu.level - 1) * 20}px` }}
-      transition={{ delay: index * 0.012, duration: 0.16 }}
     >
       <span className="flex min-w-0 items-center gap-2">
         <input checked={checked} disabled={disabled} onChange={onToggle} type="checkbox" />
@@ -284,6 +269,6 @@ function MenuCheckbox({
           </span>
         ) : null}
       </span>
-    </motion.label>
+    </label>
   );
 }

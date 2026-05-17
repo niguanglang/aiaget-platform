@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import { Eye, Folder, Search, Settings2, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -9,7 +8,6 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { getStorageSettings, listStorageObjects } from '@/lib/api-client';
 
 import {
@@ -47,23 +45,19 @@ export function StorageContent() {
 
   const metrics = useMemo(
     () => [
-	      {
-	        helper: '租户前缀',
-	        label: '文件对象',
-	        value: summary ? `${summary.object_count}` : '--',
-	      },
-	      {
-	        helper: 'MinIO',
-	        label: '总容量',
-	        value: summary ? formatBytes(summary.total_size_bytes) : '--',
+      {
+        label: '文件对象',
+        value: summary ? `${summary.object_count}` : '--',
       },
       {
-        helper: settings?.bucket ?? '未配置',
+        label: '总容量',
+        value: summary ? formatBytes(summary.total_size_bytes) : '--',
+      },
+      {
         label: '桶状态',
         value: settings?.bucket_exists ? '可用' : '未就绪',
       },
       {
-        helper: settings?.endpoint ?? '等待检测',
         label: '连接状态',
         value: settings ? statusLabels[settings.status] : '--',
       },
@@ -72,44 +66,42 @@ export function StorageContent() {
   );
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <motion.div animate={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.28, ease: 'easeOut' }}>
-        <StorageWorkspaceHeader
-          actions={
-            <>
-              <RefreshButton
-                loading={settingsQuery.isFetching || objectsQuery.isFetching}
-                onClick={() => {
-                  void settingsQuery.refetch();
-                  void objectsQuery.refetch();
-                }}
-              />
-              <Button asChild variant="outline">
-                <Link href="/storage/settings">
-                  <Settings2 className="size-4" />
-                  存储设置
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link href="/storage/upload">
-                  <UploadCloud className="size-4" />
-                  上传文件
-                </Link>
-              </Button>
-            </>
-          }
-          badge="文件对象"
-          title="文件存储中心"
-        />
-      </motion.div>
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <StorageWorkspaceHeader
+        actions={
+          <>
+            <RefreshButton
+              loading={settingsQuery.isFetching || objectsQuery.isFetching}
+              onClick={() => {
+                void settingsQuery.refetch();
+                void objectsQuery.refetch();
+              }}
+            />
+            <Button asChild variant="outline">
+              <Link href="/storage/settings">
+                <Settings2 className="size-4" />
+                存储设置
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/storage/upload">
+                <UploadCloud className="size-4" />
+                上传文件
+              </Link>
+            </Button>
+          </>
+        }
+        badge="文件对象"
+        title="文件存储中心"
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricTile key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
-      <Card className="min-w-0 overflow-hidden">
+      <Card className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9]">
         <div className="border-b p-4">
           <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
             <div>
@@ -125,7 +117,7 @@ export function StorageContent() {
               <input
                 className="min-w-0 flex-1 bg-transparent outline-none"
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder="搜索文件名或路径"
+                aria-label="搜索文件名或路径"
                 value={keyword}
               />
             </label>
@@ -134,7 +126,7 @@ export function StorageContent() {
               <input
                 className="min-w-0 flex-1 bg-transparent outline-none"
                 onChange={(event) => setPrefix(event.target.value)}
-                placeholder="目录前缀，如 uploads"
+                aria-label="目录前缀"
                 value={prefix}
               />
             </label>
@@ -151,12 +143,12 @@ export function StorageContent() {
           </div>
         </div>
 
-	        {objectsQuery.isError ? (
-	          <div className="p-6 text-sm text-destructive">文件列表加载失败。</div>
-	        ) : objectsQuery.isLoading ? (
-	          <div className="p-6 text-sm text-muted-foreground">正在加载文件列表...</div>
-	        ) : objects.length === 0 ? (
-	          <EmptyState title="暂无文件" />
+        {objectsQuery.isError ? (
+          <div className="p-6 text-sm text-destructive">文件列表加载失败。</div>
+        ) : objectsQuery.isLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">正在加载文件列表...</div>
+        ) : objects.length === 0 ? (
+          <EmptyState title="暂无文件" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] border-collapse text-left text-sm">
@@ -170,14 +162,8 @@ export function StorageContent() {
                 </tr>
               </thead>
               <tbody>
-                {objects.map((item, index) => (
-                  <motion.tr
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                    initial={{ opacity: 0, y: 8 }}
-                    key={item.key}
-                    transition={{ delay: index * 0.02, duration: 0.22 }}
-                  >
+                {objects.map((item) => (
+                  <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={item.key}>
                     <td className="px-4 py-3">
                       <div className="font-medium">{item.file_name}</div>
                       <div className="line-clamp-1 text-xs text-muted-foreground">{item.relative_key}</div>
@@ -186,14 +172,14 @@ export function StorageContent() {
                     <td className="px-4 py-3 text-muted-foreground">{formatBytes(item.size_bytes)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.last_modified)}</td>
                     <td className="px-4 py-3">
-	                      <Button asChild size="sm" type="button" variant="outline">
-	                        <Link href={storageObjectDetailHref(item)}>
-	                          <Eye className="size-4" />
-	                          详情
-	                        </Link>
-	                      </Button>
+                      <Button asChild size="sm" type="button" variant="outline">
+                        <Link href={storageObjectDetailHref(item)}>
+                          <Eye className="size-4" />
+                          详情
+                        </Link>
+                      </Button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -201,5 +187,14 @@ export function StorageContent() {
         )}
       </Card>
     </main>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
+    </div>
   );
 }

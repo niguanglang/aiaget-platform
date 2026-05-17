@@ -10,6 +10,15 @@ const invoiceDetailRoutePath = join(routesRoot, 'invoices/[invoiceId]/page.tsx')
 const invoiceDetailComponentPath = join(componentsRoot, 'billing-invoice-detail-content.tsx');
 
 const overviewComponentPath = join(componentsRoot, 'billing-content.tsx');
+const productionComponentFiles = [
+  'billing-adjustments-content.tsx',
+  'billing-content.tsx',
+  'billing-invoice-detail-content.tsx',
+  'billing-invoices-content.tsx',
+  'billing-quota-policy-content.tsx',
+  'billing-subscription-content.tsx',
+  'billing-usage-content.tsx',
+] as const;
 const focusedPages = [
   {
     route: 'usage/page.tsx',
@@ -133,6 +142,16 @@ test('billing overview does not import focused page mutation APIs through shared
 
   for (const apiName of forbiddenApis) {
     assert.doesNotMatch(source, new RegExp(`\\b${apiName}\\b`));
+  }
+});
+
+test('billing pages use the unified wide white shell without legacy metric cards', () => {
+  for (const fileName of productionComponentFiles) {
+    const source = readSource(join(componentsRoot, fileName));
+
+    assert.match(source, /<main\b[^>]*max-w-\[1680px\][^>]*rounded-xl[^>]*border[^>]*border-slate-200\/80[^>]*bg-white\/\[0\.9\]/, `${fileName} should use the unified billing page shell`);
+    assert.doesNotMatch(source, /max-w-7xl/, `${fileName} should not use the legacy narrow page shell`);
+    assert.doesNotMatch(source, /MetricCard/, `${fileName} should not depend on legacy metric cards`);
   }
 });
 

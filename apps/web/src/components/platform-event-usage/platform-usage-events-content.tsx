@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
 import {
   parsePlatformUsageWindow,
   PlatformEventTable,
@@ -52,8 +51,7 @@ export function PlatformUsageEventsContent() {
   const resourceTypeOptions = useMemo(() => uniqueOptions(overview?.recent_events.map((item) => item.resource_type) ?? []), [overview]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MonitorCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <PlatformUsageHeader
         badge="平台事件"
         refreshing={overviewQuery.isFetching || eventsQuery.isFetching}

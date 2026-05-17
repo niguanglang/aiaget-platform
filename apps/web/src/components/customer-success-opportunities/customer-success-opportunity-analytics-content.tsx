@@ -3,12 +3,10 @@
 import { hasPermission, type CustomerSuccessOpportunityAnalyticsBucket, type CustomerSuccessOpportunityListItem } from '@aiaget/shared-types';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, BarChart3, Eye, RefreshCw } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
 import {
   customerSuccessOpportunityRiskLabel,
   customerSuccessOpportunityRiskTone,
@@ -23,7 +21,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getCustomerSuccessOpportunityAnalytics } from '@/lib/api-client';
 
@@ -59,8 +56,7 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
 
   if (!authLoading && !canView) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessOpportunityBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">
           当前账号没有查看续约机会分析的权限。
         </Card>
@@ -69,15 +65,8 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessOpportunityBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <h1 className="text-2xl font-semibold">续约机会分析</h1>
         </div>
@@ -93,7 +82,7 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
             刷新分析
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       {analyticsQuery.isError ? (
         <Card className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">续约机会分析加载失败。</Card>
@@ -102,7 +91,7 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {analyticsQuery.isLoading || authLoading
           ? Array.from({ length: 8 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
-          : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+          : metrics.map((metric) => <MetricSummary helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
 
       {!analyticsQuery.isLoading && analytics?.summary.total_count === 0 ? (
@@ -170,6 +159,16 @@ export function CustomerSuccessOpportunityAnalyticsContent() {
         </>
       ) : null}
     </main>
+  );
+}
+
+function MetricSummary({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

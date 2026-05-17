@@ -10,6 +10,14 @@ function source(fileName: string) {
   return readFileSync(join(componentRoot, fileName), 'utf8');
 }
 
+const productionFileNames = [
+  'approval-audit-content.tsx',
+  'approval-audit-event-detail-content.tsx',
+  'approval-audit-archives-content.tsx',
+  'approval-audit-archive-create-content.tsx',
+  'approval-audit-shared.tsx',
+];
+
 test('approval audit route-level pages and focused components exist', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/approval-audits/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/approval-audits/events/[eventId]/page.tsx')));
@@ -102,4 +110,19 @@ test('approval audit archive generation requires confirmation before mutation', 
   assert.match(createSource, /ApprovalAuditConfirmDialog/);
   assert.match(createSource, /onConfirm=\{confirmArchiveCreate\}/);
   assert.doesNotMatch(createSource, /onClick=\{\(\) => createArchiveMutation\.mutate\(\)\}/);
+});
+
+test('approval audit production components use the wide white page shell without legacy metric cards', () => {
+  for (const fileName of productionFileNames) {
+    const componentSource = source(fileName);
+    assert.doesNotMatch(componentSource, /MetricCard/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /motion\./, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-5xl/, fileName);
+  }
+
+  const sharedSource = source('approval-audit-shared.tsx');
+  assert.match(sharedSource, /max-w-\[1680px\]/);
+  assert.match(sharedSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
 });

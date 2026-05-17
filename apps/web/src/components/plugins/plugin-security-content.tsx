@@ -4,20 +4,20 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
-import { PluginCenterBackground } from '@/components/plugins/plugin-center-background';
 import { formatPluginDateTime, pluginRiskLabel, pluginRiskTone, pluginStatusLabel, pluginStatusTone } from '@/components/plugins/plugin-status';
 import {
   DetailList,
   formatPluginReviewStatus,
+  PluginPageShell,
   pluginReviewStatusTone,
   PluginSectionNav,
+  PluginStatsGrid,
   SummaryItem,
   usePluginPermissions,
 } from '@/components/plugins/plugin-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getPluginInstallation } from '@/lib/api-client';
 
@@ -46,8 +46,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" size="sm" variant="outline">
@@ -67,11 +66,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
         <PluginSectionNav active="security" pluginId={pluginId} />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {signals.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </section>
+      <PluginStatsGrid items={signals} />
 
       <Card className="overflow-hidden">
         <div className="border-b p-5">
@@ -104,13 +99,9 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
 
             <DetailList title="策略">
               <div className="grid gap-2">
-                {detail.security_preview.notes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">暂无策略。</p>
-                ) : (
-                  detail.security_preview.notes.map((note) => (
-                    <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground" key={note}>{note}</div>
-                  ))
-                )}
+                {detail.security_preview.notes.map((note) => (
+                  <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground" key={note}>{note}</div>
+                ))}
               </div>
             </DetailList>
           </section>
@@ -147,7 +138,7 @@ export function PluginSecurityContent({ pluginId }: { pluginId: string }) {
           </DetailList>
         </div>
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }
 
@@ -165,8 +156,7 @@ function RiskSignal({ label, tone, value }: { label: string; tone: 'healthy' | '
 
 function SecurityStatePanel({ description, title }: { description?: string; title: string }) {
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <Button asChild className="w-fit" variant="outline">
         <Link href="/plugins">
           <ArrowLeft className="size-4" />
@@ -176,6 +166,6 @@ function SecurityStatePanel({ description, title }: { description?: string; titl
       <Card className="p-6">
         <EmptyState description={description} title={title} />
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }

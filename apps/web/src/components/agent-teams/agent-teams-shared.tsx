@@ -133,11 +133,20 @@ export function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+export function AgentTeamMetricTile({ helper, label, value }: { helper?: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-5 py-4 shadow-[0_16px_45px_rgba(15,23,42,0.05)]">
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-muted-foreground">{helper}</div> : null}
+    </div>
+  );
+}
+
 export function LoadingPanel({ text }: { text: string }) {
-  return <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">{text}</div>;
+  return <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">{text}</div>;
 }
 
 export function ErrorPanel({ text }: { text: string }) {
-  return <div className="rounded-lg border bg-background p-6 text-sm text-destructive">{text}</div>;
+  return <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">{text}</div>;
 }
-

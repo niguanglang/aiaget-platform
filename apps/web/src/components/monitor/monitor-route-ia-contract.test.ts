@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -14,6 +14,21 @@ const platformEventDetailSourcePath = join(root, 'src/components/platform-event-
 const platformUsageAlertsSourcePath = join(root, 'src/components/platform-event-usage/platform-usage-alerts-content.tsx');
 const platformUsageNotificationsSourcePath = join(root, 'src/components/platform-event-usage/platform-usage-notifications-content.tsx');
 const platformUsageTasksSourcePath = join(root, 'src/components/platform-event-usage/platform-usage-tasks-content.tsx');
+const productionComponentRoots = [
+  join(root, 'src/components/monitor'),
+  join(root, 'src/components/platform-event-usage'),
+];
+
+function collectProductionTsxFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) return collectProductionTsxFiles(entryPath);
+    if (!entry.name.endsWith('.tsx') || entry.name.endsWith('.test.tsx')) return [];
+
+    return [entryPath];
+  });
+}
 
 test('monitor and runtime route-level pages exist', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/monitor/page.tsx')));
@@ -26,6 +41,41 @@ test('monitor and runtime route-level pages exist', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/monitor/platform-usage/notifications/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/monitor/platform-usage/tasks/page.tsx')));
   assert.ok(existsSync(join(root, 'src/app/(console)/runtime/workflows/page.tsx')));
+});
+
+test('monitor and platform usage production components do not depend on the legacy visual shell', () => {
+  const productionSources = productionComponentRoots.flatMap(collectProductionTsxFiles).map((sourcePath) => ({
+    source: readFileSync(sourcePath, 'utf8'),
+    sourcePath,
+  }));
+
+  for (const { source, sourcePath } of productionSources) {
+    assert.doesNotMatch(source, /\bMetricCard\b/, sourcePath);
+    assert.doesNotMatch(source, /motion\/react/, sourcePath);
+    assert.doesNotMatch(source, /max-w-7xl/, sourcePath);
+    assert.doesNotMatch(source, /\bMonitorCenterBackground\b/, sourcePath);
+  }
+
+  for (const sourcePath of [
+    join(root, 'src/components/monitor/monitor-content.tsx'),
+    eventDetailSourcePath,
+    traceSourcePath,
+    observabilitySourcePath,
+    workflowsSourcePath,
+    platformUsageOverviewSourcePath,
+    platformEventDetailSourcePath,
+    platformUsageAlertsSourcePath,
+    platformUsageNotificationsSourcePath,
+    platformUsageTasksSourcePath,
+    join(root, 'src/components/platform-event-usage/platform-usage-events-content.tsx'),
+    join(root, 'src/components/platform-event-usage/platform-usage-ledger-content.tsx'),
+    join(root, 'src/components/platform-event-usage/platform-usage-trends-content.tsx'),
+  ]) {
+    const source = readFileSync(sourcePath, 'utf8');
+
+    assert.match(source, /max-w-\[1680px\]/, sourcePath);
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, sourcePath);
+  }
 });
 
 test('monitor list page owns overview and event list without selected detail state', () => {

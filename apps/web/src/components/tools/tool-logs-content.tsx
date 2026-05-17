@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
 import type { ToolCallLogItem } from '@aiaget/shared-types';
 
-import { ToolCenterBackground } from '@/components/tools/tool-center-background';
 import {
   formatDateTime,
   formatLatency,
@@ -21,9 +19,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listToolCallLogs } from '@/lib/api-client';
+
+import { ToolStatTile } from './tool-stat-tile';
 
 export function ToolLogsContent() {
   const [keyword, setKeyword] = useState('');
@@ -68,9 +67,8 @@ export function ToolLogsContent() {
   }, [logs, total]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ToolCenterBackground />
-      <motion.section animate={{ opacity: 1, y: 0 }} className="flex flex-col justify-between gap-4 md:flex-row md:items-start" initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.32, ease: 'easeOut' }}>
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">执行记录</StatusBadge>
@@ -82,9 +80,9 @@ export function ToolLogsContent() {
           <Button disabled={logsQuery.isFetching} onClick={() => void logsQuery.refetch()} type="button" variant="outline">刷新记录</Button>
           <Button asChild type="button" variant="outline"><Link href="/tools">返回工具</Link></Button>
         </div>
-      </motion.section>
+      </section>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        {metrics.map((metric) => <ToolStatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
       <Card>
         <div className="border-b p-4">

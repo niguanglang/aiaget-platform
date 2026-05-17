@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ToolCenterBackground } from '@/components/tools/tool-center-background';
 import { toUpdateToolInput } from '@/components/tools/tool-form-converters';
 import { ToolFormPanel, type ToolFormValues } from '@/components/tools/tool-form-panel';
 import { toolMethodLabel, toolRiskLabel, toolStatusLabel, toolStatusTone } from '@/components/tools/tool-status';
@@ -57,9 +56,7 @@ export function ToolEditContent({ toolId }: { toolId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <ToolCenterBackground />
-
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">

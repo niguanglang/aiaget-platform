@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Archive, ArrowRight, BellRing, ClipboardCheck, FileWarning, RefreshCw, ShieldCheck, Wrench } from 'lucide-react';
 import Link from 'next/link';
 
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   LoadingRows,
   PageError,
+  SECURITY_PAGE_SHELL_CLASS,
+  SecurityStatTile,
   formatDateTime,
   formatNumber,
   formatPercent,
@@ -17,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   getSecurityApprovalWorkbenchOverview,
@@ -102,9 +102,7 @@ export function SecurityOverviewContent() {
   const postureTone = securityOverview ? securityRiskTone(securityOverview.posture.level) : 'loading';
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -142,10 +140,10 @@ export function SecurityOverviewContent() {
 	      {hasError ? <PageError>安全治理总览部分数据加载失败，可刷新重试。</PageError> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-	        <MetricCard helper="评分" label="治理评分" value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'} />
-	        <MetricCard helper="生效" label="生效策略" value={formatNumber(policyOverview?.active)} />
-	        <MetricCard helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
-	        <MetricCard
+	        <SecurityStatTile helper="评分" label="治理评分" value={securityOverview ? formatNumber(securityOverview.posture.score) : '--'} />
+	        <SecurityStatTile helper="生效" label="生效策略" value={formatNumber(policyOverview?.active)} />
+	        <SecurityStatTile helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
+	        <SecurityStatTile
 	          helper="重试"
 	          label="自愈待办"
 	          value={formatNumber(notificationTaskOverview?.summary.pending_auto_retry_count)}

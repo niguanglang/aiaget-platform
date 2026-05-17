@@ -5,6 +5,7 @@ import { Activity, ArrowLeft, Edit, FileArchive, ListChecks, MessageSquare, Shie
 import Link from 'next/link';
 
 import {
+  AgentTeamMetricTile,
   DetailRow,
   ErrorPanel,
   failurePolicyLabel,
@@ -21,7 +22,6 @@ import {
   teamStatusTone,
 } from '@/components/agent-teams/agent-teams-shared';
 import { Button } from '@/components/ui/button';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getAgentTeam } from '@/lib/api-client';
 
@@ -38,12 +38,12 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
   const qualityGateText = team ? (team.quality_gate_enabled ? '开启' : '关闭') : '-';
 
   if (teamQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载团队详情..." /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-5 lg:px-7"><LoadingPanel text="正在加载团队详情" /></main>;
   }
 
   if (teamQuery.isError || !team) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href="/agent-teams"><ArrowLeft className="size-4" />返回</Link></Button>
         <ErrorPanel text="团队详情加载失败。" />
       </main>
@@ -51,7 +51,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div className="min-w-0">
           <Button asChild className="mb-4 w-fit" variant="outline"><Link href="/agent-teams"><ArrowLeft className="size-4" />Agent 团队</Link></Button>
@@ -61,7 +61,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
             <StatusBadge tone="planned">{handoffPolicyLabel(team.handoff_policy)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{team.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{team.description ?? '暂无描述。'}</p>
+          {team.description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{team.description}</p> : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -73,14 +73,14 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper={''} label="成员" value={`${team.active_member_count} / ${team.member_count}`} />
-        <MetricCard helper={''} label="运行" value={formatInteger(team.run_count)} />
-        <MetricCard helper={''} label="待处理接力" value={formatInteger(pendingHandoffs)} />
-        <MetricCard helper={''} label="反馈" value={formatInteger(feedbackCount)} />
+        <AgentTeamMetricTile label="成员" value={`${team.active_member_count} / ${team.member_count}`} />
+        <AgentTeamMetricTile label="运行" value={formatInteger(team.run_count)} />
+        <AgentTeamMetricTile label="待处理接力" value={formatInteger(pendingHandoffs)} />
+        <AgentTeamMetricTile label="反馈" value={formatInteger(feedbackCount)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-4">
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <h2 className="text-sm font-semibold">基础信息</h2>
           <div className="mt-4 grid gap-3 text-sm">
             <DetailRow label="团队编码" value={team.code} />
@@ -90,7 +90,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <h2 className="text-sm font-semibold">策略摘要</h2>
           <div className="mt-4 grid gap-3 text-sm">
             <DetailRow label="主管模型" value={team.supervisor_model_name ?? '未指定'} />
@@ -102,7 +102,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">成员摘要</h2>
             <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/members`}>成员</Link></Button>
@@ -118,7 +118,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">运行摘要</h2>
             <Button asChild size="sm" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}>运行</Link></Button>
@@ -134,29 +134,27 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
         </div>
       </section>
 
-      <section className="rounded-lg border bg-background p-5">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <h2 className="text-sm font-semibold">接力 / 反馈入口</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Link className="rounded-md border bg-muted/20 p-4 transition-colors hover:bg-muted/40" href={`/agent-teams/${teamId}/runs`}>
             <div className="flex items-center gap-2 font-medium"><ListChecks className="size-4" />进入运行记录</div>
-            <p className="mt-2 text-sm text-muted-foreground">在运行记录页发起接力、保存反馈、导出报告或生成归档。</p>
           </Link>
           <Link className="rounded-md border bg-muted/20 p-4 transition-colors hover:bg-muted/40" href={`/agent-teams/${teamId}/runs`}>
             <div className="flex items-center gap-2 font-medium"><MessageSquare className="size-4" />反馈和接力</div>
-            <p className="mt-2 text-sm text-muted-foreground">当前团队有 {pendingHandoffs} 条待处理接力和 {feedbackCount} 条运行反馈。</p>
+            <div className="mt-2 text-sm text-muted-foreground">{pendingHandoffs} 条待处理接力 / {feedbackCount} 条运行反馈</div>
           </Link>
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div>
               <div className="flex items-center gap-2">
                 <Activity className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">Trace 关联</h2>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">最新运行 Trace 与请求上下文。</p>
             </div>
             {latestRun?.trace_id ? (
               <Button asChild size="sm" variant="outline">
@@ -172,7 +170,7 @@ export function AgentTeamDetailContent({ teamId }: { teamId: string }) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div>
               <div className="flex items-center gap-2">

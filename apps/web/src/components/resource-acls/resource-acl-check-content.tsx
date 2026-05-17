@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { ResourceAclBackground } from '@/components/resource-acls/resource-acl-background';
 import {
   defaultResourceAclDraft,
   ResourceAclCheckResultPanel,
@@ -94,9 +93,7 @@ export function ResourceAclCheckContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:px-6">
-      <ResourceAclBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <ResourceAclPageHeader
         actions={
           <Button asChild type="button" variant="outline">
@@ -139,7 +136,7 @@ export function ResourceAclCheckContent() {
           resources={resources}
           subjects={subjects}
         />
-        <Card className="grid content-start gap-4 p-4">
+        <Card className="grid content-start gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
           <div>
             <h2 className="text-sm font-semibold">检查结果</h2>
             <p className="mt-1 text-sm text-muted-foreground">权限校验不会创建或修改任何授权规则。</p>

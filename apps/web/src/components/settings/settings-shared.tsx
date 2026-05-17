@@ -11,6 +11,7 @@ import {
   type SystemSettingValueType,
 } from '@aiaget/shared-types';
 import { RefreshCw, Save } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,24 @@ export function defaultSettingCategorySummaries() {
     active: 0,
     changed: 0,
   }));
+}
+
+export function SettingsPageShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      {children}
+    </main>
+  );
+}
+
+export function SettingsStatTile({ detail, label, value }: { detail?: ReactNode; label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200/80 bg-white px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-2 truncate text-xl font-semibold">{value}</div>
+      {detail ? <div className="mt-1 truncate text-xs text-muted-foreground">{detail}</div> : null}
+    </div>
+  );
 }
 
 export function normalizeSettingCategory(value: string | null): SystemSettingCategory | '' {
@@ -194,7 +213,7 @@ export function SystemSettingCard({
           {changed ? <StatusBadge tone="loading">未保存</StatusBadge> : null}
         </div>
         <div className="mt-2 font-mono text-xs text-muted-foreground">{setting.key}</div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{setting.description ?? '暂无说明。'}</p>
+        {setting.description ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{setting.description}</p> : null}
         <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
           <span>类型：{settingValueTypeLabels[setting.value_type]}</span>
           <span>默认：{formatSettingDisplayValue(setting.default_value, setting.value_type, setting.is_secret)}</span>

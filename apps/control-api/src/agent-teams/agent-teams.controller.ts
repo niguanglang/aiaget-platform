@@ -34,6 +34,7 @@ import { ReviewAgentTeamHandoffDto } from './dto/review-agent-team-handoff.dto';
 import { StartAgentTeamRunDto } from './dto/start-agent-team-run.dto';
 import { UpdateAgentTeamDto } from './dto/update-agent-team.dto';
 import { UpdateAgentTeamMemberDto } from './dto/update-agent-team-member.dto';
+import { UploadAgentTeamRunReportArchiveDto } from './dto/upload-agent-team-run-report-archive.dto';
 
 @ApiTags('agent-teams')
 @ApiBearerAuth()
@@ -189,6 +190,19 @@ export class AgentTeamsController {
     @Param('runId') runId: string,
   ): Promise<CreateAgentTeamRunReportArchiveResult> {
     return this.agentTeamsService.createRunReportArchive(currentUser, runId);
+  }
+
+  @Post(':id/report/archives/upload')
+  @Permissions('agent:team:report:upload')
+  @RequireDataScope({ resourceType: 'AGENT_TEAM', idParam: 'id' })
+  @RequireResourceAcl({ resourceType: 'AGENT_TEAM', idParam: 'id', permissionCode: 'agent:team:report:upload' })
+  @ApiOkResponse({ description: 'Upload manual agent team report archive' })
+  async uploadRunReportArchive(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UploadAgentTeamRunReportArchiveDto,
+  ): Promise<CreateAgentTeamRunReportArchiveResult> {
+    return this.agentTeamsService.uploadRunReportArchive(currentUser, id, dto);
   }
 
   @Get('report/archives')

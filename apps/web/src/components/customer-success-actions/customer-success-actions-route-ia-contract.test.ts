@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -8,6 +8,12 @@ const actionsRoot = join(root, 'src/components/customer-success-actions');
 
 function source(fileName: string) {
   return readFileSync(join(actionsRoot, fileName), 'utf8');
+}
+
+function productionSources() {
+  return readdirSync(actionsRoot)
+    .filter((fileName) => fileName.endsWith('.tsx') && !fileName.endsWith('.test.tsx'))
+    .map((fileName) => [fileName, source(fileName)] as const);
 }
 
 test('customer success action center has separate list, create, detail, and edit routes', () => {
@@ -29,6 +35,18 @@ test('customer success action list stays compact and does not embed full executi
   assert.doesNotMatch(listSource, /blocker_summary[\s\S]*<td/);
   assert.doesNotMatch(listSource, /completion_evidence[\s\S]*<td/);
   assert.doesNotMatch(listSource, /CustomerSuccessActionFormPanel[\s\S]*mode="edit"/);
+});
+
+test('customer success action production components use the unified wide white operations shell', () => {
+  assert.equal(existsSync(join(actionsRoot, 'customer-success-action-background.tsx')), false);
+
+  for (const [fileName, fileSource] of productionSources()) {
+    assert.doesNotMatch(fileSource, /motion\/react/, `${fileName} must not import motion/react`);
+    assert.doesNotMatch(fileSource, /motion\./, `${fileName} must not render motion components`);
+    assert.doesNotMatch(fileSource, /MetricCard/, `${fileName} must not use the legacy MetricCard shell`);
+    assert.doesNotMatch(fileSource, /max-w-7xl/, `${fileName} must not constrain the operations shell to max-w-7xl`);
+    assert.doesNotMatch(fileSource, /CustomerSuccessActionBackground/, `${fileName} must not use the legacy background shell`);
+  }
 });
 
 test('customer success action detail owns outcome, execution notes, blockers, evidence and resources', () => {

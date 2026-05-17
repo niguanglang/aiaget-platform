@@ -69,40 +69,44 @@ export function AgentTeamEditContent({ teamId }: { teamId: string }) {
   const team = teamQuery.data;
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <Button asChild className="mb-4 w-fit" variant="outline">
-            <Link href={team ? `/agent-teams/${team.id}` : '/agent-teams'}>
-              <ArrowLeft className="size-4" />
-              {team ? '团队详情' : 'Agent 团队'}
-            </Link>
-          </Button>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">编辑页</StatusBadge>
-            {team ? <StatusBadge tone={teamStatusTone(team.status)}>{teamStatusLabel(team.status)}</StatusBadge> : null}
-            <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <Button asChild className="mb-4 w-fit" variant="outline">
+              <Link href={team ? `/agent-teams/${team.id}` : '/agent-teams'}>
+                <ArrowLeft className="size-4" />
+                {team ? '团队详情' : 'Agent 团队'}
+              </Link>
+            </Button>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">编辑页</StatusBadge>
+              {team ? <StatusBadge tone={teamStatusTone(team.status)}>{teamStatusLabel(team.status)}</StatusBadge> : null}
+              <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+            </div>
+            <h1 className="break-words text-2xl font-semibold">{team ? `编辑协作团队：${team.name}` : '编辑协作团队'}</h1>
           </div>
-          <h1 className="break-words text-2xl font-semibold">{team ? `编辑协作团队：${team.name}` : '编辑协作团队'}</h1>
         </div>
       </section>
 
       {teamQuery.isLoading ? (
-        <LoadingPanel text="正在加载协作团队..." />
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9]"><LoadingPanel text="正在加载协作团队..." /></div>
       ) : teamQuery.isError || !team ? (
-        <ErrorPanel text="协作团队加载失败。" />
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9]"><ErrorPanel text="协作团队加载失败。" /></div>
       ) : !canManage ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">当前账号没有编辑 Agent 团队权限。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">当前账号没有编辑 Agent 团队权限。</div>
       ) : (
-        <AgentTeamFormPanel
-          error={formError}
-          isPending={updateMutation.isPending}
-          mode="edit"
-          onCancel={() => router.push(`/agent-teams/${team.id}`)}
-          onSubmit={submitForm}
-          owners={ownersQuery.data?.items ?? []}
-          team={team}
-        />
+        <section className="rounded-xl border border-slate-200/80 bg-white/[0.9]">
+          <AgentTeamFormPanel
+            error={formError}
+            isPending={updateMutation.isPending}
+            mode="edit"
+            onCancel={() => router.push(`/agent-teams/${team.id}`)}
+            onSubmit={submitForm}
+            owners={ownersQuery.data?.items ?? []}
+            team={team}
+          />
+        </section>
       )}
     </main>
   );

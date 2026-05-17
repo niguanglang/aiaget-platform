@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -7,6 +7,10 @@ const rolesListSource = readFileSync(join(process.cwd(), 'src/components/roles/r
 const roleDetailSourcePath = join(process.cwd(), 'src/components/roles/role-detail-content.tsx');
 const rolePermissionsSourcePath = join(process.cwd(), 'src/components/roles/role-permissions-content.tsx');
 const roleMenusSourcePath = join(process.cwd(), 'src/components/roles/role-menus-content.tsx');
+const rolesComponentsPath = join(process.cwd(), 'src/components/roles');
+const roleComponentSources = readdirSync(rolesComponentsPath)
+  .filter((file) => file.endsWith('.tsx'))
+  .map((file) => [file, readFileSync(join(rolesComponentsPath, file), 'utf8')] as const);
 
 test('role center route-level pages exist for list, create, detail, edit, permissions, and menus', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/roles/page.tsx')));
@@ -79,4 +83,17 @@ test('role menu authorization excludes button permission nodes from menu grants'
   assert.doesNotMatch(menusSource, /按钮权限`/);
   assert.match(detailSource, /菜单入口/);
   assert.doesNotMatch(detailSource, /目录、菜单、按钮/);
+});
+
+test('role pages use the operations shell without legacy decorative dependencies or placeholder copy', () => {
+  for (const [file, source] of roleComponentSources) {
+    assert.doesNotMatch(source, /MetricCard/, file);
+    assert.doesNotMatch(source, /motion\/react/, file);
+    assert.doesNotMatch(source, /RoleCenterBackground/, file);
+    assert.doesNotMatch(source, /max-w-7xl/, file);
+    assert.doesNotMatch(source, /暂无(?:角色)?描述/, file);
+  }
+
+  assert.match(rolesListSource, /max-w-\[1680px\]/);
+  assert.match(rolesListSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
 });

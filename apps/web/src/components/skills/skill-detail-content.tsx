@@ -8,11 +8,9 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SkillCenterBackground } from '@/components/skills/skill-center-background';
 import { formatDateTime, skillCategoryLabel, skillStatusLabel, skillStatusTone } from '@/components/skills/skill-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { copySkill, deleteSkill, getSkill, publishSkill, type ApiClientError } from '@/lib/api-client';
 
@@ -85,8 +83,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
 
   if (skillQuery.isLoading) {
     return (
-      <main className="relative mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <SkillCenterBackground />
+      <main className="mx-auto max-w-[1536px] px-4 py-6 lg:px-7">
         <Card className="p-6">
           <div className="text-sm text-muted-foreground">正在加载 Skill 详情...</div>
         </Card>
@@ -96,8 +93,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
 
   if (skillQuery.isError || !skill) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
-        <SkillCenterBackground />
+      <main className="mx-auto grid max-w-[1536px] gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/skills">
             <ArrowLeft className="size-4" />
@@ -112,9 +108,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SkillCenterBackground />
-
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -129,9 +123,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
             <StatusBadge tone="planned">{skillCategoryLabel(skill.category)}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{skill.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {skill.description ?? '暂无描述。'}
-          </p>
+          {skill.description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{skill.description}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {skill.tags.map((tag) => (
               <StatusBadge key={tag} tone="planned">
@@ -166,7 +158,7 @@ export function SkillDetailContent({ skillId }: { skillId: string }) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <StatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -298,5 +290,15 @@ function TextCard({ title, value }: { title: string; value: string }) {
       <h2 className="text-base font-semibold">{title}</h2>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{value}</p>
     </Card>
+  );
+}
+
+function StatTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200/80 bg-white px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-2 truncate text-xl font-semibold">{value}</div>
+      <div className="mt-1 truncate text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }

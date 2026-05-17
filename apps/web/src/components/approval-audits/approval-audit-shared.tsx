@@ -31,6 +31,23 @@ export const approvalAuditEventTypes: ApprovalAuditEventType[] = [
 ];
 export const approvalAuditEventStatuses: ApprovalAuditEventStatus[] = ['INFO', 'SUCCESS', 'WARNING', 'FAILED'];
 
+export function ApprovalAuditPageShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      {children}
+    </main>
+  );
+}
+
+export function ApprovalAuditSummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="rounded-lg border-slate-200/80 bg-white/80 p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+    </Card>
+  );
+}
+
 export function approvalAuditSourceLabel(source: ApprovalAuditSourceType) {
   if (source === 'TOOL_APPROVAL') return '工具审批';
   if (source === 'APPROVAL_AUDIT_ARCHIVE') return '归档操作';

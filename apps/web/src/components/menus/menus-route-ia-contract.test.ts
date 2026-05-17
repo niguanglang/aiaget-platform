@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -7,6 +7,10 @@ const menuListSource = readFileSync(join(process.cwd(), 'src/components/menus/me
 const menuDetailSourcePath = join(process.cwd(), 'src/components/menus/menu-detail-content.tsx');
 const menuCreateSourcePath = join(process.cwd(), 'src/components/menus/menu-create-content.tsx');
 const menuEditSourcePath = join(process.cwd(), 'src/components/menus/menu-edit-content.tsx');
+const menuComponentsPath = join(process.cwd(), 'src/components/menus');
+const menuComponentSources = readdirSync(menuComponentsPath)
+  .filter((fileName) => fileName.endsWith('.tsx'))
+  .map((fileName) => [fileName, readFileSync(join(menuComponentsPath, fileName), 'utf8')] as const);
 const menuNavigationSource = readFileSync(join(process.cwd(), 'src/components/layout/menu-navigation.ts'), 'utf8');
 const sidebarSource = readFileSync(join(process.cwd(), 'src/components/layout/sidebar.tsx'), 'utf8');
 const mobileNavSource = readFileSync(join(process.cwd(), 'src/components/layout/mobile-nav.tsx'), 'utf8');
@@ -28,7 +32,6 @@ test('menu list page is only the tree table and query entry', () => {
   assert.match(menuListSource, /展开全部/);
   assert.match(menuListSource, /折叠全部/);
   assert.match(menuListSource, /搜索名称、编码、路径/);
-  assert.match(menuListSource, /多级菜单/);
   assert.match(menuListSource, /层级路径/);
 
   assert.doesNotMatch(menuListSource, /MenuDetailCard/);
@@ -40,6 +43,25 @@ test('menu list page is only the tree table and query entry', () => {
   assert.doesNotMatch(menuListSource, /\bgetMenu\b/);
   assert.doesNotMatch(menuListSource, /\bcreateMenu\b/);
   assert.doesNotMatch(menuListSource, /\bupdateMenu\b/);
+});
+
+test('menu pages use the operations shell without legacy decoration dependencies', () => {
+  const detailSource = readFileSync(menuDetailSourcePath, 'utf8');
+  const createSource = readFileSync(menuCreateSourcePath, 'utf8');
+  const editSource = readFileSync(menuEditSourcePath, 'utf8');
+
+  for (const source of [menuListSource, detailSource, createSource, editSource]) {
+    assert.match(source, /max-w-\[1680px\]/);
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  }
+
+  for (const [fileName, source] of menuComponentSources) {
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /motion\/react/);
+    assert.doesNotMatch(source, /MenuCenterBackground/);
+    assert.doesNotMatch(source, /max-w-7xl/);
+    assert.doesNotMatch(source, /max-w-5xl/);
+  }
 });
 
 test('menu tree table renders hierarchy path before the single code column', () => {
@@ -165,6 +187,20 @@ test('desktop sidebar keeps routed menu links and expand buttons as sibling cont
   assert.match(sidebarSource, /aria-expanded=\{isExpanded\}/);
   assert.doesNotMatch(routedLinkBranch, /\{chevron\}/);
   assert.doesNotMatch(routedLinkBranch, /<button[\s\S]*<\/Link>/);
+});
+
+test('desktop sidebar keeps directory row buttons and expand buttons as sibling controls', () => {
+  const directoryBranch = sidebarSource.slice(sidebarSource.indexOf(') : hasChildren ? ('), sidebarSource.indexOf(') : hasClickableRoute ? ('));
+  const directoryPrimaryButton = directoryBranch.slice(directoryBranch.indexOf('<button'), directoryBranch.indexOf('</button>') + '</button>'.length);
+
+  assert.ok(directoryBranch.length > 0);
+  assert.ok(directoryPrimaryButton.length > 0);
+  assert.match(directoryBranch, /directoryRowClassName/);
+  assert.match(directoryBranch, /directoryToggleClassName/);
+  assert.match(directoryBranch, /aria-expanded=\{isExpanded\}/);
+  assert.match(directoryBranch, /<\/button>\s*\{chevron\}/);
+  assert.doesNotMatch(directoryPrimaryButton, /\{chevron\}/);
+  assert.doesNotMatch(directoryPrimaryButton.replace(/^<button/, ''), /<button/);
 });
 
 test('collapsed desktop sidebar exposes child menus as a flyout instead of expanding the whole sidebar', () => {

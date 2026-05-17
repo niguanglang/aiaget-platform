@@ -15,6 +15,7 @@ import {
   approvalAuditStatusLabel,
   approvalAuditWindows,
   ApprovalAuditConfirmDialog,
+  ApprovalAuditPageShell,
   downloadBlob,
   formatBytes,
 } from '@/components/approval-audits/approval-audit-shared';
@@ -64,7 +65,7 @@ export function ApprovalAuditArchiveCreateContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
+    <ApprovalAuditPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" variant="outline">
@@ -106,7 +107,6 @@ export function ApprovalAuditArchiveCreateContent() {
             <input
               className="h-9 rounded-md border bg-background/80 px-3 text-sm outline-none"
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="标题、备注、Trace、请求 ID、操作人"
               value={keyword}
             />
           </label>
@@ -147,7 +147,6 @@ export function ApprovalAuditArchiveCreateContent() {
       <Card className="grid gap-4 p-5">
         <div>
           <h2 className="text-sm font-semibold">执行操作</h2>
-          <p className="mt-1 text-sm text-muted-foreground">CSV 导出直接下载，生成归档会写入对象存储并进入归档中心。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button disabled={csvState === 'exporting'} onClick={() => void handleExport()} type="button" variant="outline">
@@ -179,7 +178,7 @@ export function ApprovalAuditArchiveCreateContent() {
           title="确认生成审批审计归档"
         />
       ) : null}
-    </main>
+    </ApprovalAuditPageShell>
   );
 }
 

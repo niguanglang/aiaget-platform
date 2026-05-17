@@ -6,11 +6,16 @@ import { ArrowLeft, Download, FilePlus2, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { ApprovalAuditConfirmDialog, formatBytes, formatDateTime } from '@/components/approval-audits/approval-audit-shared';
+import {
+  ApprovalAuditConfirmDialog,
+  ApprovalAuditPageShell,
+  ApprovalAuditSummaryTile,
+  formatBytes,
+  formatDateTime,
+} from '@/components/approval-audits/approval-audit-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteApprovalAuditArchive,
@@ -62,7 +67,7 @@ export function ApprovalAuditArchivesContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <ApprovalAuditPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" variant="outline">
@@ -94,22 +99,21 @@ export function ApprovalAuditArchivesContent() {
       {errorMessage ? <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">{errorMessage}</div> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard helper="对象存储文件" label="归档文件" value={`${archivesQuery.data?.summary.archive_count ?? 0}`} />
-        <MetricCard helper="CSV 总容量" label="归档容量" value={formatBytes(archivesQuery.data?.summary.total_size_bytes ?? 0)} />
-        <MetricCard helper="当前列表" label="展示数量" value={`${archives.length}`} />
+        <ApprovalAuditSummaryTile label="归档文件" value={`${archivesQuery.data?.summary.archive_count ?? 0}`} />
+        <ApprovalAuditSummaryTile label="归档容量" value={formatBytes(archivesQuery.data?.summary.total_size_bytes ?? 0)} />
+        <ApprovalAuditSummaryTile label="展示数量" value={`${archives.length}`} />
       </section>
 
       <Card className="overflow-hidden">
         <div className="border-b p-5">
           <h2 className="text-sm font-semibold">归档文件列表</h2>
-          <p className="mt-1 text-sm text-muted-foreground">删除归档不会直接执行，会创建归档删除审批记录。</p>
         </div>
         {archivesQuery.isError ? (
           <div className="p-6 text-sm text-destructive">审批审计归档加载失败。</div>
         ) : archivesQuery.isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">正在加载归档文件...</div>
         ) : archives.length === 0 ? (
-          <EmptyState description="前往生成归档页面后，当前筛选结果会保存为 CSV 文件。" title="暂无审批审计归档" />
+          <EmptyState title="暂无审批审计归档" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] border-collapse text-left text-sm">
@@ -164,6 +168,6 @@ export function ApprovalAuditArchivesContent() {
           onConfirm={confirmArchiveDeleteRequest}
         />
       ) : null}
-    </main>
+    </ApprovalAuditPageShell>
   );
 }

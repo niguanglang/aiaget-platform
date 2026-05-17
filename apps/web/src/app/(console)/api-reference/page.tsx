@@ -1,9 +1,7 @@
 'use client';
 
-import { motion } from 'motion/react';
 import {
   ArrowRight,
-  BookOpen,
   CheckCircle2,
   Clipboard,
   Code2,
@@ -16,10 +14,10 @@ import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { resolveControlApiBaseUrl } from '@/lib/control-api-base-url';
 
-const controlApiBaseUrl = process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+const controlApiBaseUrl = resolveControlApiBaseUrl();
 const externalChatEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/chat`;
 const externalStreamEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/chat/stream`;
 const externalContinueEndpoint = `${controlApiBaseUrl}/external/agents/{agentId}/conversations/{conversationId}/messages`;
@@ -190,33 +188,6 @@ data: {"type":"delta","delta":"知识库生成分析结果。"}
 event: done
 data: {"type":"done","result":{"conversation_id":"8b1f...","run_id":"19a0...","trace_id":"9f4c...","answer":"已根据知识库生成分析结果。","usage":{"total_tokens":1000}}}`;
 
-const quickSteps = [
-  {
-    title: '创建 API Key',
-    detail: '白名单 / 限流 / 额度 / 过期时间',
-  },
-  {
-    title: '选择 Agent',
-    detail: '{agentId}',
-  },
-  {
-    title: '发起调用',
-    detail: '/chat / /chat/stream',
-  },
-  {
-    title: '保存会话',
-    detail: 'conversation_id',
-  },
-  {
-    title: '配置回调',
-    detail: 'Webhook URL / secret',
-  },
-  {
-    title: '追踪结果',
-    detail: 'conversation_id / run_id / trace_id',
-  },
-];
-
 const requestFields = [
   { name: 'message', type: 'string', required: '是', limit: '1 到 4000 字符', description: '用户问题或外部系统传入的任务内容。' },
   { name: 'title', type: 'string | null', required: '否', limit: '最多 220 字符', description: '会话标题，仅新建会话时生效，用于会话中心识别来源。' },
@@ -357,15 +328,8 @@ export default function ApiReferencePage() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:px-6">
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_18%_16%,rgba(37,99,235,0.11),transparent_34%),radial-gradient(circle_at_82%_10%,rgba(20,184,166,0.08),transparent_30%)]" />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-5 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-8 lg:px-6">
+      <section className="flex flex-col justify-between gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">开放接口</StatusBadge>
@@ -393,10 +357,16 @@ export default function ApiReferencePage() {
             </a>
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        {metrics.map((metric) => (
+          <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm" key={metric.label}>
+            <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+          </div>
+        ))}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]" id="sdk-package">
@@ -464,24 +434,6 @@ export default function ApiReferencePage() {
           </div>
           <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm leading-6 text-blue-800">
             流式调用需要密钥开启 `allow_stream`，并包含 `external:agent:stream` scope；其他 Agent 白名单、IP 白名单、限流、额度和资源授权继续生效。
-          </div>
-        </Card>
-
-        <Card className="grid gap-4 p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <BookOpen className="size-4 text-primary" />
-            快速接入流程
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {quickSteps.map((step, index) => (
-              <div className="rounded-md border bg-background/90 p-4" key={step.title}>
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-foreground">{index + 1}</span>
-                  {step.title}
-                </div>
-                <div className="mt-2 font-mono text-xs text-muted-foreground">{step.detail}</div>
-              </div>
-            ))}
           </div>
         </Card>
       </section>

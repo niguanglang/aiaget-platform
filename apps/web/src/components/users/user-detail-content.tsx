@@ -14,7 +14,6 @@ import { userStatusLabel, userStatusTone } from '@/components/users/user-status'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { deleteUser, getUser, type ApiClientError } from '@/lib/api-client';
 
@@ -50,9 +49,7 @@ export function UserDetailContent({ userId }: { userId: string }) {
   const isCurrentUser = currentUser?.user.id === userId;
 
   return (
-    <main className="relative mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:px-6">
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_18%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_82%_12%,rgba(20,184,166,0.08),transparent_30%)]" />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -94,22 +91,22 @@ export function UserDetailContent({ userId }: { userId: string }) {
       ) : null}
 
       {userQuery.isError ? (
-        <Card className="p-6 text-sm text-destructive">用户详情加载失败。</Card>
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive">用户详情加载失败。</Card>
       ) : userQuery.isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">正在加载用户详情...</Card>
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">正在加载用户详情...</Card>
       ) : !user ? (
-        <EmptyState description="未找到该用户，可能已被删除或无权限访问。" title="用户不存在" />
+        <EmptyState title="用户不存在" />
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard helper="账号状态" label="用户状态" value={userStatusLabel(user.status)} />
-            <MetricCard helper="ABAC 主体属性" label="所属部门" value={user.department?.name ?? '未归属'} />
-            <MetricCard helper="RBAC 授权关系" label="角色数量" value={`${user.roles.length}`} />
-            <MetricCard helper="审计参考" label="最近登录" value={user.last_login_at ? formatDateTime(user.last_login_at) : '从未登录'} />
+            <MetricTile label="用户状态" value={userStatusLabel(user.status)} />
+            <MetricTile label="所属部门" value={user.department?.name ?? '未归属'} />
+            <MetricTile label="角色数量" value={`${user.roles.length}`} />
+            <MetricTile label="最近登录" value={user.last_login_at ? formatDateTime(user.last_login_at) : '从未登录'} />
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <Card className="p-4">
+            <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
               <div className="mb-4 flex items-center gap-2">
                 <UserRound className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">基础信息</h2>
@@ -125,7 +122,7 @@ export function UserDetailContent({ userId }: { userId: string }) {
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
               <div className="mb-4 flex items-center gap-2">
                 <ShieldCheck className="size-4 text-blue-700" />
                 <h2 className="text-sm font-semibold">角色绑定</h2>
@@ -157,5 +154,14 @@ export function UserDetailContent({ userId }: { userId: string }) {
         />
       ) : null}
     </main>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 break-words text-xl font-semibold">{value}</div>
+    </div>
   );
 }

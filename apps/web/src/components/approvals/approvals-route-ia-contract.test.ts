@@ -16,6 +16,13 @@ const archiveDeletionApprovalsPath = join(root, 'src/components/approvals/archiv
 const sharedPath = join(root, 'src/components/approvals/approval-shared.tsx');
 
 const approvalsOverviewSource = readFileSync(approvalsOverviewPath, 'utf8');
+const productionSources = [
+  approvalsOverviewPath,
+  toolApprovalsPath,
+  notificationPolicyApprovalsPath,
+  archiveDeletionApprovalsPath,
+  sharedPath,
+].map((filePath) => [filePath, readFileSync(filePath, 'utf8')] as const);
 
 test('approval center route-level pages and split components exist', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/approvals/page.tsx')));
@@ -144,4 +151,15 @@ test('approval child routes using search params are wrapped in suspense boundari
     assert.match(source, /import \{ Suspense \} from 'react'/);
     assert.match(source, /<Suspense fallback=/);
   }
+});
+
+test('approval production components use the wide white page shell without legacy metric cards', () => {
+  for (const [filePath, source] of productionSources) {
+    assert.doesNotMatch(source, /MetricCard/, filePath);
+    assert.doesNotMatch(source, /max-w-7xl/, filePath);
+  }
+
+  const sharedSource = readFileSync(sharedPath, 'utf8');
+  assert.match(sharedSource, /max-w-\[1680px\]/);
+  assert.match(sharedSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
 });

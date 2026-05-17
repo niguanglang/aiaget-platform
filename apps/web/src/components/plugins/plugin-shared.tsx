@@ -25,6 +25,28 @@ import { cn } from '@/lib/utils';
 
 export type PluginSection = 'detail' | 'installations' | 'security' | 'bindings';
 
+export function PluginPageShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="mx-auto grid w-full max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 shadow-sm lg:px-6">
+      {children}
+    </main>
+  );
+}
+
+export function PluginStatsGrid({ items }: { items: Array<{ helper?: string; label: string; value: string }> }) {
+  return (
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-4" key={item.label}>
+          <div className="text-xs font-medium text-muted-foreground">{item.label}</div>
+          <div className="mt-2 text-2xl font-semibold tracking-normal">{item.value}</div>
+          {item.helper ? <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function usePluginPermissions() {
   const { currentUser } = useAuth();
   const permissions = currentUser?.user.permissions ?? [];
@@ -261,7 +283,7 @@ export function CustomPluginDialog({
   validationPending: boolean;
   validationResult: PluginManifestValidationResult | null;
 }) {
-  const [manifestText, setManifestText] = useState(defaultCustomPluginManifestText);
+  const [manifestText, setManifestText] = useState('');
   const [validatedInputKey, setValidatedInputKey] = useState<string | null>(null);
   const parsed = parsePluginManifestText(manifestText);
   const inputKey = parsed.ok ? stableStringify(parsed.input) : null;
@@ -314,7 +336,7 @@ export function CustomPluginDialog({
               <Button
                 onClick={() => {
                   setValidatedInputKey(null);
-                  setManifestText(defaultCustomPluginManifestText);
+                  setManifestText('');
                 }}
                 type="button"
                 variant="outline"
@@ -793,6 +815,8 @@ interface PluginManifestPreviewModel {
 function parsePluginManifestText(value: string):
   | { input: CreatePluginInstallationInput; ok: true; preview: PluginManifestPreviewModel }
   | { message: string; ok: false } {
+  if (!value.trim()) return { ok: false, message: '请粘贴待安装插件的 Manifest JSON。' };
+
   const parsed = parseJsonObjectText(value, 'Manifest JSON', { allowEmpty: false });
   if (!parsed.ok) return { ok: false, message: parsed.message };
   if (!parsed.value) return { ok: false, message: 'Manifest JSON 不能为空。' };
@@ -946,50 +970,3 @@ function sortJsonValue(value: unknown): unknown {
       .map(([key, entry]) => [key, sortJsonValue(entry)]),
   );
 }
-
-const defaultCustomPluginManifestText = `{
-  "code": "customer_ticket_plugin",
-  "name": "工单助手插件",
-  "provider": "内部插件",
-  "version": "1.0.0",
-  "description": "将 Agent 会话中的工单创建、状态查询和通知能力声明为受控插件。",
-  "risk_level": "MEDIUM",
-  "package": {
-    "source_url": "https://example.internal/plugins/customer-ticket-plugin-1.0.0.tgz",
-    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "signature": "sigstore-bundle-placeholder"
-  },
-  "permissions": [
-    "plugin:ticket:create",
-    "plugin:ticket:view"
-  ],
-  "menus": [
-    {
-      "code": "plugin_ticket_center",
-      "name": "工单插件中心",
-      "path": "/plugins/ticket"
-    }
-  ],
-  "hooks": [
-    {
-      "code": "ticket_created_event",
-      "name": "工单创建事件",
-      "type": "EVENT",
-      "target": "ticket.created",
-      "method": "ASYNC"
-    }
-  ],
-  "tools": [
-    {
-      "code": "create_ticket",
-      "name": "创建工单",
-      "method": "POST",
-      "url": "https://example.internal/api/tickets",
-      "risk_level": "MEDIUM"
-    }
-  ],
-  "config": {
-    "enabled": true,
-    "timeout_ms": 10000
-  }
-}`;

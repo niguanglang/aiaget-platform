@@ -22,7 +22,6 @@ import type {
   PlatformUsageLedgerItem,
   PlatformUsageTrendPoint,
 } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Activity, AlertTriangle, BellRing, Coins, GitBranch, RefreshCw, Route, Search, ShieldAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -45,8 +44,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
-import { PlatformUsageConfirmDialog } from '@/components/platform-event-usage/platform-usage-shared';
+import { PlatformUsageConfirmDialog, PlatformUsageMetricTile } from '@/components/platform-event-usage/platform-usage-shared';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDateTime, formatMoney } from '@/components/monitor/monitor-status';
 import { cn } from '@/lib/utils';
@@ -414,7 +412,7 @@ export function PlatformEventUsagePanel({
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <PlatformUsageMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
             ))}
           </div>
         )}
@@ -686,7 +684,7 @@ function UsageTrendCard({ loading, points }: { loading: boolean; points: Platfor
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量趋势...</div>
       ) : points.length === 0 ? (
-        <EmptyState description="暂无用量事件。" title="暂无趋势数据" />
+        <EmptyState title="暂无趋势数据" />
       ) : (
         <div className="grid gap-4">
           <div className="flex h-48 items-end gap-2">
@@ -728,7 +726,7 @@ function RollupCard({ loading, items }: { loading: boolean; items: PlatformEvent
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载汇总批次...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无汇总批次。" title="暂无汇总" />
+        <EmptyState title="暂无汇总" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 4).map((item) => (
@@ -779,9 +777,9 @@ function UsageAnomalyCard({
       {detecting ? (
         <div className="text-sm text-muted-foreground">正在检测用量异常...</div>
       ) : !overview ? (
-        <EmptyState description="等待检测。" title="尚未检测" />
+        <EmptyState title="尚未检测" />
       ) : overview.items.length === 0 ? (
-        <EmptyState description="暂无成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
+        <EmptyState title="暂无异常信号" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -791,14 +789,8 @@ function UsageAnomalyCard({
             <AnomalySummaryTile label="警告" value={`${summary?.warning_count ?? 0}`} />
           </div>
           <div className="grid gap-3">
-            {overview.items.slice(0, 8).map((item, index) => (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-md border bg-muted/20 px-3 py-3"
-                initial={{ opacity: 0, y: 8 }}
-                key={item.id}
-                transition={{ delay: index * 0.025, duration: 0.22 }}
-              >
+            {overview.items.slice(0, 8).map((item) => (
+              <div className="rounded-md border bg-muted/20 px-3 py-3" key={item.id}>
                 <div className="flex flex-col justify-between gap-2 lg:flex-row lg:items-start">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -817,7 +809,7 @@ function UsageAnomalyCard({
                   <span>倍率 {item.ratio}</span>
                   <span>错误 {item.error_count} · 重试 {item.retry_count}</span>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -878,7 +870,7 @@ function UsageAlertLifecycleCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载告警队列...</div>
       ) : !overview || overview.items.length === 0 ? (
-        <EmptyState description="暂无待处理告警。" title="暂无用量告警" />
+        <EmptyState title="暂无用量告警" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -888,14 +880,8 @@ function UsageAlertLifecycleCard({
             <AnomalySummaryTile label="已关闭" value={`${summary?.closed_count ?? 0}`} />
           </div>
           <div className="grid gap-3">
-            {overview.items.slice(0, 8).map((alert, index) => (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-md border bg-muted/20 px-3 py-3"
-                initial={{ opacity: 0, y: 8 }}
-                key={alert.alert_id}
-                transition={{ delay: index * 0.025, duration: 0.22 }}
-              >
+            {overview.items.slice(0, 8).map((alert) => (
+              <div className="rounded-md border bg-muted/20 px-3 py-3" key={alert.alert_id}>
                 <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-start">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -952,7 +938,7 @@ function UsageAlertLifecycleCard({
                     最近备注：{alert.last_note}
                   </div>
                 ) : null}
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -1069,7 +1055,7 @@ function UsageAlertNotificationAuditCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div>
       ) : !overview || overview.items.length === 0 ? (
-        <EmptyState description="暂无投递记录。" title="暂无投递记录" />
+        <EmptyState title="暂无投递记录" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
@@ -1079,7 +1065,7 @@ function UsageAlertNotificationAuditCard({
             <AnomalySummaryTile label="已重试" value={`${summary?.retried_count ?? 0}`} />
           </div>
           <div className="grid gap-3">
-            {overview.items.slice(0, 8).map((item, index) => (
+            {overview.items.slice(0, 8).map((item) => (
               <UsageAlertNotificationAuditRow
                 item={item}
                 key={item.notification_event_id}
@@ -1087,7 +1073,6 @@ function UsageAlertNotificationAuditCard({
                 onSelectEvent={onSelectEvent}
                 pendingNotificationEventId={pendingNotificationEventId}
                 retrying={retrying}
-                rowIndex={index}
               />
             ))}
           </div>
@@ -1103,25 +1088,18 @@ function UsageAlertNotificationAuditRow({
   onSelectEvent,
   pendingNotificationEventId,
   retrying,
-  rowIndex,
 }: {
   item: PlatformUsageAlertNotificationItem;
   onRetry: (notificationEventId: string) => void;
   onSelectEvent: (eventId: string) => void;
   pendingNotificationEventId: string | null;
   retrying: boolean;
-  rowIndex: number;
 }) {
   const pending = retrying && pendingNotificationEventId === item.notification_event_id;
   const retryable = item.status === 'FAILED' || item.status === 'PARTIAL';
 
   return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-md border bg-muted/20 px-3 py-3"
-      initial={{ opacity: 0, y: 8 }}
-      transition={{ delay: rowIndex * 0.025, duration: 0.22 }}
-    >
+    <div className="rounded-md border bg-muted/20 px-3 py-3">
       <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -1165,7 +1143,7 @@ function UsageAlertNotificationAuditRow({
           </Button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1232,14 +1210,13 @@ function UsageAlertNotificationTaskCard({
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <PlatformUsageMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
             ))}
           </div>
 
           {!hasWork ? (
             <EmptyState
               className="rounded-md border bg-slate-50/60 p-5"
-              description="暂无待自动重试投递。"
               title="暂无待自动重试项"
             />
           ) : null}
@@ -1349,7 +1326,7 @@ function RecentEventCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载平台事件...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无平台事件。" title="暂无事件" />
+        <EmptyState title="暂无事件" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">
@@ -1363,17 +1340,14 @@ function RecentEventCard({
               </tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
-                <motion.tr
-                  animate={{ opacity: 1, y: 0 }}
+              {items.map((item) => (
+                <tr
                   className={cn(
                     'border-b transition-colors last:border-0 hover:bg-muted/25',
                     activeEventId === item.id && 'bg-primary/5',
                   )}
-                  initial={{ opacity: 0, y: 6 }}
                   key={item.id}
                   onClick={() => onSelectEvent(item.id)}
-                  transition={{ delay: index * 0.02, duration: 0.2 }}
                 >
                   <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.occurred_at)}</td>
                   <td className="px-3 py-2 text-muted-foreground">{item.event_type}</td>
@@ -1386,7 +1360,7 @@ function RecentEventCard({
                     <div className="mt-1 text-xs text-muted-foreground">用量 {item.linked_usage_count} 条</div>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{shortId(item.trace_id ?? item.request_id ?? item.id)}</td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -1420,7 +1394,7 @@ function PlatformEventDetailCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
       ) : !detail ? (
-        <EmptyState description="请选择平台事件。" title="未选择事件" />
+        <EmptyState title="未选择事件" />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-2 text-sm md:grid-cols-2">
@@ -1452,7 +1426,7 @@ function PlatformEventDetailCard({
           <div className="grid gap-2">
             <div className="text-sm font-semibold">关联用量</div>
             {detail.usage_events.length === 0 ? (
-              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无关联用量。" title="暂无关联用量" />
+              <EmptyState className="rounded-md border bg-slate-50/60 p-5" title="暂无关联用量" />
             ) : (
               <div className="grid gap-2">
                 {detail.usage_events.slice(0, 4).map((item) => (
@@ -1473,7 +1447,7 @@ function PlatformEventDetailCard({
           <div className="grid gap-2">
             <div className="text-sm font-semibold">事件关系</div>
             {detail.relations.length === 0 ? (
-              <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无父子、审批或用量关系。" title="暂无关系链路" />
+              <EmptyState className="rounded-md border bg-slate-50/60 p-5" title="暂无关系链路" />
             ) : (
               <div className="grid gap-2">
                 {detail.relations.slice(0, 4).map((item) => (
@@ -1510,7 +1484,7 @@ function RecentUsageCard({ loading, items }: { loading: boolean; items: Platform
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量账本...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无用量记录。" title="暂无用量" />
+        <EmptyState title="暂无用量" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -1551,7 +1525,7 @@ function RecentRelationCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件关系...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无事件关系。" title="暂无关系" />
+        <EmptyState title="暂无关系" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 8).map((item) => (
@@ -1584,7 +1558,7 @@ function RecentLedgerCard({ loading, items }: { loading: boolean; items: Platfor
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载账本明细...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无账本明细。" title="暂无明细" />
+        <EmptyState title="暂无明细" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 6).map((item) => (

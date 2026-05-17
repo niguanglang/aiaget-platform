@@ -8,6 +8,13 @@ const notificationPolicySourcePath = join(process.cwd(), 'src/components/setting
 const notificationPolicySnapshotsSourcePath = join(process.cwd(), 'src/components/settings/notification-policy-snapshots-content.tsx');
 const productionReadinessSourcePath = join(process.cwd(), 'src/components/settings/production-readiness-content.tsx');
 const systemSettingsPageSource = readFileSync(join(process.cwd(), 'src/app/(console)/system/settings/page.tsx'), 'utf8');
+const productionFilePaths = [
+  join(process.cwd(), 'src/components/settings/settings-content.tsx'),
+  notificationPolicySourcePath,
+  notificationPolicySnapshotsSourcePath,
+  productionReadinessSourcePath,
+  join(process.cwd(), 'src/components/settings/settings-shared.tsx'),
+];
 
 test('settings canonical route-level pages exist', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/settings/page.tsx')));
@@ -75,4 +82,16 @@ test('production readiness center owns rollout checklist and manual acceptance e
   assert.doesNotMatch(productionReadinessSource, /只读清单/);
   assert.doesNotMatch(productionReadinessSource, /只读取平台状态/);
   assert.doesNotMatch(productionReadinessSource, /method:\s*['"](PATCH|DELETE)/);
+});
+
+test('settings production components use the operational page shell without legacy chrome', () => {
+  for (const filePath of productionFilePaths) {
+    const source = readFileSync(filePath, 'utf8');
+
+    assert.doesNotMatch(source, /MetricCard/, filePath);
+    assert.doesNotMatch(source, /motion\/react/, filePath);
+    assert.doesNotMatch(source, /motion\./, filePath);
+    assert.doesNotMatch(source, /max-w-7xl/, filePath);
+    assert.doesNotMatch(source, /radial-gradient/, filePath);
+  }
 });

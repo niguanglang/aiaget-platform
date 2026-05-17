@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 
 import {
   ActionMessage,
+  BillingStatTile,
   BillingWorkspaceHeader,
   PageError,
   RefreshButton,
@@ -31,7 +32,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getBillingOverview } from '@/lib/api-client';
 
@@ -77,7 +77,7 @@ export function BillingContent() {
   const maxTrendCost = Math.max(...latestTrend.map((point) => point.total_cost), 0.000001);
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
       <BillingWorkspaceHeader
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         badge="成本中心"
@@ -93,7 +93,7 @@ export function BillingContent() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {billingQuery.isLoading
           ? Array.from({ length: 8 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
-          : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+          : metrics.map((metric) => <BillingStatTile detail={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">

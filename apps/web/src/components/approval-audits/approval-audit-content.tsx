@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { ApprovalAuditEventStatus, ApprovalAuditEventType, ApprovalAuditSourceType, ApprovalAuditWindow } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Archive, ExternalLink, FilePlus2, RefreshCw, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -12,9 +11,11 @@ import {
   approvalAuditEventStatuses,
   approvalAuditEventTypeLabel,
   approvalAuditEventTypes,
+  ApprovalAuditPageShell,
   approvalAuditSourceLabel,
   approvalAuditSourceTypes,
   approvalAuditStatusLabel,
+  ApprovalAuditSummaryTile,
   approvalAuditTone,
   approvalAuditWindows,
   formatDateTime,
@@ -23,7 +24,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getApprovalAuditOverview, listApprovalAuditEvents } from '@/lib/api-client';
 
@@ -69,22 +69,17 @@ export function ApprovalAuditContent() {
     if (!summary) return [];
 
     return [
-      { label: '审计事件', value: `${summary.total_count}`, helper: `${overviewQuery.data?.window ?? windowValue} 窗口` },
-      { label: '成功事件', value: `${summary.success_count}`, helper: '审批通过或生效' },
-      { label: '失败事件', value: `${summary.failed_count}`, helper: '执行失败' },
-      { label: '告警事件', value: `${summary.warning_count}`, helper: '拒绝或警告' },
-      { label: 'Trace 覆盖', value: `${summary.trace_count}`, helper: '可追踪链路' },
+      { label: '审计事件', value: `${summary.total_count}` },
+      { label: '成功事件', value: `${summary.success_count}` },
+      { label: '失败事件', value: `${summary.failed_count}` },
+      { label: '告警事件', value: `${summary.warning_count}` },
+      { label: 'Trace 覆盖', value: `${summary.trace_count}` },
     ];
   }, [overviewQuery.data, windowValue]);
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <ApprovalAuditPageShell>
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">审批审计</StatusBadge>
@@ -117,11 +112,11 @@ export function ApprovalAuditContent() {
             刷新数据
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <ApprovalAuditSummaryTile key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -152,9 +147,6 @@ export function ApprovalAuditContent() {
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-sm font-semibold">审批审计事件</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  按关键识别字段和状态筛选事件，并通过详情查看审批链路、请求信息和处理记录。
-                </p>
               </div>
               <div className="text-sm text-muted-foreground">
                 显示 {events.length} / {eventsQuery.data?.total ?? 0}
@@ -167,7 +159,6 @@ export function ApprovalAuditContent() {
                 <input
                   className="min-w-0 flex-1 bg-transparent outline-none"
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="搜索标题、备注、Trace、请求 ID、操作人"
                   value={keyword}
                 />
               </label>
@@ -209,7 +200,7 @@ export function ApprovalAuditContent() {
         ) : eventsQuery.isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">正在加载审批审计事件...</div>
         ) : events.length === 0 ? (
-          <EmptyState description="当前筛选条件下没有审批审计事件。" title="暂无审批审计事件" />
+          <EmptyState title="暂无审批审计事件" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
@@ -221,14 +212,8 @@ export function ApprovalAuditContent() {
                 </tr>
               </thead>
               <tbody>
-                {events.map((event, index) => (
-                  <motion.tr
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                    initial={{ opacity: 0, y: 8 }}
-                    key={event.id}
-                    transition={{ delay: index * 0.015, duration: 0.2 }}
-                  >
+                {events.map((event) => (
+                  <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={event.id}>
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
                     <td className="px-4 py-3">{approvalAuditSourceLabel(event.source_type)}</td>
                     <td className="px-4 py-3">
@@ -248,14 +233,14 @@ export function ApprovalAuditContent() {
                         </Link>
                       </Button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
       </Card>
-    </main>
+    </ApprovalAuditPageShell>
   );
 }
 

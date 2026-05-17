@@ -3,11 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type CreatePluginInstallationInput, type PluginInstallationItem, type PluginManifestValidationResult, type PluginMarketItem } from '@aiaget/shared-types';
 import { Code2, Eye, PackagePlus, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { PluginCenterBackground } from '@/components/plugins/plugin-center-background';
 import {
   pluginInstallationStatuses,
   pluginRiskLabel,
@@ -22,12 +20,13 @@ import {
   CustomPluginDialog,
   InstallGuideDialog,
   Message,
+  PluginPageShell,
+  PluginStatsGrid,
   usePluginPermissions,
 } from '@/components/plugins/plugin-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   getPluginOverview,
@@ -147,22 +146,15 @@ export function PluginContent() {
 
   if (!canView) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <PluginCenterBackground />
+      <PluginPageShell>
         <EmptyState title="无权限访问插件中心" />
-      </main>
+      </PluginPageShell>
     );
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <PluginPageShell>
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">插件生态</StatusBadge>
@@ -191,16 +183,12 @@ export function PluginContent() {
             自定义插件
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       {notice ? <Message tone="success" value={notice} /> : null}
       {actionError ? <Message tone="error" value={actionError} /> : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </section>
+      <PluginStatsGrid items={metrics} />
 
       <Card className="min-w-0 overflow-hidden">
         <div className="border-b p-4">
@@ -322,7 +310,7 @@ export function PluginContent() {
           validationResult={validateManifestMutation.data ?? null}
         />
       ) : null}
-    </main>
+    </PluginPageShell>
   );
 }
 

@@ -13,13 +13,13 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
 import { WorkflowBackendCard } from '@/components/monitor/monitor-shared-panels';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { resolveControlApiBaseUrl } from '@/lib/control-api-base-url';
 
-const controlApiBaseUrl = process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+const controlApiBaseUrl = resolveControlApiBaseUrl();
 type WorkflowRetryTarget = {
   task_type: RuntimeWorkflowTaskType;
   task_id: string;
@@ -71,8 +71,7 @@ export function RuntimeWorkflowsContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MonitorCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -255,9 +254,19 @@ async function retryRuntimeWorkflowTask(accessToken: string, input: { task_type:
 function buildWorkflowHeaders(accessToken: string) {
   const headers = new Headers();
   headers.set('accept', 'application/json');
-  headers.set('x-request-id', `req_${crypto.randomUUID().replaceAll('-', '')}`);
+  headers.set('x-request-id', createBrowserRequestId());
   if (accessToken) {
     headers.set('authorization', `Bearer ${accessToken}`);
   }
   return headers;
+}
+
+function createBrowserRequestId() {
+  const randomUUID = globalThis.crypto?.randomUUID;
+
+  if (randomUUID) {
+    return `req_${randomUUID.call(globalThis.crypto).replaceAll('-', '')}`;
+  }
+
+  return `req_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 18)}`;
 }

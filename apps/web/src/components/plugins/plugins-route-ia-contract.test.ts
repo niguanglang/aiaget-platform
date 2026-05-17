@@ -11,6 +11,13 @@ const installationsPath = join(root, 'src/components/plugins/plugin-installation
 const securityPath = join(root, 'src/components/plugins/plugin-security-content.tsx');
 const bindingsPath = join(root, 'src/components/plugins/plugin-bindings-content.tsx');
 const sharedPath = join(root, 'src/components/plugins/plugin-shared.tsx');
+const productionComponentPaths = [
+  join(root, 'src/components/plugins/plugin-content.tsx'),
+  detailPath,
+  installationsPath,
+  securityPath,
+  bindingsPath,
+];
 
 function source(path: string) {
   return readFileSync(path, 'utf8');
@@ -215,4 +222,23 @@ test('plugin hook execution queue success exposes a monitor event deep link', ()
   assert.match(bindingsSource, /事件详情/);
   assert.match(bindingsSource, /\/monitor\/events\/\$\{queuedEventId\}/);
   assert.match(bindingsSource, /queuedEventId/);
+});
+
+test('production plugin pages use the operations shell and do not depend on legacy chrome', () => {
+  const sharedSource = source(sharedPath);
+
+  assert.match(sharedSource, /max-w-\[1680px\]/);
+  assert.match(sharedSource, /rounded-xl/);
+  assert.match(sharedSource, /border-slate-200\/80/);
+  assert.match(sharedSource, /bg-white\/\[0\.9\]/);
+
+  for (const componentPath of productionComponentPaths) {
+    const componentSource = source(componentPath);
+
+    assert.doesNotMatch(componentSource, /MetricCard/);
+    assert.doesNotMatch(componentSource, /motion\/react|<motion\./);
+    assert.doesNotMatch(componentSource, /max-w-7xl/);
+    assert.doesNotMatch(componentSource, /PluginCenterBackground/);
+    assert.match(componentSource, /PluginPageShell/);
+  }
 });

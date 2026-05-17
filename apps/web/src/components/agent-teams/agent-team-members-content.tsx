@@ -120,43 +120,44 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
   }
 
   if (teamQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载团队成员..." /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-6 lg:px-6"><div className="rounded-xl border border-slate-200/80 bg-white/[0.9]"><LoadingPanel text="正在加载团队成员..." /></div></main>;
   }
 
   if (teamQuery.isError || !team) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-6 lg:px-6">
         <Button asChild className="w-fit" variant="outline"><Link href="/agent-teams"><ArrowLeft className="size-4" />返回</Link></Button>
-        <ErrorPanel text="团队成员加载失败。" />
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9]"><ErrorPanel text="团队成员加载失败。" /></div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}`}><ArrowLeft className="size-4" />团队详情</Link></Button>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">成员</StatusBadge>
-            <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}`}><ArrowLeft className="size-4" />团队详情</Link></Button>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">成员</StatusBadge>
+              <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+            </div>
+            <h1 className="break-words text-2xl font-semibold">{team.name} · 成员</h1>
           </div>
-          <h1 className="break-words text-2xl font-semibold">{team.name} · 成员</h1>
+          <Button disabled={!canManage} onClick={openCreateForm} type="button">
+            <Plus className="size-4" />
+            添加成员
+          </Button>
         </div>
-        <Button disabled={!canManage} onClick={openCreateForm} type="button">
-          <Plus className="size-4" />
-          添加成员
-        </Button>
       </section>
 
-      <section className="rounded-lg border bg-background">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9]">
         <div className="border-b p-4">
           <h2 className="text-sm font-semibold">成员列表</h2>
-          <p className="mt-1 text-sm text-muted-foreground">当前 {team.active_member_count} 个启用成员，共 {team.member_count} 个成员。</p>
         </div>
 
         {members.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">暂无成员。添加已发布 Agent 后才能启动团队任务。</div>
+          <div className="p-10 text-center text-sm text-muted-foreground">无数据</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] border-collapse text-left text-sm">
@@ -190,7 +191,7 @@ export function AgentTeamMembersContent({ teamId }: { teamId: string }) {
 
       {memberForm ? (
         <section className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-background p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-xl">
             <h2 className="text-lg font-semibold">{editingMemberId ? '编辑团队成员' : '添加团队成员'}</h2>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm font-medium">Agent

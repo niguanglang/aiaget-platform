@@ -5,10 +5,44 @@ import test from 'node:test';
 
 const root = process.cwd();
 const packagesRoot = join(root, 'src/components/solution-packages');
+const componentFiles = [
+  'solution-packages-content.tsx',
+  'solution-package-create-content.tsx',
+  'solution-package-detail-content.tsx',
+  'solution-package-edit-content.tsx',
+  'solution-package-form-panel.tsx',
+];
+const pageShellFiles = [
+  'solution-packages-content.tsx',
+  'solution-package-create-content.tsx',
+  'solution-package-detail-content.tsx',
+  'solution-package-edit-content.tsx',
+  'solution-package-form-panel.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(packagesRoot, fileName), 'utf8');
 }
+
+test('solution package pages do not depend on the old page shell', () => {
+  for (const fileName of componentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /\bMetricCard\b/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /\bSolutionPackageBackground\b/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+  }
+
+  for (const fileName of pageShellFiles) {
+    const componentSource = source(fileName);
+
+    assert.match(componentSource, /max-w-\[1680px\]/, fileName);
+    assert.match(componentSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, fileName);
+  }
+
+  assert.equal(existsSync(join(packagesRoot, 'solution-package-background.tsx')), false);
+});
 
 test('solution package center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/solution-packages/page.tsx')));

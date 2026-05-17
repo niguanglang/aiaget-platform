@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -9,6 +9,12 @@ const conversationsRoot = join(process.cwd(), 'src/components/conversations');
 
 function source(fileName: string) {
   return readFileSync(join(conversationsRoot, fileName), 'utf8');
+}
+
+function productionSources() {
+  return readdirSync(conversationsRoot)
+    .filter((fileName) => fileName.endsWith('.tsx') && !fileName.endsWith('.test.tsx'))
+    .map((fileName) => [fileName, source(fileName)] as const);
 }
 
 test('conversation center route-level pages exist for list, create, and detail', () => {
@@ -24,6 +30,18 @@ test('conversation list page keeps detail, forms, and chat panels out of the lis
   assert.doesNotMatch(conversationsListSource, /getConversation/);
   assert.doesNotMatch(conversationsListSource, /createConversation/);
   assert.doesNotMatch(conversationsListSource, /sendConversationMessage/);
+});
+
+test('conversation production components use the unified wide white operations shell', () => {
+  assert.equal(existsSync(join(conversationsRoot, 'conversation-center-background.tsx')), false);
+
+  for (const [fileName, fileSource] of productionSources()) {
+    assert.doesNotMatch(fileSource, /motion\/react/, `${fileName} must not import motion/react`);
+    assert.doesNotMatch(fileSource, /motion\./, `${fileName} must not render motion components`);
+    assert.doesNotMatch(fileSource, /MetricCard/, `${fileName} must not use the legacy MetricCard shell`);
+    assert.doesNotMatch(fileSource, /max-w-7xl/, `${fileName} must not constrain the operations shell to max-w-7xl`);
+    assert.doesNotMatch(fileSource, /ConversationCenterBackground/, `${fileName} must not use the legacy background shell`);
+  }
 });
 
 test('conversation detail page owns message streaming and feedback workflow', () => {

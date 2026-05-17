@@ -71,7 +71,7 @@ export function UserFormPanel({
     <section
       className={
         isPage
-          ? 'grid rounded-lg border bg-background shadow-sm'
+          ? 'grid rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-sm'
           : 'fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col border-l bg-background shadow-xl'
       }
     >
@@ -79,9 +79,6 @@ export function UserFormPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{isCreating ? '新建用户' : '编辑用户'}</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {isCreating ? '创建租户用户并绑定部门与角色。' : `正在编辑 ${user?.email ?? ''}`}
-            </p>
           </div>
           <Button onClick={onClose} size="icon" type="button" variant="ghost">
             <X className="size-4" />
@@ -101,8 +98,8 @@ export function UserFormPanel({
         </Field>
         <Field label="密码">
           <Input
+            aria-label={isCreating ? '初始密码' : '新密码'}
             disabled={!canManage}
-            placeholder={isCreating ? '必填' : '留空则保留当前密码'}
             type="password"
             {...form.register('password')}
           />

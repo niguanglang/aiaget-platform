@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 import {
+  AgentTeamMetricTile,
   DetailRow,
   ErrorPanel,
   formatDateTime,
@@ -19,7 +20,6 @@ import {
 } from '@/components/agent-teams/agent-teams-shared';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getAgentTeam } from '@/lib/api-client';
 
@@ -59,12 +59,12 @@ export function AgentTeamRunStepDetailContent({
   );
 
   if (teamQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载步骤详情..." /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-5 lg:px-7"><LoadingPanel text="正在加载步骤详情" /></main>;
   }
 
   if (teamQuery.isError || !team) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs/${runId}`}><ArrowLeft className="size-4" />运行详情</Link></Button>
         <ErrorPanel text="步骤详情加载失败。" />
       </main>
@@ -73,7 +73,7 @@ export function AgentTeamRunStepDetailContent({
 
   if (!run || !step) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs/${runId}`}><ArrowLeft className="size-4" />运行详情</Link></Button>
         <EmptyState title="步骤记录不存在" />
       </main>
@@ -81,7 +81,7 @@ export function AgentTeamRunStepDetailContent({
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs/${runId}`}><ArrowLeft className="size-4" />运行详情</Link></Button>
@@ -101,15 +101,15 @@ export function AgentTeamRunStepDetailContent({
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper={step.agent_name ?? '未绑定 Agent'} label="执行成员" value={step.agent_code ?? '-'} />
-        <MetricCard helper={''} label="Token" value={formatInteger(step.total_tokens)} />
-        <MetricCard helper={''} label="延迟" value={formatLatency(step.duration_ms)} />
-        <MetricCard helper={''} label="成本" value={formatMoney(step.cost_total)} />
+        <AgentTeamMetricTile helper={step.agent_name ?? undefined} label="执行成员" value={step.agent_code ?? '-'} />
+        <AgentTeamMetricTile label="Token" value={formatInteger(step.total_tokens)} />
+        <AgentTeamMetricTile label="延迟" value={formatLatency(step.duration_ms)} />
+        <AgentTeamMetricTile label="成本" value={formatMoney(step.cost_total)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="grid gap-4">
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Workflow className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">基础信息</h2>
@@ -127,7 +127,7 @@ export function AgentTeamRunStepDetailContent({
             {step.error_message ? <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{step.error_message}</div> : null}
           </section>
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Workflow className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">成员内部事件</h2>
@@ -150,7 +150,7 @@ export function AgentTeamRunStepDetailContent({
         </div>
 
         <aside className="grid content-start gap-4">
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <MessageSquare className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">子事件详情</h2>
@@ -162,7 +162,7 @@ export function AgentTeamRunStepDetailContent({
             )}
           </section>
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Timer className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">运行上下文</h2>

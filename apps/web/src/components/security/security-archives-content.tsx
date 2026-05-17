@@ -18,12 +18,13 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SECURITY_PAGE_SHELL_CLASS,
   SecurityConfirmDialog,
+  SecurityStatTile,
   SecurityWorkspaceHeader,
   approvalStatusLabel,
   approvalStatusTone,
@@ -34,7 +35,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteSecurityOperationAlertNotificationArchive,
@@ -298,9 +298,7 @@ export function SecurityArchivesContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <>
@@ -364,14 +362,14 @@ export function SecurityArchivesContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper={activeMeta.label} label="归档文件" value={formatNumber(activeSummary.archiveCount)} />
-	        <MetricCard helper="容量" label="归档容量" value={formatBytes(activeSummary.totalSizeBytes)} />
-	        <MetricCard
+        <SecurityStatTile helper={activeMeta.label} label="归档文件" value={formatNumber(activeSummary.archiveCount)} />
+	        <SecurityStatTile helper="容量" label="归档容量" value={formatBytes(activeSummary.totalSizeBytes)} />
+	        <SecurityStatTile
 	          helper="待审"
 	          label="删除待审"
 	          value={formatNumber(activeApprovalOverview?.pending_count ?? activeSummary.pendingCount)}
 	        />
-	        <MetricCard
+	        <SecurityStatTile
 	          helper="生效"
 	          label="删除生效"
 	          value={formatNumber(activeApprovalOverview?.applied_count ?? activeSummary.appliedCount)}

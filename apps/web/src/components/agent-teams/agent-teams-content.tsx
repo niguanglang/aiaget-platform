@@ -4,12 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type AgentTeamListItem } from '@aiaget/shared-types';
 import { Edit, Eye, FileArchive, ListChecks, Plus, Search, Trash2, UsersRound } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   formatDateTime,
@@ -62,15 +61,7 @@ export function AgentTeamsContent() {
 
   const teams = teamsQuery.data?.items ?? [];
   const owners = ownersQuery.data?.items ?? [];
-  const metrics = useMemo(() => {
-    const overview = overviewQuery.data;
-    return [
-      { label: '协作团队', value: `${overview?.total ?? teamsQuery.data?.total ?? 0}`, helper: '租户范围' },
-      { label: '启用团队', value: `${overview?.active_count ?? 0}`, helper: 'ACTIVE' },
-      { label: '运行中', value: `${overview?.running_count ?? 0}`, helper: '队列与执行' },
-      { label: '等待接管', value: `${overview?.waiting_human_count ?? 0}`, helper: '人工接力' },
-    ];
-  }, [overviewQuery.data, teamsQuery.data?.total]);
+  const overview = overviewQuery.data;
 
   function clearFilters() {
     setKeyword('');
@@ -90,39 +81,43 @@ export function AgentTeamsContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">Agent 团队</StatusBadge>
-            <StatusBadge tone="healthy">列表总览</StatusBadge>
-            <StatusBadge tone="planned">运行记录</StatusBadge>
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">Agent 团队</StatusBadge>
+              <StatusBadge tone="healthy">列表总览</StatusBadge>
+              <StatusBadge tone="planned">运行记录</StatusBadge>
+            </div>
+            <h1 className="text-2xl font-semibold">Agent 协作中心</h1>
           </div>
-          <h1 className="text-2xl font-semibold">Agent 协作中心</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/agent-teams/report-archives">
-              <FileArchive className="size-4" />
-              报告归档
-            </Link>
-          </Button>
-          {canManage ? (
-            <Button asChild>
-              <Link href="/agent-teams/create">
-                <Plus className="size-4" />
-                新建协作团队
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href="/agent-teams/report-archives">
+                <FileArchive className="size-4" />
+                报告归档
               </Link>
             </Button>
-          ) : null}
+            {canManage ? (
+              <Button asChild>
+                <Link href="/agent-teams/create">
+                  <Plus className="size-4" />
+                  新建协作团队
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+          <div><span className="text-muted-foreground">协作团队</span><div className="mt-1 text-xl font-semibold">{overview?.total ?? teamsQuery.data?.total ?? 0}</div></div>
+          <div><span className="text-muted-foreground">启用团队</span><div className="mt-1 text-xl font-semibold">{overview?.active_count ?? 0}</div></div>
+          <div><span className="text-muted-foreground">运行中</span><div className="mt-1 text-xl font-semibold">{overview?.running_count ?? 0}</div></div>
+          <div><span className="text-muted-foreground">等待接管</span><div className="mt-1 text-xl font-semibold">{overview?.waiting_human_count ?? 0}</div></div>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
-      </section>
-
-      <section className="rounded-lg border bg-background">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9]">
         <div className="border-b p-4">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
@@ -133,7 +128,7 @@ export function AgentTeamsContent() {
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_180px_180px_220px_auto]">
               <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
                 <Search className="size-4 text-muted-foreground" />
-                <input className="min-w-0 flex-1 bg-transparent outline-none" onChange={(event) => setKeyword(event.target.value)} placeholder="搜索名称、编码、描述" value={keyword} />
+                <input className="min-w-0 flex-1 bg-transparent outline-none" onChange={(event) => setKeyword(event.target.value)} value={keyword} />
               </label>
               <select className="h-9 rounded-md border bg-background px-3 text-sm" onChange={(event) => setStatus(event.target.value)} value={status}>
                 <option value="">全部状态</option>
@@ -157,10 +152,7 @@ export function AgentTeamsContent() {
         ) : teamsQuery.isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">正在加载协作团队...</div>
         ) : teams.length === 0 ? (
-          <div className="p-10 text-center">
-            <div className="font-medium">暂无协作团队</div>
-            <p className="mt-2 text-sm text-muted-foreground">新建团队，或调整关键词、状态、模式和负责人筛选。</p>
-          </div>
+          <div className="p-10 text-center text-sm text-muted-foreground">无数据</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1240px] border-collapse text-left text-sm">
@@ -198,7 +190,7 @@ export function AgentTeamsContent() {
                           <StatusBadge tone={teamRunStatusTone(team.latest_run.status)}>{teamRunStatusLabel(team.latest_run.status)}</StatusBadge>
                           <span className="line-clamp-1 text-xs text-muted-foreground">{team.latest_run.objective}</span>
                         </div>
-                      ) : <span className="text-muted-foreground">暂无运行</span>}
+                      ) : <span className="text-muted-foreground">-</span>}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{team.owner?.name ?? '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDateTime(team.updated_at)}</td>

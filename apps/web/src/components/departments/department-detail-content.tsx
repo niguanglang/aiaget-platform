@@ -8,13 +8,11 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DepartmentCenterBackground } from '@/components/departments/department-center-background';
 import { departmentStatusLabel, departmentStatusTone, formatDateTime } from '@/components/departments/department-status';
 import { ConfirmDialog, DetailLine } from '@/components/roles/role-ia-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteDepartment,
@@ -107,9 +105,7 @@ export function DepartmentDetailContent({ departmentId }: { departmentId: string
   );
 
   return (
-    <main className="relative mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:px-6">
-      <DepartmentCenterBackground />
-
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -171,7 +167,7 @@ export function DepartmentDetailContent({ departmentId }: { departmentId: string
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+              <InfoTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
             ))}
           </section>
 
@@ -274,5 +270,15 @@ export function DepartmentDetailContent({ departmentId }: { departmentId: string
         />
       ) : null}
     </main>
+  );
+}
+
+function InfoTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 break-words text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }

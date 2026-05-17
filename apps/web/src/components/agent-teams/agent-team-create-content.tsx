@@ -46,34 +46,38 @@ export function AgentTeamCreateContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <Button asChild className="mb-4 w-fit" variant="outline">
-            <Link href="/agent-teams">
-              <ArrowLeft className="size-4" />
-              Agent 团队
-            </Link>
-          </Button>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">新增页</StatusBadge>
-            <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div>
+            <Button asChild className="mb-4 w-fit" variant="outline">
+              <Link href="/agent-teams">
+                <ArrowLeft className="size-4" />
+                Agent 团队
+              </Link>
+            </Button>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <StatusBadge tone="ready">新增页</StatusBadge>
+              <StatusBadge tone={canManage ? 'healthy' : 'degraded'}>{canManage ? '可编辑' : '只读权限'}</StatusBadge>
+            </div>
+            <h1 className="text-2xl font-semibold">新建协作团队</h1>
           </div>
-          <h1 className="text-2xl font-semibold">新建协作团队</h1>
         </div>
       </section>
 
       {!canManage ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">当前账号没有新建 Agent 团队权限。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">当前账号没有新建 Agent 团队权限。</div>
       ) : (
-        <AgentTeamFormPanel
-          error={formError}
-          isPending={createMutation.isPending}
-          mode="create"
-          onCancel={() => router.push('/agent-teams')}
-          onSubmit={submitForm}
-          owners={ownersQuery.data?.items ?? []}
-        />
+        <section className="rounded-xl border border-slate-200/80 bg-white/[0.9]">
+          <AgentTeamFormPanel
+            error={formError}
+            isPending={createMutation.isPending}
+            mode="create"
+            onCancel={() => router.push('/agent-teams')}
+            onSubmit={submitForm}
+            owners={ownersQuery.data?.items ?? []}
+          />
+        </section>
       )}
     </main>
   );

@@ -5,7 +5,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, GitBranch } from 'lucide-react';
 import { useState } from 'react';
 
-import { MonitorCenterBackground } from '@/components/monitor/monitor-center-background';
 import {
   Notice,
   parsePlatformUsageWindow,
@@ -115,8 +114,7 @@ export function PlatformUsageAlertsContent() {
     notifyAlertMutation.isPending;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MonitorCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <PlatformUsageHeader
         badge="用量告警"
         refreshing={overviewQuery.isFetching || alertsQuery.isFetching}

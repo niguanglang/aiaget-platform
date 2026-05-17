@@ -7,7 +7,6 @@ import {
   type ProductionReadinessStatus,
 } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -26,8 +25,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { SettingsPageShell, SettingsStatTile } from '@/components/settings/settings-shared';
 import {
   acceptProductionReadinessCheck,
   getProductionReadinessOverview,
@@ -104,15 +103,8 @@ export function ProductionReadinessContent() {
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <div className="pointer-events-none absolute inset-x-8 top-0 -z-10 h-64 rounded-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_34%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_32%)] blur-3xl" />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <SettingsPageShell>
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">生产验收</StatusBadge>
@@ -136,11 +128,11 @@ export function ProductionReadinessContent() {
             刷新
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <SettingsStatTile detail={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -222,7 +214,7 @@ export function ProductionReadinessContent() {
           ))}
         </div>
       </section>
-    </main>
+    </SettingsPageShell>
   );
 }
 

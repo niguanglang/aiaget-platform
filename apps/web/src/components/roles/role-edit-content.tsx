@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleCenterBackground } from '@/components/roles/role-center-background';
 import { RoleFormPanel, type RoleFormValues } from '@/components/roles/role-form-panel';
 import { nullableText } from '@/components/roles/role-ia-shared';
 import { Button } from '@/components/ui/button';
@@ -58,9 +57,7 @@ export function RoleEditContent({ roleId }: { roleId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <RoleCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm md:p-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">

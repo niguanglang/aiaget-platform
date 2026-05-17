@@ -295,8 +295,8 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
 
   if (promptQuery.isLoading) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+      <main className="mx-auto max-w-[1680px] px-4 py-6 lg:px-7">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">
           正在加载提示词详情...
         </div>
       </main>
@@ -305,14 +305,14 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
 
   if (promptQuery.isError || !prompt) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/prompts">
             <ArrowLeft className="size-4" />
             提示词
           </Link>
         </Button>
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-6 text-sm text-destructive">
           提示词详情加载失败。
         </div>
       </main>
@@ -320,7 +320,7 @@ export function PromptDetailContent({ promptId }: { promptId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
       <PromptDetailHeader
         canWrite={canWrite}
         copyPending={copyMutation.isPending}

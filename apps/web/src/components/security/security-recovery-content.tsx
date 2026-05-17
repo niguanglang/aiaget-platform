@@ -14,12 +14,13 @@ import { Archive, ArrowRight, Download, Search, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SECURITY_PAGE_SHELL_CLASS,
   SecurityConfirmDialog,
+  SecurityStatTile,
   SecurityWorkspaceHeader,
   formatBytes,
   formatDateTime,
@@ -32,7 +33,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   createSecurityOperationAlertNotificationTaskRecoveryAuditArchive,
@@ -262,9 +262,7 @@ export function SecurityRecoveryContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <>
@@ -290,10 +288,10 @@ export function SecurityRecoveryContent() {
 	      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-	        <MetricCard helper="通知" label="待通知" value={formatNumber(taskOverview?.summary.pending_auto_notify_count)} />
-	        <MetricCard helper="重试" label="待重试" value={formatNumber(taskOverview?.summary.pending_auto_retry_count)} />
-	        <MetricCard helper="24h" label="任务失败率" value={formatPercent(failureRate)} />
-	        <MetricCard helper="建议" label="待处理建议" value={formatNumber(suggestions.length)} />
+	        <SecurityStatTile helper="通知" label="待通知" value={formatNumber(taskOverview?.summary.pending_auto_notify_count)} />
+	        <SecurityStatTile helper="重试" label="待重试" value={formatNumber(taskOverview?.summary.pending_auto_retry_count)} />
+	        <SecurityStatTile helper="24h" label="任务失败率" value={formatPercent(failureRate)} />
+	        <SecurityStatTile helper="建议" label="待处理建议" value={formatNumber(suggestions.length)} />
       </section>
 
       {recoveryNotice ? (
@@ -512,10 +510,10 @@ export function SecurityRecoveryContent() {
 	            <h2 className="text-sm font-semibold">归档审批</h2>
 	          </div>
 	          <div className="mt-4 grid gap-4 md:grid-cols-4">
-	            <MetricCard helper="归档" label="归档文件" value={formatNumber(archivesQuery.data?.summary.archive_count)} />
-	            <MetricCard helper="大小" label="归档大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes)} />
-	            <MetricCard helper="待审" label="待审批" value={formatNumber(archiveOverviewQuery.data?.pending_count)} />
-	            <MetricCard helper="生效" label="已生效" value={formatNumber(archiveOverviewQuery.data?.applied_count)} />
+	            <SecurityStatTile helper="归档" label="归档文件" value={formatNumber(archivesQuery.data?.summary.archive_count)} />
+	            <SecurityStatTile helper="大小" label="归档大小" value={formatBytes(archivesQuery.data?.summary.total_size_bytes)} />
+	            <SecurityStatTile helper="待审" label="待审批" value={formatNumber(archiveOverviewQuery.data?.pending_count)} />
+	            <SecurityStatTile helper="生效" label="已生效" value={formatNumber(archiveOverviewQuery.data?.applied_count)} />
           </div>
         </div>
         {archiveApprovalsQuery.isError || archivesQuery.isError ? (

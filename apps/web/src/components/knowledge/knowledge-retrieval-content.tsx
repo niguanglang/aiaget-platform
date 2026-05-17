@@ -5,7 +5,6 @@ import type { KnowledgeRetrievalMode, KnowledgeRetrievalTestResult } from '@aiag
 import { Database, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import { formatDateTime, knowledgeRetrievalModeLabel, knowledgeStatusLabel, knowledgeStatusTone } from '@/components/knowledge/knowledge-status';
 import {
   KnowledgeConfirmDialog,
@@ -26,7 +25,7 @@ const retrievalModes: KnowledgeRetrievalMode[] = ['HYBRID', 'VECTOR', 'KEYWORD']
 export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string }) {
   const canWrite = useKnowledgeWritePermission();
   const [retrievalError, setRetrievalError] = useState<string | null>(null);
-  const [retrievalQuery, setRetrievalQuery] = useState('认证部署指南');
+  const [retrievalQuery, setRetrievalQuery] = useState('');
   const [retrievalMode, setRetrievalMode] = useState<KnowledgeRetrievalMode>('HYBRID');
   const [topK, setTopK] = useState(5);
   const [retrievalResult, setRetrievalResult] = useState<KnowledgeRetrievalTestResult | null>(null);
@@ -83,8 +82,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <KnowledgeCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <KnowledgeWorkspaceHeader
         actions={
           <>
@@ -119,7 +117,7 @@ export function KnowledgeRetrievalContent({ knowledgeId }: { knowledgeId: string
         <RetrievalResultCard result={retrievalResult} />
       </section>
 
-      <Card className="grid gap-4 p-5">
+      <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <h2 className="text-sm font-semibold">召回日志</h2>
         {!base || base.recall_logs.length === 0 ? (
 	          <EmptyState title="暂无召回日志" />
@@ -177,7 +175,7 @@ function RetrievalFormCard({
   topK: number;
 }) {
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
 	      <div>
 	        <div className="flex items-center gap-2 text-sm font-semibold">
 	          <Search className="size-4" />
@@ -205,7 +203,7 @@ function RetrievalFormCard({
 
 function RetrievalResultCard({ result }: { result: KnowledgeRetrievalTestResult | null }) {
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <h2 className="text-sm font-semibold">最新结果</h2>
       {!result ? (
 	        <EmptyState title="暂无检索结果" />

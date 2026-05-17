@@ -10,11 +10,12 @@ import { Activity, ArrowRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SECURITY_PAGE_SHELL_CLASS,
+  SecurityStatTile,
   SecurityWorkspaceHeader,
   formatDateTime,
   securityEventSourceLabel,
@@ -24,7 +25,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listSecurityCenterEvents } from '@/lib/api-client';
 
@@ -77,9 +77,7 @@ export function SecurityEventsContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <RefreshButton loading={eventsQuery.isFetching} onClick={() => {
@@ -91,9 +89,9 @@ export function SecurityEventsContent() {
 	      />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard helper={`${windowValue} 窗口`} label="事件总数" value={`${total}`} />
-	        <MetricCard helper="Trace" label="Trace 事件" value={`${tracedCount}`} />
-	        <MetricCard helper={traceOnly ? 'Trace' : '全部'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
+        <SecurityStatTile helper={`${windowValue} 窗口`} label="事件总数" value={`${total}`} />
+	        <SecurityStatTile helper="Trace" label="Trace 事件" value={`${tracedCount}`} />
+	        <SecurityStatTile helper={traceOnly ? 'Trace' : '全部'} label="筛选模式" value={traceOnly ? 'Trace' : '全部'} />
       </section>
 
       <section className="grid gap-4">

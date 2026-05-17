@@ -78,7 +78,7 @@ export function StorageUploadContent() {
         <div className="grid gap-4 md:grid-cols-[260px_1fr]">
           <label className="grid gap-2 text-sm">
             <span className="font-medium">目标目录</span>
-            <Input disabled={!storagePermissions.canManage} onChange={(event) => setUploadFolder(event.target.value)} placeholder="uploads" value={uploadFolder} />
+            <Input aria-label="上传目录" disabled={!storagePermissions.canManage} onChange={(event) => setUploadFolder(event.target.value)} value={uploadFolder} />
           </label>
 
           <label className="grid gap-2 text-sm" htmlFor="storage-upload-file">

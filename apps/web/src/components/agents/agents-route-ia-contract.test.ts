@@ -7,6 +7,13 @@ const agentsRoot = join(process.cwd(), 'src/components/agents');
 const agentsListSource = readFileSync(join(agentsRoot, 'agents-content.tsx'), 'utf8');
 const agentDetailSource = readFileSync(join(agentsRoot, 'agent-detail-content.tsx'), 'utf8');
 const agentBindingSource = readFileSync(join(agentsRoot, 'agent-binding-manager.tsx'), 'utf8');
+const productionFileNames = [
+  'agents-content.tsx',
+  'agent-detail-content.tsx',
+  'agent-create-content.tsx',
+  'agent-edit-content.tsx',
+  'agent-binding-manager.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(agentsRoot, fileName), 'utf8');
@@ -94,4 +101,16 @@ test('agent resource binding create and update actions require confirmation befo
   assert.doesNotMatch(agentBindingSource, /onClick=\{\(\) => updateKnowledgeBindingMutation\.mutate/);
   assert.doesNotMatch(agentBindingSource, /onClick=\{\(\) => createToolBindingMutation\.mutate/);
   assert.doesNotMatch(agentBindingSource, /onClick=\{\(\) => updateToolBindingMutation\.mutate/);
+});
+
+test('agent production components avoid legacy narrow shells and placeholder descriptions', () => {
+  for (const fileName of productionFileNames) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /MetricCard/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /motion\./, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+    assert.doesNotMatch(componentSource, /暂无描述/, fileName);
+  }
 });

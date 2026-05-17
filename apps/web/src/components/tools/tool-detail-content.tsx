@@ -10,7 +10,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import {
   copyTool,
   deleteTool,
@@ -22,7 +21,6 @@ import {
 } from '@/lib/api-client';
 
 import { ToolCallLogsCard } from './tool-call-logs-card';
-import { ToolCenterBackground } from './tool-center-background';
 import { ToolConfirmDialog } from './tool-confirm-dialog';
 import {
   ToolConfigCard,
@@ -33,6 +31,7 @@ import {
 } from './tool-detail-cards';
 import { ToolDetailHeader } from './tool-detail-header';
 import { createInputDefaultsFromSchema, parseJsonObjectText, stringifyJson } from './tool-json';
+import { ToolStatTile } from './tool-stat-tile';
 import { ToolTestPanel } from './tool-test-panel';
 
 export function ToolDetailContent({ toolId }: { toolId: string }) {
@@ -142,8 +141,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
 
   if (toolQuery.isLoading) {
     return (
-      <main className="relative mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <ToolCenterBackground />
+      <main className="mx-auto max-w-[1536px] rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
         <Card className="p-6">
           <div className="text-sm text-muted-foreground">正在加载工具详情...</div>
         </Card>
@@ -153,8 +151,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
 
   if (toolQuery.isError || !tool) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
-        <ToolCenterBackground />
+      <main className="mx-auto grid max-w-[1536px] gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/tools">
             <ArrowLeft className="size-4" />
@@ -169,9 +166,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ToolCenterBackground />
-
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
       <ToolDetailHeader
         canWrite={canWrite}
         copyPending={copyMutation.isPending}
@@ -185,7 +180,7 @@ export function ToolDetailContent({ toolId }: { toolId: string }) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <ToolStatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 

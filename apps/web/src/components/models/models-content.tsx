@@ -1,14 +1,32 @@
 'use client';
 
+import {
+  hasPermission,
+  type ModelCapability,
+  type ModelProviderListItem,
+  type ModelProviderStatus,
+  type ModelProviderType,
+} from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { hasPermission, type ModelProviderListItem, type ModelProviderStatus, type ModelProviderType } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Edit, Eye, Plus, Power, Search, Trash2 } from 'lucide-react';
+import {
+  BarChart3,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Cpu,
+  Layers3,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldAlert,
+  SlidersHorizontal,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ModelCenterBackground } from '@/components/models/model-center-background';
 import {
   formatDateTime,
   modelCapabilityLabel,
@@ -18,21 +36,39 @@ import {
 } from '@/components/models/model-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteModelProvider,
   disableModelProvider,
   enableModelProvider,
+  getMonitorOverview,
   listModelProviders,
   type ApiClientError,
 } from '@/lib/api-client';
 
 const providerTypes: ModelProviderType[] = ['OPENAI_COMPATIBLE', 'AZURE_OPENAI', 'ANTHROPIC', 'LOCAL'];
 const statuses: ModelProviderStatus[] = ['ACTIVE', 'DISABLED'];
-const capabilities = ['chat', 'embedding', 'rerank', 'vision', 'tool_call'] as const;
+const capabilities: ModelCapability[] = ['chat', 'embedding', 'rerank', 'vision', 'tool_call'];
 const pageSize = 20;
+
+const categoryItems: Array<{ label: string; value: '' | ModelCapability }> = [
+  { label: '全部模型', value: '' },
+  { label: '文本处理', value: 'chat' },
+  { label: '知识检索', value: 'embedding' },
+  { label: '重排能力', value: 'rerank' },
+  { label: '多模态', value: 'vision' },
+  { label: '工具调用', value: 'tool_call' },
+];
+
+const providerAvatarStyles = [
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-orange-100 text-orange-700',
+  'bg-cyan-100 text-cyan-700',
+] as const;
+
+type BulkActionTarget = 'ACTIVE' | 'DISABLED';
 
 export function ModelsContent() {
   const queryClient = useQueryClient();
@@ -42,8 +78,10 @@ export function ModelsContent() {
   const [status, setStatus] = useState('');
   const [capability, setCapability] = useState('');
   const [page, setPage] = useState(1);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ModelProviderListItem | null>(null);
   const [statusTarget, setStatusTarget] = useState<ModelProviderListItem | null>(null);
+  const [bulkActionTarget, setBulkActionTarget] = useState<BulkActionTarget | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canWrite = Boolean(
@@ -63,23 +101,82 @@ export function ModelsContent() {
         capability,
       }),
   });
+  const monitorOverviewQuery = useQuery({
+    queryKey: ['model-center-monitor-overview', '7d'],
+    queryFn: () => getMonitorOverview({ window: '7d' }),
+  });
 
   const providers = providersQuery.data?.items ?? [];
   const total = providersQuery.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const selectableProviders = providers.filter((provider) => provider.status !== 'DELETED');
+  const allCurrentPageSelected =
+    selectableProviders.length > 0 && selectableProviders.every((provider) => bulkSelectedIds.includes(provider.id));
+  const selectedProviders = providers.filter((provider) => bulkSelectedIds.includes(provider.id));
+  const selectedProviderCount = bulkSelectedIds.length;
+  const modelMetricByProvider = useMemo(() => {
+    const result = new Map<string, { callCount: number; successRate: number | null }>();
+
+    for (const ranking of monitorOverviewQuery.data?.model_rankings ?? []) {
+      const current = result.get(ranking.provider_id);
+      const callCount = (current?.callCount ?? 0) + ranking.call_count;
+      const weightedSuccessTotal =
+        (current?.successRate ?? 0) * (current?.callCount ?? 0) + ranking.success_rate * ranking.call_count;
+
+      result.set(ranking.provider_id, {
+        callCount,
+        successRate: callCount > 0 ? weightedSuccessTotal / callCount : null,
+      });
+    }
+
+    return result;
+  }, [monitorOverviewQuery.data?.model_rankings]);
 
   const metrics = useMemo(() => {
     const enabledModels = providers.reduce((sum, provider) => sum + provider.enabled_model_count, 0);
-    const apiKeys = providers.reduce((sum, provider) => sum + provider.api_key_count, 0);
     const activeProviders = providers.filter((provider) => provider.status === 'ACTIVE').length;
+    const callCount = providers.reduce((sum, provider) => sum + (modelMetricByProvider.get(provider.id)?.callCount ?? 0), 0);
+    const modelModuleErrorCount =
+      monitorOverviewQuery.data?.module_breakdown.find((item) => item.module === 'model')?.error_count ?? null;
 
     return [
-      { label: '供应商', value: `${total}`, helper: '租户范围' },
-      { label: '启用供应商', value: `${activeProviders}`, helper: '当前页' },
-      { label: '启用模型', value: `${enabledModels}`, helper: '当前页' },
-      { label: '接口密钥', value: `${apiKeys}`, helper: '当前页脱敏密钥' },
+      {
+        helper: '租户范围',
+        icon: Layers3,
+        iconClassName: 'bg-blue-100 text-blue-700',
+        label: '模型总数',
+        value: `${total}`,
+      },
+      {
+        helper: '当前页',
+        icon: CheckCircle2,
+        iconClassName: 'bg-emerald-100 text-emerald-700',
+        label: '已发布',
+        value: `${activeProviders}`,
+      },
+      {
+        helper: '近 7 天',
+        icon: BarChart3,
+        iconClassName: 'bg-violet-100 text-violet-700',
+        label: '调用量',
+        value: monitorOverviewQuery.isError ? '-' : formatNumber(callCount),
+      },
+      {
+        helper: '近 7 天',
+        icon: ShieldAlert,
+        iconClassName: 'bg-orange-100 text-orange-700',
+        label: '异常告警',
+        value: modelModuleErrorCount === null || monitorOverviewQuery.isError ? '-' : formatNumber(modelModuleErrorCount),
+      },
+      {
+        helper: '当前页',
+        icon: Cpu,
+        iconClassName: 'bg-cyan-100 text-cyan-700',
+        label: '启用模型',
+        value: `${enabledModels}`,
+      },
     ];
-  }, [providers, total]);
+  }, [modelMetricByProvider, monitorOverviewQuery.data?.module_breakdown, monitorOverviewQuery.isError, providers, total]);
 
   const providerStatusMutation = useMutation({
     mutationFn: ({ id, nextStatus }: { id: string; nextStatus: 'ACTIVE' | 'DISABLED' }) =>
@@ -103,241 +200,326 @@ export function ModelsContent() {
     onError: (error: ApiClientError) => setActionError(error.message),
   });
 
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, nextStatus }: { ids: string[]; nextStatus: BulkActionTarget }) => {
+      const results = [];
+
+      for (const id of ids) {
+        results.push(nextStatus === 'ACTIVE' ? await enableModelProvider(id) : await disableModelProvider(id));
+      }
+
+      return results;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['model-providers'] });
+      setBulkActionTarget(null);
+      setBulkSelectedIds([]);
+      setActionError(null);
+    },
+    onError: (error: ApiClientError) => setActionError(error.message),
+  });
+
   function clearFilters() {
     setKeyword('');
     setProviderType('');
     setStatus('');
     setCapability('');
     setPage(1);
+    setBulkSelectedIds([]);
   }
 
   function updateFilter(setter: (value: string) => void, value: string) {
     setter(value);
     setPage(1);
+    setBulkSelectedIds([]);
+  }
+
+  function toggleProviderSelected(providerId: string, checked: boolean) {
+    setBulkSelectedIds((current) =>
+      checked ? Array.from(new Set([...current, providerId])) : current.filter((id) => id !== providerId),
+    );
+  }
+
+  function toggleCurrentPageSelected(checked: boolean) {
+    setBulkSelectedIds((current) => {
+      const currentPageIds = selectableProviders.map((provider) => provider.id);
+
+      if (checked) {
+        return Array.from(new Set([...current, ...currentPageIds]));
+      }
+
+      return current.filter((id) => !currentPageIds.includes(id));
+    });
+  }
+
+  function confirmBulkStatusChange() {
+    if (!bulkActionTarget || bulkSelectedIds.length === 0) return;
+
+    bulkStatusMutation.mutate({
+      ids: bulkSelectedIds,
+      nextStatus: bulkActionTarget,
+    });
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ModelCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="ready">模型中心</StatusBadge>
-            <StatusBadge tone="healthy">供应商列表</StatusBadge>
-            <StatusBadge tone="planned">模型配置</StatusBadge>
-          </div>
-          <h1 className="text-2xl font-semibold">模型中心</h1>
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 py-3 md:flex-row md:items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">技能模型中心</h1>
+          <StatusBadge tone="healthy">模型广场</StatusBadge>
+          <StatusBadge tone="planned">运行监控</StatusBadge>
         </div>
-        {canWrite ? (
-          <Button asChild className="w-full md:w-auto">
-            <Link href="/models/create">
-              <Plus className="size-4" />
-              新建供应商
-            </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            className="h-10"
+            disabled={!canWrite || selectedProviderCount === 0 || bulkStatusMutation.isPending}
+            onClick={() => setBulkActionTarget('ACTIVE')}
+            type="button"
+            variant="outline"
+          >
+            批量发布
           </Button>
-        ) : null}
-      </motion.section>
+          <Button
+            className="h-10"
+            disabled={!canWrite || selectedProviderCount === 0 || bulkStatusMutation.isPending}
+            onClick={() => setBulkActionTarget('DISABLED')}
+            type="button"
+            variant="outline"
+          >
+            批量下线
+          </Button>
+          {canWrite ? (
+            <Button asChild className="h-10 bg-blue-600 px-5 shadow-[0_12px_26px_rgba(37,99,235,0.28)] hover:bg-blue-700">
+              <Link href="/models/create">
+                <Plus className="size-4" />
+                新建技能模型
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      </section>
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.04, duration: 0.32, ease: 'easeOut' }}
-      >
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </motion.section>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+
+          return (
+            <div
+              className="flex min-h-[124px] items-center gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-6 py-5 shadow-[0_16px_45px_rgba(15,23,42,0.05)] backdrop-blur-xl"
+              key={metric.label}
+            >
+              <span className={`grid size-14 shrink-0 place-items-center rounded-full ${metric.iconClassName}`}>
+                <Icon className="size-7" />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-slate-500">{metric.label}</div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{metric.value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+              </div>
+            </div>
+          );
+        })}
+      </section>
 
       {actionError ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {actionError}
         </div>
       ) : null}
 
-      <Card>
-        <div className="border-b p-4">
-          <div className="grid gap-4">
-            <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <h2 className="text-sm font-semibold">供应商列表</h2>
-              <div className="text-sm text-muted-foreground">
-                显示 {providers.length} / {total}
+      <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <ModelCategoryPanel
+          capability={capability}
+          onCapabilityChange={(value) => updateFilter(setCapability, value)}
+          providers={providers}
+        />
+
+        <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+          <div className="border-b border-slate-200/80 px-5 py-4">
+            <div className="grid gap-4">
+              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+                <h2 className="text-lg font-semibold text-slate-950">技能模型列表</h2>
+                <div className="text-sm text-muted-foreground">
+                  共 {total} 条
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_180px_160px_180px_110px_110px]">
+                <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm">
+                  <Search className="size-4 text-muted-foreground" />
+                  <input
+                    className="min-w-0 flex-1 bg-transparent outline-none"
+                    onChange={(event) => updateFilter(setKeyword, event.target.value)}
+                    placeholder="搜索技能名称、描述、标签"
+                    value={keyword}
+                  />
+                </label>
+                <select
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                  onChange={(event) => updateFilter(setProviderType, event.target.value)}
+                  value={providerType}
+                >
+                  <option value="">全部类型</option>
+                  {providerTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {modelProviderTypeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                  onChange={(event) => updateFilter(setStatus, event.target.value)}
+                  value={status}
+                >
+                  <option value="">全部状态</option>
+                  {statuses.map((option) => (
+                    <option key={option} value={option}>
+                      {modelProviderStatusLabel(option)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                  onChange={(event) => updateFilter(setCapability, event.target.value)}
+                  value={capability}
+                >
+                  <option value="">全部能力标签</option>
+                  {capabilities.map((option) => (
+                    <option key={option} value={option}>
+                      {modelCapabilityLabel(option)}
+                    </option>
+                  ))}
+                </select>
+                <Button className="h-10" onClick={clearFilters} type="button" variant="outline">
+                  <RotateCcw className="size-4" />
+                  重置
+                </Button>
+                <Button className="h-10" disabled={providersQuery.isFetching} onClick={() => void providersQuery.refetch()} type="button" variant="outline">
+                  <RefreshCw className={`size-4 ${providersQuery.isFetching ? 'animate-spin' : ''}`} />
+                  刷新
+                </Button>
               </div>
             </div>
-
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_190px_160px_160px_auto]">
-              <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
-                <Search className="size-4 text-muted-foreground" />
-                <input
-                  className="min-w-0 flex-1 bg-transparent outline-none"
-                  onChange={(event) => updateFilter(setKeyword, event.target.value)}
-                  placeholder="搜索供应商、编码、链接"
-                  value={keyword}
-                />
-              </label>
-              <select
-                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                onChange={(event) => updateFilter(setProviderType, event.target.value)}
-                value={providerType}
-              >
-                <option value="">全部类型</option>
-                {providerTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {modelProviderTypeLabel(type)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                onChange={(event) => updateFilter(setStatus, event.target.value)}
-                value={status}
-              >
-                <option value="">全部状态</option>
-                {statuses.map((option) => (
-                  <option key={option} value={option}>
-                    {modelProviderStatusLabel(option)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-9 rounded-md border bg-background/80 px-3 text-sm"
-                onChange={(event) => updateFilter(setCapability, event.target.value)}
-                value={capability}
-              >
-                <option value="">全部能力</option>
-                {capabilities.map((option) => (
-                  <option key={option} value={option}>
-                    {modelCapabilityLabel(option)}
-                  </option>
-                ))}
-              </select>
-              <Button onClick={clearFilters} type="button" variant="outline">
-                清空
-              </Button>
-            </div>
           </div>
-        </div>
 
-        {providersQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">模型供应商加载失败。</div>
-        ) : providersQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">正在加载模型供应商...</div>
-        ) : providers.length === 0 ? (
-          <EmptyState
-            action={
-              canWrite ? (
-                <Button asChild>
-                  <Link href="/models/create">
-                    <Plus className="size-4" />
-                    新建供应商
-                  </Link>
-                </Button>
-              ) : null
-            }
-            title="暂无模型供应商"
-          />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    {['供应商', '类型', '状态', '模型', '密钥', '最近调用', '更新时间', '操作'].map((column) => (
-                      <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                        {column}
+          {providersQuery.isError ? (
+            <div className="p-6 text-sm text-destructive">加载失败。</div>
+          ) : providersQuery.isLoading ? (
+            <div className="p-6 text-sm text-muted-foreground">正在加载...</div>
+          ) : providers.length === 0 ? (
+            <div className="p-10 text-center">
+              <div className="font-medium">暂无数据</div>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200/80 bg-slate-50/70">
+                      <th className="px-4 py-3 font-medium text-slate-500">
+                        <input
+                          aria-label="选择当前页模型供应商"
+                          checked={allCurrentPageSelected}
+                          className="size-4 rounded border-slate-300"
+                          onChange={(event) => toggleCurrentPageSelected(event.target.checked)}
+                          type="checkbox"
+                        />
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {providers.map((provider, index) => (
-                    <motion.tr
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                      initial={{ opacity: 0, y: 8 }}
-                      key={provider.id}
-                      transition={{ delay: index * 0.025, duration: 0.22 }}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="grid max-w-md gap-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link className="font-medium hover:text-primary" href={`/models/${provider.id}`}>
-                              {provider.name}
+                      {['技能名称', '能力类型', '关联模型', '默认', '状态', '7日调用', '成功率', '更新时间', '操作'].map((column) => (
+                        <th className="px-4 py-3 font-medium text-slate-500" key={column}>
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {providers.map((provider) => {
+                      const modelMetric = modelMetricByProvider.get(provider.id);
+
+                      return (
+                        <tr className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70" key={provider.id}>
+                          <td className="px-4 py-3">
+                            <input
+                              aria-label={`选择 ${provider.name}`}
+                              checked={bulkSelectedIds.includes(provider.id)}
+                              className="size-4 rounded border-slate-300"
+                              onChange={(event) => toggleProviderSelected(provider.id, event.target.checked)}
+                              type="checkbox"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link className="flex max-w-[280px] items-center gap-3 text-left transition-colors hover:text-blue-700" href={`/models/${provider.id}`}>
+                              <ModelProviderAvatar provider={provider} />
+                              <span className="min-w-0">
+                                <span className="flex items-center gap-2 truncate font-medium text-slate-900">
+                                  {provider.name}
+                                  {provider.is_default ? <StatusBadge tone="ready">默认</StatusBadge> : null}
+                                </span>
+                                <span className="mt-1 block truncate text-xs text-muted-foreground">{provider.code}</span>
+                              </span>
                             </Link>
-                            {provider.is_default ? <StatusBadge tone="ready">默认</StatusBadge> : null}
-                          </div>
-                          <span className="text-xs text-muted-foreground">{provider.code}</span>
-                          <span className="line-clamp-1 break-all text-xs text-muted-foreground">{provider.base_url}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{modelProviderTypeLabel(provider.provider_type)}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge tone={modelStatusTone(provider.status)}>{modelProviderStatusLabel(provider.status)}</StatusBadge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{provider.enabled_model_count}</div>
-                        <div className="text-xs text-muted-foreground">共 {provider.model_count}</div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{provider.api_key_count}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDateTime(provider.last_call_at)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDateTime(provider.updated_at)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/models/${provider.id}`}>
-                              <Eye className="size-4" />
-                              查看
-                            </Link>
-                          </Button>
-                          <Button
-                            asChild
-                            aria-disabled={!canWrite}
-                            className={!canWrite ? 'pointer-events-none opacity-60' : undefined}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Link href={`/models/${provider.id}/edit`}>
-                              <Edit className="size-4" />
-                              编辑
-                            </Link>
-                          </Button>
-                          <Button
-                            disabled={!canWrite || providerStatusMutation.isPending}
-                            onClick={() => setStatusTarget(provider)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Power className="size-4" />
-                            {provider.status === 'ACTIVE' ? '停用' : '启用'}
-                          </Button>
-                          <Button
-                            disabled={!canWrite}
-                            onClick={() => setDeleteTarget(provider)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Trash2 className="size-4" />
-                            删除
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="border-t p-4">
-              <PaginationBar onPageChange={setPage} page={page} pageCount={pageCount} total={total} />
-            </div>
-          </>
-        )}
-      </Card>
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge tone="planned">{modelProviderTypeLabel(provider.provider_type)}</StatusBadge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{provider.enabled_model_count} / {provider.model_count}</td>
+                          <td className="px-4 py-3">{provider.is_default ? <StatusBadge tone="ready">默认</StatusBadge> : '-'}</td>
+                          <td className="px-4 py-3">
+                            <StatusBadge tone={modelStatusTone(provider.status)}>{modelProviderStatusLabel(provider.status)}</StatusBadge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{modelMetric ? formatNumber(modelMetric.callCount) : '-'}</td>
+                          <td className="px-4 py-3">
+                            <SuccessRateCell successRate={modelMetric?.successRate ?? null} />
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatDateTime(provider.updated_at)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1.5">
+                              <Button asChild className="h-8 px-3" size="sm" variant="outline">
+                                <Link href={`/models/${provider.id}`}>查看</Link>
+                              </Button>
+                              <Button
+                                asChild
+                                aria-disabled={!canWrite}
+                                className={canWrite ? 'h-8 px-3' : 'pointer-events-none h-8 px-3 opacity-60'}
+                                size="sm"
+                                variant="outline"
+                              >
+                                <Link href={`/models/${provider.id}/edit`}>编辑</Link>
+                              </Button>
+                              <Button
+                                className="h-8 px-3"
+                                disabled={!canWrite || providerStatusMutation.isPending}
+                                onClick={() => setStatusTarget(provider)}
+                                size="sm"
+                                variant={provider.status === 'ACTIVE' ? 'outline' : 'default'}
+                              >
+                                {provider.status === 'ACTIVE' ? '停用' : '发布'}
+                              </Button>
+                              <Button
+                                className="size-8 rounded-md p-0"
+                                disabled={!canWrite}
+                                onClick={() => setDeleteTarget(provider)}
+                                size="sm"
+                                title="更多操作"
+                                variant="outline"
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t border-slate-200/80 px-5 py-4">
+                <PaginationBar onPageChange={setPage} page={page} pageCount={pageCount} total={total} />
+              </div>
+            </>
+          )}
+        </section>
+      </section>
 
       {deleteTarget ? (
         <ConfirmDialog
@@ -368,7 +550,69 @@ export function ModelsContent() {
           title={statusTarget.status === 'ACTIVE' ? '停用供应商？' : '启用供应商？'}
         />
       ) : null}
+      {bulkActionTarget ? (
+        <ConfirmDialog
+          body={`这会${bulkActionTarget === 'ACTIVE' ? '启用' : '停用'}已勾选的 ${selectedProviders.length} 个模型供应商。`}
+          confirmLabel={bulkActionTarget === 'ACTIVE' ? '确认批量发布' : '确认批量下线'}
+          onCancel={() => setBulkActionTarget(null)}
+          onConfirm={confirmBulkStatusChange}
+          pending={bulkStatusMutation.isPending}
+          title={bulkActionTarget === 'ACTIVE' ? '批量发布供应商？' : '批量下线供应商？'}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function ModelCategoryPanel({
+  capability,
+  onCapabilityChange,
+  providers,
+}: {
+  capability: string;
+  onCapabilityChange: (value: string) => void;
+  providers: ModelProviderListItem[];
+}) {
+  return (
+    <aside className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-[0_18px_55px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+      <div className="mb-4 flex items-center gap-2">
+        <SlidersHorizontal className="size-4 text-blue-600" />
+        <h2 className="text-base font-semibold text-slate-950">技能分类</h2>
+      </div>
+      <div className="grid gap-1">
+        {categoryItems.map((item) => {
+          const isActive = capability === item.value;
+          const count = item.value ? null : providers.length;
+
+          return (
+            <button
+              className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-blue-700'
+              }`}
+              key={item.label}
+              onClick={() => onCapabilityChange(item.value)}
+              type="button"
+            >
+              <span className="flex items-center gap-2">
+                <ChevronRight className="size-4" />
+                {item.label}
+              </span>
+              <span className="text-xs text-muted-foreground">{count === null ? '-' : count}</span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function ModelProviderAvatar({ provider }: { provider: ModelProviderListItem }) {
+  const styleIndex = Math.abs(hashText(provider.id || provider.code)) % providerAvatarStyles.length;
+
+  return (
+    <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${providerAvatarStyles[styleIndex]}`}>
+      <Cpu className="size-5" />
+    </span>
   );
 }
 
@@ -385,33 +629,60 @@ function PaginationBar({
 }) {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="text-sm text-muted-foreground">
-        第 {page} / {pageCount} 页 · 共 {total} 条
-      </div>
+      <div className="text-sm text-muted-foreground">共 {total} 条</div>
       <div className="flex items-center gap-2">
         <Button
+          className="size-8 p-0"
           disabled={page <= 1}
           onClick={() => onPageChange(Math.max(1, page - 1))}
           size="sm"
+          title="上一页"
           type="button"
           variant="outline"
         >
           <ChevronLeft className="size-4" />
-          上一页
         </Button>
+        <span className="grid h-8 min-w-8 place-items-center rounded-md border border-blue-500 bg-blue-50 px-2 text-sm text-blue-700">{page}</span>
+        <span className="text-sm text-muted-foreground">/ {pageCount}</span>
         <Button
+          className="size-8 p-0"
           disabled={page >= pageCount}
           onClick={() => onPageChange(Math.min(pageCount, page + 1))}
           size="sm"
+          title="下一页"
           type="button"
           variant="outline"
         >
-          下一页
           <ChevronRight className="size-4" />
         </Button>
       </div>
     </div>
   );
+}
+
+function SuccessRateCell({ successRate }: { successRate: number | null }) {
+  if (successRate === null) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const width = Math.max(0, Math.min(100, successRate));
+
+  return (
+    <div className="grid gap-1">
+      <span className="text-sm text-slate-700">{formatPercent(successRate)}</span>
+      <span className="h-1.5 w-24 rounded-full bg-slate-100">
+        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${width}%` }} />
+      </span>
+    </div>
+  );
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 function ConfirmDialog({
@@ -445,4 +716,15 @@ function ConfirmDialog({
       </Card>
     </div>
   );
+}
+
+function hashText(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return hash;
 }

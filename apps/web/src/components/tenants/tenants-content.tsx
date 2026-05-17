@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { hasPermission, type TenantStatus } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { ArrowRight, Edit, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -12,7 +11,6 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listTenants } from '@/lib/api-client';
 
@@ -57,13 +55,8 @@ export function TenantsContent() {
   );
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">租户隔离</StatusBadge>
@@ -75,9 +68,7 @@ export function TenantsContent() {
           <RefreshCw className="size-4" />
           刷新
         </Button>
-      </motion.section>
-
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_84%_12%,rgba(14,165,233,0.08),transparent_30%)]" />
+      </section>
 
       {tenantsQuery.isError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -88,7 +79,7 @@ export function TenantsContent() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {tenantsQuery.isLoading
           ? Array.from({ length: 4 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
-          : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+          : metrics.map((metric) => <InfoTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[280px_1fr]">
@@ -195,6 +186,16 @@ export function TenantsContent() {
 
       <GovernanceCard />
     </main>
+  );
+}
+
+function InfoTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 break-words text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

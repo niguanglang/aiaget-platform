@@ -128,8 +128,8 @@ export function ApiKeyCreateContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">创建密钥</StatusBadge>

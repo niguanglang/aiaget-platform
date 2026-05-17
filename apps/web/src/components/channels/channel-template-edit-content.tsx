@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { ChannelAlert, ChannelFocusedHeader, useChannelOperationPermissions } from '@/components/channels/channel-operations-pages';
 import { ChannelTemplateForm, type ChannelTemplateFormValues } from '@/components/channels/channel-template-route-forms';
 import { Button } from '@/components/ui/button';
@@ -57,8 +56,7 @@ export function ChannelTemplateEditContent({ templateId }: { templateId: string 
   const providers = providersQuery.data?.items ?? [];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelFocusedHeader
         activeRoute="templates"
         badge="编辑消息模板"

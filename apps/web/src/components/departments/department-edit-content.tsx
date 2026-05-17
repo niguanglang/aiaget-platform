@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DepartmentCenterBackground } from '@/components/departments/department-center-background';
 import { DepartmentFormPanel, type DepartmentFormValues } from '@/components/departments/department-form-panel';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -75,9 +74,7 @@ export function DepartmentEditContent({ departmentId }: { departmentId: string }
   const department = departmentQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <DepartmentCenterBackground />
-
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">

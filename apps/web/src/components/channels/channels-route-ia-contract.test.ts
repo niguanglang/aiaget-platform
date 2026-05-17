@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -16,6 +16,29 @@ const replyDetailRoutePath = join(routesRoot, 'replies/[replyId]/page.tsx');
 const replyDetailComponentPath = join(channelsRoot, 'channel-reply-detail-content.tsx');
 const operationsSharedComponentPath = join(channelsRoot, 'channel-operations-pages.tsx');
 const releaseSharedComponentPath = join(channelsRoot, 'channel-release-shared.tsx');
+
+function listChannelProductionComponentPaths(directory: string): string[] {
+  return readdirSync(directory)
+    .flatMap((entry) => {
+      const entryPath = join(directory, entry);
+      const stats = statSync(entryPath);
+
+      if (stats.isDirectory()) return listChannelProductionComponentPaths(entryPath);
+      if (!entryPath.endsWith('.ts') && !entryPath.endsWith('.tsx')) return [];
+      if (entryPath.endsWith('.test.ts') || entryPath.endsWith('.test.tsx')) return [];
+
+      return [entryPath];
+    })
+    .sort();
+}
+
+const forbiddenChannelShellPatterns = [
+  { label: 'MetricCard', pattern: /\bMetricCard\b/ },
+  { label: 'max-w-7xl', pattern: /max-w-7xl/ },
+  { label: 'ChannelCenterBackground', pattern: /\bChannelCenterBackground\b/ },
+  { label: 'legacy background component', pattern: /channel-center-background|center-background|legacy.*background/i },
+  { label: 'motion', pattern: /\bmotion\b|framer-motion/ },
+];
 
 const releaseFocusedPages = [
   {
@@ -184,6 +207,19 @@ test('channels route-level pages exist for overview and focused operations pages
     assert.ok(existsSync(join(channelsRoot, page.component)), `${page.component} should exist`);
     assert.ok(existsSync(join(routesRoot, page.route)), `${page.route} should exist`);
   }
+});
+
+test('channel production components use the wide white operations shell instead of the legacy channel shell', () => {
+  const violations = listChannelProductionComponentPaths(channelsRoot).flatMap((componentPath) => {
+    const source = readFileSync(componentPath, 'utf8');
+    const relativePath = componentPath.slice(root.length + 1);
+
+    return forbiddenChannelShellPatterns
+      .filter(({ pattern }) => pattern.test(source))
+      .map(({ label }) => `${relativePath} uses ${label}`);
+  });
+
+  assert.deepEqual(violations, []);
 });
 
 test('focused channel navigation exposes providers, sender, replies, and release routes outside the overview page', () => {

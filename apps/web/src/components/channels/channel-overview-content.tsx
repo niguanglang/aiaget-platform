@@ -26,7 +26,6 @@ import type {
   PublishChannelOverview,
 } from '@aiaget/shared-types';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import {
   ChannelOperationStatusBadge,
   channelOperationStatusLabel,
@@ -45,7 +44,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   getPublishChannelOverview,
@@ -164,8 +162,7 @@ export function ChannelOverviewContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
 
       <section className="grid gap-4">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -254,27 +251,37 @@ function OverviewMetrics({
 
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard
+      <OverviewStatTile
         helper={`${formatNumber(overview?.summary.active_channels)} 个启用，${formatNumber(overview?.summary.active_agent_count)} 个 Agent`}
         label="发布渠道"
         value={formatNumber(overview?.summary.total_channels)}
       />
-      <MetricCard
+      <OverviewStatTile
         helper={`${formatNumber(providers?.total)} 个提供方，${formatNumber(accounts?.total)} 个账号凭据`}
         label="渠道资源"
         value={formatNumber((providers?.total ?? 0) + (accounts?.total ?? 0))}
       />
-      <MetricCard
+      <OverviewStatTile
         helper={`样本失败 ${formatNumber(failedJobs)} 个`}
         label="发布任务"
         value={formatNumber(jobs?.total)}
       />
-      <MetricCard
+      <OverviewStatTile
         helper={`24h 成功率 ${formatPercent(overview?.summary.success_rate_24h)}，样本失败 ${formatNumber(failedDeliveries)} 条`}
         label="投递记录"
         value={formatNumber(deliveries?.total)}
       />
     </section>
+  );
+}
+
+function OverviewStatTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

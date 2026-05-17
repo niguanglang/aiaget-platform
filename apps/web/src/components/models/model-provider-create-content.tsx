@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ModelCenterBackground } from '@/components/models/model-center-background';
 import { ProviderFormPanel, type ProviderFormValues } from '@/components/models/provider-form-panel';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { createModelProvider, type ApiClientError } from '@/lib/api-client';
 
@@ -48,9 +48,7 @@ export function ModelProviderCreateContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <ModelCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -68,18 +66,20 @@ export function ModelProviderCreateContent() {
       </section>
 
       {!canWrite ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           当前账号没有新建供应商权限。
         </div>
       ) : (
-        <ProviderFormPanel
-          error={formError}
-          isPending={createMutation.isPending}
-          mode="create"
-          onClose={() => router.push('/models')}
-          onSubmit={submitForm}
-          presentation="page"
-        />
+        <Card className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <ProviderFormPanel
+            error={formError}
+            isPending={createMutation.isPending}
+            mode="create"
+            onClose={() => router.push('/models')}
+            onSubmit={submitForm}
+            presentation="page"
+          />
+        </Card>
       )}
     </main>
   );

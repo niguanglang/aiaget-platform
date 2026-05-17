@@ -84,9 +84,7 @@ export function TenantEditContent({ tenantId }: { tenantId: string }) {
   });
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_84%_12%,rgba(14,165,233,0.08),transparent_30%)]" />
-
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
       <section>
         <Button asChild className="mb-4 w-fit" variant="outline">
           <Link href={`/tenants/${tenantId}`}>

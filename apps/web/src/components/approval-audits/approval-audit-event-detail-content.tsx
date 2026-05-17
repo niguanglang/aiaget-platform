@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import {
   approvalAuditEventTypeLabel,
+  ApprovalAuditPageShell,
   approvalAuditSourceLabel,
   approvalAuditStatusLabel,
   approvalAuditTone,
@@ -39,7 +40,7 @@ export function ApprovalAuditEventDetailContent({
   const backHref = buildApprovalAuditBackHref(windowValue, keyword);
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <ApprovalAuditPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" variant="outline">
@@ -62,13 +63,13 @@ export function ApprovalAuditEventDetailContent({
 
       {eventQuery.isError ? (
         <Card className="p-6">
-          <EmptyState description="审批审计事件详情加载失败，请返回列表重新进入或稍后重试。" title="详情加载失败" />
+          <EmptyState title="详情加载失败" />
         </Card>
       ) : eventQuery.isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">正在加载审批审计事件详情...</Card>
       ) : !detail ? (
         <Card className="p-6">
-          <EmptyState description="当前审批审计事件不存在或已超出可查询范围。" title="未找到事件" />
+          <EmptyState title="未找到事件" />
         </Card>
       ) : (
         <>
@@ -133,7 +134,7 @@ export function ApprovalAuditEventDetailContent({
           <JsonPreviewCard title="事件元数据" value={detail.metadata} />
         </>
       )}
-    </main>
+    </ApprovalAuditPageShell>
   );
 }
 

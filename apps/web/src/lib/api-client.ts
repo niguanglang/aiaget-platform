@@ -17,6 +17,7 @@ import type {
   AgentTeamOverview,
   AgentTeamRunReportArchiveApprovalItem,
   AgentTeamRunReportArchiveListResult,
+  UploadAgentTeamRunReportArchiveInput,
   AgentDetail,
   AgentListItem,
   AcceptProductionReadinessCheckInput,
@@ -382,6 +383,7 @@ import type {
 } from '@aiaget/shared-types';
 
 import { getStoredSession, type LoginInput } from '@/lib/session';
+import { resolveControlApiBaseUrl } from '@/lib/control-api-base-url';
 
 export class ApiClientError extends Error {
   constructor(
@@ -395,8 +397,7 @@ export class ApiClientError extends Error {
   }
 }
 
-const CONTROL_API_BASE_URL =
-  process.env.NEXT_PUBLIC_CONTROL_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+const CONTROL_API_BASE_URL = resolveControlApiBaseUrl();
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
@@ -431,7 +432,13 @@ export type {
 };
 
 function createRequestId() {
-  return `req_${crypto.randomUUID().replaceAll('-', '')}`;
+  const randomUUID = globalThis.crypto?.randomUUID;
+
+  if (randomUUID) {
+    return `req_${randomUUID.call(globalThis.crypto).replaceAll('-', '')}`;
+  }
+
+  return `req_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 18)}`;
 }
 
 function createTraceContext() {
@@ -446,7 +453,15 @@ function createTraceContext() {
 
 function randomHex(byteLength: number) {
   const bytes = new Uint8Array(byteLength);
-  crypto.getRandomValues(bytes);
+  const getRandomValues = globalThis.crypto?.getRandomValues;
+
+  if (getRandomValues) {
+    getRandomValues.call(globalThis.crypto, bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
 
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -1761,6 +1776,13 @@ export async function exportAgentTeamRunReport(runId: string) {
 export function createAgentTeamRunReportArchive(runId: string) {
   return request<CreateAgentTeamRunReportArchiveResult>(`/agent-teams/runs/${runId}/report/archives`, {
     method: 'POST',
+  });
+}
+
+export function uploadAgentTeamRunReportArchive(teamId: string, input: UploadAgentTeamRunReportArchiveInput) {
+  return request<CreateAgentTeamRunReportArchiveResult>(`/agent-teams/${teamId}/report/archives/upload`, {
+    method: 'POST',
+    body: input,
   });
 }
 

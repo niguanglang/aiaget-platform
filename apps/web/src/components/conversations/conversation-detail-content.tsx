@@ -8,11 +8,9 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ConversationCenterBackground } from '@/components/conversations/conversation-center-background';
 import { conversationRunStatusLabel } from '@/components/conversations/conversation-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import {
   ApiClientError,
   createConversationFeedback,
@@ -111,8 +109,7 @@ export function ConversationDetailContent({ conversationId }: { conversationId: 
 
   if (conversationQuery.isLoading) {
     return (
-      <main className="relative mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <ConversationCenterBackground />
+      <main className="px-4 py-6 lg:px-6">
         <Card className="p-6">
           <div className="text-sm text-muted-foreground">正在加载会话详情...</div>
         </Card>
@@ -122,8 +119,7 @@ export function ConversationDetailContent({ conversationId }: { conversationId: 
 
   if (conversationQuery.isError || !conversation) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
-        <ConversationCenterBackground />
+      <main className="grid gap-4 px-4 py-6 lg:px-6">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/conversations">
             <ArrowLeft className="size-4" />
@@ -138,8 +134,7 @@ export function ConversationDetailContent({ conversationId }: { conversationId: 
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ConversationCenterBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
 
       <ConversationDetailHeader
         canWrite={canWrite}
@@ -150,7 +145,7 @@ export function ConversationDetailContent({ conversationId }: { conversationId: 
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <StatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -199,5 +194,15 @@ export function ConversationDetailContent({ conversationId }: { conversationId: 
         />
       ) : null}
     </main>
+  );
+}
+
+function StatTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-4 shadow-sm">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }

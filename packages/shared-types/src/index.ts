@@ -76,6 +76,7 @@ export const PERMISSION_CODES = {
   agentTeamView: 'agent:team:view',
   agentTeamManage: 'agent:team:manage',
   agentTeamRun: 'agent:team:run',
+  agentTeamReportUpload: 'agent:team:report:upload',
   agentTeamHandoffReview: 'security:approval:handle',
   roleScenarioView: 'scenario:package:view',
   roleScenarioManage: 'scenario:package:manage',
@@ -364,6 +365,14 @@ export const permissionDefinitions: PermissionDefinition[] = [
     module: 'agent',
     resource: 'team',
     action: 'run',
+  },
+  {
+    code: PERMISSION_CODES.agentTeamReportUpload,
+    legacy_code: 'agent_team.report.upload',
+    name: 'Agent Team Report Upload',
+    module: 'agent',
+    resource: 'team_report',
+    action: 'upload',
   },
   {
     code: PERMISSION_CODES.agentTeamHandoffReview,
@@ -4924,6 +4933,9 @@ export interface AgentTeamRunReportArchiveItem {
   run_id: string | null;
   run_objective: string | null;
   created_by: string | null;
+  source: AgentTeamRunReportArchiveSource;
+  report_type: AgentTeamRunReportArchiveReportType | null;
+  archive_reason: string | null;
 }
 
 export interface AgentTeamRunReportArchiveListResult {
@@ -4937,6 +4949,19 @@ export interface AgentTeamRunReportArchiveListResult {
 
 export interface CreateAgentTeamRunReportArchiveResult {
   item: AgentTeamRunReportArchiveItem;
+}
+
+export type AgentTeamRunReportArchiveSource = 'SYSTEM_GENERATED' | 'MANUAL_UPLOAD';
+
+export type AgentTeamRunReportArchiveReportType = 'ACCEPTANCE' | 'OPERATION' | 'ANALYSIS' | 'CUSTOM';
+
+export interface UploadAgentTeamRunReportArchiveInput {
+  file_name: string;
+  content_type?: string | null;
+  content_base64: string;
+  report_type: AgentTeamRunReportArchiveReportType;
+  run_id?: string | null;
+  archive_reason?: string | null;
 }
 
 export type AgentTeamRunReportArchiveApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPLIED';

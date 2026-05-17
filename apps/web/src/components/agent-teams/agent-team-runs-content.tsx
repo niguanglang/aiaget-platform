@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 
 import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import {
+  AgentTeamMetricTile,
   DetailRow,
   ErrorPanel,
   formatDateTime,
@@ -23,7 +24,6 @@ import {
 } from '@/components/agent-teams/agent-teams-shared';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   createAgentTeamFeedback,
@@ -180,12 +180,12 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
   }
 
   if (teamQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载运行记录..." /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-5 lg:px-7"><LoadingPanel text="正在加载运行记录" /></main>;
   }
 
   if (teamQuery.isError || !team) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href="/agent-teams"><ArrowLeft className="size-4" />返回</Link></Button>
         <ErrorPanel text="运行记录加载失败。" />
       </main>
@@ -193,7 +193,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}`}><ArrowLeft className="size-4" />团队详情</Link></Button>
@@ -206,7 +206,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
         <Button asChild variant="outline"><Link href="/agent-teams/report-archives"><FileArchive className="size-4" />报告归档</Link></Button>
       </section>
 
-      <section className="rounded-lg border bg-background p-4">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <h2 className="text-sm font-semibold">启动团队任务</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
           <input className="h-10 rounded-md border bg-background px-3 text-sm outline-none" onChange={(event) => setObjective(event.target.value)} placeholder="输入团队任务目标" value={objective} />
@@ -219,14 +219,14 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper={''} label="运行总数" value={formatInteger(runs.length)} />
-        <MetricCard helper={''} label="接力中" value={formatInteger(runs.filter((run) => run.status === 'WAITING_HUMAN').length)} />
-        <MetricCard helper={''} label="异常运行" value={formatInteger(runs.filter((run) => run.status === 'FAILED' || run.status === 'CANCELLED').length)} />
-        <MetricCard helper={''} label="反馈" value={formatInteger(team.feedback.length)} />
+        <AgentTeamMetricTile label="运行总数" value={formatInteger(runs.length)} />
+        <AgentTeamMetricTile label="接力中" value={formatInteger(runs.filter((run) => run.status === 'WAITING_HUMAN').length)} />
+        <AgentTeamMetricTile label="异常运行" value={formatInteger(runs.filter((run) => run.status === 'FAILED' || run.status === 'CANCELLED').length)} />
+        <AgentTeamMetricTile label="反馈" value={formatInteger(team.feedback.length)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="rounded-lg border bg-background">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="border-b p-4"><h2 className="text-sm font-semibold">运行列表</h2></div>
           {runs.length === 0 ? (
             <div className="p-10 text-center text-sm text-muted-foreground">暂无运行记录。</div>
@@ -263,7 +263,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
         <aside className="grid gap-4">
           {selectedRun ? (
             <>
-              <div className="rounded-lg border bg-background p-5">
+              <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
                 <h2 className="text-sm font-semibold">运行摘要</h2>
                 <div className="mt-4 grid gap-3 text-sm">
                   <StatusBadge tone={teamRunStatusTone(selectedRun.status)}>{teamRunStatusLabel(selectedRun.status)}</StatusBadge>
@@ -277,7 +277,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                 </div>
               </div>
 
-              <div className="rounded-lg border bg-background p-5">
+              <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
                 <h2 className="text-sm font-semibold">接力入口</h2>
                 <textarea className="mt-3 min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none" onChange={(event) => setHandoffReason(event.target.value)} placeholder="填写接力原因" value={handoffReason} />
                 <Button className="mt-3" disabled={!canRun || !handoffReason.trim() || handoffMutation.isPending} onClick={() => setRunActionTarget({ type: 'HANDOFF', runId: selectedRun.id, objective: selectedRun.objective, reason: handoffReason.trim() })} size="sm" type="button">
@@ -293,7 +293,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                 </div>
               </div>
 
-              <div className="rounded-lg border bg-background p-5">
+              <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
                 <h2 className="text-sm font-semibold">反馈入口</h2>
                 <div className="mt-3 grid gap-2">
                   <select className="h-9 rounded-md border bg-background px-3 text-sm" onChange={(event) => setFeedbackRating(Number(event.target.value))} value={feedbackRating}>
@@ -322,7 +322,7 @@ export function AgentTeamRunsContent({ teamId }: { teamId: string }) {
                 </div>
               </div>
             </>
-          ) : <div className="rounded-lg border bg-background p-5 text-sm text-muted-foreground">请选择运行记录。</div>}
+          ) : <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">请选择运行记录。</div>}
         </aside>
       </section>
 

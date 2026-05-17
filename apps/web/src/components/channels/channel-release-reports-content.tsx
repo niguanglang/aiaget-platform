@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftRight, Camera, CircleCheck, Scale, Search } from 'lucide-react';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { ChannelActionConfirmDialog, ChannelAlert, DetailGrid, formatOptionalDateTime, useChannelOperationPermissions } from '@/components/channels/channel-operations-pages';
 import { ChannelReleaseHeader, PanelTitle, ReleaseChannelEmpty, ReleaseChannelPicker } from '@/components/channels/channel-release-shared';
 import { publishChannelHealthLabel, publishChannelStatusLabel } from '@/components/channels/channel-status';
@@ -98,8 +97,7 @@ export function ChannelReleaseReportsContent() {
   }, [selectedBaseSnapshotId, selectedTargetSnapshotId, snapshots]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelReleaseHeader
         badge="发布复盘报告"
         refreshing={overviewQuery.isFetching || reportQuery.isFetching || snapshotsQuery.isFetching || snapshotMutation.isPending}

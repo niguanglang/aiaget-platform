@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { MenuCenterBackground } from '@/components/menus/menu-center-background';
 import { toUpdateMenuInput } from '@/components/menus/menu-form-converters';
 import { MenuFormPanel, type MenuFormValues } from '@/components/menus/menu-form-panel';
 import { booleanLabel, booleanTone, menuTypeLabel, menuTypeTone } from '@/components/menus/menu-status';
@@ -55,10 +54,8 @@ export function MenuEditContent({ menuId }: { menuId: string }) {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <MenuCenterBackground />
-
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)] md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
             <Link href={menu ? `/menus/${menu.id}` : '/menus'}>
@@ -77,11 +74,15 @@ export function MenuEditContent({ menuId }: { menuId: string }) {
       </section>
 
       {menuQuery.isLoading ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">正在加载菜单...</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          正在加载菜单...
+        </div>
       ) : menuQuery.isError || !menu ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">菜单加载失败。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          菜单加载失败。
+        </div>
       ) : !canWrite ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           当前账号没有编辑菜单权限。
         </div>
       ) : (

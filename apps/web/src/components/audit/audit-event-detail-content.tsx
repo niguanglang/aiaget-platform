@@ -5,7 +5,6 @@ import { ArrowLeft, GitBranch, LinkIcon, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { AuditCenterBackground } from '@/components/audit/audit-center-background';
 import { auditSourceLabel, auditStatusLabel, auditStatusTone, formatDateTime } from '@/components/audit/audit-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,9 +30,7 @@ export function AuditEventDetailContent({
   const backHref = buildAuditBackHref(windowValue, keyword);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <AuditCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" variant="outline">
@@ -55,18 +52,18 @@ export function AuditEventDetailContent({
       </section>
 
       {eventQuery.isError ? (
-        <Card className="p-6">
-          <EmptyState description="审计事件详情加载失败，请稍后重试或返回列表重新进入。" title="详情加载失败" />
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6">
+          <EmptyState title="详情加载失败" />
         </Card>
       ) : eventQuery.isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">正在加载事件详情...</Card>
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">正在加载事件详情...</Card>
       ) : !event ? (
-        <Card className="p-6">
-          <EmptyState description="当前事件不存在或已超出可查询范围。" title="未找到审计事件" />
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6">
+          <EmptyState title="未找到审计事件" />
         </Card>
       ) : (
         <>
-          <Card className="grid gap-5 p-5">
+          <Card className="grid gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -84,7 +81,7 @@ export function AuditEventDetailContent({
           </Card>
 
           <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <Card className="grid gap-4 p-5">
+            <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
               <SectionTitle title="基础信息" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="发生时间" value={formatDateTime(event.occurred_at)} />
@@ -96,7 +93,7 @@ export function AuditEventDetailContent({
               </div>
             </Card>
 
-            <Card className="grid gap-4 p-5">
+            <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
               <SectionTitle title="请求上下文" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="请求 ID / Trace" value={event.request_id ?? '-'} />
@@ -115,7 +112,7 @@ export function AuditEventDetailContent({
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-            <Card className="grid gap-4 p-5">
+            <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
               <SectionTitle title="Trace 与主体" />
               <div className="grid gap-3">
                 <TraceRow icon={<GitBranch className="size-4" />} label="Trace 入口" value={event.request_id ?? '暂无 Trace ID'} />
@@ -132,7 +129,7 @@ export function AuditEventDetailContent({
             <JsonCard title="详情 JSON" value={event.request_summary} />
           </section>
 
-          <Card className="grid gap-4 p-5">
+          <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
             <SectionTitle title="时间线 / 关联入口" />
             <div className="grid gap-3 md:grid-cols-3">
               <TimelineItem helper={event.user_email} title="主体发起" value={formatDateTime(event.occurred_at)} />

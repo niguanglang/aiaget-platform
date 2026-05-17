@@ -5,10 +5,44 @@ import test from 'node:test';
 
 const root = process.cwd();
 const assetsRoot = join(root, 'src/components/delivery-assets');
+const componentFiles = [
+  'delivery-assets-content.tsx',
+  'delivery-asset-create-content.tsx',
+  'delivery-asset-detail-content.tsx',
+  'delivery-asset-edit-content.tsx',
+  'delivery-asset-form-panel.tsx',
+];
+const pageShellFiles = [
+  'delivery-assets-content.tsx',
+  'delivery-asset-create-content.tsx',
+  'delivery-asset-detail-content.tsx',
+  'delivery-asset-edit-content.tsx',
+  'delivery-asset-form-panel.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(assetsRoot, fileName), 'utf8');
 }
+
+test('delivery asset pages do not depend on the old page shell', () => {
+  for (const fileName of componentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /\bMetricCard\b/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /\bDeliveryAssetBackground\b/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+  }
+
+  for (const fileName of pageShellFiles) {
+    const componentSource = source(fileName);
+
+    assert.match(componentSource, /max-w-\[1680px\]/, fileName);
+    assert.match(componentSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, fileName);
+  }
+
+  assert.equal(existsSync(join(assetsRoot, 'delivery-asset-background.tsx')), false);
+});
 
 test('delivery asset center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/delivery-assets/page.tsx')));

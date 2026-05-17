@@ -2,24 +2,42 @@
 
 import { hasPermission, type SkillCategory, type SkillListItem, type SkillStatus } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
-import { Copy, Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  ClipboardList,
+  Copy,
+  Edit,
+  Eye,
+  FileText,
+  Layers3,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Send,
+  Trash2,
+  UsersRound,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SkillCenterBackground } from '@/components/skills/skill-center-background';
 import { formatDateTime, skillCategoryLabel, skillStatusLabel, skillStatusTone } from '@/components/skills/skill-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { copySkill, deleteSkill, listSkills, listUsers, type ApiClientError } from '@/lib/api-client';
 
 const skillCategories: SkillCategory[] = ['GENERAL', 'SALES', 'DESIGN', 'OPERATIONS', 'TRAINING', 'REVIEW'];
 const skillStatuses: SkillStatus[] = ['DRAFT', 'PUBLISHED', 'DISABLED', 'ARCHIVED'];
 const pageSize = 20;
+
+const skillAvatarStyles = [
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-orange-100 text-orange-700',
+  'bg-cyan-100 text-cyan-700',
+] as const;
 
 export function SkillsContent() {
   const queryClient = useQueryClient();
@@ -62,10 +80,34 @@ export function SkillsContent() {
 
   const metrics = useMemo(
     () => [
-      { label: 'Skill', value: `${total}`, helper: '租户范围' },
-      { label: '已发布', value: `${skills.filter((skill) => skill.status === 'PUBLISHED').length}`, helper: '当前页' },
-      { label: '草稿', value: `${skills.filter((skill) => skill.status === 'DRAFT').length}`, helper: '当前页' },
-      { label: 'Agent 引用', value: `${skills.reduce((sum, skill) => sum + skill.agent_reference_count, 0)}`, helper: '当前页' },
+      {
+        helper: '租户范围',
+        icon: Layers3,
+        iconClassName: 'bg-blue-100 text-blue-700',
+        label: 'Skill 总数',
+        value: `${total}`,
+      },
+      {
+        helper: '当前页',
+        icon: Send,
+        iconClassName: 'bg-emerald-100 text-emerald-700',
+        label: '已发布',
+        value: `${skills.filter((skill) => skill.status === 'PUBLISHED').length}`,
+      },
+      {
+        helper: '当前页',
+        icon: FileText,
+        iconClassName: 'bg-orange-100 text-orange-700',
+        label: '草稿',
+        value: `${skills.filter((skill) => skill.status === 'DRAFT').length}`,
+      },
+      {
+        helper: '当前页',
+        icon: UsersRound,
+        iconClassName: 'bg-violet-100 text-violet-700',
+        label: 'Agent 引用',
+        value: `${skills.reduce((sum, skill) => sum + skill.agent_reference_count, 0)}`,
+      },
     ],
     [skills, total],
   );
@@ -105,38 +147,44 @@ export function SkillsContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SkillCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
-        <div>
-          <h1 className="text-2xl font-semibold">技能资产中心</h1>
+    <main className="mx-auto grid max-w-[1536px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 py-3 md:flex-row md:items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">技能资产中心</h1>
+          <StatusBadge tone="healthy">租户范围</StatusBadge>
+          <StatusBadge tone="planned">资产列表</StatusBadge>
         </div>
         {canWrite ? (
-          <Button asChild className="w-full md:w-auto">
+          <Button asChild className="w-full bg-blue-600 px-5 shadow-[0_12px_26px_rgba(37,99,235,0.28)] hover:bg-blue-700 md:w-auto">
             <Link href="/skills/create">
               <Plus className="size-4" />
               新建 Skill
             </Link>
           </Button>
         ) : null}
-      </motion.section>
+      </section>
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.04, duration: 0.32, ease: 'easeOut' }}
-      >
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </motion.section>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+
+          return (
+            <div
+              className="flex min-h-[138px] items-center gap-5 rounded-xl border border-slate-200/80 bg-white/[0.86] px-6 py-5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+              key={metric.label}
+            >
+              <span className={`grid size-16 shrink-0 place-items-center rounded-full ${metric.iconClassName}`}>
+                <Icon className="size-8" />
+              </span>
+              <div>
+                <div className="text-sm font-medium text-slate-500">{metric.label}</div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{metric.value}</div>
+                <div className="mt-2 text-sm text-muted-foreground">{metric.helper}</div>
+              </div>
+            </div>
+          );
+        })}
+      </section>
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -144,27 +192,31 @@ export function SkillsContent() {
         </div>
       ) : null}
 
-      <Card>
-        <div className="border-b p-4">
+      <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.86] shadow-[0_18px_55px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <div className="border-b border-slate-200/80 px-5 py-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-              <h2 className="text-sm font-semibold">Skill 清单</h2>
+              <h2 className="text-lg font-semibold text-slate-950">资产管理</h2>
               <div className="text-sm text-muted-foreground">
                 显示 {skills.length} / {total}
               </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_150px_160px_190px_auto]">
-              <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_170px_170px_210px_110px_110px]">
+              <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm">
                 <Search className="size-4 text-muted-foreground" />
                 <input
                   className="min-w-0 flex-1 bg-transparent outline-none"
                   onChange={(event) => updateFilter(setKeyword, event.target.value)}
-                  placeholder="搜索 Skill、编码、描述"
+                  placeholder="搜索 Skill 名称、编码"
                   value={keyword}
                 />
               </label>
-              <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => updateFilter(setCategory, event.target.value)} value={category}>
+              <select
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                onChange={(event) => updateFilter(setCategory, event.target.value)}
+                value={category}
+              >
                 <option value="">全部分类</option>
                 {skillCategories.map((option) => (
                   <option key={option} value={option}>
@@ -172,7 +224,11 @@ export function SkillsContent() {
                   </option>
                 ))}
               </select>
-              <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => updateFilter(setStatus, event.target.value)} value={status}>
+              <select
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                onChange={(event) => updateFilter(setStatus, event.target.value)}
+                value={status}
+              >
                 <option value="">全部状态</option>
                 {skillStatuses.map((option) => (
                   <option key={option} value={option}>
@@ -180,7 +236,11 @@ export function SkillsContent() {
                   </option>
                 ))}
               </select>
-              <select className="h-9 rounded-md border bg-background/80 px-3 text-sm" onChange={(event) => updateFilter(setOwnerId, event.target.value)} value={ownerId}>
+              <select
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition-colors hover:border-blue-200"
+                onChange={(event) => updateFilter(setOwnerId, event.target.value)}
+                value={ownerId}
+              >
                 <option value="">全部负责人</option>
                 {owners.map((owner) => (
                   <option key={owner.id} value={owner.id}>
@@ -188,100 +248,105 @@ export function SkillsContent() {
                   </option>
                 ))}
               </select>
-              <Button onClick={clearFilters} type="button" variant="outline">
+              <Button className="h-10" onClick={clearFilters} type="button" variant="outline">
+                <RotateCcw className="size-4" />
                 清空
+              </Button>
+              <Button className="h-10" disabled={skillsQuery.isFetching} onClick={() => void skillsQuery.refetch()} type="button" variant="outline">
+                <RefreshCw className={`size-4 ${skillsQuery.isFetching ? 'animate-spin' : ''}`} />
+                刷新
               </Button>
             </div>
           </div>
         </div>
 
         {skillsQuery.isError ? (
-          <div className="p-6 text-sm text-destructive">Skill 加载失败。</div>
+          <div className="p-6 text-sm text-destructive">加载失败。</div>
         ) : skillsQuery.isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">正在加载 Skill...</div>
+          <div className="p-6 text-sm text-muted-foreground">正在加载...</div>
         ) : skills.length === 0 ? (
-          <EmptyState
-            action={
-              canWrite ? (
-                <Button asChild>
-                  <Link href="/skills/create">
-                    <Plus className="size-4" />
-                    新建 Skill
-                  </Link>
-                </Button>
-              ) : null
-            }
-            description="暂无记录。"
-            title="暂无 Skill"
-          />
+          <div className="p-10 text-center">
+            <div className="font-medium">暂无数据</div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b bg-muted/40">
-                  {['Skill', '分类', '状态', '版本', '触发预览', '输出预览', 'Agent 引用', '更新时间', '操作'].map((column) => (
-                    <th className="px-4 py-3 font-medium text-muted-foreground" key={column}>
-                      {column}
-                    </th>
-                  ))}
+                <tr className="border-b border-slate-200/80 bg-slate-50/70">
+                  {['', 'Skill', '分类', '状态', '版本', '负责人', 'Agent 引用', '更新时间', '操作'].map(
+                    (column) => (
+                      <th className="px-5 py-4 font-medium text-slate-500" key={column || 'selection'}>
+                        {column}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {skills.map((skill, index) => (
-                  <motion.tr
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                    initial={{ opacity: 0, y: 8 }}
-                    key={skill.id}
-                    transition={{ delay: index * 0.025, duration: 0.22 }}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="grid max-w-sm gap-1">
-                        <Link className="font-medium hover:text-primary" href={`/skills/${skill.id}`}>
-                          {skill.name}
-                        </Link>
-                        <span className="text-xs text-muted-foreground">{skill.code}</span>
-                        <span className="line-clamp-1 text-xs text-muted-foreground">{skill.description ?? '暂无描述'}</span>
-                      </div>
+                {skills.map((skill) => (
+                  <tr className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70" key={skill.id}>
+                    <td className="px-5 py-4">
+                      <input aria-label={`选择 ${skill.name}`} className="size-4 rounded border-slate-300" type="checkbox" />
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{skillCategoryLabel(skill.category)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-4">
+                      <Link className="flex max-w-sm items-center gap-3 text-left transition-colors hover:text-blue-700" href={`/skills/${skill.id}`}>
+                        <SkillAvatar skill={skill} />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-slate-900">{skill.name}</span>
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">{skill.code}</span>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4 text-muted-foreground">{skillCategoryLabel(skill.category)}</td>
+                    <td className="px-5 py-4">
                       <StatusBadge tone={skillStatusTone(skill.status)}>{skillStatusLabel(skill.status)}</StatusBadge>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">v{skill.version}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <span className="line-clamp-2 max-w-xs">{skill.trigger_scenario_preview}</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <span className="line-clamp-2 max-w-xs">{skill.output_format_preview}</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{skill.agent_reference_count}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDateTime(skill.updated_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
+                    <td className="px-5 py-4 font-medium text-slate-900">v{skill.version}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{skill.owner?.name ?? '-'}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{skill.agent_reference_count}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{formatDateTime(skill.updated_at)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex gap-2">
+                        <Button asChild className="size-9 rounded-lg p-0" size="sm" title="查看" variant="outline">
                           <Link href={`/skills/${skill.id}`}>
                             <Eye className="size-4" />
-                            查看
                           </Link>
                         </Button>
-                        <Button asChild aria-disabled={!canWrite} className={!canWrite ? 'pointer-events-none opacity-60' : undefined} size="sm" variant="outline">
+                        <Button
+                          asChild
+                          aria-disabled={!canWrite}
+                          className={canWrite ? 'size-9 rounded-lg p-0' : 'pointer-events-none size-9 rounded-lg p-0 opacity-60'}
+                          size="sm"
+                          title="编辑"
+                          variant="outline"
+                        >
                           <Link href={`/skills/${skill.id}/edit`}>
                             <Edit className="size-4" />
-                            编辑
                           </Link>
                         </Button>
-                        <Button disabled={!canWrite || copyMutation.isPending} onClick={() => setCopyTarget(skill)} size="sm" variant="outline">
+                        <Button
+                          className="size-9 rounded-lg p-0"
+                          disabled={!canWrite || copyMutation.isPending}
+                          onClick={() => setCopyTarget(skill)}
+                          size="sm"
+                          title="复制"
+                          variant="outline"
+                        >
                           <Copy className="size-4" />
-                          复制
                         </Button>
-                        <Button disabled={!canWrite} onClick={() => setDeleteTarget(skill)} size="sm" variant="outline">
+                        <Button
+                          className="size-9 rounded-lg p-0 text-red-600 hover:text-red-700"
+                          disabled={!canWrite}
+                          onClick={() => setDeleteTarget(skill)}
+                          size="sm"
+                          title="删除"
+                          variant="outline"
+                        >
                           <Trash2 className="size-4" />
-                          删除
                         </Button>
                       </div>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -289,7 +354,7 @@ export function SkillsContent() {
         )}
 
         {pageCount > 1 ? (
-          <div className="flex flex-col gap-3 border-t p-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 border-t border-slate-200/80 px-5 py-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
             <span>
               第 {page} / {pageCount} 页
             </span>
@@ -303,7 +368,7 @@ export function SkillsContent() {
             </div>
           </div>
         ) : null}
-      </Card>
+      </section>
 
       {copyTarget ? (
         <ConfirmDialog
@@ -361,4 +426,25 @@ function ConfirmDialog({
       </Card>
     </div>
   );
+}
+
+function SkillAvatar({ skill }: { skill: SkillListItem }) {
+  const styleIndex = Math.abs(hashText(skill.id || skill.code)) % skillAvatarStyles.length;
+
+  return (
+    <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${skillAvatarStyles[styleIndex]}`}>
+      <ClipboardList className="size-5" />
+    </span>
+  );
+}
+
+function hashText(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return hash;
 }

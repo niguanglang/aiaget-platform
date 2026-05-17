@@ -2,18 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type MenuListItem, type MenuTreeItem, type MenuType } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { ChevronDown, ChevronRight, Edit, Eye, ListTree, Plus, Power, RefreshCw, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { MenuCenterBackground } from '@/components/menus/menu-center-background';
 import { booleanLabel, booleanTone, formatDateTime, menuTypeLabel, menuTypeTone } from '@/components/menus/menu-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteMenu,
@@ -75,10 +72,11 @@ export function MenuContent() {
 
   const overview = overviewQuery.data;
   const metrics = [
-    { label: '菜单节点', value: `${overview?.total ?? menusQuery.data?.total ?? 0}`, helper: '目录 / 页面 / 按钮' },
-    { label: '页面菜单', value: `${overview?.menu_count ?? 0}`, helper: `${overview?.directory_count ?? 0} 个目录` },
-    { label: '按钮节点', value: `${overview?.button_count ?? 0}`, helper: '用于操作权限' },
-    { label: '最大层级', value: `${maxTreeLevel}`, helper: '多级菜单树深度' },
+    { label: '菜单节点', value: `${overview?.total ?? menusQuery.data?.total ?? 0}` },
+    { label: '目录', value: `${overview?.directory_count ?? 0}` },
+    { label: '页面菜单', value: `${overview?.menu_count ?? 0}` },
+    { label: '按钮节点', value: `${overview?.button_count ?? 0}` },
+    { label: '最大层级', value: `${maxTreeLevel}` },
   ];
 
   const statusMutation = useMutation({
@@ -143,15 +141,8 @@ export function MenuContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <MenuCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)] md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">目录</StatusBadge>
@@ -168,11 +159,17 @@ export function MenuContent() {
             </Link>
           </Button>
         ) : null}
-      </motion.section>
+      </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <div
+            className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-5 py-4 shadow-[0_16px_45px_rgba(15,23,42,0.05)]"
+            key={metric.label}
+          >
+            <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold tracking-normal text-slate-950">{metric.value}</div>
+          </div>
         ))}
       </section>
 
@@ -182,7 +179,7 @@ export function MenuContent() {
         </div>
       ) : null}
 
-      <Card className="min-w-0">
+      <Card className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <div className="border-b p-4">
           <div className="grid gap-4">
             <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
@@ -329,18 +326,12 @@ function MenuTable({
           </tr>
         </thead>
         <tbody>
-          {menus.map((menu, index) => {
+          {menus.map((menu) => {
             const treeMenu = isTreeItem(menu) ? menu : null;
             const hasChildren = treeMenu !== null && treeMenu.children.length > 0;
 
             return (
-              <motion.tr
-                animate={{ opacity: 1, y: 0 }}
-                className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                initial={{ opacity: 0, y: 8 }}
-                key={menu.id}
-                transition={{ delay: index * 0.015, duration: 0.18 }}
-              >
+              <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={menu.id}>
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2" style={{ paddingLeft: `${(menu.level - 1) * 18}px` }}>
                     {treeMenu && hasChildren && !filterMode ? (
@@ -408,7 +399,7 @@ function MenuTable({
                     ) : null}
                   </div>
                 </td>
-              </motion.tr>
+              </tr>
             );
           })}
         </tbody>

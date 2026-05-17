@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, CheckCircle2, Play } from 'lucide-react';
 import type { ChannelReleaseBatchInput } from '@aiaget/shared-types';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import {
   ChannelActionConfirmDialog,
   ChannelAlert,
@@ -107,8 +106,7 @@ export function ChannelReleasePipelineContent() {
   const currentBatch = pipeline?.current_batch ?? null;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelReleaseHeader
         badge="发布流水线"
         refreshing={overviewQuery.isFetching || pipelineQuery.isFetching || actionPending}

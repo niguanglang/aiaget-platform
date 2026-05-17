@@ -24,12 +24,13 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   CategoryButton,
   ConfirmDialog,
   DetailRow,
+  SettingsPageShell,
+  SettingsStatTile,
   SystemSettingCard,
   defaultSettingCategorySummaries,
   formatSettingDraftValue,
@@ -214,7 +215,7 @@ export function SettingsContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <SettingsPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -233,7 +234,7 @@ export function SettingsContent() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <SettingsStatTile detail={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -356,7 +357,7 @@ export function SettingsContent() {
           onConfirm={() => resetSettingMutation.mutate(resetSettingTarget.id)}
         />
       ) : null}
-    </main>
+    </SettingsPageShell>
   );
 }
 

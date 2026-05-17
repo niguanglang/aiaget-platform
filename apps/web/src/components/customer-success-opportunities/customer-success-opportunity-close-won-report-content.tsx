@@ -14,7 +14,6 @@ import {
   adjustmentTypeTone,
   formatMoney as formatBillingMoney,
 } from '@/components/billing/billing-shared';
-import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
 import {
   customerSuccessOpportunityConfidenceLabel,
   customerSuccessOpportunityConfidenceTone,
@@ -92,8 +91,7 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
 
   if (reportQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessOpportunityBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在生成成交复盘报告...</Card>
       </main>
     );
@@ -101,8 +99,7 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
 
   if (reportQuery.isError || !reportQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessOpportunityBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">成交复盘报告加载失败。</Card>
       </main>
     );
@@ -115,8 +112,7 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
   const billingHref = `/billing/adjustments?keyword=${encodeURIComponent(firstAdjustmentNo)}`;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessOpportunityBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
@@ -188,11 +184,11 @@ export function CustomerSuccessOpportunityCloseWonReportContent({ opportunityId 
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard helper="原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
-        <MetricCard helper="金额 x 概率" label="加权金额" value={formatMoney(report.summary.weighted_amount)} />
-        <MetricCard helper="已生效" label="成交金额" value={formatMoney(report.summary.close_amount)} />
-        <MetricCard helper="入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
-        <MetricCard helper={`生成 ${formatDateTime(report.generated_at)}`} label="关闭时间" value={formatDateTime(report.summary.closed_at)} />
+        <MetricSummary helper="原始金额" label="预计金额" value={formatMoney(report.summary.estimated_amount)} />
+        <MetricSummary helper="金额 x 概率" label="加权金额" value={formatMoney(report.summary.weighted_amount)} />
+        <MetricSummary helper="已生效" label="成交金额" value={formatMoney(report.summary.close_amount)} />
+        <MetricSummary helper="入账记录" label="调账单数" value={`${report.summary.adjustment_count} 条`} />
+        <MetricSummary helper={`生成 ${formatDateTime(report.generated_at)}`} label="关闭时间" value={formatDateTime(report.summary.closed_at)} />
       </section>
 
       <ArchiveRetentionCard
@@ -372,7 +368,7 @@ function ArchiveRetentionCard({
   );
 }
 
-function MetricCard({ helper, label, value }: { helper: string; label: string; value: string }) {
+function MetricSummary({ helper, label, value }: { helper: string; label: string; value: string }) {
   return (
     <Card className="p-5">
       <h2 className="text-sm font-semibold">{label}</h2>

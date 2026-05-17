@@ -48,9 +48,7 @@ export function PromptDetailHeader({
           <StatusBadge tone="planned">{promptTypeLabel(prompt.type)}</StatusBadge>
         </div>
         <h1 className="break-words text-2xl font-semibold">{prompt.name}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {prompt.description ?? '暂无描述。'}
-        </p>
+        {prompt.description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{prompt.description}</p> : null}
       </div>
 
       <div className="flex flex-wrap gap-2">

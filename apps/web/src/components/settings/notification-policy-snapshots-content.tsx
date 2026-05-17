@@ -11,11 +11,12 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   ConfirmDialog,
   DetailRow,
+  SettingsPageShell,
+  SettingsStatTile,
   formatSnapshotValue,
   settingStatusLabels,
   snapshotActionLabel,
@@ -64,7 +65,7 @@ export function NotificationPolicySnapshotsContent() {
   const snapshots = snapshotsQuery.data;
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <SettingsPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -125,17 +126,17 @@ export function NotificationPolicySnapshotsContent() {
           onConfirm={() => rollbackMutation.mutate(rollbackTarget)}
         />
       ) : null}
-    </main>
+    </SettingsPageShell>
   );
 }
 
 function SnapshotMetrics({ snapshots }: { snapshots?: NotificationPolicySnapshotOverview }) {
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard helper="版本记录" label="快照数" value={`${snapshots?.summary.snapshot_count ?? 0}`} />
-      <MetricCard helper="操作记录" label="回滚数" value={`${snapshots?.summary.rollback_count ?? 0}`} />
-      <MetricCard helper="审批预留" label="预留数" value={`${snapshots?.summary.approval_reserved_count ?? 0}`} />
-      <MetricCard helper="最近快照" label="最近更新" value={snapshots?.summary.latest_snapshot_at ? formatDateTime(snapshots.summary.latest_snapshot_at) : '暂无'} />
+      <SettingsStatTile detail="版本记录" label="快照数" value={`${snapshots?.summary.snapshot_count ?? 0}`} />
+      <SettingsStatTile detail="操作记录" label="回滚数" value={`${snapshots?.summary.rollback_count ?? 0}`} />
+      <SettingsStatTile detail="审批预留" label="预留数" value={`${snapshots?.summary.approval_reserved_count ?? 0}`} />
+      <SettingsStatTile detail="最近快照" label="最近更新" value={snapshots?.summary.latest_snapshot_at ? formatDateTime(snapshots.summary.latest_snapshot_at) : '暂无'} />
     </section>
   );
 }

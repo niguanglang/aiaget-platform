@@ -5,10 +5,48 @@ import test from 'node:test';
 
 const root = process.cwd();
 const opportunitiesRoot = join(root, 'src/components/customer-success-opportunities');
+const componentFiles = [
+  'customer-success-opportunities-content.tsx',
+  'customer-success-opportunity-analytics-content.tsx',
+  'customer-success-opportunity-close-won-report-content.tsx',
+  'customer-success-opportunity-create-content.tsx',
+  'customer-success-opportunity-detail-content.tsx',
+  'customer-success-opportunity-edit-content.tsx',
+  'customer-success-opportunity-form-panel.tsx',
+];
+const pageShellFiles = [
+  'customer-success-opportunities-content.tsx',
+  'customer-success-opportunity-analytics-content.tsx',
+  'customer-success-opportunity-close-won-report-content.tsx',
+  'customer-success-opportunity-create-content.tsx',
+  'customer-success-opportunity-detail-content.tsx',
+  'customer-success-opportunity-edit-content.tsx',
+  'customer-success-opportunity-form-panel.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(opportunitiesRoot, fileName), 'utf8');
 }
+
+test('customer success opportunity pages do not depend on the old page shell', () => {
+  for (const fileName of componentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /\bMetricCard\b/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /\bCustomerSuccessOpportunityBackground\b/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+  }
+
+  for (const fileName of pageShellFiles) {
+    const componentSource = source(fileName);
+
+    assert.match(componentSource, /max-w-\[1680px\]/, fileName);
+    assert.match(componentSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, fileName);
+  }
+
+  assert.equal(existsSync(join(opportunitiesRoot, 'customer-success-opportunity-background.tsx')), false);
+});
 
 test('customer success opportunity center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-opportunities/page.tsx')));

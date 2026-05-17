@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { ResourceAclBackground } from '@/components/resource-acls/resource-acl-background';
 import {
   draftFromResourceAcl,
   parseResourceAclConditions,
@@ -93,9 +92,7 @@ export function ResourceAclEditContent({ resourceAclId }: { resourceAclId: strin
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <ResourceAclBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6">
       <ResourceAclPageHeader
         actions={
           <Button asChild type="button" variant="outline">
@@ -113,13 +110,17 @@ export function ResourceAclEditContent({ resourceAclId }: { resourceAclId: strin
       <ResourceAclFeedback error={formError} />
 
       {aclQuery.isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">正在加载资源授权...</Card>
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">
+          正在加载资源授权...
+        </Card>
       ) : !acl || !draft ? (
-        <Card className="p-6 text-sm text-muted-foreground">未找到资源授权规则。</Card>
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">
+          未找到资源授权规则。
+        </Card>
       ) : (
         <section className="grid gap-4">
           <ResourceAclImmutableRuleSummary acl={acl} />
-          <Card className="grid gap-4 p-4">
+          <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
             <div>
               <h2 className="text-sm font-semibold">可编辑字段</h2>
               <p className="mt-1 text-sm text-muted-foreground">资源类型、资源 ID、主体类型和主体 ID 不会提交到更新接口。</p>

@@ -70,9 +70,7 @@ export function UserEditContent({ userId }: { userId: string }) {
   const user = userQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_18%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_82%_12%,rgba(20,184,166,0.08),transparent_30%)]" />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
       <section>
         <Button asChild className="mb-4 w-fit" variant="outline">
           <Link href={`/users/${userId}`}>
@@ -90,11 +88,11 @@ export function UserEditContent({ userId }: { userId: string }) {
       </section>
 
       {userQuery.isError || rolesQuery.isError || departmentsQuery.isError ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">用户编辑数据加载失败。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive">用户编辑数据加载失败。</div>
       ) : userQuery.isLoading || rolesQuery.isLoading || departmentsQuery.isLoading ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">正在加载用户、部门和角色...</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">正在加载用户、部门和角色...</div>
       ) : !canManageUsers ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">
           当前账号没有编辑用户权限。
         </div>
       ) : user ? (

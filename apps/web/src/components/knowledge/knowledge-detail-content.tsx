@@ -2,13 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { KnowledgeBaseDetail } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Database, Edit, FileText, FileUp, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { KnowledgeCenterBackground } from '@/components/knowledge/knowledge-center-background';
 import { formatDateTime } from '@/components/knowledge/knowledge-status';
 import {
   ConfirmDialog,
@@ -21,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { getKnowledgeBase, deleteKnowledgeBase, type ApiClientError } from '@/lib/api-client';
 
 export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string }) {
@@ -61,10 +58,9 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 
   if (baseQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <KnowledgeCenterBackground />
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">正在加载知识库...</div>
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <div className="text-sm text-muted-foreground">正在加载知识库</div>
         </Card>
       </main>
     );
@@ -72,9 +68,8 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 
   if (baseQuery.isError || !base) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <KnowledgeCenterBackground />
-        <Card className="p-6">
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="text-sm text-destructive">知识库加载失败。</div>
           <Button asChild className="mt-4" variant="outline">
             <Link href="/knowledge">返回知识库</Link>
@@ -85,42 +80,38 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <KnowledgeCenterBackground />
-
-      <motion.div animate={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.32, ease: 'easeOut' }}>
-        <KnowledgeWorkspaceHeader
-          actions={
-            <>
-              <RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />
-              <Button asChild variant="outline">
-                <Link href={`/knowledge/${knowledgeId}/edit`}>
-                  <Edit className="size-4" />
-                  编辑
-                </Link>
-              </Button>
-              <Button disabled={!canWrite} onClick={() => setDeleteBaseTarget(base)} type="button" variant="destructive">
-                <Trash2 className="size-4" />
-                删除
-              </Button>
-            </>
-	          }
-	          base={base}
-	          eyebrow="知识库详情"
-	          title={base.name}
-	        />
-      </motion.div>
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <KnowledgeWorkspaceHeader
+        actions={
+          <>
+            <RefreshButton loading={baseQuery.isFetching} onClick={() => void baseQuery.refetch()} />
+            <Button asChild variant="outline">
+              <Link href={`/knowledge/${knowledgeId}/edit`}>
+                <Edit className="size-4" />
+                编辑
+              </Link>
+            </Button>
+            <Button disabled={!canWrite} onClick={() => setDeleteBaseTarget(base)} type="button" variant="destructive">
+              <Trash2 className="size-4" />
+              删除
+            </Button>
+          </>
+        }
+        base={base}
+        eyebrow="知识库详情"
+        title={base.name}
+      />
 
       {actionError ? <PageMessage tone="error" value={actionError} /> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <KnowledgeDetailMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-        <Card className="grid gap-4 p-5">
+        <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <h2 className="text-sm font-semibold">基础信息</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <SummaryTile label="编码" value={base.code} />
@@ -130,7 +121,7 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
           </div>
         </Card>
 
-        <Card className="grid gap-4 p-5">
+        <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <h2 className="text-sm font-semibold">操作入口</h2>
 	          <div className="grid gap-3 md:grid-cols-3">
 	            <OperationEntry
@@ -154,7 +145,7 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
 
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <AgentReferencesCard base={base} />
-        <Card className="grid gap-4 p-5">
+        <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Database className="size-4" />
             索引概览
@@ -182,6 +173,16 @@ export function KnowledgeDetailContent({ knowledgeId }: { knowledgeId: string })
   );
 }
 
+function KnowledgeDetailMetricTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-5 py-4 shadow-[0_16px_45px_rgba(15,23,42,0.05)]">
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
+  );
+}
+
 function OperationEntry({
   href,
   icon: Icon,
@@ -205,7 +206,7 @@ function OperationEntry({
 
 function AgentReferencesCard({ base }: { base: KnowledgeBaseDetail }) {
   return (
-    <Card className="grid min-w-0 gap-4 p-5">
+    <Card className="grid min-w-0 gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <h2 className="text-sm font-semibold">智能体引用</h2>
       {base.agent_references.length === 0 ? (
 	        <EmptyState className="py-4" title="暂无引用" />

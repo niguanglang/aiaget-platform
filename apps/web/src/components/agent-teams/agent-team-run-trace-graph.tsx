@@ -5,10 +5,9 @@ import { BrainCircuit, GitBranch, Workflow } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 
-import { formatInteger, formatLatency } from '@/components/agent-teams/agent-teams-shared';
+import { AgentTeamMetricTile, formatInteger, formatLatency } from '@/components/agent-teams/agent-teams-shared';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 
 type TraceNodeKind = 'run' | 'step' | 'child_step' | 'model_call';
@@ -37,7 +36,7 @@ export function AgentTeamRunTraceGraph({
 
   if (graph.nodes.length === 0) {
     return (
-      <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+      <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
         <div className="flex items-center gap-2">
           <GitBranch className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">运行内 Trace 图谱</h2>
@@ -48,14 +47,13 @@ export function AgentTeamRunTraceGraph({
   }
 
   return (
-    <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+    <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
         <div>
           <div className="flex items-center gap-2">
             <GitBranch className="size-4 text-primary" />
             <h2 className="text-sm font-semibold">运行内 Trace 图谱</h2>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">trace_id、span_id、parent_span_id 关系视图。</p>
         </div>
         {run.trace_id ? (
           <Button asChild size="sm" variant="outline">
@@ -65,10 +63,10 @@ export function AgentTeamRunTraceGraph({
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <MetricCard helper={''} label="节点" value={formatInteger(graph.nodes.length)} />
-        <MetricCard helper={''} label="已连接" value={formatInteger(graph.linkedCount)} />
-        <MetricCard helper={''} label="根节点" value={formatInteger(graph.rootCount)} />
-        <MetricCard helper={''} label="孤立节点" value={formatInteger(graph.orphanCount)} />
+        <AgentTeamMetricTile label="节点" value={formatInteger(graph.nodes.length)} />
+        <AgentTeamMetricTile label="已连接" value={formatInteger(graph.linkedCount)} />
+        <AgentTeamMetricTile label="根节点" value={formatInteger(graph.rootCount)} />
+        <AgentTeamMetricTile label="孤立节点" value={formatInteger(graph.orphanCount)} />
       </div>
 
       <div className="mt-4 grid gap-3">

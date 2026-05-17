@@ -52,7 +52,11 @@ test('p6 aggregate pages link to split pages without owning every business list'
   assert.match(knowledgeOverview, /\/knowledge\/recalls/);
   assert.match(knowledgeActivity, /\/knowledge\/tasks/);
   assert.match(knowledgeActivity, /\/knowledge\/recalls/);
-  assert.doesNotMatch(knowledgeActivity, /recent_tasks[\s\S]*recent_recall_logs/);
+  assert.match(knowledgeActivity, /KnowledgeProcessingQueueTable/);
+  assert.match(knowledgeActivity, /KnowledgeRecallQualityOverview/);
+  assert.match(knowledgeActivity, /KnowledgeTopQueriesTable/);
+  assert.doesNotMatch(knowledgeActivity, /KnowledgeTaskDetailPanel/);
+  assert.doesNotMatch(knowledgeActivity, /selectedTaskId/);
 
   assert.match(platformUsageOverview, /\/monitor\/platform-usage\/events/);
   assert.match(platformUsageOverview, /\/monitor\/platform-usage\/ledger/);

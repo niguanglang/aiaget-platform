@@ -220,6 +220,16 @@ export function ActionMessage({ children }: { children: ReactNode }) {
   return <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{children}</div>;
 }
 
+export function BillingStatTile({ detail, label, value }: { detail?: ReactNode; label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200/80 bg-white px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-2 truncate text-xl font-semibold">{value}</div>
+      {detail ? <div className="mt-1 truncate text-xs text-muted-foreground">{detail}</div> : null}
+    </div>
+  );
+}
+
 export function BillingConfirmDialog({
   body,
   confirmLabel = '确认',

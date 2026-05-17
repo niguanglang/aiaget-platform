@@ -3,12 +3,10 @@
 import { hasPermission, type CustomerSuccessOpportunityListItem } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, Edit, Eye, Plus, Search, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerSuccessOpportunityBackground } from '@/components/customer-success-opportunities/customer-success-opportunity-background';
 import {
   customerSuccessOpportunityConfidenceLabel,
   customerSuccessOpportunityConfidenceLevels,
@@ -34,7 +32,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteCustomerSuccessOpportunity,
@@ -172,15 +169,8 @@ export function CustomerSuccessOpportunitiesContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessOpportunityBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <h1 className="text-2xl font-semibold">续约机会</h1>
         </div>
@@ -200,18 +190,13 @@ export function CustomerSuccessOpportunitiesContent() {
             </Button>
           ) : null}
         </div>
-      </motion.section>
+      </section>
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.04, duration: 0.32, ease: 'easeOut' }}
-      >
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricSummary helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
-      </motion.section>
+      </section>
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -343,14 +328,8 @@ export function CustomerSuccessOpportunitiesContent() {
                 </tr>
               </thead>
               <tbody>
-                {opportunities.map((item, index) => (
-                  <motion.tr
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                    initial={{ opacity: 0, y: 8 }}
-                    key={item.id}
-                    transition={{ delay: index * 0.025, duration: 0.22 }}
-                  >
+                  {opportunities.map((item) => (
+                    <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={item.id}>
                     <td className="px-4 py-3">
                       <div className="grid max-w-64 gap-1">
                         <Link className="font-medium hover:text-primary" href={`/customer-success-opportunities/${item.id}`}>{item.name}</Link>
@@ -422,8 +401,8 @@ export function CustomerSuccessOpportunitiesContent() {
                         ) : null}
                       </div>
                     </td>
-                  </motion.tr>
-                ))}
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -455,5 +434,15 @@ export function CustomerSuccessOpportunitiesContent() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function MetricSummary({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }

@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChannelReleaseAutomationPolicyInput } from '@aiaget/shared-types';
 import { Play } from 'lucide-react';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { ChannelActionConfirmDialog, ChannelAlert, DetailGrid, formatNumber, formatOptionalDateTime, useChannelOperationPermissions } from '@/components/channels/channel-operations-pages';
 import { ChannelReleaseHeader, PanelTitle, ReleaseChannelEmpty, ReleaseChannelPicker } from '@/components/channels/channel-release-shared';
 import { Button } from '@/components/ui/button';
@@ -84,8 +83,7 @@ export function ChannelReleaseAutomationContent() {
   }, [automation?.policy]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelReleaseHeader
         badge="自动推进"
         refreshing={overviewQuery.isFetching || automationQuery.isFetching || runMutation.isPending || policyMutation.isPending}

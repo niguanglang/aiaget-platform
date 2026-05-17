@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, ChevronDown, ExternalLink, Search, ShieldCheck, X } from 'lucide-react';
+import { Bell, ExternalLink, LogOut, Search, ShieldCheck, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -53,9 +53,12 @@ export function Topbar() {
               <div className="text-xs text-muted-foreground">{currentUser?.user.email}</div>
             </div>
           </div>
-          <Button aria-label="退出登录" onClick={handleLogout} size="icon" variant="outline">
-            <ChevronDown className="size-4" />
-          </Button>
+          <button aria-label="退出登录" className="logout-button" onClick={handleLogout} type="button">
+            <span className="logout-button-sign">
+              <LogOut aria-hidden="true" />
+            </span>
+            <span className="logout-button-text">Logout</span>
+          </button>
         </div>
       </div>
     </header>

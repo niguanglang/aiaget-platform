@@ -5,10 +5,44 @@ import test from 'node:test';
 
 const root = process.cwd();
 const plansRoot = join(root, 'src/components/customer-success-plans');
+const componentFiles = [
+  'customer-success-plans-content.tsx',
+  'customer-success-plan-create-content.tsx',
+  'customer-success-plan-detail-content.tsx',
+  'customer-success-plan-edit-content.tsx',
+  'customer-success-plan-form-panel.tsx',
+];
+const pageShellFiles = [
+  'customer-success-plans-content.tsx',
+  'customer-success-plan-create-content.tsx',
+  'customer-success-plan-detail-content.tsx',
+  'customer-success-plan-edit-content.tsx',
+  'customer-success-plan-form-panel.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(plansRoot, fileName), 'utf8');
 }
+
+test('customer success plan pages do not depend on the old page shell', () => {
+  for (const fileName of componentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /\bMetricCard\b/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /\bCustomerSuccessPlanBackground\b/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+  }
+
+  for (const fileName of pageShellFiles) {
+    const componentSource = source(fileName);
+
+    assert.match(componentSource, /max-w-\[1680px\]/, fileName);
+    assert.match(componentSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, fileName);
+  }
+
+  assert.equal(existsSync(join(plansRoot, 'customer-success-plan-background.tsx')), false);
+});
 
 test('customer success plan center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/customer-success-plans/page.tsx')));

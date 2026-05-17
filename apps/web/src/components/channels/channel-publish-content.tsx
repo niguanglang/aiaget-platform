@@ -147,7 +147,7 @@ export function ChannelPublishContent() {
               { label: '入口地址', value: item.endpoint_url ?? '未配置' },
               { label: '回调地址', value: item.callback_url ?? '未配置' },
               { label: '密钥状态', value: item.secret_masked ?? '未配置' },
-              { label: '健康说明', value: item.health_message ?? '暂无异常说明' },
+              { label: '健康说明', value: item.health_message ?? '-' },
               { label: '最近发布', value: formatOptionalDateTime(item.last_published_at) },
               { label: '最近巡检', value: formatOptionalDateTime(item.last_checked_at) },
               { label: '更新时间', value: formatOptionalDateTime(item.updated_at) },

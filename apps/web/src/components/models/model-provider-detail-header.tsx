@@ -40,9 +40,7 @@ export function ModelProviderDetailHeader({
         </div>
         <h1 className="text-2xl font-semibold">{provider.name}</h1>
         <p className="mt-1 text-xs text-muted-foreground">{provider.code}</p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {provider.description ?? '暂无描述。'}
-        </p>
+        {provider.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{provider.description}</p> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {canWrite ? (

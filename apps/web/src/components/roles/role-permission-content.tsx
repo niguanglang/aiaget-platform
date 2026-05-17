@@ -2,19 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type RoleListItem, type RoleStatus } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Edit, Eye, KeyRound, ListTree, Plus, Power, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleCenterBackground } from '@/components/roles/role-center-background';
-import { ConfirmDialog } from '@/components/roles/role-ia-shared';
+import { ConfirmDialog, RoleStatGrid } from '@/components/roles/role-ia-shared';
 import { formatDateTime, roleStatusLabel, roleStatusTone } from '@/components/roles/role-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteRole,
@@ -136,15 +133,8 @@ export function RolePermissionContent() {
   );
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <RoleCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm md:p-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">角色</StatusBadge>
@@ -166,18 +156,9 @@ export function RolePermissionContent() {
             新建角色
           </Button>
         )}
-      </motion.section>
+      </section>
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.04, duration: 0.32, ease: 'easeOut' }}
-      >
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </motion.section>
+      <RoleStatGrid items={metrics} />
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -313,13 +294,10 @@ function RoleTable({
           </tr>
         </thead>
         <tbody>
-          {roles.map((role, index) => (
-            <motion.tr
-              animate={{ opacity: 1, y: 0 }}
+          {roles.map((role) => (
+            <tr
               className="border-b transition-colors last:border-0 hover:bg-muted/25"
-              initial={{ opacity: 0, y: 8 }}
               key={role.id}
-              transition={{ delay: index * 0.02, duration: 0.2 }}
             >
               <td className="px-4 py-3">
                 <div className="grid max-w-md gap-1">
@@ -327,7 +305,9 @@ function RoleTable({
                     {role.name}
                   </Link>
                   <span className="text-xs text-muted-foreground">{role.code}</span>
-                  <span className="line-clamp-1 text-xs text-muted-foreground">{role.description || '暂无描述'}</span>
+                  {role.description ? (
+                    <span className="line-clamp-1 text-xs text-muted-foreground">{role.description}</span>
+                  ) : null}
                 </div>
               </td>
               <td className="px-4 py-3">
@@ -406,7 +386,7 @@ function RoleTable({
                   </Button>
                 </div>
               </td>
-            </motion.tr>
+            </tr>
           ))}
         </tbody>
       </table>

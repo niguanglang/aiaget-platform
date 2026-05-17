@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -15,6 +15,12 @@ const sharedPath = join(componentsRoot, 'storage-shared.tsx');
 
 function source(path: string) {
   return readFileSync(path, 'utf8');
+}
+
+function readComponentSources(root: string) {
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.tsx') && !entry.name.endsWith('.test.tsx'))
+    .map((entry) => [entry.name, readFileSync(join(root, entry.name), 'utf8')] as const);
 }
 
 test('storage route-level pages and focused components exist', () => {
@@ -107,4 +113,13 @@ test('storage object detail page owns object lookup, download, copy, and delete 
   assert.match(detailSource, /确认删除这个文件/);
   assert.doesNotMatch(detailSource, /uploadStorageObject/);
   assert.doesNotMatch(detailSource, /ensureStorageBucket/);
+});
+
+test('storage components do not depend on the legacy console shell', () => {
+  for (const [fileName, componentSource] of readComponentSources(componentsRoot)) {
+    assert.doesNotMatch(componentSource, /MetricCard/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+    assert.doesNotMatch(componentSource, /bg-\[radial-gradient/, fileName);
+  }
 });

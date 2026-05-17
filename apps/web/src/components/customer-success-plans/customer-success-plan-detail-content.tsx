@@ -6,7 +6,6 @@ import { ArrowLeft, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerSuccessPlanBackground } from '@/components/customer-success-plans/customer-success-plan-background';
 import {
   customerSuccessPlanHealthLabel,
   customerSuccessPlanHealthTone,
@@ -36,8 +35,7 @@ export function CustomerSuccessPlanDetailContent({ planId }: { planId: string })
 
   if (planQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessPlanBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载客户成功计划...</Card>
       </main>
     );
@@ -45,8 +43,7 @@ export function CustomerSuccessPlanDetailContent({ planId }: { planId: string })
 
   if (planQuery.isError || !planQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessPlanBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">客户成功计划加载失败。</Card>
       </main>
     );
@@ -55,8 +52,7 @@ export function CustomerSuccessPlanDetailContent({ planId }: { planId: string })
   const item = planQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessPlanBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

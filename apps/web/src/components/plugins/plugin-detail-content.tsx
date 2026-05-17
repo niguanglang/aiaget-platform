@@ -2,10 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Settings2, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 
-import { PluginCenterBackground } from '@/components/plugins/plugin-center-background';
 import {
   formatPluginDateTime,
   pluginHookStatusLabel,
@@ -23,14 +21,15 @@ import {
   formatManifestValue,
   InfoBlock,
   ManifestSummary,
+  PluginPageShell,
   PluginSectionNav,
+  PluginStatsGrid,
   SummaryItem,
   usePluginPermissions,
 } from '@/components/plugins/plugin-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getPluginInstallation } from '@/lib/api-client';
 
@@ -45,10 +44,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
 
   if (!canView) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <PluginCenterBackground />
+      <PluginPageShell>
         <EmptyState title="无权限访问插件详情" />
-      </main>
+      </PluginPageShell>
     );
   }
 
@@ -68,15 +66,8 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <PluginPageShell>
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div className="min-w-0">
           <Button asChild className="mb-4" size="sm" variant="outline">
             <Link href="/plugins">
@@ -94,7 +85,7 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           <p className="mt-1 text-xs text-muted-foreground">
             {detail.code} · {detail.provider} · {pluginSourceLabel(detail.source_type)}
           </p>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{detail.description ?? '暂无描述。'}</p>
+          {detail.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{detail.description}</p> : null}
         </div>
         <div className="grid gap-2">
           <PluginSectionNav active="detail" pluginId={pluginId} />
@@ -119,13 +110,9 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
             </Button>
           </div>
         </div>
-      </motion.section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
       </section>
+
+      <PluginStatsGrid items={metrics} />
 
       <Card className="overflow-hidden">
         <div className="border-b p-5">
@@ -227,14 +214,13 @@ export function PluginDetailContent({ pluginId }: { pluginId: string }) {
           </DetailList>
         </div>
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }
 
 function PluginStatePanel({ description, title }: { description?: string; title: string }) {
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <Button asChild className="w-fit" variant="outline">
         <Link href="/plugins">
           <ArrowLeft className="size-4" />
@@ -244,6 +230,6 @@ function PluginStatePanel({ description, title }: { description?: string; title:
       <Card className="p-6">
         <EmptyState description={description} title={title} />
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }

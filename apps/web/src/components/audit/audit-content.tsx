@@ -8,18 +8,15 @@ import type {
   AuditOverview,
   AuditWindow,
 } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { AlertTriangle, ExternalLink, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { AuditCenterBackground } from '@/components/audit/audit-center-background';
 import { auditSourceLabel, auditStatusLabel, auditStatusTone, formatDateTime, formatPercent } from '@/components/audit/audit-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getApprovalAuditOverview, getAuditOverview, listAuditEvents } from '@/lib/api-client';
 
@@ -67,25 +64,18 @@ export function AuditContent() {
     if (!summary) return [];
 
     return [
-      { label: '登录日志', value: `${summary.login_total}`, helper: `${windowValue} 窗口` },
-      { label: '操作日志', value: `${summary.operation_total}`, helper: '写操作拦截' },
-      { label: '计费事件', value: `${summary.billing_event_total}`, helper: '调账与入账追踪' },
-      { label: '安全事件', value: `${summary.security_event_total}`, helper: '失败登录与异常操作' },
-      { label: '配置变更', value: `${summary.config_change_total}`, helper: '配置类写操作' },
-      { label: '成功率', value: formatPercent(summary.success_rate), helper: '统一审计事件流' },
+      { label: '登录日志', value: `${summary.login_total}` },
+      { label: '操作日志', value: `${summary.operation_total}` },
+      { label: '计费事件', value: `${summary.billing_event_total}` },
+      { label: '安全事件', value: `${summary.security_event_total}` },
+      { label: '配置变更', value: `${summary.config_change_total}` },
+      { label: '成功率', value: formatPercent(summary.success_rate) },
     ];
   }, [overviewQuery.data, windowValue]);
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <AuditCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">登录</StatusBadge>
@@ -105,11 +95,11 @@ export function AuditContent() {
         >
           刷新数据
         </Button>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <MetricTile key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -145,7 +135,7 @@ export function AuditContent() {
       />
 
       <section className="min-w-0">
-        <Card className="min-w-0">
+        <Card className="min-w-0 rounded-xl border border-slate-200/80 bg-white/[0.9]">
           <div className="border-b p-4">
             <div className="grid gap-4">
               <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
@@ -161,7 +151,7 @@ export function AuditContent() {
                   <input
                     className="min-w-0 flex-1 bg-transparent outline-none"
                     onChange={(event) => setKeyword(event.target.value)}
-                    placeholder="搜索用户、模块、调账单号、机会名、客户名、链路 ID"
+                    aria-label="搜索用户、模块、调账单号、机会名、客户名、链路 ID"
                     value={keyword}
                   />
                 </label>
@@ -205,7 +195,7 @@ export function AuditContent() {
           ) : eventsQuery.isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">正在加载审计事件...</div>
           ) : events.length === 0 ? (
-            <EmptyState description="当前筛选窗口内没有审计记录。" title="暂无审计事件" />
+            <EmptyState title="暂无审计事件" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
@@ -219,14 +209,8 @@ export function AuditContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((event, index) => (
-                    <motion.tr
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                      initial={{ opacity: 0, y: 8 }}
-                      key={event.event_id}
-                      transition={{ delay: index * 0.02, duration: 0.22 }}
-                    >
+                  {events.map((event) => (
+                    <tr className="border-b transition-colors last:border-0 hover:bg-muted/25" key={event.event_id}>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(event.occurred_at)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{auditSourceLabel(event.source_type)}</td>
                       <td className="px-4 py-3">
@@ -248,7 +232,7 @@ export function AuditContent() {
                           </Link>
                         </Button>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -270,7 +254,7 @@ function RankingCard({
   title: string;
 }) {
   return (
-    <Card className="grid gap-4 p-5">
+    <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
       <h2 className="text-sm font-semibold">{title}</h2>
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载排行...</div>
@@ -301,7 +285,7 @@ function FailureCard({
   loading: boolean;
 }) {
   return (
-    <Card className="grid gap-4 p-5">
+    <Card className="grid gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <AlertTriangle className="size-4 text-amber-600" />
         最近失败
@@ -309,7 +293,7 @@ function FailureCard({
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载失败样本...</div>
       ) : failures.length === 0 ? (
-        <EmptyState description="当前窗口没有失败审计事件。" title="暂无失败事件" />
+        <EmptyState title="暂无失败事件" />
       ) : (
         <div className="grid gap-3">
           {failures.map((failure) => (
@@ -341,7 +325,7 @@ function ApprovalAuditBridgeCard({
   const recentRiskEvents = overview?.recent_events.filter((event) => event.event_status !== 'SUCCESS').slice(0, 3) ?? [];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9]">
       <div className="grid gap-4 p-5 lg:grid-cols-[0.9fr_1.1fr_auto] lg:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -401,6 +385,15 @@ function BridgeMetric({ helper, label, value }: { helper: string; label: string;
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-semibold">{value}</div>
       <div className="text-xs text-muted-foreground">{helper}</div>
+    </div>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
     </div>
   );
 }

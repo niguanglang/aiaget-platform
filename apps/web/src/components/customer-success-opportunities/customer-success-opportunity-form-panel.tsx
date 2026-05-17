@@ -178,7 +178,7 @@ export function CustomerSuccessOpportunityFormPanel({
   const isEditing = mode === 'edit';
 
   return (
-    <section className="grid rounded-lg border bg-background/95 shadow-sm backdrop-blur">
+    <section className="grid max-w-[1680px] rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-sm">
       <div className="border-b p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

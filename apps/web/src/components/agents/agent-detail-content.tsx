@@ -198,8 +198,8 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
 
   if (agentQuery.isLoading) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+      <main className="mx-auto max-w-[1536px] px-4 py-6 lg:px-7">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground">
           正在加载智能体详情...
         </div>
       </main>
@@ -208,14 +208,14 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
 
   if (agentQuery.isError || !agent) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1536px] gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/agents">
             <ArrowLeft className="size-4" />
             返回
           </Link>
         </Button>
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-6 text-sm text-destructive">
           智能体详情加载失败。
         </div>
       </main>
@@ -223,7 +223,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
       <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div className="min-w-0">
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -238,9 +238,7 @@ export function AgentDetailContent({ agentId }: { agentId: string }) {
             <StatusBadge tone="planned">{agent.category?.name ?? '未分类'}</StatusBadge>
           </div>
           <h1 className="break-words text-2xl font-semibold">{agent.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {agent.description ?? '暂无描述。'}
-          </p>
+          {agent.description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{agent.description}</p> : null}
         </div>
 
         <div className="flex flex-wrap gap-2">

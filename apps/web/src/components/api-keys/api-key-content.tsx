@@ -1,14 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import { BookOpen, Copy, Eye, Plus, RefreshCw, RadioTower, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteTenantApiKey,
@@ -202,13 +200,8 @@ export function ApiKeyContent() {
   const actionPending = disableMutation.isPending || enableMutation.isPending || rotateMutation.isPending;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">API Key</StatusBadge>
@@ -237,7 +230,7 @@ export function ApiKeyContent() {
             </a>
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       <NoticeBanner message={notice} />
       <ErrorBanner message={errorMessage ?? (apiKeysQuery.isError || agentsQuery.isError ? 'API Key 数据加载失败，请检查登录状态或接口权限。' : null)} />
@@ -284,7 +277,13 @@ export function ApiKeyContent() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {apiKeysQuery.isLoading
           ? Array.from({ length: 6 }).map((_, index) => <div className="h-28 rounded-lg border bg-muted/30" key={index} />)
-          : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+          : metrics.map((metric) => (
+              <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm" key={metric.label}>
+                <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+                <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+              </div>
+            ))}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_340px]">

@@ -31,7 +31,7 @@ function defaults(provider?: ModelProviderDetail | null): ProviderFormValues {
     name: provider?.name ?? '',
     code: provider?.code ?? '',
     provider_type: provider?.provider_type ?? 'OPENAI_COMPATIBLE',
-    base_url: provider?.base_url ?? 'https://api.openai.com/v1',
+    base_url: provider?.base_url ?? '',
     description: provider?.description ?? '',
     is_default: provider?.is_default ?? false,
   };

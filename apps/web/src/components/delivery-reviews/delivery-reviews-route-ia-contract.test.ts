@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -8,6 +8,12 @@ const reviewsRoot = join(root, 'src/components/delivery-reviews');
 
 function source(fileName: string) {
   return readFileSync(join(reviewsRoot, fileName), 'utf8');
+}
+
+function productionSources() {
+  return readdirSync(reviewsRoot)
+    .filter((fileName) => fileName.endsWith('.tsx') && !fileName.endsWith('.test.tsx'))
+    .map((fileName) => [fileName, source(fileName)] as const);
 }
 
 test('delivery review center has separate list, create, detail, and edit routes', () => {
@@ -28,6 +34,18 @@ test('delivery review list stays compact and does not embed full review details'
   assert.doesNotMatch(listSource, /improvement_actions[\s\S]*<td/);
   assert.doesNotMatch(listSource, /expansion_plan[\s\S]*<td/);
   assert.doesNotMatch(listSource, /DeliveryReviewFormPanel[\s\S]*mode="edit"/);
+});
+
+test('delivery review production components use the unified wide white operations shell', () => {
+  assert.equal(existsSync(join(reviewsRoot, 'delivery-review-background.tsx')), false);
+
+  for (const [fileName, fileSource] of productionSources()) {
+    assert.doesNotMatch(fileSource, /motion\/react/, `${fileName} must not import motion/react`);
+    assert.doesNotMatch(fileSource, /motion\./, `${fileName} must not render motion components`);
+    assert.doesNotMatch(fileSource, /MetricCard/, `${fileName} must not use the legacy MetricCard shell`);
+    assert.doesNotMatch(fileSource, /max-w-7xl/, `${fileName} must not constrain the operations shell to max-w-7xl`);
+    assert.doesNotMatch(fileSource, /DeliveryReviewBackground/, `${fileName} must not use the legacy background shell`);
+  }
 });
 
 test('delivery review detail owns full acceptance, issues, improvements and expansion plan', () => {

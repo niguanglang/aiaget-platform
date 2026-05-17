@@ -26,7 +26,6 @@ import { formatDateTime, formatMoney } from '@/components/monitor/monitor-status
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/utils';
 
@@ -125,7 +124,7 @@ export function PlatformUsageSummaryCards({
   ) : (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {metrics.map((metric) => (
-        <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+        <PlatformUsageMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
       ))}
     </section>
   );
@@ -226,7 +225,7 @@ export function UsageTrendCard({ loading, points }: { loading: boolean; points: 
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量趋势...</div>
       ) : points.length === 0 ? (
-        <EmptyState description="暂无用量事件。" title="暂无趋势数据" />
+        <EmptyState title="暂无趋势数据" />
       ) : (
         <div className="grid gap-4">
           <div className="flex h-48 items-end gap-2">
@@ -259,7 +258,7 @@ export function RollupCard({ loading, items }: { loading: boolean; items: Platfo
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载汇总批次...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无汇总批次。" title="暂无汇总" />
+        <EmptyState title="暂无汇总" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 4).map((item) => (
@@ -289,7 +288,7 @@ export function PlatformEventTable({ loading, items, total }: { loading: boolean
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载平台事件...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无平台事件。" title="暂无事件" />
+        <EmptyState title="暂无事件" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
@@ -328,7 +327,7 @@ export function PlatformEventDetailPanel({ detail, loading }: { detail: Platform
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载事件详情...</div>
       ) : !detail ? (
-        <EmptyState description="事件不存在或已超出范围。" title="未找到事件" />
+        <EmptyState title="未找到事件" />
       ) : (
         <div className="grid gap-4">
           <DetailGrid items={[
@@ -362,7 +361,7 @@ export function UsageLedgerList({ items, loading, title = '用量账本' }: { it
       {loading ? (
         <div className="text-sm text-muted-foreground">正在加载用量账本...</div>
       ) : items.length === 0 ? (
-        <EmptyState description="暂无用量记录。" title="暂无用量" />
+        <EmptyState title="暂无用量" />
       ) : (
         <div className="grid gap-3">
           {items.map((item) => (
@@ -387,7 +386,7 @@ export function RelationList({ loading, items }: { loading: boolean; items: Plat
     <Card className="grid gap-4 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold"><GitBranch className="size-4 text-primary" />事件关系</div>
       {loading ? <div className="text-sm text-muted-foreground">正在加载事件关系...</div> : items.length === 0 ? (
-        <EmptyState description="暂无事件关系。" title="暂无关系" />
+        <EmptyState title="暂无关系" />
       ) : (
         <div className="grid gap-3">
           {items.slice(0, 8).map((item) => (
@@ -413,9 +412,9 @@ export function UsageAnomalyCard({ detecting, overview }: { detecting: boolean; 
         <StatusBadge tone={usageAnomalySummaryTone(summary?.highest_severity ?? null)}>{detecting ? '检测中' : summary ? usageAnomalySeverityLabel(summary.highest_severity) : '未检测'}</StatusBadge>
       </div>
       {detecting ? <div className="text-sm text-muted-foreground">正在检测用量异常...</div> : !overview ? (
-        <EmptyState description="等待检测。" title="尚未检测" />
+        <EmptyState title="尚未检测" />
       ) : overview.items.length === 0 ? (
-        <EmptyState description="暂无成本、调用量、错误率或重试率异常。" title="暂无异常信号" />
+        <EmptyState title="暂无异常信号" />
       ) : (
         <div className="grid gap-3">
           {overview.items.slice(0, 8).map((item) => <AnomalyRow item={item} key={item.id} />)}
@@ -464,7 +463,7 @@ export function UsageAlertList({
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />告警生命周期</div>
-      {loading ? <div className="text-sm text-muted-foreground">正在加载告警队列...</div> : items.length === 0 ? <EmptyState description="暂无待处理告警。" title="暂无用量告警" /> : (
+      {loading ? <div className="text-sm text-muted-foreground">正在加载告警队列...</div> : items.length === 0 ? <EmptyState title="暂无用量告警" /> : (
         <div className="grid gap-3">
           {items.slice(0, 10).map((alert) => (
             <div className="rounded-md border bg-muted/20 px-3 py-3" key={alert.alert_id}>
@@ -503,7 +502,7 @@ export function UsageNotificationList({
   return (
     <Card className="grid gap-4 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-primary" />通知投递审计</div>
-      {loading ? <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div> : items.length === 0 ? <EmptyState description="暂无投递记录。" title="暂无投递记录" /> : (
+      {loading ? <div className="text-sm text-muted-foreground">正在加载通知投递记录...</div> : items.length === 0 ? <EmptyState title="暂无投递记录" /> : (
         <div className="grid gap-3">
           {items.slice(0, 12).map((item) => {
             const pending = retrying && pendingNotificationEventId === item.notification_event_id;
@@ -537,10 +536,10 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
       {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-md border bg-muted/30" key={index} />)}</div> : (
         <div className="grid gap-4">
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard helper="满足退避与次数限制" label="待自动重试" value={`${summary?.pending_auto_retry_count ?? 0}`} />
-            <MetricCard helper="最近窗口内失败" label="失败投递" value={`${summary?.failed_notification_count ?? 0}`} />
-            <MetricCard helper="站内成功或外部失败" label="部分成功" value={`${summary?.partial_notification_count ?? 0}`} />
-            <MetricCard helper="已有重试链路" label="已重试" value={`${summary?.retried_notification_count ?? 0}`} />
+            <PlatformUsageMetricTile helper="满足退避与次数限制" label="待自动重试" value={`${summary?.pending_auto_retry_count ?? 0}`} />
+            <PlatformUsageMetricTile helper="最近窗口内失败" label="失败投递" value={`${summary?.failed_notification_count ?? 0}`} />
+            <PlatformUsageMetricTile helper="站内成功或外部失败" label="部分成功" value={`${summary?.partial_notification_count ?? 0}`} />
+            <PlatformUsageMetricTile helper="已有重试链路" label="已重试" value={`${summary?.retried_notification_count ?? 0}`} />
           </section>
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]"><Card className="border-slate-200/80 p-4"><div className="mb-3 text-sm font-semibold">调度状态</div><DetailGrid items={[{ label: '任务开关', value: overview?.scheduler_enabled ? '已启用' : '未启用' }, { label: '运行状态', value: overview?.running || running ? '执行中' : '空闲' }, { label: '最近扫描', value: formatDateTime(overview?.last_tick_at ?? '') }, { label: '扫描间隔', value: overview?.next_tick_after_seconds ? `${overview.next_tick_after_seconds} 秒` : '未配置' }]} /></Card><Card className="border-slate-200/80 p-4"><div className="mb-3 text-sm font-semibold">当前策略</div><DetailGrid items={[{ label: '单批数量', value: `${policy?.retry_batch_size ?? 0}` }, { label: '最大重试', value: `${policy?.max_retry_count ?? 0} 次` }, { label: '退避时间', value: `${policy?.retry_backoff_seconds ?? 0} 秒` }, { label: '回看窗口', value: `${policy?.lookback_hours ?? 0} 小时` }]} /></Card></div>
           <TaskResultCard result={result} />
@@ -551,12 +550,22 @@ export function UsageTaskOverviewCard({ loading, overview, running, onRunAutoRet
 }
 
 function TaskResultCard({ result }: { result: PlatformUsageAlertNotificationTaskRunResult | null }) {
-  if (!result) return <EmptyState className="rounded-md border bg-slate-50/60 p-5" description="暂无扫描结果。" title="暂无执行结果" />;
+  if (!result) return <EmptyState className="rounded-md border bg-slate-50/60 p-5" title="暂无执行结果" />;
   return <Card className="border-slate-200/80 p-4"><div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm font-semibold">最近执行结果</span><StatusBadge tone={taskRunTone(result.status)}>{taskRunLabel(result.status)}</StatusBadge></div><DetailGrid items={[{ label: '扫描', value: `${result.scanned_count}` }, { label: '重试', value: `${result.retried_count}` }, { label: '成功', value: `${result.success_count}` }, { label: '失败', value: `${result.failed_count}` }, { label: '跳过', value: `${result.skipped_count}` }, { label: '完成时间', value: formatDateTime(result.finished_at) }]} />{result.error_message ? <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{result.error_message}</div> : null}</Card>;
 }
 
 export function DetailGrid({ items }: { items: Array<{ label: string; value: string }> }) {
   return <div className="grid gap-2 text-sm md:grid-cols-2">{items.map((item) => <div className="grid gap-1 rounded-md border bg-white/70 p-3" key={item.label}><span className="text-xs text-muted-foreground">{item.label}</span><span className="break-words font-medium">{item.value}</span></div>)}</div>;
+}
+
+export function PlatformUsageMetricTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-none">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-2 text-xs text-muted-foreground">{helper}</div>
+    </Card>
+  );
 }
 
 export function JsonPreview({ title, value }: { title: string; value: Record<string, unknown> | null }) {

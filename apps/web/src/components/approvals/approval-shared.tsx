@@ -25,7 +25,11 @@ export function useApprovalCanHandle() {
 }
 
 export function ApprovalPageShell({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">{children}</main>;
+  return (
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      {children}
+    </main>
+  );
 }
 
 export function ErrorBanner({ message }: { message: string | null }) {
@@ -71,7 +75,6 @@ export function DecisionActions({
   onChangeDecisionNote,
   onReject,
   pending,
-  placeholder,
   rejectLabel,
 }: {
   approveLabel: string;
@@ -82,7 +85,6 @@ export function DecisionActions({
   onChangeDecisionNote: (value: string) => void;
   onReject: () => void;
   pending: boolean;
-  placeholder: string;
   rejectLabel: string;
 }) {
   const isDisabled = !canWrite || disabled || pending;
@@ -108,7 +110,6 @@ export function DecisionActions({
         className="min-h-28 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         disabled={isDisabled}
         onChange={(event) => onChangeDecisionNote(event.target.value)}
-        placeholder={placeholder}
         value={decisionNote}
       />
       <div className="grid gap-2 sm:grid-cols-2">
@@ -217,17 +218,26 @@ export function ApprovalAuditTimeline({ events }: { events: ApprovalAuditEventIt
   );
 }
 
-export function EmptyApprovalSelection({ description, title }: { description: string; title: string }) {
-  return <EmptyState description={description} title={title} />;
+export function EmptyApprovalSelection({ title }: { title: string }) {
+  return <EmptyState title={title} />;
 }
 
-export function CardSection({ children, title }: { children: React.ReactNode; title: string; description?: string }) {
+export function CardSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <Card className="min-w-0">
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold">{title}</h2>
       </div>
       {children}
+    </Card>
+  );
+}
+
+export function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="rounded-lg border-slate-200/80 bg-white/80 p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
     </Card>
   );
 }

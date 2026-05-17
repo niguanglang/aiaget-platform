@@ -2,13 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type ToolListItem, type ToolRiskLevel, type ToolStatus, type ToolType } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Copy, Edit, Eye, Plus, Power, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ToolCenterBackground } from '@/components/tools/tool-center-background';
 import {
   formatDateTime,
   formatPercent,
@@ -23,9 +21,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { copyTool, deleteTool, disableTool, enableTool, listTools, type ApiClientError } from '@/lib/api-client';
+
+import { ToolStatTile } from './tool-stat-tile';
 
 const toolTypes: ToolType[] = ['HTTP'];
 const toolStatuses: ToolStatus[] = ['ACTIVE', 'DISABLED', 'DELETED'];
@@ -124,15 +123,8 @@ export function ToolContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ToolCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1536px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="ready">工具中心</StatusBadge>
@@ -154,18 +146,13 @@ export function ToolContent() {
             </Button>
           ) : null}
         </div>
-      </motion.section>
+      </section>
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.04, duration: 0.32, ease: 'easeOut' }}
-      >
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <ToolStatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
-      </motion.section>
+      </section>
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -267,13 +254,10 @@ export function ToolContent() {
                 </tr>
               </thead>
               <tbody>
-                {tools.map((tool, index) => (
-                  <motion.tr
-                    animate={{ opacity: 1, y: 0 }}
+                {tools.map((tool) => (
+                  <tr
                     className="border-b transition-colors last:border-0 hover:bg-muted/25"
-                    initial={{ opacity: 0, y: 8 }}
                     key={tool.id}
-                    transition={{ delay: index * 0.025, duration: 0.22 }}
                   >
                     <td className="px-4 py-3">
                       <div className="grid max-w-md gap-1">
@@ -348,7 +332,7 @@ export function ToolContent() {
                         </Button>
                       </div>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>

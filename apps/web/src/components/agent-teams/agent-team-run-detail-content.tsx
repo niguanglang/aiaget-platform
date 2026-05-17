@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { AgentTeamConfirmDialog } from '@/components/agent-teams/agent-team-confirm-dialog';
 import { AgentTeamRunTraceGraph } from '@/components/agent-teams/agent-team-run-trace-graph';
 import {
+  AgentTeamMetricTile,
   DetailRow,
   ErrorPanel,
   formatDateTime,
@@ -23,7 +24,6 @@ import {
 } from '@/components/agent-teams/agent-teams-shared';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   createAgentTeamRunReportArchive,
@@ -123,12 +123,12 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
   }, [runId, team?.feedback]);
 
   if (teamQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><LoadingPanel text="正在加载运行详情..." /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-5 lg:px-7"><LoadingPanel text="正在加载运行详情" /></main>;
   }
 
   if (teamQuery.isError || !team) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}><ArrowLeft className="size-4" />运行记录</Link></Button>
         <ErrorPanel text="运行详情加载失败。" />
       </main>
@@ -137,7 +137,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
 
   if (!run) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-5 lg:px-7">
         <Button asChild className="w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}><ArrowLeft className="size-4" />运行记录</Link></Button>
         <EmptyState title="运行记录不存在" />
       </main>
@@ -147,7 +147,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
   const currentReplayMetrics = replayMetrics ?? buildRunReplayMetrics(run, steps);
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline"><Link href={`/agent-teams/${teamId}/runs`}><ArrowLeft className="size-4" />运行记录</Link></Button>
@@ -175,21 +175,20 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
       {actionError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper={''} label="步骤进度" value={`${formatInteger(run.completed_steps)}/${formatInteger(run.total_steps)}`} />
-        <MetricCard helper={''} label="异常" value={formatInteger(run.failed_steps)} />
-        <MetricCard helper={''} label="Token" value={formatInteger(run.total_tokens)} />
-        <MetricCard helper={formatLatency(run.latency_ms)} label="成本" value={formatMoney(run.total_cost)} />
+        <AgentTeamMetricTile label="步骤进度" value={`${formatInteger(run.completed_steps)}/${formatInteger(run.total_steps)}`} />
+        <AgentTeamMetricTile label="异常" value={formatInteger(run.failed_steps)} />
+        <AgentTeamMetricTile label="Token" value={formatInteger(run.total_tokens)} />
+        <AgentTeamMetricTile helper={formatLatency(run.latency_ms)} label="成本" value={formatMoney(run.total_cost)} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+        <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
             <div>
               <div className="flex items-center gap-2">
                 <FileArchive className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">审计报告导出</h2>
               </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">CSV 审计报告包含团队信息、运行摘要、成员步骤和运行内事件。</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ run, fileName: reportFileName(team.code, run) })} size="sm" type="button" variant="outline">
@@ -215,7 +214,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
           </div>
         </section>
 
-        <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+        <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="flex items-center gap-2">
             <Workflow className="size-4 text-primary" />
             <h2 className="text-sm font-semibold">当前运行回放</h2>
@@ -240,7 +239,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
         <div className="grid gap-4">
           <AgentTeamRunTraceGraph run={run} steps={steps} />
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Workflow className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">步骤时间线</h2>
@@ -285,7 +284,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             )}
           </section>
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <GitBranch className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">接力记录</h2>
@@ -313,7 +312,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
         </div>
 
         <aside className="grid content-start gap-4">
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Activity className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">Trace 关联</h2>
@@ -331,7 +330,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             ) : null}
           </section>
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <Timer className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">运行时间</h2>
@@ -344,7 +343,7 @@ export function AgentTeamRunDetailContent({ teamId, runId }: { teamId: string; r
             </div>
           </section>
 
-          <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+          <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2">
               <MessageSquare className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">反馈记录</h2>
@@ -394,7 +393,6 @@ function AgentTeamStepDrilldown({ runId, step, teamId }: { runId: string; step: 
     <div className="mt-4 grid gap-3 rounded-lg border bg-background/75 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone="ready">成员内部事件</StatusBadge>
-        <span className="text-xs text-muted-foreground">RAG、工具和模型调用明细。</span>
       </div>
 
       {hasChildSteps ? (
@@ -511,7 +509,7 @@ function RunComparePanel({
   previousRun: AgentTeamRunSummary | null;
 }) {
   return (
-    <section className="rounded-lg border bg-background/85 p-5 shadow-sm backdrop-blur">
+    <section className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
       <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
         <div>
           <div className="flex items-center gap-2">

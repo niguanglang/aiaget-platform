@@ -4,10 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Archive, ClipboardCheck, FileArchive, RefreshCw, ScrollText, Settings2, Wrench } from 'lucide-react';
 import Link from 'next/link';
 
-import { ApprovalPageShell, ErrorBanner } from '@/components/approvals/approval-shared';
+import { ApprovalPageShell, ErrorBanner, SummaryTile } from '@/components/approvals/approval-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   getApprovalAuditArchiveApprovalOverview,
@@ -73,17 +72,16 @@ export function ApprovalContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="全部审批来源" label="待办总数" value={`${totalPending}`} />
-        <MetricCard helper="测试与运行时工具调用" label="工具待审" value={`${toolOverviewQuery.data?.pending_count ?? 0}`} />
-        <MetricCard helper="高影响系统参数变更" label="策略待审" value={`${notificationOverviewQuery.data?.pending_count ?? 0}`} />
-        <MetricCard helper="审计、告警、自愈与报告归档" label="归档删除待审" value={`${archivePending}`} />
+        <SummaryTile label="待办总数" value={`${totalPending}`} />
+        <SummaryTile label="工具待审" value={`${toolOverviewQuery.data?.pending_count ?? 0}`} />
+        <SummaryTile label="策略待审" value={`${notificationOverviewQuery.data?.pending_count ?? 0}`} />
+        <SummaryTile label="归档删除待审" value={`${archivePending}`} />
       </section>
 
       <ErrorBanner message={hasError ? '部分审批摘要加载失败，可进入子页面查看具体队列或刷新重试。' : null} />
 
       <section className="grid gap-4 lg:grid-cols-3">
         <ApprovalEntryCard
-          description="测试调用和运行时工具调用。"
           href="/approvals/tools"
           icon={<Wrench className="size-5" />}
           pending={toolOverviewQuery.data?.pending_count ?? 0}
@@ -91,7 +89,6 @@ export function ApprovalContent() {
           title="高危工具审批"
         />
         <ApprovalEntryCard
-          description="通知策略、SLA 和重试策略变更。"
           href="/approvals/notification-policy"
           icon={<Settings2 className="size-5" />}
           pending={notificationOverviewQuery.data?.pending_count ?? 0}
@@ -99,7 +96,6 @@ export function ApprovalContent() {
           title="通知策略审批"
         />
         <ApprovalEntryCard
-          description="审计、告警、自愈和报告归档删除。"
           href="/approvals/archive-deletions"
           icon={<Archive className="size-5" />}
           pending={archivePending}
@@ -112,7 +108,6 @@ export function ApprovalContent() {
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
             <h2 className="text-sm font-semibold">审计与追踪入口</h2>
-            <p className="mt-1 text-sm text-muted-foreground">审批事件、导出和归档记录。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -141,14 +136,12 @@ export function ApprovalContent() {
 }
 
 function ApprovalEntryCard({
-  description,
   href,
   icon,
   pending,
   secondary,
   title,
 }: {
-  description: string;
   href: string;
   icon: React.ReactNode;
   pending: number;
@@ -164,7 +157,6 @@ function ApprovalEntryCard({
         </div>
         <StatusBadge tone={pending > 0 ? 'degraded' : 'healthy'}>待审 {pending}</StatusBadge>
       </div>
-      <p className="min-h-16 text-sm leading-6 text-muted-foreground">{description}</p>
       <div className="flex items-center justify-between gap-3 border-t pt-4">
         <span className="text-xs text-muted-foreground">{secondary}</span>
         <Button asChild size="sm">

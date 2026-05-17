@@ -2,19 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type PermissionCatalogGroup, type PermissionCatalogItem } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { ArrowLeft, KeyRound, Save, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleCenterBackground } from '@/components/roles/role-center-background';
-import { flattenPermissionCatalog } from '@/components/roles/role-ia-shared';
+import { flattenPermissionCatalog, RoleStatGrid } from '@/components/roles/role-ia-shared';
 import { actionLabel, roleStatusLabel, roleStatusTone } from '@/components/roles/role-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getRole, listRolePermissionCatalog, updateRolePermissions, type ApiClientError } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
@@ -93,13 +90,11 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
     { label: '当前已选', value: `${draftPermissionIds.length}`, helper: '权限编码' },
     { label: '目录总数', value: `${allPermissionIds.length}`, helper: '可授权权限' },
     { label: '模块数量', value: `${catalog.length}`, helper: '权限分组' },
-    { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '暂无', helper: role?.code ?? roleId },
+    { label: '角色状态', value: role?.status ? roleStatusLabel(role.status) : '-', helper: role?.code ?? roleId },
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <RoleCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm md:p-6">
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -130,11 +125,7 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </section>
+      <RoleStatGrid items={metrics} />
 
       {permissionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -174,13 +165,10 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
           </div>
 
           <div className="columns-1 gap-4 p-4 lg:columns-2">
-            {catalog.map((group, index) => (
-              <motion.section
-                animate={{ opacity: 1, y: 0 }}
+            {catalog.map((group) => (
+              <section
                 className="mb-4 break-inside-avoid rounded-lg border bg-background/75"
-                initial={{ opacity: 0, y: 8 }}
                 key={group.module}
-                transition={{ delay: index * 0.025, duration: 0.2 }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4">
                   <div>
@@ -217,7 +205,7 @@ export function RolePermissionsContent({ roleId }: { roleId: string }) {
                     </div>
                   ))}
                 </div>
-              </motion.section>
+              </section>
             ))}
           </div>
         </Card>

@@ -28,12 +28,12 @@ import {
   formatBytes,
   formatDateTime,
   LoadingBlock,
+  SummaryTile,
   useApprovalCanHandle,
 } from '@/components/approvals/approval-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveAgentTeamRunReportArchiveApproval,
@@ -256,11 +256,11 @@ export function ArchiveDeletionApprovalsContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard helper="全部删除来源" label="待审批" value={`${pendingCount || overviewQuery.data?.pending_count || 0}`} />
-        <MetricCard helper="等待生效或已决策" label="已通过" value={`${approvedCount || overviewQuery.data?.approved_count || 0}`} />
-        <MetricCard helper="保留归档" label="已拒绝" value={`${rejectedCount || overviewQuery.data?.rejected_count || 0}`} />
-        <MetricCard helper="对象已删除" label="已生效" value={`${appliedCount || overviewQuery.data?.applied_count || 0}`} />
-        <MetricCard helper="当前筛选" label="显示条目" value={`${visibleApprovals.length}`} />
+        <SummaryTile label="待审批" value={`${pendingCount || overviewQuery.data?.pending_count || 0}`} />
+        <SummaryTile label="已通过" value={`${approvedCount || overviewQuery.data?.approved_count || 0}`} />
+        <SummaryTile label="已拒绝" value={`${rejectedCount || overviewQuery.data?.rejected_count || 0}`} />
+        <SummaryTile label="已生效" value={`${appliedCount || overviewQuery.data?.applied_count || 0}`} />
+        <SummaryTile label="显示条目" value={`${visibleApprovals.length}`} />
       </section>
 
       <ErrorBanner message={actionError ?? (hasError ? '部分归档删除审批加载失败，请刷新或进入来源页面查看。' : null)} />
@@ -286,7 +286,7 @@ export function ArchiveDeletionApprovalsContent() {
           {loading ? (
             <LoadingBlock>正在加载归档删除审批...</LoadingBlock>
           ) : visibleApprovals.length === 0 ? (
-            <EmptyState description="当前来源下没有归档删除审批。" title="暂无归档删除审批" />
+            <EmptyState title="暂无归档删除审批" />
           ) : (
             <ArchiveDeletionApprovalTable approvals={visibleApprovals} onSelect={setSelectedApproval} />
           )}
@@ -385,11 +385,10 @@ function ArchiveDeletionApprovalDetailPanel({
     <Card className="grid gap-4 p-5">
       <div>
         <h2 className="text-sm font-semibold">归档删除审批详情</h2>
-        <p className="mt-1 text-sm text-muted-foreground">删除归档属于高危操作，批准后才会从对象存储移除文件。</p>
       </div>
 
       {!activeApproval ? (
-        <EmptyApprovalSelection description="选择一条归档删除审批。" title="未选择审批请求" />
+        <EmptyApprovalSelection title="未选择审批请求" />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -476,7 +475,6 @@ function ArchiveDeletionApprovalDetailPanel({
             onChangeDecisionNote={onChangeDecisionNote}
             onReject={() => onReject(activeApproval)}
             pending={pending}
-            placeholder="补充审批备注，例如删除原因确认、保留要求或拒绝原因..."
             rejectLabel="拒绝删除"
           />
         </>

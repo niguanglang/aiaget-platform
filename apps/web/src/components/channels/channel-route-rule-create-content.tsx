@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { ChannelAlert, ChannelFocusedHeader, useChannelOperationPermissions } from '@/components/channels/channel-operations-pages';
 import { ChannelRouteRuleForm, type ChannelRouteRuleFormValues } from '@/components/channels/channel-template-route-forms';
 import { Button } from '@/components/ui/button';
@@ -60,8 +59,7 @@ export function ChannelRouteRuleCreateContent() {
   const loadingOptions = providersQuery.isLoading || accountsQuery.isLoading || agentsQuery.isLoading;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelFocusedHeader
         activeRoute="route-rules"
         badge="新建路由规则"

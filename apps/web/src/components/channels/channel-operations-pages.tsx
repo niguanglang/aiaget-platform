@@ -15,13 +15,11 @@ import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, RefreshCw, Search, X } 
 import Link from 'next/link';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { formatChannelDateTime } from '@/components/channels/channel-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 
 export type ChannelFocusedRoute =
@@ -161,8 +159,7 @@ export function ChannelOperationsListPage<TItem>({
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelFocusedHeader
         activeRoute={activeRoute}
         badge={badge}
@@ -331,8 +328,18 @@ export function ChannelMetricGrid({ loading, metrics }: { loading: boolean; metr
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {loading
         ? Array.from({ length: 4 }).map((_, index) => <div className="h-24 rounded-lg border bg-muted/30" key={index} />)
-        : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        : metrics.map((metric) => <ChannelStatTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
     </section>
+  );
+}
+
+function ChannelStatTile({ helper, label, value }: ChannelOperationMetric) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

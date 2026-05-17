@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { PluginCenterBackground } from '@/components/plugins/plugin-center-background';
 import {
   formatPluginDateTime,
   pluginInstallationStatuses,
@@ -27,6 +26,7 @@ import {
   InfoBlock,
   ManifestSummary,
   Message,
+  PluginPageShell,
   PluginSectionNav,
   SummaryItem,
   usePluginPermissions,
@@ -267,8 +267,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
     || uninstallMutation.isPending;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4" size="sm" variant="outline">
@@ -483,7 +482,7 @@ export function PluginInstallationsContent({ pluginId }: { pluginId: string }) {
           title="卸载插件"
         />
       ) : null}
-    </main>
+    </PluginPageShell>
   );
 }
 
@@ -541,8 +540,7 @@ function installationActionBody(target: InstallationActionTarget) {
 
 function InstallStatePanel({ description, title }: { description?: string; title: string }) {
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <PluginCenterBackground />
+    <PluginPageShell>
       <Button asChild className="w-fit" variant="outline">
         <Link href="/plugins">
           <ArrowLeft className="size-4" />
@@ -552,6 +550,6 @@ function InstallStatePanel({ description, title }: { description?: string; title
       <Card className="p-6">
         <EmptyState description={description} title={title} />
       </Card>
-    </main>
+    </PluginPageShell>
   );
 }

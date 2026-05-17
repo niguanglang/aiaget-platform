@@ -8,10 +8,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ModelCenterBackground } from '@/components/models/model-center-background';
 import { modelProviderStatusLabel, modelProviderTypeLabel, modelStatusTone } from '@/components/models/model-status';
 import { ProviderFormPanel, type ProviderFormValues } from '@/components/models/provider-form-panel';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getModelProvider, updateModelProvider, type ApiClientError } from '@/lib/api-client';
 
@@ -56,9 +56,7 @@ export function ModelProviderEditContent({ providerId }: { providerId: string })
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <ModelCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -78,23 +76,25 @@ export function ModelProviderEditContent({ providerId }: { providerId: string })
       </section>
 
       {providerQuery.isLoading ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">正在加载供应商...</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">正在加载供应商</div>
       ) : providerQuery.isError || !provider ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">供应商加载失败。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">供应商加载失败。</div>
       ) : !canWrite ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           当前账号没有编辑供应商权限。
         </div>
       ) : (
-        <ProviderFormPanel
-          error={formError}
-          isPending={updateMutation.isPending}
-          mode="edit"
-          onClose={() => router.push(`/models/${provider.id}`)}
-          onSubmit={submitForm}
-          provider={provider}
-          presentation="page"
-        />
+        <Card className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <ProviderFormPanel
+            error={formError}
+            isPending={updateMutation.isPending}
+            mode="edit"
+            onClose={() => router.push(`/models/${provider.id}`)}
+            onSubmit={submitForm}
+            provider={provider}
+            presentation="page"
+          />
+        </Card>
       )}
     </main>
   );

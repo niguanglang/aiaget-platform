@@ -6,7 +6,6 @@ import { ArrowLeft, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DeliveryReviewBackground } from '@/components/delivery-reviews/delivery-review-background';
 import {
   deliveryReviewResultLabel,
   deliveryReviewResultTone,
@@ -35,8 +34,7 @@ export function DeliveryReviewDetailContent({ reviewId }: { reviewId: string }) 
 
   if (reviewQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <DeliveryReviewBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载验收复盘...</Card>
       </main>
     );
@@ -44,8 +42,7 @@ export function DeliveryReviewDetailContent({ reviewId }: { reviewId: string }) 
 
   if (reviewQuery.isError || !reviewQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <DeliveryReviewBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">验收复盘加载失败。</Card>
       </main>
     );
@@ -54,8 +51,7 @@ export function DeliveryReviewDetailContent({ reviewId }: { reviewId: string }) 
   const item = reviewQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <DeliveryReviewBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

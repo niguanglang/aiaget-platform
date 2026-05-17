@@ -8,13 +8,11 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleCenterBackground } from '@/components/roles/role-center-background';
-import { ConfirmDialog, DetailLine, ReferencePanel } from '@/components/roles/role-ia-shared';
+import { ConfirmDialog, DetailLine, ReferencePanel, RoleStatGrid } from '@/components/roles/role-ia-shared';
 import { actionLabel, formatDateTime, roleStatusLabel, roleStatusTone } from '@/components/roles/role-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { deleteRole, disableRole, enableRole, getRole, type ApiClientError } from '@/lib/api-client';
 
@@ -93,15 +91,13 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
       { label: '绑定用户', value: `${role?.user_count ?? 0}`, helper: '用户角色引用' },
       { label: '接口权限', value: `${role?.permission_count ?? 0}`, helper: '权限编码数量' },
       { label: '菜单入口', value: `${role?.menu_count ?? 0}`, helper: '目录和页面菜单' },
-      { label: '角色类型', value: role?.is_system ? '系统' : '自定义', helper: role?.status ? roleStatusLabel(role.status) : '暂无' },
+      { label: '角色类型', value: role?.is_system ? '系统' : '自定义', helper: role?.status ? roleStatusLabel(role.status) : '' },
     ],
     [role],
   );
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <RoleCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm md:p-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -180,11 +176,7 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
         <EmptyState description="未找到该角色，可能已被删除或无权限访问。" title="角色不存在" />
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((metric) => (
-              <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
-            ))}
-          </section>
+          <RoleStatGrid items={metrics} />
 
           <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <Card className="p-4">
@@ -199,9 +191,9 @@ export function RoleDetailContent({ roleId }: { roleId: string }) {
               <div className="mt-4 rounded-lg border bg-muted/15 p-4">
                 <div className="text-lg font-semibold">{role.name}</div>
                 <div className="mt-1 text-sm text-muted-foreground">{role.code}</div>
-                <p className="mt-3 min-h-10 text-sm leading-6 text-muted-foreground">
-                  {role.description || '暂无角色描述。'}
-                </p>
+                {role.description ? (
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{role.description}</p>
+                ) : null}
                 <div className="mt-4 grid gap-3 text-sm">
                   <DetailLine label="角色类型" value={role.is_system ? '系统角色' : '自定义角色'} />
                   <DetailLine label="租户 ID" value={role.tenant_id} />

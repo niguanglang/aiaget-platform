@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import {
   ActionMessage,
   BillingConfirmDialog,
+  BillingStatTile,
   BillingWorkspaceHeader,
   Field,
   PageError,
@@ -32,7 +33,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { enforceBillingQuota, getBillingOverview, updateBillingQuotaPolicy } from '@/lib/api-client';
 
@@ -123,7 +123,7 @@ export function BillingQuotaPolicyContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
       <BillingWorkspaceHeader
         actions={
           <>
@@ -146,10 +146,10 @@ export function BillingQuotaPolicyContent() {
       {actionMessage ? <ActionMessage>{actionMessage}</ActionMessage> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="ACTIVE 状态" label="启用策略" value={String(policies.filter((item) => item.status === 'ACTIVE').length)} />
-        <MetricCard helper="动作包含阻断" label="阻断策略" value={String(policies.filter((item) => item.action === 'BLOCK').length)} />
-        <MetricCard helper="风险等级" label="高危策略" value={String(policies.filter((item) => item.risk_level === 'CRITICAL').length)} />
-        <MetricCard helper="当前窗口" label="策略总数" value={String(policies.length)} />
+        <BillingStatTile detail="正在生效" label="启用策略" value={String(policies.filter((item) => item.status === 'ACTIVE').length)} />
+        <BillingStatTile detail="超限后阻断" label="阻断策略" value={String(policies.filter((item) => item.action === 'BLOCK').length)} />
+        <BillingStatTile detail="需要立即关注" label="高危策略" value={String(policies.filter((item) => item.risk_level === 'CRITICAL').length)} />
+        <BillingStatTile detail="当前窗口" label="策略总数" value={String(policies.length)} />
       </section>
 
       {quotaDecision ? (
@@ -200,9 +200,9 @@ export function BillingQuotaPolicyContent() {
                   </div>
                   <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-5">
                     <span>当前：{formatQuotaValue(item.metric_type, item.current_usage)}</span>
-                    <span>limit_value：{formatQuotaValue(item.metric_type, item.limit_value)}</span>
-                    <span>warn_threshold：{formatPercent(item.warn_threshold)}</span>
-                    <span>hard_threshold：{formatPercent(item.hard_threshold)}</span>
+                    <span>额度上限：{formatQuotaValue(item.metric_type, item.limit_value)}</span>
+                    <span>预警阈值：{formatPercent(item.warn_threshold)}</span>
+                    <span>硬限制阈值：{formatPercent(item.hard_threshold)}</span>
                     <span>最后检查：{formatDateTime(item.last_evaluated_at)}</span>
                   </div>
                   {editing ? (

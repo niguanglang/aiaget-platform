@@ -7,7 +7,6 @@ import type {
   MonitorWindow,
 } from '@aiaget/shared-types';
 import { ArrowRight, ChevronDown, Gauge, Layers3 } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 
 import {
@@ -158,7 +157,7 @@ function TrendChart({ points }: { points: MonitorTrendPoint[] }) {
   );
 }
 
-export function RunStepOperationsCard({
+export function ExecutionFlowCard({
   items,
   loading,
   summary,
@@ -186,11 +185,13 @@ export function RunStepOperationsCard({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Layers3 className="size-4 text-blue-600" />
-            运行步骤态势
+            执行链路分析
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            汇总模型、检索、工具和响应阶段的步骤指标，支持跳转到监控中心继续排查。
-          </p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>步骤 {summary ? formatNumber(summary.steps_total) : '--'}</span>
+            <span>失败 {summary ? formatNumber(summary.failed_steps) : '--'}</span>
+            <span>平均 {summary ? formatLatency(summary.average_latency_ms) : '--'}</span>
+          </div>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link href={buildMonitorStepHref(windowValue)}>
@@ -201,10 +202,10 @@ export function RunStepOperationsCard({
       </div>
 
       {loading ? (
-        <div className="mt-6 text-sm text-muted-foreground">正在加载运行步骤态势...</div>
+        <div className="mt-6 text-sm text-muted-foreground">正在加载执行链路数据...</div>
       ) : !summary || summary.steps_total === 0 ? (
         <div className="mt-4">
-          <EmptyState description="当前窗口还没有可聚合的会话运行步骤。" title="暂无步骤态势" />
+          <EmptyState description="当前窗口还没有可聚合的执行链路数据。" title="暂无链路数据" />
         </div>
       ) : (
         <div className="mt-4 grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
@@ -219,14 +220,8 @@ export function RunStepOperationsCard({
           </div>
 
           <div className="grid gap-2">
-            {items.map((item, index) => (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-lg border border-slate-200/80 bg-white/70 p-3 shadow-sm"
-                initial={{ opacity: 0, y: 8 }}
-                key={item.step_type}
-                transition={{ delay: index * 0.025, duration: 0.22, ease: 'easeOut' }}
-              >
+            {items.map((item) => (
+              <div className="rounded-lg border border-slate-200/80 bg-white/70 p-3 shadow-sm" key={item.step_type}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <StatusBadge tone={item.failed_count > 0 ? 'degraded' : 'healthy'}>
@@ -254,7 +249,7 @@ export function RunStepOperationsCard({
                   <span>词元 {formatNumber(item.total_tokens)}</span>
                   <span>成本 {formatMoney(item.total_cost)}</span>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

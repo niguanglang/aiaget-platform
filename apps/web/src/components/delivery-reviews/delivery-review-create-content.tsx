@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DeliveryReviewBackground } from '@/components/delivery-reviews/delivery-review-background';
 import {
   DeliveryReviewFormPanel,
   toCreateDeliveryReviewInput,
@@ -47,16 +46,14 @@ export function DeliveryReviewCreateContent() {
 
   if (!canWrite) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <DeliveryReviewBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">当前账号没有新建验收复盘的权限。</Card>
       </main>
     );
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <DeliveryReviewBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">新建验收复盘</h1>

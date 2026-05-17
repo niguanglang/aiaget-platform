@@ -108,7 +108,6 @@ export function RoleFormPanel({
         <Field label="角色描述" message={form.formState.errors.description?.message}>
           <textarea
             className="min-h-28 resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="描述该角色的职责范围、授权边界和适用人群"
             {...form.register('description')}
           />
         </Field>

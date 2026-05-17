@@ -68,8 +68,8 @@ export function Sidebar({
             <Boxes className="size-5" />
           </span>
           <div className={cn('min-w-0 transition-opacity', isCollapsed && 'hidden')}>
-            <div className="text-sm font-semibold tracking-tight">AIAget 平台</div>
-            <div className="text-xs text-muted-foreground">控制台</div>
+            <div className="text-sm font-semibold tracking-tight">企业AIAgent平台</div>
+            <div className="text-xs text-muted-foreground">工作台</div>
           </div>
         </div>
         <Button
@@ -145,6 +145,17 @@ function SidebarNavItem({
     !isCollapsed && childIndentClass,
     rowStateClassName,
   );
+  const directoryRowClassName = cn(
+    'group flex min-h-10 w-full items-center gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium transition-colors',
+    item.level > 1 && 'min-h-9',
+    !isCollapsed && childIndentClass,
+    isActive
+      ? 'text-blue-700 hover:border-slate-200/70 hover:bg-white/70'
+      : 'text-slate-700 hover:border-slate-200/70 hover:bg-white/70 hover:text-blue-700',
+  );
+  const directoryToggleClassName = cn(
+    'flex min-w-0 flex-1 items-center gap-3 rounded text-left text-inherit outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 focus-visible:ring-offset-2',
+  );
   const linkRowClassName = cn(
     'flex min-w-0 flex-1 items-center gap-3 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500/35 focus-visible:ring-offset-2',
     isCollapsed && 'justify-center',
@@ -195,18 +206,27 @@ function SidebarNavItem({
           onMouseEnter={() => onSetCollapsedFlyout(item.id)}
           onMouseLeave={() => onSetCollapsedFlyout(null)}
         >
-          <button
+          <Link
+            aria-current={isExactActive ? 'page' : undefined}
             aria-controls={`collapsed-menu-${item.id}`}
             aria-expanded={collapsedFlyout === item.id}
             aria-haspopup="menu"
-            aria-label={`打开${item.title}子菜单`}
             className={rowClassName}
-            onClick={() => onSetCollapsedFlyout(collapsedFlyout === item.id ? null : item.id)}
+            href={item.href === '#' ? '#' : item.href}
+            onClick={(event) => {
+              if (item.href === '#') {
+                event.preventDefault();
+                onSetCollapsedFlyout(collapsedFlyout === item.id ? null : item.id);
+              } else {
+                onSetCollapsedFlyout(null);
+              }
+            }}
+            rel={item.external ? 'noreferrer' : undefined}
+            target={item.external ? '_blank' : undefined}
             title={item.title}
-            type="button"
           >
             {content}
-          </button>
+          </Link>
           {collapsedFlyout === item.id ? (
             <CollapsedFlyoutMenu item={item} onClose={() => onSetCollapsedFlyout(null)} pathname={pathname} sidebarTitle={sidebarNavTitle(item.title)} />
           ) : null}
@@ -223,6 +243,19 @@ function SidebarNavItem({
           >
             {content}
           </Link>
+          {chevron}
+        </div>
+      ) : hasChildren ? (
+        <div className={directoryRowClassName}>
+          <button
+            aria-expanded={isExpanded}
+            className={directoryToggleClassName}
+            onClick={() => onToggleExpanded(item.id)}
+            title={item.title}
+            type="button"
+          >
+            {content}
+          </button>
           {chevron}
         </div>
       ) : hasClickableRoute ? (
@@ -250,7 +283,6 @@ function SidebarNavItem({
           type="button"
         >
           {content}
-          {chevron}
         </button>
       )}
       {hasChildren && isExpanded && !isCollapsed ? (

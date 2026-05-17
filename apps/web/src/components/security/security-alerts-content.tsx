@@ -21,12 +21,13 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SECURITY_PAGE_SHELL_CLASS,
   SecurityConfirmDialog,
+  SecurityStatTile,
   SecurityWorkspaceHeader,
   type SecurityStatusTone,
   alertStatusLabel,
@@ -48,7 +49,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   getSecurityApprovalWorkbenchItem,
@@ -400,9 +400,7 @@ export function SecurityAlertsContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <>
@@ -435,10 +433,10 @@ export function SecurityAlertsContent() {
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-	        <MetricCard helper="告警" label="运营告警" value={formatNumber(alerts.length)} />
-	        <MetricCard helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
-	        <MetricCard helper="失败" label="通知失败" value={formatNumber(notificationQuery.data?.summary.failed_count)} />
-	        <MetricCard helper="超时" label="超时告警" value={formatNumber(slaQuery.data?.summary.overdue_count)} />
+	        <SecurityStatTile helper="告警" label="运营告警" value={formatNumber(alerts.length)} />
+	        <SecurityStatTile helper="待审" label="待审批" value={formatNumber(approvalOverview?.summary.pending_count)} />
+	        <SecurityStatTile helper="失败" label="通知失败" value={formatNumber(notificationQuery.data?.summary.failed_count)} />
+	        <SecurityStatTile helper="超时" label="超时告警" value={formatNumber(slaQuery.data?.summary.overdue_count)} />
       </section>
 
       <Card className="grid gap-4 p-5">
@@ -457,10 +455,10 @@ export function SecurityAlertsContent() {
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-	          <MetricCard helper="24h" label="导出次数" value={formatNumber(approvalOperations?.approval_workbench_exports_24h)} />
-	          <MetricCard helper="24h 记录" label="导出记录" value={formatNumber(approvalOperations?.approval_workbench_exported_records_24h)} />
-	          <MetricCard helper="高风险" label="高风险筛选" value={formatNumber(approvalOperations?.approval_workbench_high_risk_exports_24h)} />
-	          <MetricCard helper="重复" label="重复导出" value={formatNumber(approvalOperations?.approval_workbench_repeated_exports_24h)} />
+	          <SecurityStatTile helper="24h" label="导出次数" value={formatNumber(approvalOperations?.approval_workbench_exports_24h)} />
+	          <SecurityStatTile helper="24h 记录" label="导出记录" value={formatNumber(approvalOperations?.approval_workbench_exported_records_24h)} />
+	          <SecurityStatTile helper="高风险" label="高风险筛选" value={formatNumber(approvalOperations?.approval_workbench_high_risk_exports_24h)} />
+	          <SecurityStatTile helper="重复" label="重复导出" value={formatNumber(approvalOperations?.approval_workbench_repeated_exports_24h)} />
         </div>
         {hasExportGovernanceRisk ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800">
@@ -489,22 +487,22 @@ export function SecurityAlertsContent() {
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
+          <SecurityStatTile
 	            helper="待审"
             label="客户成功复盘删除待审"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_pending)}
           />
-          <MetricCard
+          <SecurityStatTile
 	            helper="已批准"
             label="复盘删除已批准"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_approved)}
           />
-          <MetricCard
+          <SecurityStatTile
 	            helper="已拒绝"
             label="复盘删除已拒绝"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_rejected)}
           />
-          <MetricCard
+          <SecurityStatTile
 	            helper="已删除"
             label="复盘删除已生效"
             value={formatNumber(approvalOperations?.customer_success_close_won_report_archive_delete_applied)}
@@ -731,9 +729,9 @@ export function SecurityAlertsContent() {
           <div className="border-b p-4">
             <h2 className="text-sm font-semibold">SLA 告警</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-	              <MetricCard helper="重试" label="SLA 自动重试" value={formatNumber(slaRetryQuery.data?.summary.pending_auto_retry_count)} />
-	              <MetricCard helper="死信" label="SLA 死信通知" value={formatNumber(slaRetryQuery.data?.summary.dead_letter_count)} />
-	              <MetricCard helper="未关闭" label="死信未关闭" value={formatNumber(slaDeadLetterQuery.data?.summary.open_count)} />
+	              <SecurityStatTile helper="重试" label="SLA 自动重试" value={formatNumber(slaRetryQuery.data?.summary.pending_auto_retry_count)} />
+	              <SecurityStatTile helper="死信" label="SLA 死信通知" value={formatNumber(slaRetryQuery.data?.summary.dead_letter_count)} />
+	              <SecurityStatTile helper="未关闭" label="死信未关闭" value={formatNumber(slaDeadLetterQuery.data?.summary.open_count)} />
             </div>
           </div>
           {slaQuery.isError ? (

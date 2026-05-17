@@ -5,6 +5,8 @@ import test from 'node:test';
 
 const knowledgeListSource = readFileSync(join(process.cwd(), 'src/components/knowledge/knowledge-content.tsx'), 'utf8');
 const knowledgeDetailSource = readFileSync(join(process.cwd(), 'src/components/knowledge/knowledge-detail-content.tsx'), 'utf8');
+const knowledgeCreateSource = readFileSync(join(process.cwd(), 'src/components/knowledge/knowledge-create-content.tsx'), 'utf8');
+const knowledgeEditSource = readFileSync(join(process.cwd(), 'src/components/knowledge/knowledge-edit-content.tsx'), 'utf8');
 const componentsRoot = join(process.cwd(), 'src/components/knowledge');
 
 function source(fileName: string) {
@@ -59,6 +61,19 @@ test('knowledge list page stays a directory list without activity logs or backen
   assert.doesNotMatch(knowledgeListSource, /向量回退/);
 });
 
+test('knowledge list page follows operational directory layout without old visual shell', () => {
+  assert.match(knowledgeListSource, /知识库中心/);
+  assert.match(knowledgeListSource, /知识库列表/);
+  assert.match(knowledgeListSource, /max-w-\[1680px\]/);
+  assert.match(knowledgeListSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.match(knowledgeListSource, /KnowledgeListMetricTile/);
+  assert.doesNotMatch(knowledgeListSource, /KnowledgeCenterBackground/);
+  assert.doesNotMatch(knowledgeListSource, /MetricCard/);
+  assert.doesNotMatch(knowledgeListSource, /motion/);
+  assert.doesNotMatch(knowledgeListSource, /搜索名称、编码、描述/);
+  assert.doesNotMatch(knowledgeListSource, /base\.description/);
+});
+
 test('knowledge activity and health pages own overview activity and backend capability surfaces', () => {
   const activitySource = source('knowledge-activity-content.tsx');
   const tasksSource = source('knowledge-tasks-content.tsx');
@@ -69,14 +84,21 @@ test('knowledge activity and health pages own overview activity and backend capa
   assert.match(activitySource, /recent_documents/);
   assert.match(activitySource, /\/knowledge\/tasks/);
   assert.match(activitySource, /\/knowledge\/recalls/);
-  assert.doesNotMatch(activitySource, /recent_tasks[\s\S]*recent_recall_logs/);
+  assert.match(activitySource, /recent_tasks/);
+  assert.match(activitySource, /recent_recall_logs/);
+  assert.match(activitySource, /KnowledgeProcessingQueueTable/);
+  assert.match(activitySource, /KnowledgeRecallQualityOverview/);
+  assert.doesNotMatch(activitySource, /KnowledgeTaskDetailPanel/);
+  assert.doesNotMatch(activitySource, /KnowledgeRecallQualityPanel/);
+  assert.doesNotMatch(activitySource, /selectedTaskId/);
 
   assert.match(tasksSource, /getKnowledgeOverview/);
-  assert.match(tasksSource, /type="tasks"/);
+  assert.match(tasksSource, /KnowledgeTaskListTable/);
+  assert.match(tasksSource, /KnowledgeTaskDetailPanel/);
   assert.match(tasksSource, /文档处理任务/);
 
   assert.match(recallsSource, /getKnowledgeOverview/);
-  assert.match(recallsSource, /type="recalls"/);
+  assert.match(recallsSource, /KnowledgeRecallTable/);
   assert.match(recallsSource, /召回记录/);
 
   assert.match(healthSource, /getKnowledgeOverview/);
@@ -86,10 +108,152 @@ test('knowledge activity and health pages own overview activity and backend capa
   assert.match(healthSource, /向量回退/);
 });
 
+test('knowledge recalls page follows operational recall table layout', () => {
+  const recallsSource = source('knowledge-recalls-content.tsx');
+
+  assert.match(recallsSource, /召回记录/);
+  assert.match(recallsSource, /召回列表/);
+  assert.match(recallsSource, /KnowledgeRecallTable/);
+  assert.match(recallsSource, /KnowledgeRecallQualitySummary/);
+  assert.match(recallsSource, /selectedRecallId/);
+  assert.match(recallsSource, /KnowledgeRecallFilterBar/);
+  assert.match(recallsSource, /KnowledgeRecallDetailPanel/);
+  assert.match(recallsSource, /KnowledgeRecallResultList/);
+  assert.match(recallsSource, /KnowledgeRecallExecutionLogList/);
+  assert.match(recallsSource, /任务名称/);
+  assert.match(recallsSource, /平均命中率/);
+  assert.match(recallsSource, /TopK/);
+  assert.match(recallsSource, /Score 阈值/);
+  assert.match(recallsSource, /Embedding 模型/);
+  assert.match(recallsSource, /Rerank 模型/);
+  assert.match(recallsSource, /max-w-\[1680px\]/);
+  assert.match(recallsSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.doesNotMatch(recallsSource, /新建召回任务/);
+  assert.doesNotMatch(recallsSource, /重跑/);
+  assert.doesNotMatch(recallsSource, /导出/);
+  assert.doesNotMatch(recallsSource, /演示/);
+  assert.doesNotMatch(recallsSource, /示例/);
+  assert.doesNotMatch(recallsSource, /描述/);
+  assert.doesNotMatch(recallsSource, /KnowledgeCenterBackground/);
+  assert.doesNotMatch(recallsSource, /MetricCard/);
+  assert.doesNotMatch(recallsSource, /motion/);
+  assert.doesNotMatch(recallsSource, /KnowledgeActivityTimeline/);
+});
+
+test('knowledge health page follows operational capability layout without old visual shell', () => {
+  const healthSource = source('knowledge-health-content.tsx');
+
+  assert.match(healthSource, /知识库能力健康/);
+  assert.match(healthSource, /能力概览/);
+  assert.match(healthSource, /KnowledgeCapabilityStatusGrid/);
+  assert.match(healthSource, /KnowledgeStorageReadinessPanel/);
+  assert.match(healthSource, /KnowledgeHealthScoreStrip/);
+  assert.match(healthSource, /KnowledgeHealthDimensionList/);
+  assert.match(healthSource, /KnowledgeHealthIssueTable/);
+  assert.match(healthSource, /KnowledgeHealthDetailPanel/);
+  assert.match(healthSource, /综合健康度/);
+  assert.match(healthSource, /索引成功率/);
+  assert.match(healthSource, /文档新鲜度/);
+  assert.match(healthSource, /召回命中率/);
+  assert.match(healthSource, /权限风险/);
+  assert.match(healthSource, /整改建议/);
+  assert.match(healthSource, /max-w-\[1680px\]/);
+  assert.match(healthSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.doesNotMatch(healthSource, /演示/);
+  assert.doesNotMatch(healthSource, /示例/);
+  assert.doesNotMatch(healthSource, /描述/);
+  assert.doesNotMatch(healthSource, /KnowledgeCenterBackground/);
+  assert.doesNotMatch(healthSource, /motion/);
+  assert.doesNotMatch(healthSource, /KnowledgeCapabilityCard/);
+});
+
+test('knowledge activity overview follows operational reference layout without placeholder cards', () => {
+  const activitySource = source('knowledge-activity-content.tsx');
+  const sharedSource = source('knowledge-overview-shared.tsx');
+
+  assert.match(activitySource, /知识库活动总览/);
+  assert.match(activitySource, /刷新活动/);
+  assert.match(activitySource, /处理任务/);
+  assert.match(activitySource, /召回记录/);
+  assert.match(activitySource, /KnowledgeMetricTile/);
+  assert.match(activitySource, /KnowledgeProcessingQueueTable/);
+  assert.match(activitySource, /KnowledgeRecallQualityOverview/);
+  assert.match(activitySource, /KnowledgeTopQueriesTable/);
+  assert.match(activitySource, /knowledgeSourceTypeLabel/);
+  assert.match(activitySource, /healthScore/);
+  assert.match(activitySource, /CircularScore/);
+  assert.doesNotMatch(activitySource, /KnowledgeTaskQueueTable/);
+  assert.doesNotMatch(activitySource, /KnowledgeRecallQualityPanel/);
+  assert.doesNotMatch(activitySource, /KnowledgeActivityEntryPanel/);
+  assert.doesNotMatch(activitySource, /KnowledgeRetrievalEntryPanel/);
+  assert.doesNotMatch(activitySource, /selectedTaskId/);
+  assert.doesNotMatch(activitySource, /暂停/);
+  assert.doesNotMatch(activitySource, /演示/);
+  assert.doesNotMatch(activitySource, /示例/);
+  assert.doesNotMatch(activitySource, /描述/);
+  assert.match(activitySource, /max-w-\[1680px\]/);
+  assert.match(activitySource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.doesNotMatch(activitySource, /KnowledgeCenterBackground/);
+  assert.doesNotMatch(activitySource, /MetricCard/);
+  assert.doesNotMatch(activitySource, /motion/);
+  assert.doesNotMatch(sharedSource, /title="空"/);
+  assert.doesNotMatch(sharedSource, /没有活动数据/);
+});
+
+test('knowledge processing task page provides task list and focused task detail panel', () => {
+  const tasksSource = source('knowledge-tasks-content.tsx');
+
+  assert.match(tasksSource, /文档处理任务/);
+  assert.match(tasksSource, /任务列表/);
+  assert.match(tasksSource, /任务详情/);
+  assert.match(tasksSource, /selectedTaskId/);
+  assert.match(tasksSource, /KnowledgeTaskDetailPanel/);
+  assert.match(tasksSource, /KnowledgeTaskListTable/);
+  assert.match(tasksSource, /KnowledgeTaskStatusTabs/);
+  assert.match(tasksSource, /KnowledgeTaskMetricTile/);
+  assert.match(tasksSource, /KnowledgeTaskStageList/);
+  assert.match(tasksSource, /KnowledgeTaskLogList/);
+  assert.match(tasksSource, /任务名称 \/ ID/);
+  assert.match(tasksSource, /创建时间/);
+  assert.match(tasksSource, /耗时/);
+  assert.match(tasksSource, /max-w-\[1680px\]/);
+  assert.match(tasksSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.match(tasksSource, /processed_items/);
+  assert.doesNotMatch(tasksSource, /新建处理任务/);
+  assert.doesNotMatch(tasksSource, /暂停任务/);
+  assert.doesNotMatch(tasksSource, /取消任务/);
+  assert.doesNotMatch(tasksSource, /重试任务/);
+  assert.doesNotMatch(tasksSource, /演示/);
+  assert.doesNotMatch(tasksSource, /示例/);
+  assert.doesNotMatch(tasksSource, /描述/);
+  assert.doesNotMatch(tasksSource, /KnowledgeCenterBackground/);
+  assert.doesNotMatch(tasksSource, /MetricCard/);
+  assert.doesNotMatch(tasksSource, /motion/);
+});
+
 test('knowledge detail page keeps edit as route navigation', () => {
   assert.doesNotMatch(knowledgeDetailSource, /setIsEditingBase\(true\)/);
   assert.doesNotMatch(knowledgeDetailSource, /KnowledgeFormPanel[\s\S]*mode="edit"/);
   assert.match(knowledgeDetailSource, /\/knowledge\/\$\{knowledgeId\}\/edit/);
+});
+
+test('knowledge create, edit, detail, document, upload, and retrieval pages use the operational shell', () => {
+  const operationSources = [
+    knowledgeCreateSource,
+    knowledgeEditSource,
+    knowledgeDetailSource,
+    source('knowledge-documents-content.tsx'),
+    source('knowledge-upload-content.tsx'),
+    source('knowledge-retrieval-content.tsx'),
+  ];
+
+  for (const operationSource of operationSources) {
+    assert.match(operationSource, /max-w-\[1680px\]/);
+    assert.match(operationSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+    assert.doesNotMatch(operationSource, /KnowledgeCenterBackground/);
+    assert.doesNotMatch(operationSource, /MetricCard/);
+    assert.doesNotMatch(operationSource, /motion/);
+  }
 });
 
 test('knowledge detail page is a base summary and operation entry surface only', () => {
@@ -152,6 +316,8 @@ test('knowledge retrieval page owns retrieval test, recall logs, and rebuild ind
   assert.match(retrievalSource, /确认重建知识库索引/);
   assert.match(retrievalSource, /onConfirm=\{confirmRebuildIndex\}/);
   assert.doesNotMatch(retrievalSource, /onClick=\{\(\) => rebuildMutation\.mutate\(knowledgeId\)\}/);
+  assert.match(retrievalSource, /useState\(''\)/);
+  assert.doesNotMatch(retrievalSource, /认证部署指南/);
 
   assert.doesNotMatch(retrievalSource, /uploadKnowledgeDocument/);
   assert.doesNotMatch(retrievalSource, /getKnowledgeDocument/);

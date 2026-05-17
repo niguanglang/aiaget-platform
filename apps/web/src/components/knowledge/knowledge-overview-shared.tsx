@@ -6,6 +6,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   formatDateTime,
   knowledgeRetrievalModeLabel,
+  knowledgeStatusLabel,
+  knowledgeTaskTypeLabel,
 } from '@/components/knowledge/knowledge-status';
 import { formatPercent } from '@/components/monitor/monitor-status';
 import { Card } from '@/components/ui/card';
@@ -22,9 +24,9 @@ export function KnowledgeHealthSummaryCard({ overview, loading }: { overview: Kn
         <StatusBadge tone={overview ? 'healthy' : 'planned'}>{overview ? '已更新' : '等待加载'}</StatusBadge>
       </div>
       {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载知识库总览...</div>
+        <div className="text-sm text-muted-foreground">加载中</div>
       ) : !overview ? (
-	        <EmptyState title="没有总览数据" />
+	        <EmptyState title="暂无数据" />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <StatTile label="启用知识库" value={`${overview.summary.active_knowledge_base_count}/${overview.summary.knowledge_base_count}`} />
@@ -48,9 +50,9 @@ export function KnowledgeActivityTimeline({ overview, loading, title, type }: { 
 	        <div className="text-sm font-semibold">{title}</div>
 	      </div>
       {loading ? (
-        <div className="text-sm text-muted-foreground">正在加载活动记录...</div>
+        <div className="text-sm text-muted-foreground">加载中</div>
       ) : !overview ? (
-	        <EmptyState title="没有活动数据" />
+	        <EmptyState title="暂无数据" />
       ) : (
         <TimelineList items={items} />
       )}
@@ -65,15 +67,17 @@ function buildTimelineItems(overview: KnowledgeOverview | null, type: 'documents
       id: item.id,
       title: item.title,
       subtitle: `${item.knowledge_name} · ${item.segment_count} 切片 · ${formatDateTime(item.updated_at)}`,
-      status: item.status,
+      status: knowledgeStatusLabel(item.status),
+      statusValue: item.status,
     }));
   }
   if (type === 'tasks') {
     return overview.recent_tasks.map((item) => ({
       id: item.id,
-      title: `${item.knowledge_name} · ${item.task_type}`,
+      title: `${item.knowledge_name} · ${knowledgeTaskTypeLabel(item.task_type)}`,
       subtitle: `${item.processed_items}/${item.total_items} 项 · ${item.started_at ? formatDateTime(item.started_at) : '未开始'}`,
-      status: item.status,
+      status: knowledgeStatusLabel(item.status),
+      statusValue: item.status,
     }));
   }
 
@@ -81,13 +85,14 @@ function buildTimelineItems(overview: KnowledgeOverview | null, type: 'documents
     id: item.id,
     title: `${item.knowledge_name} · ${item.query}`,
     subtitle: `${knowledgeRetrievalModeLabel(item.mode)} · ${item.result_count} 条结果 · ${item.latency_ms}ms`,
-    status: item.status,
+    status: knowledgeStatusLabel(item.status),
+    statusValue: item.status,
   }));
 }
 
-function TimelineList({ items }: { items: Array<{ id: string; title: string; subtitle: string; status: string }> }) {
+function TimelineList({ items }: { items: Array<{ id: string; title: string; subtitle: string; status: string; statusValue: string }> }) {
   return items.length === 0 ? (
-	    <EmptyState className="rounded-md border bg-muted/20 p-4" title="空" />
+	    <EmptyState className="rounded-md border bg-muted/20 p-4" title="暂无记录" />
   ) : (
     <div className="grid gap-2">
       {items.map((item) => (
@@ -97,7 +102,7 @@ function TimelineList({ items }: { items: Array<{ id: string; title: string; sub
               <div className="truncate text-sm font-medium">{item.title}</div>
               <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.subtitle}</div>
             </div>
-            <StatusBadge tone={statusTone(item.status)}>{item.status}</StatusBadge>
+            <StatusBadge tone={statusTone(item.statusValue)}>{item.status}</StatusBadge>
           </div>
         </div>
       ))}

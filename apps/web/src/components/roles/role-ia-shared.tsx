@@ -5,6 +5,26 @@ import type { MenuTreeItem, PermissionCatalogGroup } from '@aiaget/shared-types'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
+export type RoleStatItem = {
+  helper?: string;
+  label: string;
+  value: string;
+};
+
+export function RoleStatGrid({ items }: { items: RoleStatItem[] }) {
+  return (
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3" key={item.label}>
+          <div className="text-xs font-medium text-slate-500">{item.label}</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-950">{item.value}</div>
+          {item.helper ? <div className="mt-1 text-xs text-slate-500">{item.helper}</div> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function ConfirmDialog({
   body,
   confirmLabel = '确认删除',

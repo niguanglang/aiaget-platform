@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   formatDateTime,
   securityPolicyDecisionLabel,
@@ -21,7 +20,9 @@ import {
   LoadingRows,
   PageError,
   RefreshButton,
+  SECURITY_PAGE_SHELL_CLASS,
   SecurityConfirmDialog,
+  SecurityStatTile,
   SecurityWorkspaceHeader,
   formatNumber,
 } from '@/components/security/security-page-shared';
@@ -29,7 +30,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   disableSecurityPolicy,
@@ -114,9 +114,7 @@ export function SecurityPoliciesContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <>
@@ -148,10 +146,10 @@ export function SecurityPoliciesContent() {
       {actionError ? <PageError>{actionError}</PageError> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-	        <MetricCard helper="总数" label="策略总数" value={formatNumber(overview?.total)} />
-	        <MetricCard helper="生效" label="生效中" value={formatNumber(overview?.active)} />
-	        <MetricCard helper="拒绝" label="拒绝策略" value={formatNumber(overview?.deny)} />
-	        <MetricCard helper="日志" label="评估日志" value={formatNumber(evaluationsQuery.data?.total)} />
+	        <SecurityStatTile helper="总数" label="策略总数" value={formatNumber(overview?.total)} />
+	        <SecurityStatTile helper="生效" label="生效中" value={formatNumber(overview?.active)} />
+	        <SecurityStatTile helper="拒绝" label="拒绝策略" value={formatNumber(overview?.deny)} />
+	        <SecurityStatTile helper="日志" label="评估日志" value={formatNumber(evaluationsQuery.data?.total)} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">

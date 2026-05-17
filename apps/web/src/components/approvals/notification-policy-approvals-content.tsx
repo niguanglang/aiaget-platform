@@ -26,12 +26,12 @@ import {
   snapshotActionTone,
   snapshotApprovalLabel,
   snapshotApprovalTone,
+  SummaryTile,
   useApprovalCanHandle,
 } from '@/components/approvals/approval-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   approveNotificationPolicyApproval,
@@ -146,16 +146,16 @@ export function NotificationPolicyApprovalsContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="策略队列" label="待审批" value={`${overviewQuery.data?.pending_count ?? 0}`} />
-        <MetricCard helper="累计记录" label="已通过" value={`${overviewQuery.data?.approved_count ?? 0}`} />
-        <MetricCard helper="累计记录" label="已拒绝" value={`${overviewQuery.data?.rejected_count ?? 0}`} />
-        <MetricCard helper="需安全决策" label="高影响待审" value={`${overviewQuery.data?.high_impact_pending_count ?? 0}`} />
+        <SummaryTile label="待审批" value={`${overviewQuery.data?.pending_count ?? 0}`} />
+        <SummaryTile label="已通过" value={`${overviewQuery.data?.approved_count ?? 0}`} />
+        <SummaryTile label="已拒绝" value={`${overviewQuery.data?.rejected_count ?? 0}`} />
+        <SummaryTile label="高影响待审" value={`${overviewQuery.data?.high_impact_pending_count ?? 0}`} />
       </section>
 
       <ErrorBanner message={actionError} />
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[1.12fr_0.88fr]">
-        <CardSection description="按策略名称、编码、影响说明和审批状态筛选高影响策略变更。" title="通知策略审批队列">
+        <CardSection title="通知策略审批队列">
           <NotificationPolicyFilters
             keyword={keyword}
             onChangeKeyword={setKeyword}
@@ -171,7 +171,7 @@ export function NotificationPolicyApprovalsContent() {
           ) : approvalsQuery.isLoading ? (
             <LoadingBlock>正在加载通知策略审批队列...</LoadingBlock>
           ) : approvals.length === 0 ? (
-            <EmptyState description="当前筛选条件下没有通知策略审批。" title="暂无通知策略审批" />
+            <EmptyState title="暂无通知策略审批" />
           ) : (
             <NotificationPolicyApprovalTable approvals={approvals} onSelect={setSelectedApprovalId} />
           )}
@@ -212,7 +212,6 @@ function NotificationPolicyFilters({
         <input
           className="min-w-0 flex-1 bg-transparent outline-none"
           onChange={(event) => onChangeKeyword(event.target.value)}
-          placeholder="搜索策略名称、编码、影响说明"
           value={keyword}
         />
       </label>
@@ -322,13 +321,12 @@ function NotificationPolicyApprovalDetailPanel({
     <Card className="grid gap-4 p-5">
       <div>
         <h2 className="text-sm font-semibold">通知策略审批详情</h2>
-        <p className="mt-1 text-sm text-muted-foreground">核对高影响通知策略变更，批准后才会写入系统参数。</p>
       </div>
 
       {loading ? (
         <div className="rounded-lg border bg-muted/20 px-4 py-8 text-sm text-muted-foreground">正在加载通知策略审批详情...</div>
       ) : !detail ? (
-        <EmptyApprovalSelection description="选择一条通知策略审批。" title="未选择审批请求" />
+        <EmptyApprovalSelection title="未选择审批请求" />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -391,7 +389,6 @@ function NotificationPolicyApprovalDetailPanel({
             onChangeDecisionNote={onChangeDecisionNote}
             onReject={() => onReject(detail.id)}
             pending={pending}
-            placeholder="补充审批备注，例如影响确认、拒绝原因或观察要求..."
             rejectLabel="拒绝变更"
           />
         </>

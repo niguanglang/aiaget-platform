@@ -12,7 +12,6 @@ import type {
 } from '@aiaget/shared-types';
 import { hasPermission } from '@aiaget/shared-types';
 import { Database, Search, ShieldCheck, UsersRound } from 'lucide-react';
-import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
@@ -307,22 +306,19 @@ function OptionList({
         <div className="py-4 text-sm text-muted-foreground">{emptyText}</div>
       ) : (
         <div className="grid max-h-52 gap-2 overflow-y-auto">
-          {items.map((item, index) => (
-            <motion.button
-              animate={{ opacity: 1, y: 0 }}
+          {items.map((item) => (
+            <button
               className={cn(
                 'rounded-md border bg-background/80 p-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/45',
                 selectedId === item.id && 'border-blue-300 bg-blue-50/75 shadow-sm',
               )}
-              initial={{ opacity: 0, y: 6 }}
               key={item.id}
               onClick={() => onSelect(item.id)}
-              transition={{ delay: index * 0.015, duration: 0.18 }}
               type="button"
             >
               <div className="truncate text-sm font-medium">{item.label}</div>
               <div className="mt-1 truncate text-xs text-muted-foreground">{item.meta}</div>
-            </motion.button>
+            </button>
           ))}
         </div>
       )}
@@ -514,12 +510,7 @@ export function ResourceAclPageHeader({
   title: string;
 }) {
   return (
-    <motion.section
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-      initial={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.32, ease: 'easeOut' }}
-    >
+    <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <StatusBadge tone="healthy">资源授权</StatusBadge>
@@ -528,6 +519,6 @@ export function ResourceAclPageHeader({
         <h1 className="text-2xl font-semibold">{title}</h1>
       </div>
       {actions ? <div className="flex flex-col gap-2 sm:flex-row">{actions}</div> : null}
-    </motion.section>
+    </section>
   );
 }

@@ -6,7 +6,6 @@ import { ArrowLeft, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { CustomerSuccessActionBackground } from '@/components/customer-success-actions/customer-success-action-background';
 import {
   customerSuccessActionPriorityLabel,
   customerSuccessActionPriorityTone,
@@ -36,8 +35,7 @@ export function CustomerSuccessActionDetailContent({ actionId }: { actionId: str
 
   if (actionQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessActionBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载客户成功行动...</Card>
       </main>
     );
@@ -45,8 +43,7 @@ export function CustomerSuccessActionDetailContent({ actionId }: { actionId: str
 
   if (actionQuery.isError || !actionQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <CustomerSuccessActionBackground />
+      <main className="grid gap-6 px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">客户成功行动加载失败。</Card>
       </main>
     );
@@ -55,8 +52,7 @@ export function CustomerSuccessActionDetailContent({ actionId }: { actionId: str
   const item = actionQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <CustomerSuccessActionBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

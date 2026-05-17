@@ -11,6 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { KnowledgeFormPanel, type KnowledgeFormValues } from '@/components/knowledge/knowledge-form-panel';
 import { knowledgeStatusLabel, knowledgeStatusTone, knowledgeVisibilityLabel } from '@/components/knowledge/knowledge-status';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getKnowledgeBase, listUsers, updateKnowledgeBase, type ApiClientError } from '@/lib/api-client';
 
@@ -55,7 +56,7 @@ export function KnowledgeEditContent({ knowledgeId }: { knowledgeId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -75,24 +76,26 @@ export function KnowledgeEditContent({ knowledgeId }: { knowledgeId: string }) {
       </section>
 
       {baseQuery.isLoading ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">正在加载知识库...</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">正在加载知识库</div>
       ) : baseQuery.isError || !base ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">知识库加载失败。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">知识库加载失败。</div>
       ) : !canWrite ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           当前账号没有编辑知识库权限。
         </div>
       ) : (
-        <KnowledgeFormPanel
-          base={base}
-          error={formError}
-          isPending={updateMutation.isPending}
-          mode="edit"
-          onClose={() => router.push(`/knowledge/${base.id}`)}
-          onSubmit={submitForm}
-          owners={owners}
-          presentation="page"
-        />
+        <Card className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/[0.9] shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <KnowledgeFormPanel
+            base={base}
+            error={formError}
+            isPending={updateMutation.isPending}
+            mode="edit"
+            onClose={() => router.push(`/knowledge/${base.id}`)}
+            onSubmit={submitForm}
+            owners={owners}
+            presentation="page"
+          />
+        </Card>
       )}
     </main>
   );

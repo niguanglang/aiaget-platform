@@ -39,7 +39,7 @@ export function ModelProviderTestCard({
         onChange={(event) => onChangePrompt(event.target.value)}
         value={testPrompt}
       />
-      <Button disabled={!canWrite || testPending || !defaultModel || provider.api_keys.length === 0} onClick={onRunTest} type="button">
+      <Button disabled={!canWrite || testPending || !defaultModel || provider.api_keys.length === 0 || testPrompt.trim().length === 0} onClick={onRunTest} type="button">
         <Send className="size-4" />
         运行测试
       </Button>

@@ -16,11 +16,12 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   ConfirmDialog,
   DetailRow,
+  SettingsPageShell,
+  SettingsStatTile,
   SystemSettingCard,
   formatSettingDraftValue,
   notificationPolicySettingLabel,
@@ -178,7 +179,7 @@ export function NotificationPolicyContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <SettingsPageShell>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -202,7 +203,7 @@ export function NotificationPolicyContent() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        {metrics.map((metric) => <SettingsStatTile detail={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_340px]">
@@ -280,7 +281,7 @@ export function NotificationPolicyContent() {
           onConfirm={() => resetSettingMutation.mutate(resetSettingTarget.id)}
         />
       ) : null}
-    </main>
+    </SettingsPageShell>
   );
 }
 

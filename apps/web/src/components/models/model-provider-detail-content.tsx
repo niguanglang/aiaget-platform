@@ -13,7 +13,6 @@ import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { ModelApiKeyCard } from '@/components/models/model-api-key-card';
-import { ModelCenterBackground } from '@/components/models/model-center-background';
 import { ModelConfigCard } from '@/components/models/model-config-card';
 import { ModelCostLogCard } from '@/components/models/model-cost-log-card';
 import { ModelFormPanel, type ModelFormValues } from '@/components/models/model-form-panel';
@@ -23,7 +22,6 @@ import { ModelProviderTestCard } from '@/components/models/model-provider-test-c
 import { formatDateTime } from '@/components/models/model-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MetricCard } from '@/components/ui/metric-card';
 import {
   createModelApiKey,
   createModelConfig,
@@ -50,9 +48,9 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
   const [modelStatusTarget, setModelStatusTarget] = useState<ModelConfigItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [modelFormError, setModelFormError] = useState<string | null>(null);
-  const [keyName, setKeyName] = useState('主密钥');
+  const [keyName, setKeyName] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [testPrompt, setTestPrompt] = useState('用一句中文回复兼容性检查结果。');
+  const [testPrompt, setTestPrompt] = useState('');
   const [testResult, setTestResult] = useState<TestModelProviderResult | null>(null);
 
   const canWrite = Boolean(
@@ -176,7 +174,7 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
       queryClient.setQueryData(['model-provider', result.id], result);
       await queryClient.invalidateQueries({ queryKey: ['model-providers'] });
       setApiKey('');
-      setKeyName('主密钥');
+      setKeyName('');
       setActionError(null);
     },
     onError: (error: ApiClientError) => setActionError(error.message),
@@ -258,10 +256,9 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
 
   if (providerQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <ModelCenterBackground />
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">正在加载供应商详情...</div>
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <div className="text-sm text-muted-foreground">正在加载供应商详情</div>
         </Card>
       </main>
     );
@@ -269,9 +266,8 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
 
   if (providerQuery.isError || !provider) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <ModelCenterBackground />
-        <Card className="p-6">
+      <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           <div className="text-sm text-destructive">供应商加载失败。</div>
           <Button asChild className="mt-4" variant="outline">
             <Link href="/models">
@@ -285,9 +281,7 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
   }
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ModelCenterBackground />
-
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
       <ModelProviderDetailHeader
         canWrite={canWrite}
         onToggleStatus={() => setProviderStatusTarget(provider.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE')}
@@ -297,7 +291,7 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <ModelProviderMetricTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -411,5 +405,15 @@ export function ModelProviderDetailContent({ providerId }: { providerId: string 
         />
       ) : null}
     </main>
+  );
+}
+
+function ModelProviderMetricTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-5 py-4 shadow-[0_16px_45px_rgba(15,23,42,0.05)]">
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }

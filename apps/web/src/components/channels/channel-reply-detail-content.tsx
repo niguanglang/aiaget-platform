@@ -31,7 +31,7 @@ export function ChannelReplyDetailContent({ replyId }: { replyId: string }) {
   const item = detailQuery.data ?? null;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelFocusedHeader
         activeRoute="replies"
         badge="回复详情"

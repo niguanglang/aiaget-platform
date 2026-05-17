@@ -8,7 +8,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { MenuCenterBackground } from '@/components/menus/menu-center-background';
 import { toCreateMenuInput } from '@/components/menus/menu-form-converters';
 import { MenuFormPanel, type MenuFormValues } from '@/components/menus/menu-form-panel';
 import { Button } from '@/components/ui/button';
@@ -59,10 +58,8 @@ export function MenuCreateContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <MenuCenterBackground />
-
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-5 px-4 py-5 lg:px-7">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.06)] md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
             <Link href="/menus">
@@ -80,13 +77,17 @@ export function MenuCreateContent() {
       </section>
 
       {!canWrite ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
           当前账号没有新建菜单权限。
         </div>
       ) : treeQuery.isLoading ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">正在加载菜单父级...</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-muted-foreground shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          正在加载菜单父级...
+        </div>
       ) : treeQuery.isError ? (
-        <div className="rounded-lg border bg-background p-6 text-sm text-destructive">菜单父级加载失败。</div>
+        <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-6 text-sm text-destructive shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          菜单父级加载失败。
+        </div>
       ) : (
         <MenuFormPanel
           error={formError}

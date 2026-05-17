@@ -5,12 +5,12 @@ import { GitBranch, LinkIcon, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { SecurityPolicyBackground } from '@/components/security/security-policy-background';
 import {
   DetailLine,
   JsonBlock,
   LoadingRows,
   PageError,
+  SECURITY_PAGE_SHELL_CLASS,
   SecurityWorkspaceHeader,
   formatDateTime,
   securityEventSourceLabel,
@@ -33,9 +33,7 @@ export function SecurityEventDetailContent({ eventId }: { eventId: string }) {
   const event = eventQuery.data ?? null;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <SecurityPolicyBackground />
-
+    <main className={SECURITY_PAGE_SHELL_CLASS}>
       <SecurityWorkspaceHeader
         actions={
           <Button disabled={eventQuery.isFetching} onClick={() => void eventQuery.refetch()} type="button" variant="outline">

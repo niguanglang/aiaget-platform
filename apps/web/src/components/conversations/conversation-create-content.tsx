@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { ConversationCenterBackground } from '@/components/conversations/conversation-center-background';
 import { ConversationFormPanel, type ConversationFormValues } from '@/components/conversations/conversation-form-panel';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -57,8 +56,7 @@ export function ConversationCreateContent() {
   }
 
   return (
-    <main className="relative mx-auto grid max-w-5xl gap-6 px-4 py-6 lg:px-6">
-      <ConversationCenterBackground />
+    <main className="grid gap-6 px-4 py-6 lg:px-6">
 
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>

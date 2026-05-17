@@ -11,7 +11,6 @@ import type {
   RoleListItem,
   UserListItem,
 } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { GitBranch, Search, ShieldCheck, SlidersHorizontal, UsersRound } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 
@@ -26,7 +25,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/utils';
 
@@ -34,15 +32,15 @@ export const scopeTypes: DataScopeType[] = ['ALL', 'TENANT', 'DEPT', 'DEPT_AND_C
 
 export function DataScopeMetricGrid({ overview, roleTotal }: { overview?: DataScopeOverview; roleTotal: number }) {
   const metrics = [
-	    {
-	      label: '覆盖角色',
-	      value: `${overview?.configured_role_count ?? 0}`,
-	      helper: `共 ${overview?.role_count ?? roleTotal} 个角色`,
-	    },
     {
-	      label: '数据范围',
-	      value: `${overview?.scope_count ?? 0}`,
-	      helper: '资源矩阵',
+      label: '覆盖角色',
+      value: `${overview?.configured_role_count ?? 0}`,
+      helper: `共 ${overview?.role_count ?? roleTotal} 个角色`,
+    },
+    {
+      label: '数据范围',
+      value: `${overview?.scope_count ?? 0}`,
+      helper: '资源矩阵',
     },
     {
       label: '全部范围',
@@ -59,7 +57,11 @@ export function DataScopeMetricGrid({ overview, roleTotal }: { overview?: DataSc
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {metrics.map((metric) => (
-        <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+        <div className="rounded-lg border bg-background/80 p-4" key={metric.label}>
+          <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+          <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+        </div>
       ))}
     </section>
   );
@@ -99,9 +101,9 @@ export function RoleDirectoryList({
           <label className="flex h-9 items-center gap-2 rounded-md border bg-background/70 px-3 text-sm">
             <Search className="size-4 text-muted-foreground" />
             <input
+              aria-label="搜索角色"
               className="min-w-0 flex-1 bg-transparent outline-none"
               onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder="搜索角色名称、编码"
               value={keyword}
             />
           </label>
@@ -126,17 +128,11 @@ export function RoleDirectoryList({
       {loading ? (
         <div className="p-6 text-sm text-muted-foreground">正在加载角色目录...</div>
       ) : roles.length === 0 ? (
-	        <EmptyState className="py-8" title="暂无角色" />
+        <EmptyState className="py-8" title="暂无角色" />
       ) : (
         <div className="grid max-h-[620px] gap-2 overflow-y-auto p-3">
-          {roles.map((role, index) => (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border bg-background/75 p-3 text-left"
-              initial={{ opacity: 0, y: 8 }}
-              key={role.id}
-              transition={{ delay: index * 0.018, duration: 0.2 }}
-            >
+          {roles.map((role) => (
+            <div className="rounded-lg border bg-background/75 p-3 text-left" key={role.id}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{role.name}</div>
@@ -152,7 +148,7 @@ export function RoleDirectoryList({
                 <span>{role.is_system ? '系统' : '自定义'}</span>
               </div>
               {action(role)}
-            </motion.div>
+            </div>
           ))}
         </div>
       )}
@@ -219,21 +215,18 @@ export function ScopeMatrix({
             </tr>
           </thead>
           <tbody>
-            {dataScopeResourceOrder.map((resourceType, index) => {
+            {dataScopeResourceOrder.map((resourceType) => {
               const scope = scopeByResource.get(resourceType);
               const scopeType = scope?.scope_type ?? 'TENANT';
               return (
-                <motion.tr
-                  animate={{ opacity: 1, y: 0 }}
+                <tr
                   className={cn(
                     'border-b transition-colors last:border-0',
                     editable && 'cursor-pointer hover:bg-muted/25',
                     selectedResourceType === resourceType && 'bg-teal-50/60',
                   )}
-                  initial={{ opacity: 0, y: 8 }}
                   key={resourceType}
                   onClick={() => onSelectResource?.(resourceType)}
-                  transition={{ delay: index * 0.02, duration: 0.22 }}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -258,7 +251,7 @@ export function ScopeMatrix({
                     </StatusBadge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDateTime(scope?.updated_at)}</td>
-                </motion.tr>
+                </tr>
               );
             })}
           </tbody>
@@ -309,15 +302,15 @@ export function StaticPreviewSummary({ scopes }: { scopes: RoleDataScopeItem[] }
 
   return (
     <Card className="min-w-0 p-4">
-	      <div className="flex items-start gap-3">
-	        <span className="grid size-9 place-items-center rounded-md border bg-background">
-	          <ShieldCheck className="size-4 text-teal-700" />
-	        </span>
-	        <div>
-	          <h2 className="text-sm font-semibold">只读预览摘要</h2>
-	          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-	            启用 {activeScopes.length} 个 · 全部 {allScopes.length} 个 · 自定义 {customScopes.length} 个
-	          </p>
+      <div className="flex items-start gap-3">
+        <span className="grid size-9 place-items-center rounded-md border bg-background">
+          <ShieldCheck className="size-4 text-teal-700" />
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold">只读预览摘要</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            启用 {activeScopes.length} 个 · 全部 {allScopes.length} 个 · 自定义 {customScopes.length} 个
+          </p>
         </div>
       </div>
     </Card>
@@ -438,6 +431,7 @@ export function ScopeEditor({
           <div className="mt-3 grid gap-2">
             <label className="text-xs font-medium text-muted-foreground">资源 ID 清单</label>
             <textarea
+              aria-label="资源 ID 清单"
               className="min-h-24 resize-y rounded-md border bg-background/80 px-3 py-2 text-sm outline-none focus:border-teal-300"
               disabled={!canWrite || customDisabled}
               onChange={(event) =>
@@ -445,7 +439,6 @@ export function ScopeEditor({
                   resource_ids: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean),
                 })
               }
-	              placeholder="每行一个资源 ID"
               value={scope.scope_value.resource_ids.join('\n')}
             />
           </div>
@@ -478,7 +471,7 @@ export function PreviewPanel({
 
       {!result ? (
         <div className="mt-4 rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-	          暂无预览结果。
+          暂无预览结果。
         </div>
       ) : (
         <div className="mt-4 grid gap-3">
@@ -541,10 +534,10 @@ function SelectorBlock({
       <label className="mt-2 flex h-8 items-center gap-2 rounded-md border bg-background px-2 text-xs">
         <Search className="size-3.5 text-muted-foreground" />
         <input
+          aria-label={`搜索${title}`}
           className="min-w-0 flex-1 bg-transparent outline-none"
           disabled={disabled}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder={`搜索${title}`}
           value={keyword}
         />
       </label>

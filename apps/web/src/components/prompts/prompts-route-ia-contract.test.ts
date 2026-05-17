@@ -7,6 +7,13 @@ const promptsListSource = readFileSync(join(process.cwd(), 'src/components/promp
 const promptsRoot = join(process.cwd(), 'src/components/prompts');
 const promptDetailSource = readFileSync(join(promptsRoot, 'prompt-detail-content.tsx'), 'utf8');
 const promptEditSource = readFileSync(join(promptsRoot, 'prompt-edit-content.tsx'), 'utf8');
+const productionFileNames = [
+  'prompts-content.tsx',
+  'prompt-detail-content.tsx',
+  'prompt-detail-header.tsx',
+  'prompt-create-content.tsx',
+  'prompt-edit-content.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(promptsRoot, fileName), 'utf8');
@@ -22,8 +29,6 @@ test('prompt center route-level pages exist for list, create, detail, and edit',
 test('prompt list page keeps detail, editor, forms, and test panels out of the list surface', () => {
   assert.doesNotMatch(promptsListSource, /PromptSummaryPanel/);
   assert.doesNotMatch(promptsListSource, /PromptFormPanel/);
-  assert.doesNotMatch(promptsListSource, /selectedPromptId/);
-  assert.doesNotMatch(promptsListSource, /getPromptTemplate/);
   assert.doesNotMatch(promptsListSource, /renderPromptTemplate/);
   assert.doesNotMatch(promptsListSource, /testPromptTemplate/);
 });
@@ -48,6 +53,46 @@ test('prompt list copy action requires confirmation before mutation', () => {
   assert.match(promptsListSource, /确认复制提示词/);
   assert.match(promptsListSource, /onConfirm=\{confirmCopyPrompt\}/);
   assert.doesNotMatch(promptsListSource, /onClick=\{\(\) => copyMutation\.mutate\(prompt\.id\)\}/);
+});
+
+test('prompt list follows reference prompt-center operations layout', () => {
+  assert.match(promptsListSource, /总提示词/);
+  assert.match(promptsListSource, /已停用/);
+  assert.match(promptsListSource, /智能体引用/);
+  assert.match(promptsListSource, /测试记录/);
+  assert.match(promptsListSource, /筛选器/);
+  assert.match(promptsListSource, /提示词列表/);
+  assert.match(promptsListSource, /详情/);
+  assert.match(promptsListSource, /测试结果/);
+  assert.match(promptsListSource, /引用关系/);
+  assert.match(promptsListSource, /审批记录/);
+  assert.match(promptsListSource, /max-w-\[1680px\]/);
+  assert.match(promptsListSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  assert.match(promptsListSource, /PromptPreviewPanel/);
+  assert.match(promptsListSource, /RefreshCw/);
+  assert.match(promptsListSource, /SlidersHorizontal/);
+  assert.doesNotMatch(promptsListSource, /PromptCenterBackground/);
+  assert.doesNotMatch(promptsListSource, /MetricCard/);
+  assert.doesNotMatch(promptsListSource, /名称、类型、状态、版本、变量、测试记录和引用数量/);
+  assert.doesNotMatch(promptsListSource, /content_preview[\s\S]*<td/);
+  assert.doesNotMatch(promptsListSource, /提示词模板加载失败。/);
+  assert.doesNotMatch(promptsListSource, /正在加载提示词模板/);
+  assert.doesNotMatch(promptsListSource, /暂无提示词模板/);
+});
+
+test('prompt list preview panel uses real detail data instead of placeholders', () => {
+  assert.match(promptsListSource, /getPromptTemplate/);
+  assert.match(promptsListSource, /selectedPromptId/);
+  assert.match(promptsListSource, /prompt-detail-preview/);
+  assert.match(promptsListSource, /variables\.map/);
+  assert.match(promptsListSource, /versions\.slice/);
+  assert.match(promptsListSource, /test_records\.slice/);
+  assert.match(promptsListSource, /agent_references\.slice/);
+  assert.match(promptsListSource, /audit_records\.slice/);
+  assert.doesNotMatch(promptsListSource, />导入</);
+  assert.doesNotMatch(promptsListSource, /variable_\{index \+ 1\}/);
+  assert.doesNotMatch(promptsListSource, /Math\.max\(1, prompt\.version - 1\)/);
+  assert.doesNotMatch(promptsListSource, /Math\.max\(1, prompt\.version - 2\)/);
 });
 
 test('prompt detail page keeps basic edit form out and uses edit route navigation', () => {
@@ -144,4 +189,18 @@ test('prompt detail high-impact actions require confirmation before mutation', (
   assert.doesNotMatch(promptDetailSource, /onRollback=\{\(version\) => rollbackMutation\.mutate\(version\)\}/);
   assert.doesNotMatch(promptDetailSource, /onDelete=\{\(variableId\) => deleteVariableMutation\.mutate\(variableId\)\}/);
   assert.match(versionsSource, /onRollback\(version\)/);
+});
+
+test('prompt production components avoid legacy narrow shells and placeholder descriptions', () => {
+  for (const fileName of productionFileNames) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /MetricCard/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /motion\./, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+    assert.doesNotMatch(componentSource, /暂无描述/, fileName);
+    assert.doesNotMatch(componentSource, /PromptCenterBackground/, fileName);
+    assert.doesNotMatch(componentSource, /prompt-center-background/, fileName);
+  }
 });

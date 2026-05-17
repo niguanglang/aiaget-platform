@@ -40,7 +40,7 @@ export function EventDetailPanel({ event, loading }: { event: MonitorEventDetail
   if (!event) {
     return (
       <Card className="grid gap-4 p-5">
-        <EmptyState description="事件不存在，或当前账号没有查看权限。" title="未找到事件" />
+        <EmptyState title="未找到事件" />
       </Card>
     );
   }
@@ -107,7 +107,7 @@ export function TraceDetailPanel({ loading, trace, traceId }: { loading: boolean
   if (!trace) {
     return (
       <Card className="grid gap-4 p-5">
-        <EmptyState description="当前窗口没有找到该 Trace 的关联事件。" title="暂无链路详情" />
+        <EmptyState title="暂无链路详情" />
       </Card>
     );
   }
@@ -203,7 +203,9 @@ export function ObservabilityOverviewCard({ loading, overview }: { loading: bool
             <GitBranch className="size-4 text-primary" />
             可观测性质量
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">检查事件是否能汇入 Trace 链路，并快速定位错误链路和慢链路。</p>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {overview ? `${overview.window} 窗口 · ${formatInteger(overview.linked_trace_count)} 条关联 Trace` : '等待观测数据'}
+          </div>
         </div>
         <StatusBadge tone={overview && overview.trace_coverage >= 80 ? 'healthy' : 'degraded'}>
           {loading ? '计算中' : overview && overview.trace_coverage >= 80 ? '覆盖良好' : '需要关注'}
@@ -217,7 +219,7 @@ export function ObservabilityOverviewCard({ loading, overview }: { loading: bool
           ))}
         </div>
       ) : !overview ? (
-        <EmptyState description="当前窗口内暂无可观测性数据。" title="暂无观测数据" />
+        <EmptyState title="暂无观测数据" />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {metrics.map((metric) => (
@@ -332,7 +334,7 @@ export function WorkflowBackendCard({
       ) : null}
 
       {tasks.length === 0 ? (
-        <EmptyState description="当前没有可恢复的工作流任务。" title="暂无恢复项" />
+        <EmptyState title="暂无恢复项" />
       ) : (
         <div className="grid gap-3">
           {tasks.map((task) => {

@@ -155,12 +155,41 @@ test('agent team members, runs, and report archive pages own their dedicated API
   assert.match(runsSource, /\/agent-teams\/\$\{teamId\}\/runs\/\$\{run\.id\}/);
 
   assert.match(archivesSource, /listAgentTeamRunReportArchives/);
+  assert.match(archivesSource, /uploadAgentTeamRunReportArchive/);
   assert.match(archivesSource, /listAgentTeamRunReportArchiveApprovals/);
   assert.match(archivesSource, /getAgentTeamRunReportArchiveDownloadUrl/);
   assert.match(archivesSource, /deleteAgentTeamRunReportArchive/);
   assert.match(archivesSource, /approveAgentTeamRunReportArchiveApproval/);
   assert.match(archivesSource, /rejectAgentTeamRunReportArchiveApproval/);
   assert.match(archivesSource, /报告归档/);
+});
+
+test('agent team report archive page follows operational archive layout without descriptive copy', () => {
+  const source = readComponent('agent-team-report-archives-content.tsx');
+
+  assert.match(source, /归档文件/);
+  assert.match(source, /归档容量/);
+  assert.match(source, /删除审批/);
+  assert.match(source, /文件名称/);
+  assert.match(source, /团队/);
+  assert.match(source, /归档时间/);
+  assert.match(source, /审批意见/);
+  assert.match(source, /上传报告/);
+  assert.match(source, /uploadTarget/);
+  assert.match(source, /confirmUpload/);
+  assert.match(source, /fileToBase64/);
+  assert.match(source, /sourceLabel/);
+  assert.match(source, /layoutRootClassName/);
+  assert.match(source, /sidePanelClassName/);
+  assert.match(source, /FileArchive/);
+  assert.match(source, /PanelRight/);
+
+  assert.doesNotMatch(source, /下载运行报告，或发起删除审批/);
+  assert.doesNotMatch(source, /处理报告归档删除申请/);
+  assert.doesNotMatch(source, /报告归档加载失败/);
+  assert.doesNotMatch(source, /正在加载报告归档/);
+  assert.doesNotMatch(source, /暂无报告归档/);
+  assert.doesNotMatch(source, /onClick=\{\(\) => uploadMutation\.mutate/);
 });
 
 test('agent team run detail page owns run timeline, handoffs, feedback, and report actions', () => {
@@ -229,6 +258,47 @@ test('agent team run detail page exposes member internal RAG, tool and model dri
   assert.match(detailSource, /eventType=references/);
   assert.match(detailSource, /eventType=tool_calls/);
   assert.match(detailSource, /eventType=model_call/);
+});
+
+test('agent team detail and runtime pages use operational shell without old metric cards', () => {
+  const pageSources = [
+    readComponent('agent-team-detail-content.tsx'),
+    readComponent('agent-team-runs-content.tsx'),
+    readComponent('agent-team-run-detail-content.tsx'),
+    readComponent('agent-team-run-step-detail-content.tsx'),
+  ];
+  const operationSources = [...pageSources, readComponent('agent-team-run-trace-graph.tsx')];
+
+  for (const source of pageSources) {
+    assert.match(source, /max-w-\[1680px\]/);
+  }
+
+  for (const source of operationSources) {
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /motion/);
+    assert.doesNotMatch(source, /暂无描述/);
+    assert.doesNotMatch(source, /CSV 审计报告包含/);
+    assert.doesNotMatch(source, /RAG、工具和模型调用明细/);
+    assert.doesNotMatch(source, /trace_id、span_id、parent_span_id 关系视图/);
+  }
+});
+
+test('agent team entry, members, create, and edit pages use operational shell without old metric cards', () => {
+  const pageSources = [
+    readComponent('agent-teams-content.tsx'),
+    readComponent('agent-team-members-content.tsx'),
+    readComponent('agent-team-create-content.tsx'),
+    readComponent('agent-team-edit-content.tsx'),
+  ];
+
+  for (const source of pageSources) {
+    assert.match(source, /max-w-\[1680px\]/);
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /max-w-7xl/);
+    assert.doesNotMatch(source, /max-w-5xl/);
+  }
 });
 
 test('agent team run step detail page owns single step and sub-event drilldown deep link', () => {

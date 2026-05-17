@@ -2,14 +2,11 @@
 
 import type { MonitorWindow } from '@aiaget/shared-types';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Home, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useAuth } from '@/components/auth/auth-provider';
 import { formatDateTime } from '@/components/monitor/monitor-status';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { getAuditOverview, getMonitorOverview } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -24,8 +21,8 @@ import {
   MetricTile,
 } from './dashboard-overview-cards';
 import {
+  ExecutionFlowCard,
   OperationsTrendCard,
-  RunStepOperationsCard,
 } from './dashboard-operations-cards';
 import {
   buildDashboardMetrics,
@@ -38,7 +35,6 @@ import {
 } from './dashboard-shared';
 
 export function DashboardContent() {
-  const { currentUser } = useAuth();
   const [windowValue, setWindowValue] = useState<MonitorWindow>('7d');
 
   const monitorOverviewQuery = useQuery({
@@ -139,28 +135,18 @@ export function DashboardContent() {
     <main className="relative isolate grid min-h-[calc(100vh-66px)] w-full gap-[18px] overflow-hidden px-4 py-6 lg:pl-[39px] lg:pr-[27px]">
       <DashboardBackdrop />
 
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-end"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">系统概览</h1>
-          <p className="mt-2 text-sm text-muted-foreground">当前账号：{currentUser?.user.name ?? 'Admin'}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <StatusBadge tone="ready">监控</StatusBadge>
-            <StatusBadge tone="ready">审计</StatusBadge>
-            <StatusBadge tone="healthy">运行步骤</StatusBadge>
-            <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              数据实时更新
-            </span>
-          </div>
+      <section className="relative z-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Home className="size-4" />
+          <span>工作台</span>
         </div>
 
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="text-sm text-muted-foreground">最近更新：{formatDateTime(updatedAt)}</div>
+          <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            实时同步
+          </span>
           <Button
             disabled={isRefreshing}
             onClick={() => {
@@ -175,24 +161,19 @@ export function DashboardContent() {
             <span className="sr-only">刷新仪表盘</span>
           </Button>
         </div>
-      </motion.section>
+      </section>
+
+      <section className="relative z-10 grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+        {metrics.map((metric) => (
+          <MetricTile key={metric.label} loading={isInitialLoading} metric={metric} />
+        ))}
+      </section>
 
       {error ? (
         <section className="relative z-10 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 shadow-sm backdrop-blur">
           {error}
         </section>
       ) : null}
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8"
-        initial={{ opacity: 0, y: 12 }}
-        transition={{ delay: 0.05, duration: 0.3, ease: 'easeOut' }}
-      >
-        {metrics.map((metric) => (
-          <MetricTile key={metric.label} loading={isInitialLoading} metric={metric} />
-        ))}
-      </motion.section>
 
       <section className="relative z-10 grid gap-4 xl:grid-cols-[0.98fr_1fr]">
         <HealthOverviewCard
@@ -208,7 +189,7 @@ export function DashboardContent() {
         />
       </section>
 
-      <RunStepOperationsCard
+      <ExecutionFlowCard
         items={monitorOverviewQuery.data?.run_step_breakdown ?? []}
         loading={isInitialLoading}
         summary={monitorOverviewQuery.data?.run_step_summary ?? null}

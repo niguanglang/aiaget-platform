@@ -10,7 +10,6 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getTenant } from '@/lib/api-client';
 
@@ -35,9 +34,7 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
   const tenant = tenantQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:px-6">
-      <section className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.10),transparent_32%),radial-gradient(circle_at_84%_12%,rgba(14,165,233,0.08),transparent_30%)]" />
-
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <Button asChild className="mb-4 w-fit" variant="outline">
@@ -71,10 +68,10 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard helper="生命周期" label="租户状态" value={tenantStatusLabel(tenant.status)} />
-            <MetricCard helper="不可在当前接口修改" label="租户编码" value={tenant.code} />
-            <MetricCard helper="创建时间" label="创建" value={formatDateTime(tenant.created_at)} />
-            <MetricCard helper="更新时间" label="更新" value={formatDateTime(tenant.updated_at)} />
+            <InfoTile helper="生命周期" label="租户状态" value={tenantStatusLabel(tenant.status)} />
+            <InfoTile helper="不可在当前接口修改" label="租户编码" value={tenant.code} />
+            <InfoTile helper="创建时间" label="创建" value={formatDateTime(tenant.created_at)} />
+            <InfoTile helper="更新时间" label="更新" value={formatDateTime(tenant.updated_at)} />
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -104,6 +101,16 @@ export function TenantDetailContent({ tenantId }: { tenantId: string }) {
         </>
       )}
     </main>
+  );
+}
+
+function InfoTile({ helper, label, value }: { helper: string; label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 break-words text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
   );
 }
 

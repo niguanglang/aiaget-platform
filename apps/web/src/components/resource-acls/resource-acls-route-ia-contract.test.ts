@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -16,6 +16,13 @@ const resourceAclCheckSourcePath = join(
   process.cwd(),
   'src/components/resource-acls/resource-acl-check-content.tsx',
 );
+const resourceAclComponentDir = join(process.cwd(), 'src/components/resource-acls');
+const resourceAclComponentSources = readdirSync(resourceAclComponentDir)
+  .filter((fileName) => fileName.endsWith('.tsx'))
+  .map((fileName) => ({
+    fileName,
+    source: readFileSync(join(resourceAclComponentDir, fileName), 'utf8'),
+  }));
 const apiClientSource = readFileSync(join(process.cwd(), 'src/lib/api-client.ts'), 'utf8');
 
 test('resource ACL route-level pages exist for list, create, edit, and check', () => {
@@ -77,4 +84,26 @@ test('resource ACL list status and delete actions require confirmation before mu
 test('resource ACL api client exposes detail endpoint for edit route', () => {
   assert.match(apiClientSource, /export function getResourceAcl/);
   assert.match(apiClientSource, /\/resource-acls\/\$\{resourceAclId\}/);
+});
+
+test('resource ACL components use the operations shell without legacy decorations', () => {
+  for (const { fileName, source } of resourceAclComponentSources) {
+    assert.doesNotMatch(source, /motion\/react/, `${fileName} should not depend on motion/react`);
+    assert.doesNotMatch(source, /\bmotion\./, `${fileName} should not render motion components`);
+    assert.doesNotMatch(source, /\bMetricCard\b/, `${fileName} should not depend on MetricCard`);
+    assert.doesNotMatch(source, /max-w-7xl/, `${fileName} should not use the old marketing-width shell`);
+    assert.doesNotMatch(source, /\bResourceAclBackground\b/, `${fileName} should not depend on ResourceAclBackground`);
+    assert.doesNotMatch(source, /resource-acl-background/, `${fileName} should not import the old background component`);
+  }
+
+  for (const sourcePath of [
+    join(resourceAclComponentDir, 'resource-acl-content.tsx'),
+    resourceAclCreateSourcePath,
+    resourceAclEditSourcePath,
+    resourceAclCheckSourcePath,
+  ]) {
+    const source = readFileSync(sourcePath, 'utf8');
+    assert.match(source, /max-w-\[1680px\]/);
+    assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
+  }
 });

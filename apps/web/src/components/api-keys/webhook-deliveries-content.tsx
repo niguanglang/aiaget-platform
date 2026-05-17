@@ -9,7 +9,6 @@ import { formatDateTime } from '@/components/agents/agent-status';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listTenantApiKeys, listWebhookDeliveries, retryWebhookDelivery, type ApiClientError } from '@/lib/api-client';
 
@@ -81,8 +80,8 @@ export function WebhookDeliveriesContent() {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2"><StatusBadge tone="healthy">Webhook 投递日志</StatusBadge><StatusBadge tone={canManageApiKeys ? 'mock' : 'planned'}>{canManageApiKeys ? '可重试' : '只读'}</StatusBadge></div>
           <h1 className="text-2xl font-semibold">Webhook 投递日志</h1>
@@ -101,7 +100,13 @@ export function WebhookDeliveriesContent() {
       <ErrorBanner message={errorMessage ?? (webhookDeliveriesQuery.isError || apiKeysQuery.isError ? 'Webhook 投递记录加载失败。' : null)} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {webhookDeliveriesQuery.isLoading ? Array.from({ length: 5 }).map((_, index) => <div className="h-24 rounded-lg border bg-muted/30" key={index} />) : metrics.map((metric) => <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />)}
+        {webhookDeliveriesQuery.isLoading ? Array.from({ length: 5 }).map((_, index) => <div className="h-24 rounded-lg border bg-muted/30" key={index} />) : metrics.map((metric) => (
+          <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm" key={metric.label}>
+            <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{metric.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{metric.helper}</div>
+          </div>
+        ))}
       </section>
 
       <Card className="grid gap-4 p-5">

@@ -67,9 +67,9 @@ export function PromptVariablesCard({
                 <tr className="border-b last:border-0 hover:bg-muted/25" key={variable.id}>
                   <td className="px-4 py-3">
                     <div className="font-medium">{variable.name}</div>
-                    <div className="line-clamp-1 text-xs text-muted-foreground">
-                      {variable.description ?? '暂无描述。'}
-                    </div>
+                    {variable.description ? (
+                      <div className="line-clamp-1 text-xs text-muted-foreground">{variable.description}</div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{promptVariableTypeLabel(variable.variable_type)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{variable.required ? '是' : '否'}</td>

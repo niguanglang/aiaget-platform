@@ -3,13 +3,11 @@
 import { hasPermission } from '@aiaget/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { RoleScenarioBackground } from '@/components/role-scenarios/role-scenario-background';
 import {
   formatDateTime,
   impactTone,
@@ -51,8 +49,7 @@ export function RoleScenarioDetailContent({ scenarioId }: { scenarioId: string }
 
   if (scenarioQuery.isLoading) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <RoleScenarioBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-muted-foreground">正在加载岗位场景...</Card>
       </main>
     );
@@ -60,8 +57,7 @@ export function RoleScenarioDetailContent({ scenarioId }: { scenarioId: string }
 
   if (scenarioQuery.isError || !scenarioQuery.data) {
     return (
-      <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-        <RoleScenarioBackground />
+      <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
         <Card className="p-6 text-sm text-destructive">岗位场景加载失败。</Card>
       </main>
     );
@@ -70,15 +66,8 @@ export function RoleScenarioDetailContent({ scenarioId }: { scenarioId: string }
   const scenario = scenarioQuery.data;
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <RoleScenarioBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="planned">{scenarioTypeLabel(scenario.scenario_type)}</StatusBadge>
@@ -109,7 +98,7 @@ export function RoleScenarioDetailContent({ scenarioId }: { scenarioId: string }
             归档
           </Button>
         </div>
-      </motion.section>
+      </section>
 
       {actionError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{actionError}</div>

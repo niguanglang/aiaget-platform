@@ -7,13 +7,11 @@ import {
   type DepartmentStatus,
   type DepartmentTreeItem,
 } from '@aiaget/shared-types';
-import { motion } from 'motion/react';
 import { Edit, Eye, Network, Plus, Power, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { DepartmentCenterBackground } from '@/components/departments/department-center-background';
 import { flattenDepartmentTree } from '@/components/departments/department-ia-shared';
 import {
   departmentStatusLabel,
@@ -24,7 +22,6 @@ import { ConfirmDialog } from '@/components/roles/role-ia-shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteDepartment,
@@ -137,15 +134,8 @@ export function DepartmentContent() {
   ];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <DepartmentCenterBackground />
-
-      <motion.section
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-        initial={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-      >
+    <main className="mx-auto grid w-full max-w-none gap-6 bg-background px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">组织架构</StatusBadge>
@@ -159,11 +149,11 @@ export function DepartmentContent() {
             新建部门
           </Link>
         </Button>
-      </motion.section>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <MetricCard helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
+          <InfoTile helper={metric.helper} key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </section>
 
@@ -204,8 +194,8 @@ export function DepartmentContent() {
             />
           ) : (
             <div className="grid gap-1 p-3">
-              {flatTree.map((department, index) => (
-                <DepartmentTreeRow department={department} index={index} key={department.id} />
+              {flatTree.map((department) => (
+                <DepartmentTreeRow department={department} key={department.id} />
               ))}
             </div>
           )}
@@ -336,21 +326,28 @@ export function DepartmentContent() {
   );
 }
 
-function DepartmentTreeRow({ department, index }: { department: DepartmentTreeItem; index: number }) {
+function InfoTile({ helper, label, value }: { helper: string; label: string; value: string }) {
   return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
+    <div className="rounded-md border bg-card p-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 break-words text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+    </div>
+  );
+}
+
+function DepartmentTreeRow({ department }: { department: DepartmentTreeItem }) {
+  return (
+    <div
       className="flex min-h-10 w-full items-center justify-between gap-3 rounded-md border border-transparent bg-white/45 px-3 py-2 text-sm transition-colors hover:border-slate-200 hover:bg-white/80"
-      initial={{ opacity: 0, y: 6 }}
       style={{ paddingLeft: `${12 + (department.level - 1) * 18}px` }}
-      transition={{ delay: index * 0.015, duration: 0.18 }}
     >
       <Link className="flex min-w-0 flex-1 items-center gap-2" href={`/departments/${department.id}`}>
         <Network className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">{department.name}</span>
       </Link>
       <StatusBadge tone={departmentStatusTone(department.status)}>{departmentStatusLabel(department.status)}</StatusBadge>
-    </motion.div>
+    </div>
   );
 }
 
@@ -380,13 +377,10 @@ function DepartmentTable({
           </tr>
         </thead>
         <tbody>
-          {departments.map((department, index) => (
-            <motion.tr
-              animate={{ opacity: 1, y: 0 }}
+          {departments.map((department) => (
+            <tr
               className="border-b transition-colors last:border-0 hover:bg-muted/25"
-              initial={{ opacity: 0, y: 8 }}
               key={department.id}
-              transition={{ delay: index * 0.02, duration: 0.2 }}
             >
               <td className="px-4 py-3">
                 <Link className="flex min-w-0 items-center gap-2" href={`/departments/${department.id}`} style={{ paddingLeft: `${(department.level - 1) * 18}px` }}>
@@ -433,7 +427,7 @@ function DepartmentTable({
                   </Button>
                 </div>
               </td>
-            </motion.tr>
+            </tr>
           ))}
         </tbody>
       </table>

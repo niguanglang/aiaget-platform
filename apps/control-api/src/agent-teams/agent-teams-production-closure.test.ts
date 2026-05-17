@@ -472,6 +472,103 @@ test('agent team report archive delete rejection keeps object untouched', async 
   assert.equal(approvalEvents.filter((event) => event.eventType === 'DELETE_APPLIED').length, 0);
 });
 
+test('manual agent team report archive upload stores object with metadata and audit event', async () => {
+  const { AgentTeamsService } = await import('./agent-teams.service');
+  const storedObjects: Array<Record<string, unknown>> = [];
+  const approvalEvents: Array<Record<string, unknown>> = [];
+  const service = new AgentTeamsService(
+    {
+      agentTeam: {
+        findFirst: async (args: { where?: { id?: string; tenantId?: string; deletedAt?: null } }) => {
+          assert.equal(args.where?.id, 'team-1');
+          assert.equal(args.where?.tenantId, 'tenant-1');
+          return {
+            id: 'team-1',
+            name: '生产巡检团队',
+          };
+        },
+      },
+      agentTeamRun: {
+        findFirst: async (args: { where?: { id?: string; teamId?: string; tenantId?: string; deletedAt?: null } }) => {
+          assert.equal(args.where?.id, 'run-1');
+          assert.equal(args.where?.teamId, 'team-1');
+          assert.equal(args.where?.tenantId, 'tenant-1');
+          return {
+            id: 'run-1',
+            teamId: 'team-1',
+            objective: '月度运营复盘',
+            traceId: '5'.repeat(32),
+          };
+        },
+      },
+      approvalAuditEvent: {
+        create: async (args: { data: Record<string, unknown> }) => {
+          const event = {
+            id: 'approval-1',
+            occurredAt: new Date('2026-05-07T02:00:00.000Z'),
+            actor: {
+              id: String(args.data.actorId),
+              name: '上传人',
+              email: 'operator@example.test',
+            },
+            ...args.data,
+          };
+          approvalEvents.push(event);
+          return event;
+        },
+      },
+    } as never,
+    null as never,
+    null as never,
+    {
+      putTenantObject: async (input: Record<string, unknown>) => {
+        storedObjects.push(input);
+        return {
+          id: Buffer.from(String(input.key), 'utf8').toString('base64url'),
+          key: input.key,
+          relative_key: input.key,
+          file_name: String(input.key).split('/').at(-1),
+          folder: String(input.key).split('/').slice(0, -1).join('/'),
+          size_bytes: Buffer.byteLength(input.body as Buffer),
+          etag: null,
+          last_modified: '2026-05-07T02:00:00.000Z',
+          metadata: input.metadata,
+        };
+      },
+    } as never,
+  );
+
+  const result = await service.uploadRunReportArchive(buildUser(), 'team-1', {
+    archive_reason: '客户验收材料补录',
+    content_base64: Buffer.from('manual report').toString('base64'),
+    content_type: 'application/pdf',
+    file_name: '  2026 Q1 验收报告.pdf ',
+    report_type: 'ACCEPTANCE',
+    run_id: 'run-1',
+  });
+
+  assert.equal(result.item.source, 'MANUAL_UPLOAD');
+  assert.equal(result.item.report_type, 'ACCEPTANCE');
+  assert.equal(result.item.archive_reason, '客户验收材料补录');
+  assert.match(result.item.key, /^agent-team-run-reports\/team-1\/manual\/.+-2026-Q1-验收报告\.pdf$/);
+  assert.equal(storedObjects.length, 1);
+  assert.equal(storedObjects[0]?.tenantId, 'tenant-1');
+  assert.equal(storedObjects[0]?.contentType, 'application/pdf');
+  assert.deepEqual(storedObjects[0]?.metadata, {
+    archive_reason: '客户验收材料补录',
+    archive_source: 'MANUAL_UPLOAD',
+    archive_type: 'agent_team_manual_report',
+    created_by: 'user-1',
+    original_name: '2026 Q1 验收报告.pdf',
+    report_type: 'ACCEPTANCE',
+    run_id: 'run-1',
+    team_id: 'team-1',
+  });
+  assert.equal(approvalEvents.length, 1);
+  assert.equal(approvalEvents[0]?.eventType, 'MANUAL_UPLOADED');
+  assert.equal(approvalEvents[0]?.sourceType, 'AGENT_TEAM_RUN_REPORT_ARCHIVE');
+});
+
 test('agent team fallback ledger copy does not describe Runtime execution as future work', async () => {
   const source = await readFile(`${process.cwd()}/src/agent-teams/agent-teams.service.ts`, 'utf8');
 
@@ -522,6 +619,20 @@ test('run report archive download and delete request enforce team data scope and
       /@RequireResourceAcl\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'archiveId',\s*permissionCode: 'agent:team:view'\s*\}\)/s,
     );
   }
+});
+
+test('manual run report archive upload enforces upload permission and team resource guards', async () => {
+  const source = await readFile(`${process.cwd()}/src/agent-teams/agent-teams.controller.ts`, 'utf8');
+  const uploadSection = extractMethodSection(source, 'async uploadRunReportArchive');
+
+  assert.match(uploadSection, /@Post\(':id\/report\/archives\/upload'\)/);
+  assert.match(uploadSection, /@Permissions\('agent:team:report:upload'\)/);
+  assert.match(uploadSection, /@RequireDataScope\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'id'\s*\}\)/s);
+  assert.match(
+    uploadSection,
+    /@RequireResourceAcl\(\{\s*resourceType: 'AGENT_TEAM',\s*idParam: 'id',\s*permissionCode: 'agent:team:report:upload'\s*\}\)/s,
+  );
+  assert.match(uploadSection, /UploadAgentTeamRunReportArchiveDto/);
 });
 
 test('agent team run resource id resolves to owning team id before guard checks', async () => {

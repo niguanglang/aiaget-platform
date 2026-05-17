@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import {
   ActionMessage,
   BillingConfirmDialog,
+  BillingStatTile,
   BillingWorkspaceHeader,
   PageError,
   RefreshButton,
@@ -26,7 +27,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MetricCard } from '@/components/ui/metric-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getBillingOverview, updateBillingSubscription } from '@/lib/api-client';
 
@@ -61,7 +61,7 @@ export function BillingSubscriptionContent() {
   });
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+    <main className="mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-6 lg:px-6">
       <BillingWorkspaceHeader
         actions={<RefreshButton loading={billingQuery.isFetching} onClick={() => void billingQuery.refetch()} />}
         backHref="/billing"
@@ -76,10 +76,10 @@ export function BillingSubscriptionContent() {
       {actionMessage ? <ActionMessage>{actionMessage}</ActionMessage> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard helper="当前套餐" label="套餐名称" value={overview?.subscription?.plan_name ?? '暂无'} />
-        <MetricCard helper="subscription.status" label="订阅状态" value={overview?.subscription ? subscriptionStatusLabels[overview.subscription.status] : '暂无'} />
-        <MetricCard helper="billing_cycle" label="计费周期" value={overview?.subscription ? billingCycleLabels[overview.subscription.billing_cycle] : '暂无'} />
-        <MetricCard helper="当前账期消耗" label="周期成本" value={formatMoney(overview?.summary.current_period_cost)} />
+        <BillingStatTile detail="当前套餐" label="套餐名称" value={overview?.subscription?.plan_name ?? '暂无'} />
+        <BillingStatTile detail="当前订阅状态" label="订阅状态" value={overview?.subscription ? subscriptionStatusLabels[overview.subscription.status] : '暂无'} />
+        <BillingStatTile detail="当前计费周期" label="计费周期" value={overview?.subscription ? billingCycleLabels[overview.subscription.billing_cycle] : '暂无'} />
+        <BillingStatTile detail="当前账期消耗" label="周期成本" value={formatMoney(overview?.summary.current_period_cost)} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">

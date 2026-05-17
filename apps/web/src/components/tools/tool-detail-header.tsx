@@ -2,7 +2,6 @@
 
 import type { ToolDetail } from '@aiaget/shared-types';
 import { ArrowLeft, Copy, Edit, Power, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -35,12 +34,7 @@ export function ToolDetailHeader({
   onToggleStatus: () => void;
 }) {
   return (
-    <motion.section
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
-      initial={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.32, ease: 'easeOut' }}
-    >
+    <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div className="min-w-0">
         <Button asChild className="mb-4" size="sm" variant="outline">
           <Link href="/tools">
@@ -57,9 +51,7 @@ export function ToolDetailHeader({
         </div>
         <h1 className="break-words text-2xl font-semibold">{tool.name}</h1>
         <p className="mt-1 text-xs text-muted-foreground">{tool.code}</p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {tool.description ?? '暂无描述。'}
-        </p>
+        {tool.description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{tool.description}</p> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {canWrite ? (
@@ -88,6 +80,6 @@ export function ToolDetailHeader({
           删除
         </Button>
       </div>
-    </motion.section>
+    </section>
   );
 }

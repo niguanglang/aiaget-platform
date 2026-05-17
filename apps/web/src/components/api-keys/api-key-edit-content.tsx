@@ -154,12 +154,12 @@ export function ApiKeyEditContent({ apiKeyId }: { apiKeyId: string }) {
   });
 
   if (apiKeysQuery.isLoading) {
-    return <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6"><div className="h-80 rounded-lg border bg-muted/30" /></main>;
+    return <main className="mx-auto max-w-[1680px] px-4 py-6 lg:px-6"><div className="h-80 rounded-lg border bg-muted/30" /></main>;
   }
 
   if (!apiKey) {
     return (
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
+      <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
         <Button asChild className="w-fit" type="button" variant="outline"><Link href="/api-keys"><ArrowLeft className="size-4" />返回列表</Link></Button>
         <EmptyState description="该密钥不存在，或已被删除。" title="未找到 API Key" />
       </main>
@@ -167,8 +167,8 @@ export function ApiKeyEditContent({ apiKeyId }: { apiKeyId: string }) {
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+    <main className="mx-auto grid max-w-[1680px] gap-6 px-4 py-6 lg:px-6">
+      <section className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200/80 bg-white/[0.9] p-5 md:flex-row md:items-start">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="healthy">编辑配置</StatusBadge>

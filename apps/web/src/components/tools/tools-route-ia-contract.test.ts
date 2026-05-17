@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
 const toolsListSource = readFileSync(join(process.cwd(), 'src/components/tools/tool-content.tsx'), 'utf8');
 const toolDetailSource = readFileSync(join(process.cwd(), 'src/components/tools/tool-detail-content.tsx'), 'utf8');
 const toolsRoot = join(process.cwd(), 'src/components/tools');
+const productionComponentFiles = readdirSync(toolsRoot).filter(
+  (fileName) => fileName.endsWith('.tsx') && !fileName.endsWith('.test.tsx'),
+);
 
 function source(fileName: string) {
   return readFileSync(join(toolsRoot, fileName), 'utf8');
@@ -16,6 +19,21 @@ test('tool center route-level pages exist for list, create, detail, and edit', (
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/tools/create/page.tsx')));
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/tools/[id]/page.tsx')));
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/tools/[id]/edit/page.tsx')));
+});
+
+test('tool route production components use the wide white operations shell', () => {
+  for (const fileName of productionComponentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /motion\./, fileName);
+    assert.doesNotMatch(componentSource, /MetricCard/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+    assert.doesNotMatch(componentSource, /ToolCenterBackground|tool-center-background/, fileName);
+  }
+
+  assert.doesNotMatch(source('tool-detail-header.tsx'), /暂无描述/, 'tool-detail-header.tsx');
+  assert.ok(!existsSync(join(toolsRoot, 'tool-center-background.tsx')));
 });
 
 test('tool list page keeps detail, forms, and test panels out of the list surface', () => {

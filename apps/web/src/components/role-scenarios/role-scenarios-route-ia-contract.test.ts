@@ -5,10 +5,44 @@ import test from 'node:test';
 
 const root = process.cwd();
 const scenariosRoot = join(root, 'src/components/role-scenarios');
+const componentFiles = [
+  'role-scenarios-content.tsx',
+  'role-scenario-create-content.tsx',
+  'role-scenario-detail-content.tsx',
+  'role-scenario-edit-content.tsx',
+  'role-scenario-form-panel.tsx',
+];
+const pageShellFiles = [
+  'role-scenarios-content.tsx',
+  'role-scenario-create-content.tsx',
+  'role-scenario-detail-content.tsx',
+  'role-scenario-edit-content.tsx',
+  'role-scenario-form-panel.tsx',
+];
 
 function source(fileName: string) {
   return readFileSync(join(scenariosRoot, fileName), 'utf8');
 }
+
+test('role scenario pages do not depend on the old page shell', () => {
+  for (const fileName of componentFiles) {
+    const componentSource = source(fileName);
+
+    assert.doesNotMatch(componentSource, /\bMetricCard\b/, fileName);
+    assert.doesNotMatch(componentSource, /motion\/react/, fileName);
+    assert.doesNotMatch(componentSource, /\bRoleScenarioBackground\b/, fileName);
+    assert.doesNotMatch(componentSource, /max-w-7xl/, fileName);
+  }
+
+  for (const fileName of pageShellFiles) {
+    const componentSource = source(fileName);
+
+    assert.match(componentSource, /max-w-\[1680px\]/, fileName);
+    assert.match(componentSource, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/, fileName);
+  }
+
+  assert.equal(existsSync(join(scenariosRoot, 'role-scenario-background.tsx')), false);
+});
 
 test('role scenario center has separate list, create, detail, and edit routes', () => {
   assert.ok(existsSync(join(root, 'src/app/(console)/role-scenarios/page.tsx')));

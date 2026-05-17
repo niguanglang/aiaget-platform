@@ -20,7 +20,7 @@ export function ConsoleAuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6">
         <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground shadow-sm">
-          正在加载安全控制台...
+          正在加载工作台...
         </div>
       </main>
     );

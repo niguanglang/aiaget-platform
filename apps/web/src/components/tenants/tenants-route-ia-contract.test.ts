@@ -6,6 +6,11 @@ import test from 'node:test';
 const tenantsListSource = readFileSync(join(process.cwd(), 'src/components/tenants/tenants-content.tsx'), 'utf8');
 const tenantDetailSourcePath = join(process.cwd(), 'src/components/tenants/tenant-detail-content.tsx');
 const tenantEditSourcePath = join(process.cwd(), 'src/components/tenants/tenant-edit-content.tsx');
+const tenantProductionSources = [
+  tenantsListSource,
+  readFileSync(tenantDetailSourcePath, 'utf8'),
+  readFileSync(tenantEditSourcePath, 'utf8'),
+];
 
 test('tenant center route-level pages exist for list, detail, and edit', () => {
   assert.ok(existsSync(join(process.cwd(), 'src/app/(console)/tenants/page.tsx')));
@@ -34,4 +39,13 @@ test('tenant dedicated pages own detail and edit API workflows', () => {
   assert.doesNotMatch(detailSource, /\bupdateTenant\b/);
   assert.match(editSource, /\bgetTenant\b/);
   assert.match(editSource, /\bupdateTenant\b/);
+});
+
+test('tenant route production components use the operations shell without legacy visual wrappers', () => {
+  for (const source of tenantProductionSources) {
+    assert.doesNotMatch(source, /motion\/react/);
+    assert.doesNotMatch(source, /motion\./);
+    assert.doesNotMatch(source, /MetricCard/);
+    assert.doesNotMatch(source, /max-w-7xl/);
+  }
 });

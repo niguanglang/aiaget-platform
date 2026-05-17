@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { ChannelCenterBackground } from '@/components/channels/channel-center-background';
 import { ChannelAccountForm, type ChannelAccountFormValues } from '@/components/channels/channel-provider-account-forms';
 import { ChannelAlert, ChannelFocusedHeader, useChannelOperationPermissions } from '@/components/channels/channel-operations-pages';
 import { Button } from '@/components/ui/button';
@@ -53,8 +52,7 @@ export function ChannelAccountEditContent({ accountId }: { accountId: string }) 
   const providers = providersQuery.data?.items ?? [];
 
   return (
-    <main className="relative mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:px-6">
-      <ChannelCenterBackground />
+    <main className="mx-auto grid max-w-[1680px] gap-5 rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-5 shadow-sm lg:px-6">
       <ChannelFocusedHeader
         activeRoute="accounts"
         badge="编辑账号凭据"

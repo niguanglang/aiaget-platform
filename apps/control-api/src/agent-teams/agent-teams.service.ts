@@ -15,6 +15,7 @@ import type {
   AgentTeamRunReportArchiveApprovalItem,
   AgentTeamRunReportArchiveListResult,
   AgentTeamRunReportArchiveItem,
+  AgentTeamRunReportArchiveReportType,
   AgentTeamRunSummary,
   AgentTeamStepItem,
   ConversationReferenceItem,
@@ -49,6 +50,7 @@ import type { ReviewAgentTeamHandoffDto } from './dto/review-agent-team-handoff.
 import type { StartAgentTeamRunDto } from './dto/start-agent-team-run.dto';
 import type { UpdateAgentTeamDto } from './dto/update-agent-team.dto';
 import type { UpdateAgentTeamMemberDto } from './dto/update-agent-team-member.dto';
+import type { UploadAgentTeamRunReportArchiveDto } from './dto/upload-agent-team-run-report-archive.dto';
 
 const RUNTIME_BASE_URL = requireEnv('RUNTIME_BASE_URL');
 const CONTROL_API_INTERNAL_BASE_URL = requireEnv('CONTROL_API_INTERNAL_BASE_URL');
@@ -57,6 +59,16 @@ const AGENT_TEAM_WORKFLOW_MODE = normalizeWorkflowMode(process.env.AGENT_TEAM_WO
 const WORKFLOW_REQUEST_TIMEOUT_MS = 5000;
 const AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX = 'agent-team-run-reports';
 const AGENT_TEAM_RUN_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN = 300;
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_ALLOWED_EXTENSIONS = new Set(['PDF', 'DOCX', 'XLSX', 'PPTX', 'CSV']);
+const AGENT_TEAM_RUN_REPORT_ARCHIVE_ALLOWED_CONTENT_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/csv',
+  'application/csv',
+]);
 
 const teamInclude = {
   owner: true,
@@ -1004,11 +1016,123 @@ export class AgentTeamsService {
     };
   }
 
+  async uploadRunReportArchive(
+    currentUser: AuthenticatedUser,
+    teamId: string,
+    dto: UploadAgentTeamRunReportArchiveDto,
+  ): Promise<CreateAgentTeamRunReportArchiveResult> {
+    const team = await this.prisma.agentTeam.findFirst({
+      where: {
+        tenantId: currentUser.tenantId,
+        id: teamId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Agent 协作团队不存在。');
+    }
+
+    const run = dto.run_id
+      ? await this.prisma.agentTeamRun.findFirst({
+          where: {
+            tenantId: currentUser.tenantId,
+            id: dto.run_id,
+            teamId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            objective: true,
+            traceId: true,
+          },
+        })
+      : null;
+
+    if (dto.run_id && !run) {
+      throw new BadRequestException('关联运行记录不存在。');
+    }
+
+    const fileName = sanitizeReportArchiveFileName(dto.file_name);
+    const fileType = reportArchiveFileType(fileName);
+    const contentType = normalizeReportArchiveContentType(dto.content_type, fileType);
+    const buffer = decodeReportArchiveBase64Payload(dto.content_base64);
+    if (buffer.byteLength > AGENT_TEAM_RUN_REPORT_ARCHIVE_MAX_UPLOAD_BYTES) {
+      throw new BadRequestException('报告文件超过 25MB 上传限制。');
+    }
+
+    const archiveReason = nullableText(dto.archive_reason);
+    const createdAt = new Date();
+    const archiveKey = `${AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX}/${teamId}/manual/${createdAt.toISOString().replace(/[:.]/g, '-')}-${slugReportArchiveFileName(fileName)}`;
+    const item = await this.storageService.putTenantObject({
+      tenantId: currentUser.tenantId,
+      key: archiveKey,
+      body: buffer,
+      contentType,
+      metadata: {
+        archive_type: 'agent_team_manual_report',
+        archive_source: 'MANUAL_UPLOAD',
+        team_id: teamId,
+        ...(run?.id ? { run_id: run.id } : {}),
+        report_type: dto.report_type,
+        original_name: fileName,
+        created_by: currentUser.id,
+        ...(archiveReason ? { archive_reason: archiveReason } : {}),
+      },
+    });
+    const mappedItem = mapAgentTeamRunReportArchive(item);
+
+    await this.recordRunReportArchiveAuditEvent({
+      tenantId: currentUser.tenantId,
+      sourceId: agentTeamRunReportArchiveSourceIdFromKey(mappedItem.key),
+      eventType: 'MANUAL_UPLOADED',
+      eventStatus: 'SUCCESS',
+      title: '团队报告归档已上传',
+      note: archiveReason,
+      requestId: currentUser.requestId ?? null,
+      traceId: currentUser.traceId ?? run?.traceId ?? null,
+      metadata: {
+        archive_id: mappedItem.id,
+        archive_key: mappedItem.key,
+        archive_file_name: mappedItem.file_name,
+        archive_size_bytes: mappedItem.size_bytes,
+        archive_source: 'MANUAL_UPLOAD',
+        report_type: dto.report_type,
+        archive_reason: archiveReason,
+        original_name: fileName,
+        team_id: team.id,
+        team_name: team.name,
+        run_id: run?.id ?? null,
+        run_objective: run?.objective ?? null,
+      },
+      actorId: currentUser.id,
+    });
+
+    return {
+      item: {
+        ...mappedItem,
+        source: 'MANUAL_UPLOAD',
+        report_type: dto.report_type,
+        archive_reason: archiveReason,
+        team_id: team.id,
+        team_name: team.name,
+        run_id: run?.id ?? null,
+        run_objective: run?.objective ?? null,
+        created_by: currentUser.id,
+      },
+    };
+  }
+
   async listRunReportArchives(currentUser: AuthenticatedUser): Promise<AgentTeamRunReportArchiveListResult> {
     const items = (await this.storageService.listTenantObjects({
       tenantId: currentUser.tenantId,
       prefix: AGENT_TEAM_RUN_REPORT_ARCHIVE_PREFIX,
       limit: 200,
+      includeMetadata: true,
     })).map(mapAgentTeamRunReportArchive);
 
     return {
@@ -3510,22 +3634,29 @@ function mapAgentTeamRunReportArchive(item: {
   size_bytes: number;
   etag: string | null;
   last_modified: string | null;
+  metadata?: Record<string, string>;
 }): AgentTeamRunReportArchiveItem {
   const metadata = parseRunReportArchiveKey(item.key);
+  const objectMetadata = item.metadata ?? {};
+  const source = objectMetadata.archive_source === 'MANUAL_UPLOAD' ? 'MANUAL_UPLOAD' : 'SYSTEM_GENERATED';
+  const reportType = normalizeReportArchiveReportType(objectMetadata.report_type);
   return {
     id: Buffer.from(item.key, 'utf8').toString('base64url'),
     key: item.key,
-    file_name: item.file_name,
+    file_name: objectMetadata.original_name || item.file_name,
     folder: item.folder,
     size_bytes: item.size_bytes,
     etag: item.etag,
     last_modified: item.last_modified,
     download_expires_in: AGENT_TEAM_RUN_REPORT_ARCHIVE_DOWNLOAD_EXPIRES_IN,
-    team_id: metadata.teamId,
+    team_id: objectMetadata.team_id ?? metadata.teamId,
     team_name: null,
-    run_id: metadata.runId,
+    run_id: objectMetadata.run_id ?? metadata.runId,
     run_objective: null,
-    created_by: null,
+    created_by: objectMetadata.created_by ?? null,
+    source,
+    report_type: reportType,
+    archive_reason: objectMetadata.archive_reason ?? null,
   };
 }
 
@@ -3636,6 +3767,59 @@ function agentTeamRunReportArchiveKeyFromId(archiveId: string) {
 
 function agentTeamRunReportArchiveSourceIdFromKey(key: string) {
   return uuidFromText(`agent-team-run-report-archive:${key}`);
+}
+
+function normalizeReportArchiveReportType(value: string | null | undefined): AgentTeamRunReportArchiveReportType | null {
+  if (value === 'ACCEPTANCE' || value === 'OPERATION' || value === 'ANALYSIS' || value === 'CUSTOM') return value;
+  return null;
+}
+
+function sanitizeReportArchiveFileName(value: string) {
+  const normalized = value.replaceAll('\\', '/').split('/').pop()?.trim();
+  if (!normalized) {
+    throw new BadRequestException('报告文件名不能为空。');
+  }
+
+  return normalized.replace(/[^\w.\-\u4e00-\u9fa5() ]/g, '_');
+}
+
+function slugReportArchiveFileName(value: string) {
+  return sanitizeReportArchiveFileName(value)
+    .replace(/\s+/g, '-')
+    .replace(/[^\w.\-\u4e00-\u9fa5()]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function reportArchiveFileType(fileName: string) {
+  const extension = fileName.split('.').pop()?.toUpperCase() ?? '';
+  if (!AGENT_TEAM_RUN_REPORT_ARCHIVE_ALLOWED_EXTENSIONS.has(extension)) {
+    throw new BadRequestException('仅支持 PDF、DOCX、XLSX、PPTX、CSV 报告文件。');
+  }
+  return extension;
+}
+
+function normalizeReportArchiveContentType(value: string | null | undefined, fileType: string) {
+  const trimmed = value?.trim();
+  const fallback = reportArchiveContentTypeFromExtension(fileType);
+  if (!trimmed) return fallback;
+  if (!AGENT_TEAM_RUN_REPORT_ARCHIVE_ALLOWED_CONTENT_TYPES.has(trimmed)) {
+    throw new BadRequestException('报告文件类型不支持。');
+  }
+  return trimmed;
+}
+
+function reportArchiveContentTypeFromExtension(fileType: string) {
+  if (fileType === 'PDF') return 'application/pdf';
+  if (fileType === 'DOCX') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (fileType === 'XLSX') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  if (fileType === 'PPTX') return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  return 'text/csv';
+}
+
+function decodeReportArchiveBase64Payload(value: string) {
+  const raw = value.includes(',') ? value.slice(value.indexOf(',') + 1) : value;
+  return Buffer.from(raw, 'base64');
 }
 
 function uuidFromText(value: string) {

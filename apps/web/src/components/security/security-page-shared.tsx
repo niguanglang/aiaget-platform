@@ -18,6 +18,27 @@ import { StatusBadge } from '@/components/ui/status-badge';
 
 export type SecurityStatusTone = ComponentProps<typeof StatusBadge>['tone'];
 
+export const SECURITY_PAGE_SHELL_CLASS =
+  'mx-auto grid max-w-[1680px] gap-6 rounded-xl border border-slate-200/80 bg-white/[0.9] p-4 shadow-sm lg:p-6';
+
+export function SecurityStatTile({
+  helper,
+  label,
+  value,
+}: {
+  helper?: ReactNode;
+  label: ReactNode;
+  value: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white/[0.9] px-4 py-3">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-muted-foreground">{helper}</div> : null}
+    </div>
+  );
+}
+
 export function SecurityWorkspaceHeader({
   actions,
   badge,

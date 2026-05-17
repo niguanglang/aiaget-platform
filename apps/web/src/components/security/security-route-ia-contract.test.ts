@@ -6,7 +6,9 @@ import test from 'node:test';
 const root = process.cwd();
 const overviewRoutePath = join(root, 'src/app/(console)/security/page.tsx');
 const eventDetailRoutePath = join(root, 'src/app/(console)/security/events/[eventId]/page.tsx');
+const overviewComponentPath = join(root, 'src/components/security/security-overview-content.tsx');
 const eventDetailComponentPath = join(root, 'src/components/security/security-event-detail-content.tsx');
+const sharedComponentPath = join(root, 'src/components/security/security-page-shared.tsx');
 const childRoutes = ['policies', 'events', 'alerts', 'recovery', 'archives'] as const;
 const childComponents = {
   policies: join(root, 'src/components/security/security-policies-content.tsx'),
@@ -30,7 +32,6 @@ test('security overview route renders the lightweight SecurityOverviewContent en
 });
 
 test('security overview component stays a governance entry instead of a list workspace', () => {
-  const overviewComponentPath = join(root, 'src/components/security/security-overview-content.tsx');
   const legacyAggregatePath = join(root, 'src/components/security/security-policy-content.tsx');
 
   assert.ok(existsSync(overviewComponentPath));
@@ -52,6 +53,24 @@ test('security overview component stays a governance entry instead of a list wor
   assert.doesNotMatch(source, /listSecurityPolicies/);
   assert.doesNotMatch(source, /listSecurityCenterEvents/);
   assert.doesNotMatch(source, /listSecurityApprovalWorkbenchItems/);
+});
+
+test('security route production IA uses the unified wide operations shell without legacy animated chrome', () => {
+  const productionComponentPaths = [
+    overviewComponentPath,
+    ...Object.values(childComponents),
+    eventDetailComponentPath,
+    sharedComponentPath,
+  ];
+
+  for (const sourcePath of productionComponentPaths) {
+    const source = readSource(sourcePath);
+
+    assert.doesNotMatch(source, /\bMetricCard\b/, sourcePath);
+    assert.doesNotMatch(source, /max-w-7xl/, sourcePath);
+    assert.doesNotMatch(source, /SecurityPolicyBackground|security-policy-background/, sourcePath);
+    assert.doesNotMatch(source, /motion\/react|\bmotion\./, sourcePath);
+  }
 });
 
 test('security child route pages and component files exist', () => {

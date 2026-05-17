@@ -55,7 +55,11 @@ test('high-frequency console pages keep concise operational labels', () => {
   const approvalSource = readFileSync(join(process.cwd(), 'src/components/approvals/approval-content.tsx'), 'utf8');
   const securitySource = readFileSync(join(process.cwd(), 'src/components/security/security-overview-content.tsx'), 'utf8');
 
-  assert.match(dashboardSource, /系统概览/);
+  assert.match(dashboardSource, /工作台/);
+  assert.doesNotMatch(dashboardSource, /运营工作台/);
+  assert.doesNotMatch(dashboardSource, /集中查看/);
+  assert.doesNotMatch(dashboardSource, /系统概览/);
+  assert.doesNotMatch(dashboardSource, /当前账号/);
   assert.match(menuSource, /菜单中心/);
   assert.match(roleSource, /角色权限中心/);
   assert.match(userSource, /用户管理中心/);

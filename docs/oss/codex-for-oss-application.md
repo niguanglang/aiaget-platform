@@ -21,7 +21,7 @@ Official OpenAI pages:
 - [x] `.env` and generated local artifacts ignored
 - [x] GitHub repository created and set to public
 - [ ] GitHub private vulnerability reporting enabled
-- [ ] Repository description, topics, and homepage filled in
+- [x] Repository description and topics filled in
 - [ ] Current worktree reviewed so only intended source, docs, and assets are committed
 - [ ] CI is green on the public default branch
 

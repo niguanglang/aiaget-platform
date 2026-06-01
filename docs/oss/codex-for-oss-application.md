@@ -23,7 +23,7 @@ Official OpenAI pages:
 - [ ] GitHub private vulnerability reporting enabled
 - [x] Repository description and topics filled in
 - [ ] Current worktree reviewed so only intended source, docs, and assets are committed
-- [ ] CI is green on the public default branch
+- [x] CI is green on the public default branch
 
 ## Application Draft
 

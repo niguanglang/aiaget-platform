@@ -20,10 +20,13 @@ Official OpenAI pages:
 - [x] CI workflow for static checks and tests
 - [x] `.env` and generated local artifacts ignored
 - [x] GitHub repository created and set to public
-- [ ] GitHub private vulnerability reporting enabled
+- [ ] GitHub private vulnerability reporting enabled, if available for the repository
 - [x] Repository description and topics filled in
-- [ ] Current worktree reviewed so only intended source, docs, and assets are committed
+- [x] Public branch reviewed so only intended source, docs, and assets are committed
 - [x] CI is green on the public default branch
+- [x] Public branch privacy scan completed for exposed local IPs and default credentials
+- [ ] Applicant GitHub profile is public and shows repository ownership or maintainer identity
+- [ ] Applicant has a valid ChatGPT account and OpenAI organization ID ready for the form
 
 ## Application Draft
 
@@ -85,9 +88,42 @@ Owner/maintainer of the AIAGET repository.
 Project importance metrics:
 
 ```text
-After the repository is public, add the current GitHub stars, forks, open
-issues, contributors, package downloads if any, and a short note explaining
-why AIAGET matters for self-hosted enterprise agent operations.
+Current GitHub metrics as of 2026-06-01:
+- Stars: 2
+- Forks: 0
+- Open issues: 0
+- Default branch: master
+- License: MIT
+- Latest public CI: passing on commit 60baf95008e78f94ab5b36572424d6ebeb888f94
+
+AIAGET matters because it is a self-hostable enterprise agent operations
+platform with real maintenance surfaces across frontend, backend, runtime,
+database schema, deployment templates, and contract tests. It is useful for
+teams that need agent governance, model-provider management, RAG operations,
+tool approvals, audit logs, and production observability without relying on a
+closed SaaS control plane.
+```
+
+Current repository status:
+
+```text
+Visibility: public
+Repository: https://github.com/niguanglang/aiaget-platform
+Description: Self-hosted enterprise agent platform for model governance, RAG,
+tools, approvals, conversations, audit logs, and runtime observability.
+Topics: agent-platform, ai-agents, fastapi, langgraph, model-governance,
+nestjs, nextjs, observability, python, rag, typescript
+Latest CI run: https://github.com/niguanglang/aiaget-platform/actions/runs/26738986212
+```
+
+Requested API credit usage:
+
+```text
+We plan to use API credits for open source maintainer workflows: reviewing pull
+requests across the TypeScript/Python monorepo, generating and repairing
+contract tests, improving deployment documentation, triaging security-sensitive
+agent workflow changes, and automating release-readiness checks for
+self-hosted deployments.
 ```
 
 Verification commands to mention if requested:
@@ -107,3 +143,8 @@ pnpm verify:prod-template
 3. Review images, example data, docs, and commit history for private data.
 4. Enable GitHub security features available for public repositories.
 5. Submit the OpenAI form with the public repository URL.
+
+OpenAI's program terms state that selection is not guaranteed. Approval may
+depend on repository usage, ecosystem importance, active maintenance evidence,
+maintainer role or permissions, program capacity, and any verification OpenAI
+requests.

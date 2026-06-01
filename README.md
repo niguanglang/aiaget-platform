@@ -2,7 +2,19 @@
 
 Enterprise Agent Platform is a private-deployable platform for managing agents, models, prompts, knowledge bases, tools, conversations, audit logs, and runtime observability.
 
+AIAGET is open source under the [MIT License](./LICENSE). The repository is intended to be usable as a self-hosted reference implementation and as a collaboration point for agent operations, model governance, RAG, approval workflows, and production observability.
+
 This repository is currently in the **P0 production closure phase**. It contains the monorepo foundation, protected Web Console shell, real JWT authentication, tenant context, user CRUD, RBAC foundation, login logs, operation logs, tenant-scoped Agent configuration with versioned publish workflows, model provider/configuration management with masked API keys and call logs, prompt template management with variables, versions, rollback, render checks, provider-backed live prompt testing, knowledge base management with document ingestion, segmentation, hybrid retrieval tests, task records, HTTP tool management with schema validation, risk policy, live test calls, persisted conversation threads with runtime traces, step-level run observability, tool-call summaries, feedback, a real monitor center with run-step aggregation and filtering, a real audit center that now includes billing platform events for close-won adjustment traceability, a real settings center, a dashboard backed by real aggregates and run-step drilldown, streamed assistant responses on conversation detail, real agent resource bindings for models, prompts, knowledge bases, and tools, inline agent detail runtime testing backed by the conversation module, a real approval center for high-risk tool execution, provider-backed real model execution for conversation and compatibility test flows, live knowledge retrieval citations persisted back into conversations, provider-backed embedding retrieval with local vector fallback, a remote MinIO-backed storage center with bucket initialization and tenant-scoped file management, knowledge document upload that stores original source files in MinIO, Qdrant-backed knowledge vector indexing with PostgreSQL fallback, OpenSearch-backed keyword indexing for true Qdrant + OpenSearch hybrid retrieval, queued background knowledge processing with a Temporal-ready task dispatch boundary, LangGraph-shaped Runtime execution for conversation turns with Runtime-owned model calls, real provider SSE streaming, Runtime multi-model adapters, Control API persistence fallback modes, and OpenTelemetry-compatible trace ID propagation across Web, Control API, Runtime, model calls, RAG, tools, logs, and monitor events.
+
+## Open Source Readiness
+
+- License: [MIT](./LICENSE)
+- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Security policy: [SECURITY.md](./SECURITY.md)
+- Support policy: [SUPPORT.md](./SUPPORT.md)
+- OpenAI Codex for OSS application notes: [docs/oss/codex-for-oss-application.md](./docs/oss/codex-for-oss-application.md)
+
+Do not commit real `.env` files, API keys, private keys, production database URLs, customer data, or screenshots containing private information. Example environment files use placeholder values only.
 
 ## Workspace
 
@@ -132,6 +144,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - API notes: [docs/api](./docs/api/README.md)
 - External API SDK: [docs/api/external-api-sdk.md](./docs/api/external-api-sdk.md)
 - Architecture notes: [docs/architecture](./docs/architecture/README.md)
+- OSS publishing notes: [docs/oss/codex-for-oss-application.md](./docs/oss/codex-for-oss-application.md)
 
 Runtime execution mode is controlled by `AGENT_RUNTIME_EXECUTION_MODE`:
 
@@ -148,6 +161,9 @@ tenant code: default
 email: oss-admin-7f4c2a@local.invalid
 password: AIAgetDev!9sK4pQ7m
 ```
+
+These credentials are for local development only. Change all secrets, service
+passwords, and administrator credentials before running any shared environment.
 
 Implemented Control API routes:
 

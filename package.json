@@ -1,7 +1,9 @@
 {
   "name": "aiaget",
   "version": "0.1.0",
+  "description": "Private-deployable enterprise agent platform for agents, model governance, RAG, tools, approvals, and observability.",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "build": "pnpm -r --if-present build",

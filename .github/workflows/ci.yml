@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Node checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: |
+          pnpm --filter @aiaget/shared-types build
+          node --test scripts/tests/*.test.mjs
+          pnpm --filter @aiaget/control-api test
+          pnpm --filter @aiaget/web test:ia
+          pnpm --filter @aiaget/external-api-sdk test
+
+  runtime:
+    name: Agent Runtime checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install -r apps/agent-runtime/requirements.txt pytest
+
+      - name: Compile runtime
+        run: python3 -m compileall apps/agent-runtime/app
+
+      - name: Test runtime
+        run: python3 -m pytest apps/agent-runtime/tests

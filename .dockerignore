@@ -6,11 +6,15 @@ build
 coverage
 .turbo
 tmp
+login-page*.png
+images/layout-audit/
 .env
 .env.*
 !.env.example
 !.env.production.example
 *.log
+playwright-report
+test-results
 *.tsbuildinfo
 __pycache__
 .pytest_cache

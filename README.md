@@ -10,11 +10,20 @@ This repository is currently in the **P0 production closure phase**. It contains
 
 - License: [MIT](./LICENSE)
 - Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Governance: [GOVERNANCE.md](./GOVERNANCE.md)
+- Maintainers: [MAINTAINERS.md](./MAINTAINERS.md)
 - Security policy: [SECURITY.md](./SECURITY.md)
 - Support policy: [SUPPORT.md](./SUPPORT.md)
+- Maintenance policy: [docs/oss/maintenance-policy.md](./docs/oss/maintenance-policy.md)
+- Release management: [docs/oss/release-management.md](./docs/oss/release-management.md)
+- Open source roadmap: [docs/oss/roadmap.md](./docs/oss/roadmap.md)
 - OpenAI Codex for OSS application notes: [docs/oss/codex-for-oss-application.md](./docs/oss/codex-for-oss-application.md)
 
 Do not commit real `.env` files, API keys, private keys, production database URLs, customer data, or screenshots containing private information. Example environment files use placeholder values only.
+
+Maintainer operations are documented publicly so reviewers and contributors can
+see how issues are triaged, pull requests are reviewed, releases are managed,
+and security-sensitive responsibilities are handled.
 
 ## Workspace
 

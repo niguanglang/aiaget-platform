@@ -36,11 +36,29 @@ python3 -m pytest tests
 - Open an issue first for large behavior changes, new modules, or changes that
   affect deployment, authentication, security boundaries, or data migrations.
 - Keep pull requests scoped to one clear problem.
+- Explain affected areas, risk, verification commands, and release impact.
 - Update docs when behavior, configuration, deployment steps, or public APIs
   change.
 - Add or update tests for bug fixes and user-facing behavior.
 - Never commit real `.env` files, private keys, production credentials, or
   customer data. Use placeholder values in example files.
+- Expect additional review for authentication, tenant isolation, RBAC, resource
+  ACL, secret handling, SSRF, tool execution, plugin, storage, migration, and
+  deployment-template changes.
+
+Maintainers use [GOVERNANCE.md](./GOVERNANCE.md),
+[MAINTAINERS.md](./MAINTAINERS.md), and
+[docs/oss/maintenance-policy.md](./docs/oss/maintenance-policy.md) to guide PR
+review, issue triage, and release responsibilities.
+
+## Issue Triage
+
+Use the bug or feature templates and include the smallest reproducible case.
+Maintainers triage issues by affected area, severity, release impact, and
+whether the report contains enough sanitized evidence to act on.
+
+Do not open public issues for vulnerabilities or suspected credential leaks.
+Use the private reporting process in [SECURITY.md](./SECURITY.md).
 
 ## Verification
 

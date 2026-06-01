@@ -16,6 +16,7 @@ Official OpenAI pages:
 - [x] Security disclosure process in `SECURITY.md`
 - [x] Code of conduct in `CODE_OF_CONDUCT.md`
 - [x] Support policy in `SUPPORT.md`
+- [x] Governance, maintainer, maintenance, release, and roadmap docs
 - [x] GitHub issue and pull request templates
 - [x] CI workflow for static checks and tests
 - [x] `.env` and generated local artifacts ignored
@@ -77,6 +78,18 @@ retrieval, tool approvals, conversation tracing, auditability, and production
 observability. Opening the repository allows maintainers and adopters to
 inspect the implementation, reproduce deployments, file issues, and contribute
 connectors, tests, and runtime improvements.
+```
+
+Active maintenance evidence:
+
+```text
+AIAGET now publishes maintainer and governance documentation in
+GOVERNANCE.md, MAINTAINERS.md, docs/oss/maintenance-policy.md,
+docs/oss/release-management.md, and docs/oss/roadmap.md. These files describe
+the maintainer role, PR review expectations, issue triage categories, release
+blockers, release checklist, security-sensitive review areas, and near-term
+roadmap. The repository also includes structured issue templates, a PR review
+template, CI on the default branch, and product milestone docs.
 ```
 
 Maintainer role:

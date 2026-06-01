@@ -27,6 +27,33 @@ body:
     attributes:
       label: Commit or version
       placeholder: 'commit SHA, branch, or release'
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Affected area
+      options:
+        - Web Console
+        - Control API
+        - Agent Runtime
+        - SDK / packages
+        - Deployment / production template
+        - Documentation
+        - Security-sensitive workflow
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Blocks deployment or release
+        - Breaks a core user workflow
+        - Security or tenant isolation concern
+        - Regression with workaround
+        - Minor defect
+    validations:
+      required: true
   - type: textarea
     id: environment
     attributes:

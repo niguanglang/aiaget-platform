@@ -27,3 +27,8 @@ body:
     attributes:
       label: Affected areas
       description: Web, Control API, Runtime, SDK, deployment, docs, or other areas.
+  - type: textarea
+    id: maintenance
+    attributes:
+      label: Maintenance impact
+      description: Note expected tests, docs, migration, release, or security review needs.

@@ -644,7 +644,7 @@ test('customer success opportunity close won report exports markdown for offline
 
   const markdown = await service.exportCloseWonReportMarkdown(currentUser, 'opportunity-1');
 
-  assert.match(markdown, /^# 成交复盘报告：华中设计院二期续约扩展机会/m);
+  assert.match(markdown, /^\uFEFF?# 成交复盘报告：华中设计院二期续约扩展机会/m);
   assert.match(markdown, /## 客户价值复盘/);
   assert.match(markdown, /## 来源链路/);
   assert.match(markdown, /## 入账追踪/);
@@ -784,7 +784,7 @@ test('customer success opportunity close won report archive stores markdown and 
   assert.equal(storedObjects[0]?.contentType, 'text/markdown; charset=utf-8');
   assert.match(storedObjects[0]?.key ?? '', /^customer-success-close-won-reports\/opportunity-1\//);
   assert.match(storedObjects[0]?.key ?? '', /\.md$/);
-  assert.match(String(storedObjects[0]?.body ?? ''), /^# 成交复盘报告：华中设计院二期续约扩展机会/m);
+  assert.match(String(storedObjects[0]?.body ?? ''), /^\uFEFF?# 成交复盘报告：华中设计院二期续约扩展机会/m);
   assert.equal(storedObjects[0]?.metadata?.archive_type, 'customer_success_close_won_report');
   assert.equal(storedObjects[0]?.metadata?.opportunity_id, 'opportunity-1');
   assert.equal(result.item.opportunity_id, 'opportunity-1');

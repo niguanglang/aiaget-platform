@@ -12,12 +12,12 @@ test('default menu seed includes approval audit and billing uses billing permiss
 });
 
 test('default menu seed groups pages by business domains', () => {
-  assert.match(seedText, /code: 'agent_platform'[\s\S]*name: 'Agent 平台'[\s\S]*type: 'DIRECTORY'/);
+  assert.match(seedText, /code: 'agent_platform'[\s\S]*name: 'Agent 中心'[\s\S]*type: 'DIRECTORY'/);
   assert.match(seedText, /code: 'customer_delivery'[\s\S]*name: '客户落地运营'[\s\S]*type: 'DIRECTORY'/);
-  assert.match(seedText, /code: 'channel_operations'[\s\S]*name: '渠道运营'[\s\S]*type: 'DIRECTORY'/);
+  assert.match(seedText, /code: 'channel_operations'[\s\S]*name: '渠道发布'[\s\S]*type: 'DIRECTORY'/);
   assert.match(seedText, /code: 'plugin_ecosystem'[\s\S]*name: '插件生态'[\s\S]*type: 'DIRECTORY'/);
   assert.match(seedText, /code: 'external_access'[\s\S]*name: '外部接入'[\s\S]*type: 'DIRECTORY'/);
-  assert.match(seedText, /code: 'observability_center'[\s\S]*name: '监控与可观测性'[\s\S]*type: 'DIRECTORY'/);
+  assert.match(seedText, /code: 'observability_center'[\s\S]*name: '可观测中心'[\s\S]*type: 'DIRECTORY'/);
   assert.match(seedText, /const retiredMenuCodes = \['agent_center'\] as const/);
   assert.match(seedText, /code: \{\s*in: \[\.\.\.retiredMenuCodes\]/);
 });

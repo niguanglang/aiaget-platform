@@ -55,7 +55,7 @@ test('menu pages use the operations shell without legacy decoration dependencies
     assert.match(source, /rounded-xl border border-slate-200\/80 bg-white\/\[0\.9\]/);
   }
 
-  for (const [fileName, source] of menuComponentSources) {
+  for (const [, source] of menuComponentSources) {
     assert.doesNotMatch(source, /MetricCard/);
     assert.doesNotMatch(source, /motion\/react/);
     assert.doesNotMatch(source, /MenuCenterBackground/);

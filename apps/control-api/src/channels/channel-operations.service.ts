@@ -1092,8 +1092,6 @@ function mapTemplate(template: TemplateRecord): ChannelTemplateItem {
 }
 
 function mapRouteRule(rule: RouteRuleRecord): ChannelRouteRuleItem {
-  const matchConfig = normalizeRecord(rule.matchConfig);
-  const targetConfig = normalizeRecord(rule.targetConfig);
   const safeMatchConfig = redactChannelConfig(rule.matchConfig);
   const safeTargetConfig = redactChannelConfig(rule.targetConfig);
   const channel = rule.publishChannels[0];

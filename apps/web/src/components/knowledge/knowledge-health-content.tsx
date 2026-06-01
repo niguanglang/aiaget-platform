@@ -6,7 +6,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   AlertCircle,
   ArrowLeft,
-  CheckCircle2,
   Database,
   FileText,
   Gauge,
@@ -14,7 +13,6 @@ import {
   LockKeyhole,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
   Target,
 } from 'lucide-react';

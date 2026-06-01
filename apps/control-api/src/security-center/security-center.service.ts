@@ -51,7 +51,6 @@ import {
   type SecurityPolicyDecision,
   type SecurityPolicyEvaluationItem,
   type StorageDownloadUrlResult,
-  type StorageObjectItem,
 } from '@aiaget/shared-types';
 
 import type { AuthenticatedUser } from '../common/types/request-context';

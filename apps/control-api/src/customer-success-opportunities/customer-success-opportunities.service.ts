@@ -1668,8 +1668,6 @@ function mapCustomerSuccessCloseWonReportArchive(item: {
 
 function parseCloseWonReportArchiveKey(key: string) {
   const parts = key.split('/');
-  const fileName = parts.at(-1) ?? '';
-  const fileNameWithoutExtension = fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName;
   const opportunityId = parts.length >= 3 && parts[0] === CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX ? parts[1] ?? null : null;
   const opportunityCode = parts.length >= 4 && parts[0] === CUSTOMER_SUCCESS_CLOSE_WON_REPORT_ARCHIVE_PREFIX ? parts[2] ?? null : null;
 
